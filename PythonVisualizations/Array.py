@@ -124,20 +124,18 @@ class Ball:
             self.xspeed = -self.xspeed
 
 
-def main():
-    array = Array()
-    for i in range(10):
-        array.append(i)
 
-    array.display()
+array = Array()
+for i in range(10):
+    array.append(i)
 
-    time.sleep(1)
+array.display()
 
-    array.find(6)
+time.sleep(1)
 
-    window.mainloop()
+array.find(6)
 
-main()
+window.mainloop()
 
 '''
 To Do:
