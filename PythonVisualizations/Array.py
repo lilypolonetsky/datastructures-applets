@@ -193,7 +193,10 @@ class Array(object):
         self.display()
 
     def shuffle(self):
-        pass
+        #random.shuffle(self.list)
+        #self.display()
+        for i in range(10):
+            self.swap(random.randrange(0, len(self.list)), random.randrange(0, len(self.list)))
 
     def insertElement(self, val):
         '''
@@ -474,6 +477,19 @@ clean()
 #array.insertionSort()
 #array.bubbleSort()
 array.selectionSort()
+time.sleep(1)
+
+
+array.shuffle()
+time.sleep(1)
+
+array.insertionSort()
+time.sleep(1)
+
+array.shuffle()
+time.sleep(1)
+
+array.bubbleSort()
 
 window.mainloop()
 
