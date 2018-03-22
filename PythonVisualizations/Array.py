@@ -5,6 +5,8 @@ import random
 WIDTH = 800
 HEIGHT = 600
 
+CELL_SIZE = 50
+
 window = Tk()
 frame = Frame(window)
 frame.pack()
@@ -54,6 +56,7 @@ class Array(object):
         self.list = []
         self.arrow = None
         self.foundBox = None
+        self.drawnObjects = []
 
     def get(self, index):
         try:
@@ -71,16 +74,22 @@ class Array(object):
         Array.nextColor = (Array.nextColor + 1) % len(Array.colors)
         self.display()
 
-    def delete(self):
+    def removeFromEnd(self):
         self.list.pop()
+        self.display()
+
+    def clear(self):
+        for o in self.drawnObjects:
+            canvas.delete(o)
 
     def display(self):
+        self.clear()
         xpos = 50
         ypos = 50
         for n in self.list:
             print(n)
-            canvas.create_rectangle(xpos, ypos, xpos+50, ypos+50, fill=n[1])
-            canvas.create_text(xpos+25, ypos+25, text=n[0], font=('Helvetica', '20'))
+            self.drawnObjects.append( canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1]) )
+            self.drawnObjects.append( canvas.create_text(xpos+25, ypos+25, text=n[0], font=('Helvetica', '20')) )
             xpos += 50
         window.update()
 
@@ -97,7 +106,7 @@ class Array(object):
         for n in self.list:
             if n[0] == val:
                 pos = canvas.coords(arrow)
-                self.foundBox = canvas.create_rectangle(pos[0]-(x-50), 50, pos[2]+(x-50), 100, fill='', outline="green2", width="5")
+                self.foundBox = canvas.create_rectangle(pos[0]-(x-CELL_SIZE), 50, pos[2]+(x-50), 100, fill='', outline="green2", width="5")
                 return True
             self.display()
             time.sleep(1)
@@ -107,6 +116,28 @@ class Array(object):
 
     def drawArrow(self, x0, y0, x1, y1):
         return canvas.create_line(x0, y0, x1, y1, arrow="last")
+
+    def remove(self, index):
+        self.list.pop(3)
+        self.display()
+
+    def shuffle(self):
+        pass
+
+    def split(self):
+        pass
+
+    def merge(self, other):
+        pass
+
+    def removeElement(self, index):
+        pass
+
+    def insertElement(self, val):
+        pass
+
+    def swap(self, a, b):
+        pass
 
 
 class Ball:
@@ -133,7 +164,12 @@ array.display()
 
 time.sleep(1)
 
-array.find(6)
+#array.find(6)
+#time.sleep(1)
+array.append(10)
+time.sleep(1)
+array.remove(3)
+array.append(3)
 
 window.mainloop()
 
