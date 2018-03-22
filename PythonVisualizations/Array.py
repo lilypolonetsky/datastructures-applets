@@ -195,28 +195,8 @@ class Array(object):
     def shuffle(self):
         pass
 
-    def split(self):
-        pass
-
-    def merge(self, other):
-        pass
-
-    def removeElement(self, index, assignToTemp = False):
-        pass
+    def insertElement(self, val):
         '''
-        cell_pos = canvas.coords(self.list[index].display_shape)
-        cell_val_pos = canvas.coords(self.list[index].display_val)
-        
-        yspeed = -5
-        shape = self.list[index].display_shape
-        while canvas.coords(shape) != (ARRAY_Y0-CELL_SIZE-15):
-            canvas.move(shape, 0, yspeed)
-            canvas.move(self.list[index].display_val)
-            window.update()
-            time.sleep(0.01)
-         
-           
-        
         if index < len(self.list) - 1:
             xspeed = -5
             nextShape = self.list[index+1].display_shape
@@ -227,11 +207,121 @@ class Array(object):
                 window.update()
                 time.sleep(0.01)
         '''
-
-    def insertElement(self, val):
         pass
 
+    def split(self):
+        pass
+
+    def merge(self, other):
+        pass
+
+    # animation methods
+
+    def assignElement(self, fromIndex, toIndex):
+        # get position of "to" cell
+        posToCell = canvas.coords(self.list[toIndex].display_shape)
+
+        # get position of "from" cell and value
+        posFromCell = canvas.coords(self.list[fromIndex].display_shape)
+        posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
+
+        # create new display objects that are copies of the "from" cell and value
+        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], posFromCell[2], posFromCell[3], fill=self.list[fromIndex][1])
+        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], text=self.list[fromIndex][0], font=('Helvetica', '20'))
+
+        # set xspeed to move in the correct direction
+        xspeed = 5
+        if fromIndex > toIndex:
+            xspeed = -xspeed
+
+        # move the new display objects until they are in the position of the "to" cell
+        while canvas.coords(newCellShape) != posToCell:
+            canvas.move(newCellShape, xspeed, 0)
+            canvas.move(newCellVal, xspeed, 0)
+            window.update()
+            time.sleep(0.01)
+
+        # delete the original "to" display value and the new display shape
+        canvas.delete(self.list[toIndex].display_val)
+        canvas.delete(newCellShape)
+
+        # update value and display value in "to" position in the list
+        self.list[toIndex].display_val = newCellVal
+        self.list[toIndex].val = self.list[fromIndex].val
+
+        # update the window
+        window.update()
+
+    def assignToTemp(self, index, varName = "temp"):
+
+        posCell = canvas.coords(self.list[index].display_shape)
+        posCellVal = canvas.coords(self.list[index].display_val)
+        
+        yspeed = -5
+        shape = canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3], fill=self.list[index][1])
+        val = canvas.create_text(posCellVal[0], posCellVal[1], text=str(self.list[index][0]), font=('Helvetica', '20'))
+
+        while canvas.coords(shape)[1] != (ARRAY_Y0-CELL_SIZE-15):
+            canvas.move(shape, 0, yspeed)
+            canvas.move(val, 0, yspeed)
+            window.update()
+            time.sleep(0.01)
+
+        text = canvas.create_text(posCell[0] + (CELL_SIZE/2), ARRAY_Y0-CELL_SIZE-30, text=varName, font=('Helvetica', '20'))
+        temp = Array.Element(self.list[index][0], self.list[index][1], shape, val)
+        return temp, text
+
+    def assignFromTemp(self, index, temp, text):
+
+        posCell = canvas.coords(self.list[index].display_shape)
+        posCellVal = canvas.coords(self.list[index].display_val)
+
+        xspeed = 5
+        if canvas.coords(temp.display_shape)[0] > posCell[0]:
+            xspeed = -xspeed
+
+        while canvas.coords(temp.display_shape)[0] != posCell[0]:
+            canvas.move(temp.display_shape, xspeed, 0)
+            canvas.move(temp.display_val, xspeed, 0)
+            canvas.move(text, xspeed, 0)
+            window.update()
+            time.sleep(0.01)
+
+        time.sleep(0.1)
+
+        yspeed = 5
+        while canvas.coords(temp.display_shape)[1] != ARRAY_Y0:
+            canvas.move(temp.display_shape, 0, yspeed)
+            canvas.move(temp.display_val, 0, yspeed)
+            window.update()
+            time.sleep(0.01)
+
+        time.sleep(0.1)
+        canvas.delete(text)
+        canvas.delete(self.list[index].display_shape)
+        canvas.delete(self.list[index].display_val)
+        self.list[index] = temp
+
     def swap(self, a, b):
+        if a==b:
+            yspeed = -5
+            shapeA = self.list[a].display_shape
+            while canvas.coords(shapeA)[1] != (ARRAY_Y0 - CELL_SIZE - 15):
+                canvas.move(shapeA, 0, yspeed)
+                canvas.move(self.list[a].display_val, 0, yspeed)
+                window.update()
+                time.sleep(0.01)
+
+            time.sleep(0.1)
+
+            while canvas.coords(shapeA)[1] != ARRAY_Y0:
+                canvas.move(shapeA, 0, -yspeed)
+                canvas.move(self.list[a].display_val, 0, -yspeed)
+                window.update()
+                time.sleep(0.01)
+
+            return
+
         # save original coordinates of b cell
         posCellB = canvas.coords(self.list[b].display_shape)
 
@@ -276,52 +366,15 @@ class Array(object):
         # perform the actual swap operation in the list
         self.list[a], self.list[b] = self.list[b], self.list[a]
 
-    def assignElement(self, fromIndex, toIndex):
-        # get position of "to" cell
-        posToCell = canvas.coords(self.list[toIndex].display_shape)
-
-        # get position of "from" cell and value
-        posFromCell = canvas.coords(self.list[fromIndex].display_shape)
-        posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
-
-        # create new display objects that are copies of the "from" cell and value
-        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], posFromCell[2], posFromCell[3], fill=self.list[fromIndex][1])
-        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], text=self.list[fromIndex][0], font=('Helvetica', '20'))
-
-        # set xspeed to move in the correct direction
-        xspeed = 5
-        if fromIndex > toIndex:
-            xspeed = -xspeed
-
-        # move the new display objects until they are in the position of the "to" cell
-        while canvas.coords(newCellShape) != posToCell:
-            canvas.move(newCellShape, xspeed, 0)
-            canvas.move(newCellVal, xspeed, 0)
-            window.update()
-            time.sleep(0.01)
-
-        # delete the original "to" display objects
-        canvas.delete(self.list[toIndex].display_shape)
-        canvas.delete(self.list[toIndex].display_val)
-
-        # replace them with the new display objects
-        self.list[toIndex].display_shape = newCellShape
-        self.list[toIndex].display_val = newCellVal
-
-        # update value and color in "to" position in the list
-        self.list[toIndex].val = self.list[fromIndex].val
-        self.list[toIndex].color = self.list[fromIndex].color
-
-        # update the window
-        window.update()
+    # sorting methods
 
     def insertionSort(self):
 
+        # make a done arrow that points to 0'th element
         # Traverse through 1 to len(arr)
         for i in range(1, len(self.list)):
 
-            cur = self.list[i]
-            # assign to temp
+            cur, text = self.assignToTemp(i, "cur")
 
             # Move elements of self.list[0..i-1], that are
             # greater than key, to one position ahead
@@ -331,9 +384,41 @@ class Array(object):
                 #self.list[j + 1] = self.list[j]
                 self.assignElement(j, j+1)
                 j -= 1
-            self.list[j + 1] = cur
-            # assign from temp
 
+            #self.list[j + 1] = cur
+            self.assignFromTemp(j+1, cur, text)
+            # move done arrow to next element
+
+    def bubbleSort(self):
+        n = len(self.list)
+
+        # Traverse through all array elements
+        for i in range(n):
+
+            # Last i elements are already in place
+            for j in range(0, n - i - 1):
+
+                # traverse the array from 0 to n-i-1
+                # Swap if the element found is greater
+                # than the next element
+                if self.list[j].val > self.list[j+1].val:
+                    #arr[j], arr[j + 1] = arr[j + 1], arr[j]
+                    self.swap(j, j+1)
+
+    def selectionSort(self):
+        for i in range(len(self.list)):
+
+            # Find the minimum element in remaining
+            # unsorted array
+            min_idx = i
+            for j in range(i + 1, len(self.list)):
+                if self.list[min_idx].val > self.list[j].val:
+                    min_idx = j
+
+            # Swap the found minimum element with
+            # the first element
+            #A[i], A[min_idx] = A[min_idx], A[i]
+            self.swap(i, min_idx)
 
 #cleanup = []
 array = Array()
@@ -386,8 +471,9 @@ time.sleep(1)
 
 clean()
 
-array.insertionSort()
-array.display()
+#array.insertionSort()
+#array.bubbleSort()
+array.selectionSort()
 
 window.mainloop()
 
