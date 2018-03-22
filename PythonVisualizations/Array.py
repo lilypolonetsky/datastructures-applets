@@ -1,11 +1,14 @@
 from tkinter import *
 import time
 import random
+from collections import namedtuple
 
 WIDTH = 800
 HEIGHT = 600
 
 CELL_SIZE = 50
+ARRAY_X0 = 50
+ARRAY_Y0 = 50
 
 window = Tk()
 frame = Frame(window)
@@ -47,6 +50,9 @@ output.grid(row=0, column=3, sticky=E)
 # exit button
 Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=2, column=0, sticky=W)
 
+Element = namedtuple('Element', ['val', 'color', 'display_shape', 'display_val'])
+Element.__new__.__defaults__ = (None,) * len(Element._fields)
+
 class Array(object):
     colors = ['red', 'green', 'blue', 'orange', 'yellow', 'cyan', 'magenta',
               'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
@@ -54,8 +60,8 @@ class Array(object):
 
     def __init__(self):
         self.list = []
-        self.arrow = None
-        self.foundBox = None
+        #self.arrow = None
+        #self.foundBox = None
         self.drawnObjects = []
 
     def get(self, index):
@@ -84,38 +90,41 @@ class Array(object):
 
     def display(self):
         self.clear()
-        xpos = 50
-        ypos = 50
+        xpos = ARRAY_X0
+        ypos = ARRAY_Y0
         for n in self.list:
             print(n)
-            self.drawnObjects.append( canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1]) )
-            self.drawnObjects.append( canvas.create_text(xpos+25, ypos+25, text=n[0], font=('Helvetica', '20')) )
+            cell = canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1])
+            cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
+            self.drawnObjects.append(cell)
+            self.drawnObjects.append(cell_val)
             xpos += 50
         window.update()
 
     def find(self, val):
-        x = 75
-        y0 = 10
-        y1 = 35
-        if self.arrow:
-            canvas.coords(self.arrow, x, y0, x, y1)
-            canvas.delete(self.foundBox)
-        else:
-            self.arrow = self.drawArrow(x, y0, x, y1)
-        arrow = self.arrow
+        self.clear()
+        self.display()
+        # Maybe, instead of having the foundBox, change color of value to green2?
+        x = ARRAY_X0 + (CELL_SIZE/2)
+        y0 = ARRAY_Y0 - 40
+        y1 = ARRAY_Y0 - 15
+        arrow = canvas.create_line(x, y0, x, y1, arrow="last", fill='red')
+        self.drawnObjects.append(arrow)
         for n in self.list:
+            window.update()
             if n[0] == val:
                 pos = canvas.coords(arrow)
-                self.foundBox = canvas.create_rectangle(pos[0]-(x-CELL_SIZE), 50, pos[2]+(x-50), 100, fill='', outline="green2", width="5")
+                #foundBox = canvas.create_rectangle(pos[0]-(x-CELL_SIZE), ARRAY_Y0, pos[2]+(x-CELL_SIZE), ARRAY_Y0+CELL_SIZE, fill='', outline="green2", width="5")
+                #self.drawnObjects.append(foundBox)
+                cell_val = canvas.create_text(pos[0]-(x-CELL_SIZE) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=n[0],
+                                              font=('Helvetica', '25'), fill='green2')
+                self.drawnObjects.append(cell_val)
                 return True
-            self.display()
+
             time.sleep(1)
-            canvas.move(arrow, 50, 0)
+            canvas.move(arrow, CELL_SIZE, 0)
 
         return False
-
-    def drawArrow(self, x0, y0, x1, y1):
-        return canvas.create_line(x0, y0, x1, y1, arrow="last")
 
     def remove(self, index):
         self.list.pop(3)
@@ -177,4 +186,5 @@ window.mainloop()
 To Do:
 - make it look pretty
 - disable use of buttons when a function is in progress
+- add buttons for all the different functionality
 '''
