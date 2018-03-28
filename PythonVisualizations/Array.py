@@ -21,12 +21,14 @@ canvas.pack()
 global cleanup
 cleanup = []
 
+
 def clean():
     global cleanup
     if len(cleanup) > 0:
         for o in cleanup:
             canvas.delete(o)
         window.update()
+
 
 # Button functions
 # Call clean() as the first line of each button function!
@@ -41,15 +43,15 @@ def clickFind():
         txt = "Value not found"
     outputText.set(txt)
 
-
 def close_window():
     window.destroy()
     exit()
 
-bottomframe = Frame(window)
-bottomframe.pack( side = BOTTOM )
 
-Label (bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
+bottomframe = Frame(window)
+bottomframe.pack(side=BOTTOM)
+
+Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
 textBox = Entry(bottomframe, width=20, bg="white")
 textBox.grid(row=0, column=1, sticky=W)
 
@@ -57,12 +59,11 @@ textBox.grid(row=0, column=1, sticky=W)
 Button(bottomframe, text="Enter", width=6, command=clickFind).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
-output = Label (bottomframe, textvariable=outputText, font="none 12 bold")
+output = Label(bottomframe, textvariable=outputText, font="none 12 bold")
 output.grid(row=0, column=3, sticky=E)
 
 # exit button
 Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=2, column=0, sticky=W)
-
 
 
 class Array(object):
@@ -385,6 +386,7 @@ class Array(object):
             j = i - 1
             while j >= 0 and cur.val < self.list[j].val:
                 #self.list[j + 1] = self.list[j]
+                time.sleep(.5)
                 self.assignElement(j, j+1)
                 j -= 1
 
@@ -423,9 +425,42 @@ class Array(object):
             #A[i], A[min_idx] = A[min_idx], A[i]
             self.swap(i, min_idx)
 
+    def isSorted(self):
+        for i in range(len(self.list)):
+            if self.list[i] > self.list[i+1]:
+                return False
+        return True
+
+    def bogoSort(self):
+        global running
+        running = True
+        while not self.isSorted() and running:
+            time.sleep(1) # pauses in between shuffles to show that checking if its sorted
+            self.shuffle()
+
+    def stop(self): # will stop after the current shuffle is done
+        global running
+        running = False
+
+def makeButtons():
+    b = Button(text="Bubble Sort", width=11, command=array.bubbleSort)
+    b.pack()
+    b1 = Button(text="Selection Sort", width=14, command=array.selectionSort)
+    b1.pack()
+    b2 = Button(text="Insertion Sort", width=14, command=array.insertionSort)
+    b2.pack()
+    b3 = Button(text="Bogo Sort", width=9, command=array.bogoSort)
+    b3.pack()
+    b4 = Button(text="Shuffle", width=7, command=array.shuffle)
+    b4.pack()
+    b5 = Button(text="Stop Bogo Sort!", width=15, command=array.stop)
+    b5.pack()
+
 #cleanup = []
 array = Array()
+makeButtons()
 array.display()
+
 
 for i in range(10):
     array.append(i)
@@ -434,62 +469,64 @@ for i in range(10):
 
 time.sleep(1)
 
-array.find(3)
-time.sleep(1)
+# array.find(3)
+# time.sleep(1)
+#
+# clean()
+#
+# array.append(10)
+# time.sleep(1)
+#
+# clean()
+#
+# array.remove(3)
+# time.sleep(1)
+#
+# clean()
+#
+# array.append(3)
+# time.sleep(1)
+#
+# clean()
+#
+# array.set(3, 20)
+# time.sleep(1)
+#
+# clean()
+#
+# array.assignElement(4, 2)
+# time.sleep(1)
+#
+# clean()
+#
+# array.assignElement(5, 8)
+# time.sleep(1)
+#
+# clean()
+#
+# array.swap(1, 9)
+# time.sleep(1)
+#
+# clean()
+#
+# #array.insertionSort()
+# #array.bubbleSort()
+# array.selectionSort()
+# time.sleep(1)
 
-clean()
 
-array.append(10)
-time.sleep(1)
-
-clean()
-
-array.remove(3)
-time.sleep(1)
-
-clean()
-
-array.append(3)
-time.sleep(1)
-
-clean()
-
-array.set(3, 20)
-time.sleep(1)
-
-clean()
-
-array.assignElement(4, 2)
-time.sleep(1)
-
-clean()
-
-array.assignElement(5, 8)
-time.sleep(1)
-
-clean()
-
-array.swap(1, 9)
-time.sleep(1)
-
-clean()
-
-#array.insertionSort()
-#array.bubbleSort()
-array.selectionSort()
-time.sleep(1)
-
-
-array.shuffle()
-time.sleep(1)
-
-array.insertionSort()
-time.sleep(1)
-
-array.shuffle()
-time.sleep(1)
-
-array.bubbleSort()
+# array.shuffle()
+# time.sleep(1)
+#
+# array.insertionSort()
+# time.sleep(1)
+#
+# array.shuffle()
+# time.sleep(1)
+#
+# array.bubbleSort()
+# time.sleep(1)
+# array.shuffle()
 
 window.mainloop()
 
