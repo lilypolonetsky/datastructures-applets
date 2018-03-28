@@ -247,11 +247,13 @@ class Array(object):
 
         # delete the original "to" display value and the new display shape
         canvas.delete(self.list[toIndex].display_val)
-        canvas.delete(newCellShape)
+        canvas.delete(self.list[toIndex].display_shape)
 
         # update value and display value in "to" position in the list
         self.list[toIndex].display_val = newCellVal
         self.list[toIndex].val = self.list[fromIndex].val
+        self.list[toIndex].display_shape = newCellShape
+        self.list[toIndex].color = self.list[fromIndex].color
 
         # update the window
         window.update()
