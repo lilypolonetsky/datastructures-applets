@@ -194,10 +194,14 @@ class Array(object):
         self.display()
 
     def shuffle(self):
+        global running
+        running = True
         #random.shuffle(self.list)
         #self.display()
         for i in range(10):
             self.swap(random.randrange(0, len(self.list)), random.randrange(0, len(self.list)))
+            if not running:
+                break
 
     def insertElement(self, val):
         '''
@@ -375,7 +379,8 @@ class Array(object):
     # sorting methods
 
     def insertionSort(self):
-
+        global running
+        running = True
         # make a done arrow that points to 0'th element
         # Traverse through 1 to len(arr)
         for i in range(1, len(self.list)):
@@ -392,11 +397,16 @@ class Array(object):
                 self.assignElement(j, j+1)
                 j -= 1
 
+                if not running:
+                    break
+
             #self.list[j + 1] = cur
             self.assignFromTemp(j+1, cur, text)
             # move done arrow to next element
 
     def bubbleSort(self):
+        global running
+        running = True
         n = len(self.list)
 
         # Traverse through all array elements
@@ -412,7 +422,12 @@ class Array(object):
                     #arr[j], arr[j + 1] = arr[j + 1], arr[j]
                     self.swap(j, j+1)
 
+                if not running:
+                    break
+
     def selectionSort(self):
+        global running
+        running = True
         for i in range(len(self.list)):
 
             # Find the minimum element in remaining
@@ -421,6 +436,9 @@ class Array(object):
             for j in range(i + 1, len(self.list)):
                 if self.list[min_idx].val > self.list[j].val:
                     min_idx = j
+
+                if not running:
+                    break
 
             # Swap the found minimum element with
             # the first element
@@ -455,7 +473,7 @@ def makeButtons():
     b3.pack()
     b4 = Button(text="Shuffle", width=7, command=array.shuffle)
     b4.pack()
-    b5 = Button(text="Stop Bogo Sort!", width=15, command=array.stop)
+    b5 = Button(text="Stop", width=4, command=array.stop)
     b5.pack()
 
 #cleanup = []
