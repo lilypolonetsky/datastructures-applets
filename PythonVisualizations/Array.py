@@ -43,6 +43,7 @@ def clickFind():
         txt = "Value not found"
     outputText.set(txt)
 
+
 def close_window():
     window.destroy()
     exit()
@@ -180,13 +181,16 @@ class Array(object):
                 window.update()
 
                 cleanup += findDisplayObjects
+                canvas.after(10, canvas.delete, arrow)
                 return True
 
             # if the value hasn't been found, wait 1 second, and then move the arrow over one cell
             time.sleep(1)
             canvas.move(arrow, CELL_SIZE, 0)
 
+
         cleanup += findDisplayObjects
+        canvas.after(10, canvas.delete, arrow)
         return False
 
     def remove(self, index):
