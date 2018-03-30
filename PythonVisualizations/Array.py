@@ -466,23 +466,39 @@ class Array(object):
         global running
         running = False
 
+    def onClick(self, command):
+        disableButtons()
+        command()
+        enableButtons()
+        
+
+def disableButtons():
+    for button in buttons:
+        button.config(state = DISABLED)
+
+def enableButtons():
+    for button in buttons:
+        button.config(state = NORMAL)
+
 def makeButtons():
-    b = Button(text="Bubble Sort", width=11, command=array.bubbleSort)
-    b.pack()
-    b1 = Button(text="Selection Sort", width=14, command=array.selectionSort)
-    b1.pack()
-    b2 = Button(text="Insertion Sort", width=14, command=array.insertionSort)
-    b2.pack()
-    b3 = Button(text="Bogo Sort", width=9, command=array.bogoSort)
-    b3.pack()
-    b4 = Button(text="Shuffle", width=7, command=array.shuffle)
-    b4.pack()
-    b5 = Button(text="Stop", width=4, command=array.stop)
-    b5.pack()
+    b = Button(text="Bubble Sort", width=11, command= lambda: array.onClick(array.bubbleSort))
+    b.pack(side = LEFT)
+    b1 = Button(text="Selection Sort", width=14, command= lambda: array.onClick(array.selectionSort))
+    b1.pack(side = LEFT)
+    b2 = Button(text="Insertion Sort", width=14, command= lambda: array.onClick(array.insertionSort))
+    b2.pack(side = LEFT)
+    b3 = Button(text="Bogo Sort", width=9, command= lambda: array.onClick(array.bogoSort))
+    b3.pack(side = LEFT)
+    b4 = Button(text="Shuffle", width=7, command= lambda: array.onClick(array.shuffle))
+    b4.pack(side = LEFT)
+    b5 = Button(text="Stop", width=15, command = lambda: array.onClick(command=array.stop))
+    b5.pack(side = LEFT)
+    buttons = [b,b1,b2,b3,b4]
+    return buttons
 
 #cleanup = []
 array = Array()
-makeButtons()
+buttons = makeButtons()
 array.display()
 
 
