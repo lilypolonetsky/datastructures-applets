@@ -18,30 +18,20 @@ canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
 window.title("Array")
 canvas.pack()
 
-global cleanup
-cleanup = []
-
-
-def clean():
-    global cleanup
-    if len(cleanup) > 0:
-        for o in cleanup:
-            canvas.delete(o)
-        window.update()
-
 
 # Button functions
 # Call clean() as the first line of each button function!
 def clickFind():
-    clean()
+    #cleanUp()
     entered_text = textBox.get()
     txt = ''
-    result = array.find(int(entered_text))
-    if result:
-        txt = "Found!"
-    else:
-        txt = "Value not found"
-    outputText.set(txt)
+    if entered_text.strip()!='':
+        result = array.find(int(entered_text))
+        if result:
+            txt = "Found!"
+        else:
+            txt = "Value not found"
+        outputText.set(txt)
 
 
 def close_window():
@@ -52,12 +42,12 @@ def close_window():
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
 
-Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
+#Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
 textBox = Entry(bottomframe, width=20, bg="white")
 textBox.grid(row=0, column=1, sticky=W)
 
 # add a submit button
-Button(bottomframe, text="Enter", width=6, command=clickFind).grid(row=0, column=2, sticky=W)
+#Button(bottomframe, text="Find", width=6, command=lambda: array.onClick(clickFind)).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
 output = Label(bottomframe, textvariable=outputText, font="none 12 bold")
@@ -147,7 +137,8 @@ class Array(object):
         window.update()
 
     def find(self, val):
-        global cleanup
+        global cleanup, running
+        running = True
         findDisplayObjects = []
         #canvas.delete(findDisplayObjects)
         self.display()
@@ -166,31 +157,35 @@ class Array(object):
             # if the value is found
             if n.val == val:
                 # get the position of the displayed cell and val
-                posCell = canvas.coords(n.display_shape)
+                #posCell = canvas.coords(n.display_shape)
                 posVal = canvas.coords(n.display_val)
 
                 # cover the current display value with the updated value in green
-                cell_shape = canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3], fill=n[1])
+                #cell_shape = canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3], fill=n[1])
                 cell_val = canvas.create_text(posVal[0], posVal[1], text=str(val), font=('Helvetica', '25'), fill='green2')
 
                 # add the green value to findDisplayObjects for cleanup later
-                findDisplayObjects.append(cell_shape)
+                #findDisplayObjects.append(cell_shape)
                 findDisplayObjects.append(cell_val)
 
                 # update the display
                 window.update()
 
                 cleanup += findDisplayObjects
-                canvas.after(10, canvas.delete, arrow)
+                #canvas.after(1000, canvas.delete, arrow)
+                #canvas.after(1000, canvas.delete, cell_val)
                 return True
 
             # if the value hasn't been found, wait 1 second, and then move the arrow over one cell
             time.sleep(1)
             canvas.move(arrow, CELL_SIZE, 0)
 
+            if not running:
+                break
+
 
         cleanup += findDisplayObjects
-        canvas.after(10, canvas.delete, arrow)
+        #canvas.after(1000, canvas.delete, arrow)
         return False
 
     def remove(self, index):
@@ -283,6 +278,8 @@ class Array(object):
 
         text = canvas.create_text(posCell[0] + (CELL_SIZE/2), ARRAY_Y0-CELL_SIZE-30, text=varName, font=('Helvetica', '20'))
         temp = Array.Element(self.list[index][0], self.list[index][1], shape, val)
+
+        window.update()
         return temp, text
 
     def assignFromTemp(self, index, temp, text):
@@ -385,7 +382,13 @@ class Array(object):
     def insertionSort(self):
         global running
         running = True
+
         # make a done arrow that points to 0'th element
+        x = ARRAY_X0 + (CELL_SIZE / 2)
+        y0 = ARRAY_Y0 + CELL_SIZE + 15
+        y1 = ARRAY_Y0 + CELL_SIZE + 40
+        outerArrow = canvas.create_line(x+CELL_SIZE, y0, x+CELL_SIZE, y1, arrow="first", fill='red')
+
         # Traverse through 1 to len(arr)
         for i in range(1, len(self.list)):
 
@@ -395,29 +398,57 @@ class Array(object):
             # greater than key, to one position ahead
             # of their current position
             j = i - 1
+
+            innerArrow = canvas.create_line(x+CELL_SIZE*i, y0, x+CELL_SIZE*i, y1, arrow="first", fill='blue')
+
             while j >= 0 and cur.val < self.list[j].val:
                 #self.list[j + 1] = self.list[j]
-                time.sleep(.5)
+                time.sleep(0.5)
                 self.assignElement(j, j+1)
                 j -= 1
 
+                canvas.move(innerArrow, -CELL_SIZE, 0)
+
                 if not running:
+                    canvas.delete(innerArrow)
                     break
 
             #self.list[j + 1] = cur
+            time.sleep(0.5)
             self.assignFromTemp(j+1, cur, text)
+
+            canvas.delete(innerArrow)
+
+            if not running:
+                break
+
             # move done arrow to next element
+            canvas.move(outerArrow, CELL_SIZE, 0)
+
+
+        canvas.delete(outerArrow)
 
     def bubbleSort(self):
-        global running
+        global running, cleanup
         running = True
         n = len(self.list)
+
+        # make a done arrow that points to 0'th element
+        x = ARRAY_X0 + (CELL_SIZE / 2)
+        y0 = ARRAY_Y0 + CELL_SIZE + 15
+        y1 = ARRAY_Y0 + CELL_SIZE + 40
+        outerArrow = canvas.create_line(x, y0, x, y1, arrow="first", fill='red')
+
 
         # Traverse through all array elements
         for i in range(n):
 
+            innerArrow = canvas.create_line(x, y0, x, y1, arrow="first", fill='blue')
+
             # Last i elements are already in place
             for j in range(0, n - i - 1):
+
+                time.sleep(0.5)
 
                 # traverse the array from 0 to n-i-1
                 # Swap if the element found is greater
@@ -426,28 +457,66 @@ class Array(object):
                     #arr[j], arr[j + 1] = arr[j + 1], arr[j]
                     self.swap(j, j+1)
 
+                canvas.move(innerArrow, CELL_SIZE, 0)
+
                 if not running:
+                    canvas.delete(innerArrow)
                     break
+
+            time.sleep(0.5)
+            canvas.delete(innerArrow)
+
+            if not running:
+                break
+
+            # move done arrow to next element
+            canvas.move(outerArrow, CELL_SIZE, 0)
+
+        canvas.delete(outerArrow)
 
     def selectionSort(self):
         global running
         running = True
+
+        x = ARRAY_X0 + (CELL_SIZE / 2)
+        y0 = ARRAY_Y0 + CELL_SIZE + 15
+        y1 = ARRAY_Y0 + CELL_SIZE + 40
+        outerArrow = canvas.create_line(x, y0, x, y1, arrow="first", fill='red')
+
         for i in range(len(self.list)):
 
             # Find the minimum element in remaining
             # unsorted array
+            innerArrow = canvas.create_line(x + CELL_SIZE*i, y0, x + CELL_SIZE*i, y1, arrow="first", fill='blue')
+
             min_idx = i
             for j in range(i + 1, len(self.list)):
+
+                canvas.move(innerArrow, CELL_SIZE, 0)
+
                 if self.list[min_idx].val > self.list[j].val:
                     min_idx = j
 
                 if not running:
+                    canvas.delete(innerArrow)
                     break
+
+            canvas.delete(innerArrow)
+
+            if not running:
+                break
+
 
             # Swap the found minimum element with
             # the first element
             #A[i], A[min_idx] = A[min_idx], A[i]
+
             self.swap(i, min_idx)
+            canvas.move(outerArrow, CELL_SIZE, 0)
+
+        canvas.delete(outerArrow)
+
+
 
     def isSorted(self):
         for i in range(len(self.list)):
@@ -467,9 +536,20 @@ class Array(object):
         running = False
 
     def onClick(self, command):
+        cleanUp()
         disableButtons()
         command()
         enableButtons()
+
+
+def cleanUp():
+    global cleanup
+    if len(cleanup) > 0:
+        for o in cleanup:
+            canvas.delete(o)
+    outputText.set('')
+    window.update()
+
         
 
 def disableButtons():
@@ -491,12 +571,14 @@ def makeButtons():
     b3.pack(side = LEFT)
     b4 = Button(text="Shuffle", width=7, command= lambda: array.onClick(array.shuffle))
     b4.pack(side = LEFT)
-    b5 = Button(text="Stop", width=15, command = lambda: array.onClick(command=array.stop))
+    b5 = Button(text="Find", width=7, command= lambda: array.onClick(clickFind))
     b5.pack(side = LEFT)
-    buttons = [b,b1,b2,b3,b4]
+    b6 = Button(text="Stop", width=15, command = lambda: array.onClick(command=array.stop))
+    b6.pack(side = LEFT)
+    buttons = [b,b1,b2,b3,b4,b5]
     return buttons
 
-#cleanup = []
+cleanup = []
 array = Array()
 buttons = makeButtons()
 array.display()
