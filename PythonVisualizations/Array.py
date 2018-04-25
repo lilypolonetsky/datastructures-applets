@@ -707,7 +707,6 @@ class Array(object):
                         done[i] = True
 
             window.update()
-            time.sleep(1)
 
     def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
         # bring all cells up to original position
