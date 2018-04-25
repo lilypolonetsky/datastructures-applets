@@ -127,7 +127,7 @@ class Array(object):
         canvas.delete(self.list[index].display_val)
         self.list[index] = temp
 
-    def swap(self, a, b):
+    def swap(self, a, b, aCellObjects = [], bCellObjects = []):
         y0 = canvas.coords(self.list[a].display_shape)[1]
         if a == b:
             yspeed = -5
@@ -135,6 +135,8 @@ class Array(object):
             while canvas.coords(shapeA)[1] != (y0 - CELL_SIZE - 15):
                 canvas.move(shapeA, 0, yspeed)
                 canvas.move(self.list[a].display_val, 0, yspeed)
+                for o in (aCellObjects + bCellObjects):
+                    canvas.move(o, 0, yspeed)
                 window.update()
                 time.sleep(0.001)
 
@@ -143,6 +145,8 @@ class Array(object):
             while canvas.coords(shapeA)[1] != y0:
                 canvas.move(shapeA, 0, -yspeed)
                 canvas.move(self.list[a].display_val, 0, -yspeed)
+                for o in (aCellObjects + bCellObjects):
+                    canvas.move(o, 0, -yspeed)
                 window.update()
                 time.sleep(0.001)
 
@@ -159,6 +163,8 @@ class Array(object):
             canvas.move(self.list[a].display_val, 0, yspeed)
             canvas.move(self.list[b].display_shape, 0, yspeed)
             canvas.move(self.list[b].display_val, 0, yspeed)
+            for o in (aCellObjects + bCellObjects):
+                canvas.move(o, 0, yspeed)
             window.update()
             time.sleep(0.001)
 
@@ -174,8 +180,14 @@ class Array(object):
                 (a > b and canvas.coords(shapeA)[0] > posCellB[0]):
             canvas.move(shapeA, xspeed, 0)
             canvas.move(self.list[a].display_val, xspeed, 0)
+            for o in aCellObjects:
+                canvas.move(o, xspeed, 0)
+
             canvas.move(self.list[b].display_shape, -xspeed, 0)
             canvas.move(self.list[b].display_val, -xspeed, 0)
+            for o in bCellObjects:
+                canvas.move(o, -xspeed, 0)
+
             window.update()
             time.sleep(0.002)
 
@@ -187,6 +199,8 @@ class Array(object):
             canvas.move(self.list[a].display_val, 0, -yspeed)
             canvas.move(self.list[b].display_shape, 0, -yspeed)
             canvas.move(self.list[b].display_val, 0, -yspeed)
+            for o in (aCellObjects + bCellObjects):
+                canvas.move(o, 0, -yspeed)
             window.update()
             time.sleep(0.01)
 
@@ -754,6 +768,16 @@ class Array(object):
 
         self.fixGaps()
 
+    def drawPartition(self, left, right):
+        bottom = canvas.create_line(ARRAY_X0 + CELL_SIZE*left, ARRAY_Y0 + CELL_SIZE + 15,
+                           ARRAY_X0 + CELL_SIZE*(right+1), ARRAY_Y0 + CELL_SIZE + 15, fill="red")
+        l = canvas.create_line(ARRAY_X0 + CELL_SIZE*left, ARRAY_Y0 + CELL_SIZE + 5,
+                           ARRAY_X0 + CELL_SIZE * left, ARRAY_Y0 + CELL_SIZE + 15, fill="red")
+        r = canvas.create_line(ARRAY_X0 + CELL_SIZE * (right+1), ARRAY_Y0 + CELL_SIZE + 5,
+                           ARRAY_X0 + CELL_SIZE * (right+1), ARRAY_Y0 + CELL_SIZE + 15, fill="red")
+
+        return bottom, l, r
+
     def bogoSort(self):
         global running
         running = True
@@ -783,30 +807,74 @@ class Array(object):
         y0 = ARRAY_Y0 - 15
         y1 = ARRAY_Y0 - 40
 
+        b, l, r = self.drawPartition(left, right)
+
         self.medianOfThree(left, right)
         a = self.list
         pivot = a[right]
         done = left
 
-        arrow = canvas.create_line(x + CELL_SIZE * right, y0, x + CELL_SIZE * right, y1, arrow="first", fill="red")
+        doneArrow = canvas.create_line(x + CELL_SIZE * done, y0, x + CELL_SIZE * done, y1, arrow="first", fill="red")
+        doneTxt = canvas.create_text(x + CELL_SIZE * done + CELL_SIZE/2, y1 - 5, text="done",
+                                        font=('Helvetica', '15'))
 
+        pivotArrow = canvas.create_line(x + CELL_SIZE * right, y0, x + CELL_SIZE * right, y1, arrow="first", fill="green")
+        pivotTxt = canvas.create_text(x + CELL_SIZE * right + CELL_SIZE/2, y1 - 5, text="pivot",
+                                        font=('Helvetica', '15'))
+        pivotCellObjects = []
+        pivotCellObjects.append(pivotArrow)
+        pivotCellObjects.append(pivotTxt)
+
+        doneCellObjects = []
+        doneCellObjects.append(doneArrow)
+        doneCellObjects.append(doneTxt)
+
+        curArrow = canvas.create_line(x + CELL_SIZE * (left-1), y0, x + CELL_SIZE * (left-1), y1, arrow="first",
+                                        fill="blue")
+        curTxt = canvas.create_text(x + CELL_SIZE * (left-1), y1 - 5, text="cur",
+                                 font=('Helvetica', '15'))
         # for each position except for the pivot position
         for cur in range(left, right):
 
+            output = "cur: " + str(a[cur].val) + "\npivot: " + str(pivot.val) + "\n"
+
             # if the value at that position is smaller than the pivot
             # swap it so it becomes the next value of the done part
-            if a[cur] <= pivot:
+            if a[cur].val <= pivot.val:
                 #a[done], a[cur] = a[cur], a[done]
                 self.swap(done, cur)
                 done += 1
+                canvas.move(doneArrow, CELL_SIZE, 0)
+                canvas.move(doneTxt, CELL_SIZE, 0)
+                output += "cur <= pivot"
+
+
+            canvas.move(curArrow, CELL_SIZE, 0)
+            canvas.move(curTxt, CELL_SIZE, 0)
+            output += "cur > pivot"
+
+            txt = canvas.create_text(ARRAY_X0+100, ARRAY_Y0+100, text=output, font=('Helvetica', '15'))
+            window.update()
+            time.sleep(1)
+            canvas.delete(txt)
+
+        canvas.delete(curArrow)
+        canvas.delete(curTxt)
 
         # Move the pivot into the correct place
         #a[done], a[right] = a[right], a[done]
-        self.swap(done, right)
+        self.swap(done, right, aCellObjects=doneCellObjects, bCellObjects=pivotCellObjects)
 
-        canvas.delete(arrow)
+        canvas.delete(pivotArrow)
+        canvas.delete(pivotTxt)
+        canvas.delete(doneArrow)
+        canvas.delete(doneTxt)
+        canvas.delete(b)
+        canvas.delete(l)
+        canvas.delete(r)
 
         # At this point, done is the location where the pivot value got placed
+        time.sleep(0.1)
         return done
 
     def quickSort(self, left=-1, right=-1):
