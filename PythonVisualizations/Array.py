@@ -765,6 +765,21 @@ def stop(): # will stop after the current shuffle is done
     global running
     running = False
 
+def pause(pauseButton):
+    global running
+    running = False
+
+    pauseButton['text'] = "Play"
+    pauseButton['command'] = play(pauseButton)
+    enableButtons()
+
+def play(pauseButton):
+    global running
+    running = True
+
+    pauseButton['text'] = 'Pause'
+    pauseButton['command'] = pause(pauseButton)
+
 def onClick(command):
     cleanUp()
     disableButtons()
@@ -824,7 +839,7 @@ def makeButtons():
     shuffleButton.pack(side = LEFT)
     stopButton = Button(text="Stop", width=7, command = lambda: onClick(stop))
     stopButton.pack(side = LEFT)
-    pauseButton = Button(text="Pause", width=8, command = lambda: onClick(stop))
+    pauseButton = Button(text="Pause", width=8, command = lambda: onClick(pause(pauseButton)))
     pauseButton.pack(side=LEFT)
     findButton = Button(text="Find", width=7, command= lambda: onClick(clickFind))
     findButton.pack()
