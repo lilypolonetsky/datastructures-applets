@@ -364,13 +364,6 @@ class Array(object):
         global running
         running = True
 
-        # #random.shuffle(self.list)
-        # #self.display()
-        # for i in range(10):
-        #     self.swap(random.randrange(0, len(self.list)), random.randrange(0, len(self.list)))
-        #     if not running:
-        #         break
-
         maxHeight = HEIGHT - 5
         maxWidth = WIDTH -5
         y = ARRAY_Y0
@@ -389,7 +382,7 @@ class Array(object):
                 shuffleX = random.randint(-30, 30)
 
 
-                # bounce off the sides
+                # not go off the sides
                 if canvas.coords(self.list[i].display_shape)[0] + shuffleX <= 0 or canvas.coords(self.list[i].display_shape)[0] + shuffleX >= maxWidth:
                     shuffleX = -shuffleX * 2
                 if canvas.coords(self.list[i].display_shape)[1] + shuffleY <= ARRAY_Y0 or canvas.coords(self.list[i].display_shape)[1] + shuffleY >= maxHeight:
@@ -728,7 +721,6 @@ class Array(object):
                         done[i] = True
 
             window.update()
-            time.sleep(1)
 
     def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
         # bring all cells up to original position
@@ -893,10 +885,28 @@ def stop(): # will stop after the current shuffle is done
     global running
     running = False
 
-def onClick(command):
+def pause(pauseButton):
+    global running
+    running = False
+
+    pauseButton['text'] = "Play"
+    pauseButton['command'] = lambda: onClick(play, pauseButton)
+    enableButtons()
+
+def play(pauseButton):
+    global running
+    running = True
+
+    pauseButton['text'] = 'Pause'
+    pauseButton['command'] = lambda: onClick(pause, pauseButton)
+
+def onClick(command, parameter = None):
     cleanUp()
     disableButtons()
-    command()
+    if parameter:
+        command(parameter)
+    else:
+        command()
     enableButtons()
 
 def cleanUp():
@@ -954,7 +964,7 @@ def makeButtons():
     shuffleButton.pack(side = LEFT)
     stopButton = Button(text="Stop", width=7, command = lambda: onClick(stop))
     stopButton.pack(side = LEFT)
-    pauseButton = Button(text="Pause", width=8, command = lambda: onClick(stop))
+    pauseButton = Button(text="Pause", width=8, command = lambda: onClick(pause, pauseButton))
     pauseButton.pack(side=LEFT)
     findButton = Button(text="Find", width=7, command= lambda: onClick(clickFind))
     findButton.pack()
