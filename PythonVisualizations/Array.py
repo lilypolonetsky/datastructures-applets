@@ -349,12 +349,45 @@ class Array(object):
     def shuffle(self):
         global running
         running = True
-        #random.shuffle(self.list)
-        #self.display()
-        for i in range(10):
-            self.swap(random.randrange(0, len(self.list)), random.randrange(0, len(self.list)))
-            if not running:
-                break
+
+        # #random.shuffle(self.list)
+        # #self.display()
+        # for i in range(10):
+        #     self.swap(random.randrange(0, len(self.list)), random.randrange(0, len(self.list)))
+        #     if not running:
+        #         break
+
+        maxHeight = HEIGHT - 5
+        maxWidth = WIDTH -5
+        y = ARRAY_Y0
+        for i in range(len(self.list)):
+            newX = random.randint(0, len(self.list)-1)
+            self.list[i], self.list[newX] = self.list[newX], self.list[i]
+            finalX = ARRAY_X0 + (CELL_SIZE * newX)
+
+        times = 0
+
+        # while all of the elements have not yet been returned to the original position
+        while times < len(self.list)*2 and running:
+            for i in range(len(self.list)):
+                time.sleep(0.01)
+                shuffleY = random.randint(-30, 30)
+                shuffleX = random.randint(-30, 30)
+
+
+                # bounce off the sides
+                if canvas.coords(self.list[i].display_shape)[0] + shuffleX <= 0 or canvas.coords(self.list[i].display_shape)[0] + shuffleX >= maxWidth:
+                    shuffleX = -shuffleX * 2
+                if canvas.coords(self.list[i].display_shape)[1] + shuffleY <= 0 or canvas.coords(self.list[i].display_shape)[1] + shuffleY >= maxHeight:
+                    shuffleY = -shuffleY * 2
+                canvas.move(self.list[i].display_shape, shuffleX, shuffleY)
+                canvas.move(self.list[i].display_val, shuffleX, shuffleY)
+            times += 1
+            time.sleep(0.01)
+            window.update()
+
+        self.stopMergeSort()
+
 
     # SORTING METHODS
     def insertionSort(self):
@@ -643,10 +676,10 @@ class Array(object):
                 self.stopMergeSort()
                 return
 
-    def stopMergeSort(self):
+    def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
         # bring all cells up to original position
-        toX = ARRAY_X0
-        toY = ARRAY_Y0
+        # toX = ARRAY_X0
+        # toY = ARRAY_Y0
 
         dy = -2
         dx = [0] * len(self.list)
@@ -747,8 +780,10 @@ def makeButtons():
     mergeSortButton.pack(side = LEFT)
     shuffleButton = Button(text="Shuffle", width=7, command= lambda: onClick(array.shuffle))
     shuffleButton.pack(side = LEFT)
-    stopButton = Button(text="Stop", width=15, command = lambda: onClick(stop))
+    stopButton = Button(text="Stop", width=7, command = lambda: onClick(stop))
     stopButton.pack(side = LEFT)
+    pauseButton = Button(text="Pause", width=8, command = lambda: onClick(stop))
+    pauseButton.pack(side=LEFT)
     findButton = Button(text="Find", width=7, command= lambda: onClick(clickFind))
     findButton.pack()
     insertButton = Button(text="Insert", width=7, command= lambda: onClick(clickInsert))
