@@ -136,7 +136,7 @@ class Array(object):
                 canvas.move(shapeA, 0, yspeed)
                 canvas.move(self.list[a].display_val, 0, yspeed)
                 window.update()
-                time.sleep(0.01)
+                time.sleep(0.001)
 
             time.sleep(0.1)
 
@@ -144,7 +144,7 @@ class Array(object):
                 canvas.move(shapeA, 0, -yspeed)
                 canvas.move(self.list[a].display_val, 0, -yspeed)
                 window.update()
-                time.sleep(0.01)
+                time.sleep(0.001)
 
             return
 
@@ -160,7 +160,7 @@ class Array(object):
             canvas.move(self.list[b].display_shape, 0, yspeed)
             canvas.move(self.list[b].display_val, 0, yspeed)
             window.update()
-            time.sleep(0.01)
+            time.sleep(0.001)
 
         time.sleep(0.1)
 
@@ -701,7 +701,7 @@ class Array(object):
                     # do the same for dy
                     if curY < toY:
                         dy = 0.5 if curY % 1 == 0 else toY - curY
-                    elif canvas.coords(self.list[i].display_shape)[1] > toY:
+                    elif curY > toY:
                         dy = -0.5 if curY % 1 == 0 else toY - curY
 
                     # if dx or dy are not zero, the cell isn't in position and still needs to be moved
@@ -714,7 +714,7 @@ class Array(object):
                         done[i] = True
 
             window.update()
-            time.sleep(0.05)
+            time.sleep(1)
 
     def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
         # bring all cells up to original position
@@ -760,6 +760,66 @@ class Array(object):
         while not self.isSorted() and running:
             time.sleep(1) # pauses in between shuffles to show that checking if its sorted
             self.shuffle()
+
+    def medianOfThree(self, left, right):
+        a = self.list
+
+        b = random.randint(left, right)
+        c = random.randint(left, right)
+        d = random.randint(left, right)
+
+        if (a[d] < a[b] and a[b] < a[c]) or (a[c] < a[b] and a[b] < a[d]):
+            median = b
+        elif (a[b] < a[d] and a[d] < a[c]) or (a[c] < a[d] and a[d] < a[b]):
+            median = d
+        else:
+            median = c
+
+        #a[median], a[right] = a[right], a[median]
+        self.swap(median, right)
+
+    def partitionIt(self, left, right):
+        x = ARRAY_X0 + (CELL_SIZE / 2)
+        y0 = ARRAY_Y0 - 15
+        y1 = ARRAY_Y0 - 40
+
+        self.medianOfThree(left, right)
+        a = self.list
+        pivot = a[right]
+        done = left
+
+        arrow = canvas.create_line(x + CELL_SIZE * right, y0, x + CELL_SIZE * right, y1, arrow="first", fill="red")
+
+        # for each position except for the pivot position
+        for cur in range(left, right):
+
+            # if the value at that position is smaller than the pivot
+            # swap it so it becomes the next value of the done part
+            if a[cur] <= pivot:
+                #a[done], a[cur] = a[cur], a[done]
+                self.swap(done, cur)
+                done += 1
+
+        # Move the pivot into the correct place
+        #a[done], a[right] = a[right], a[done]
+        self.swap(done, right)
+
+        canvas.delete(arrow)
+
+        # At this point, done is the location where the pivot value got placed
+        return done
+
+    def quickSort(self, left=-1, right=-1):
+        # initialize things if method was called without args
+        if left == -1:
+            left = 0
+            right = len(self.list) - 1
+
+        # there has to be at least two elements
+        if left < right:
+            partition = self.partitionIt(left, right)
+            self.quickSort(left, partition - 1)
+            self.quickSort(partition + 1, right)
 
 def stop(): # will stop after the current shuffle is done
     global running
@@ -835,6 +895,8 @@ def makeButtons():
     bogoSortButton.pack(side = LEFT)
     mergeSortButton = Button(text="Merge Sort", width=9, command= lambda: onClick(array.mergeSort))
     mergeSortButton.pack(side = LEFT)
+    quickSortButton = Button(text="Quick Sort", width=9, command= lambda: onClick(array.quickSort))
+    quickSortButton.pack(side = LEFT)
     shuffleButton = Button(text="Shuffle", width=7, command= lambda: onClick(array.shuffle))
     shuffleButton.pack(side = LEFT)
     stopButton = Button(text="Stop", width=7, command = lambda: onClick(stop))
@@ -848,7 +910,7 @@ def makeButtons():
     deleteButton = Button(text="Delete", width=7, command= lambda: onClick(array.removeFromEnd))
     deleteButton.pack()
     buttons = [bubbleSortButton, selectionSortButton, insertionSortButton, bogoSortButton, mergeSortButton,
-               shuffleButton, findButton, insertButton, deleteButton]
+               quickSortButton, shuffleButton, findButton, insertButton, deleteButton]
     return buttons
 
 window = Tk()
@@ -898,5 +960,5 @@ To Do:
 - add slider bar for speed
 - fix merge sort
 - label arrows for sorts
-- 
+- implement shell sort, radix sort, quick sort
 '''
