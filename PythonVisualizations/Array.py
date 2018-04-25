@@ -378,7 +378,7 @@ class Array(object):
                 # bounce off the sides
                 if canvas.coords(self.list[i].display_shape)[0] + shuffleX <= 0 or canvas.coords(self.list[i].display_shape)[0] + shuffleX >= maxWidth:
                     shuffleX = -shuffleX * 2
-                if canvas.coords(self.list[i].display_shape)[1] + shuffleY <= 0 or canvas.coords(self.list[i].display_shape)[1] + shuffleY >= maxHeight:
+                if canvas.coords(self.list[i].display_shape)[1] + shuffleY <= ARRAY_Y0 or canvas.coords(self.list[i].display_shape)[1] + shuffleY >= maxHeight:
                     shuffleY = -shuffleY * 2
                 canvas.move(self.list[i].display_shape, shuffleX, shuffleY)
                 canvas.move(self.list[i].display_val, shuffleX, shuffleY)
@@ -652,6 +652,8 @@ class Array(object):
 
         self.__mergeSort()
 
+        self.fixGaps()
+
     def __mergeSort(self, l=0, r=-1):
         global running
 
@@ -675,6 +677,44 @@ class Array(object):
             if not running:
                 self.stopMergeSort()
                 return
+
+    def fixGaps(self, toX=ARRAY_X0, toY=ARRAY_Y0):
+        done = [False] * len(self.list)
+        doneCount = 0
+
+        while doneCount < len(self.list):
+            for i in range(len(self.list)):
+                # move the done elements up by dy and corresponding dx
+                if not done[i]:
+                    dx=0
+                    dy=0
+                    curX = canvas.coords(self.list[i].display_shape)[0]
+                    curY = canvas.coords(self.list[i].display_shape)[1]
+
+                    # calculate dx based on if the cell is to the right or to the
+                    # left of its desired position
+                    if curX < toX + CELL_SIZE*i:
+                        dx = 0.5 if curX % 1 == 0 else toX + CELL_SIZE*i - curX
+                    elif curX > toX + CELL_SIZE*i:
+                        dx = -0.5 if curX % 1 == 0 else toX + CELL_SIZE*i - curX
+
+                    # do the same for dy
+                    if curY < toY:
+                        dy = 0.5 if curY % 1 == 0 else toY - curY
+                    elif canvas.coords(self.list[i].display_shape)[1] > toY:
+                        dy = -0.5 if curY % 1 == 0 else toY - curY
+
+                    # if dx or dy are not zero, the cell isn't in position and still needs to be moved
+                    if dx or dy:
+                        canvas.move(self.list[i].display_shape, dx, dy)
+                        canvas.move(self.list[i].display_val, dx, dy)
+                    # when the cell is in the correct position, mark it as done
+                    else:
+                        doneCount += 1
+                        done[i] = True
+
+            window.update()
+            time.sleep(0.05)
 
     def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
         # bring all cells up to original position
@@ -711,6 +751,8 @@ class Array(object):
 
             window.update()
             time.sleep(0.01)
+
+        self.fixGaps()
 
     def bogoSort(self):
         global running
