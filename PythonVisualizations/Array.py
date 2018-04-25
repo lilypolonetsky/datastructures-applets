@@ -701,7 +701,7 @@ class Array(object):
                     # do the same for dy
                     if curY < toY:
                         dy = 0.5 if curY % 1 == 0 else toY - curY
-                    elif canvas.coords(self.list[i].display_shape)[1] > toY:
+                    elif curY > toY:
                         dy = -0.5 if curY % 1 == 0 else toY - curY
 
                     # if dx or dy are not zero, the cell isn't in position and still needs to be moved
