@@ -802,4 +802,9 @@ To Do:
 - delete/insert at index?
 - make shuffle better
 - add code on screen to follow along
+- add stop and pause/play (same button)
+- add slider bar for speed
+- fix merge sort
+- label arrows for sorts
+- 
 '''
