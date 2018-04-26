@@ -821,6 +821,7 @@ def pause(pauseButton):
     global running
     running = False
 
+    # make an infinite loop that sleeps unless play is pressed 
     pauseButton['text'] = "Play"
     pauseButton['command'] = lambda: onClick(play, pauseButton)
     enableButtons()

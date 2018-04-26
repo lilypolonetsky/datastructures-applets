@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="cdd46379-ae40-414b-9f4c-0fffa04f1fa3" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PythonVisualizations/Array.py" beforeDir="false" afterPath="$PROJECT_DIR$/PythonVisualizations/Array.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -16,8 +17,8 @@
       <file leaf-file-name="Array.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/PythonVisualizations/Array.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="286">
-              <caret line="769" column="32" lean-forward="true" selection-start-line="769" selection-start-column="32" selection-end-line="769" selection-end-column="32" />
+            <state relative-caret-position="100">
+              <caret line="823" column="63" selection-start-line="823" selection-start-column="63" selection-end-line="823" selection-end-column="63" />
               <folding>
                 <element signature="e#0#21#0" expanded="true" />
               </folding>
@@ -57,6 +58,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -73,7 +75,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -137,7 +138,7 @@
       <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.074104235" />
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="bottom" id="Event Log" order="7" side_tool="true" />
-      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.32152587" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.32152587" />
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Python Console" order="7" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
@@ -157,6 +158,16 @@
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="editorHistoryManager">
+    <entry file="file://$PROJECT_DIR$/PythonVisualizations/Array.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="11445">
+          <caret line="763" column="22" lean-forward="true" selection-start-line="763" selection-start-column="22" selection-end-line="763" selection-end-column="22" />
+          <folding>
+            <element signature="e#0#21#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/PythonVisualizations/Array.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="11880">
@@ -199,8 +210,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/PythonVisualizations/Array.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="286">
-          <caret line="769" column="32" lean-forward="true" selection-start-line="769" selection-start-column="32" selection-end-line="769" selection-end-column="32" />
+        <state relative-caret-position="100">
+          <caret line="823" column="63" selection-start-line="823" selection-start-column="63" selection-end-line="823" selection-end-column="63" />
           <folding>
             <element signature="e#0#21#0" expanded="true" />
           </folding>
