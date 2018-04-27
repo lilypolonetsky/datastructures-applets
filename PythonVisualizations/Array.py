@@ -25,6 +25,9 @@ class Array(object):
         return str(self.list)
 
     # ANIMATION METHODS
+    def speed(self, sleepTime):
+        return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
+
     def assignElement(self, fromIndex, toIndex):
 
         # get position of "to" cell
@@ -51,7 +54,7 @@ class Array(object):
             canvas.move(newCellShape, xspeed, 0)
             canvas.move(newCellVal, xspeed, 0)
             window.update()
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
 
         # delete the original "to" display value and the new display shape
         canvas.delete(self.list[toIndex].display_val)
@@ -82,7 +85,7 @@ class Array(object):
             canvas.move(shape, 0, yspeed)
             canvas.move(val, 0, yspeed)
             window.update()
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
 
         text = canvas.create_text(posCell[0] + (CELL_SIZE / 2), y0 - CELL_SIZE - 30, text=varName,
                                   font=('Helvetica', '20'))
@@ -110,7 +113,7 @@ class Array(object):
             canvas.move(temp.display_val, xspeed, 0)
             canvas.move(text, xspeed, 0)
             window.update()
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
 
         time.sleep(0.1)
 
@@ -119,9 +122,9 @@ class Array(object):
             canvas.move(temp.display_shape, 0, yspeed)
             canvas.move(temp.display_val, 0, yspeed)
             window.update()
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
 
-        time.sleep(0.1)
+        time.sleep(self.speed(0.1))
         canvas.delete(text)
         canvas.delete(self.list[index].display_shape)
         canvas.delete(self.list[index].display_val)
@@ -138,9 +141,9 @@ class Array(object):
                 for o in (aCellObjects + bCellObjects):
                     canvas.move(o, 0, yspeed)
                 window.update()
-                time.sleep(0.001)
+                time.sleep(self.speed(0.01))
 
-            time.sleep(0.1)
+            time.sleep(self.speed(0.1))
 
             while canvas.coords(shapeA)[1] != y0:
                 canvas.move(shapeA, 0, -yspeed)
@@ -148,7 +151,7 @@ class Array(object):
                 for o in (aCellObjects + bCellObjects):
                     canvas.move(o, 0, -yspeed)
                 window.update()
-                time.sleep(0.001)
+                time.sleep(self.speed(0.01))
 
             return
 
@@ -166,12 +169,12 @@ class Array(object):
             for o in (aCellObjects + bCellObjects):
                 canvas.move(o, 0, yspeed)
             window.update()
-            time.sleep(0.001)
+            time.sleep(self.speed(0.01))
 
-        time.sleep(0.1)
+        time.sleep(self.speed(0.1))
 
         # make a and b cells switch places
-        xspeed = 1
+        xspeed = 5
         if b < a:
             xspeed = -xspeed
 
@@ -189,9 +192,9 @@ class Array(object):
                 canvas.move(o, -xspeed, 0)
 
             window.update()
-            time.sleep(0.002)
+            time.sleep(self.speed(0.01))
 
-        time.sleep(0.1)
+        time.sleep(self.speed(0.1))
 
         # move the cells back down into the list
         while canvas.coords(shapeA)[1] != y0:
@@ -202,7 +205,7 @@ class Array(object):
             for o in (aCellObjects + bCellObjects):
                 canvas.move(o, 0, -yspeed)
             window.update()
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
 
         # perform the actual swap operation in the list
         self.list[a], self.list[b] = self.list[b], self.list[a]
@@ -226,7 +229,7 @@ class Array(object):
             canvas.move(curDisplayShape, dx, dy)
             canvas.move(curDisplayVal, dx, dy)
             window.update()
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
 
     # ARRAY FUNCTIONALITY
     def isSorted(self):
@@ -344,7 +347,7 @@ class Array(object):
                 return True
 
             # if the value hasn't been found, wait 1 second, and then move the arrow over one cell
-            time.sleep(1)
+            time.sleep(self.speed(1))
             canvas.move(arrow, CELL_SIZE, 0)
 
             if not running:
@@ -377,7 +380,7 @@ class Array(object):
         # while all of the elements have not yet been returned to the original position
         while times < len(self.list)*2 and running:
             for i in range(len(self.list)):
-                time.sleep(0.01)
+                time.sleep(self.speed(0.01))
                 shuffleY = random.randint(-30, 30)
                 shuffleX = random.randint(-30, 30)
 
@@ -390,7 +393,7 @@ class Array(object):
                 canvas.move(self.list[i].display_shape, shuffleX, shuffleY)
                 canvas.move(self.list[i].display_val, shuffleX, shuffleY)
             times += 1
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
             window.update()
 
         self.stopMergeSort()
@@ -421,7 +424,7 @@ class Array(object):
 
             while j >= 0 and cur.val < self.list[j].val:
                 #self.list[j + 1] = self.list[j]
-                time.sleep(0.5)
+                time.sleep(self.speed(0.1))
                 self.assignElement(j, j+1)
                 j -= 1
 
@@ -432,7 +435,7 @@ class Array(object):
                     break
 
             #self.list[j + 1] = cur
-            time.sleep(0.5)
+            time.sleep(self.speed(0.1))
             self.assignFromTemp(j+1, cur, text)
 
             canvas.delete(innerArrow)
@@ -445,6 +448,7 @@ class Array(object):
 
 
         canvas.delete(outerArrow)
+        self.fixGaps()
 
     def bubbleSort(self):
         global running, cleanup
@@ -466,7 +470,7 @@ class Array(object):
             # Last i elements are already in place
             for j in range(0, n - i - 1):
 
-                time.sleep(0.5)
+                time.sleep(self.speed(0.5))
 
                 # traverse the array from 0 to n-i-1
                 # Swap if the element found is greater
@@ -481,7 +485,7 @@ class Array(object):
                     canvas.delete(innerArrow)
                     break
 
-            time.sleep(0.5)
+            time.sleep(self.speed(0.5))
             canvas.delete(innerArrow)
 
             if not running:
@@ -491,6 +495,7 @@ class Array(object):
             canvas.move(outerArrow, CELL_SIZE, 0)
 
         canvas.delete(outerArrow)
+        self.fixGaps()
 
     def selectionSort(self):
         global running
@@ -533,6 +538,7 @@ class Array(object):
             canvas.move(outerArrow, CELL_SIZE, 0)
 
         canvas.delete(outerArrow)
+        self.fixGaps()
 
     def split(self, index, start=0, end=-1):
         global running
@@ -557,7 +563,7 @@ class Array(object):
                     canvas.move(self.list[i].display_shape, -xspeed, yspeed)
                     canvas.move(self.list[i].display_val, -xspeed, yspeed)
             window.update()
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
 
             if not running:
                 return
@@ -756,7 +762,7 @@ class Array(object):
                         done[i] = True
 
             window.update()
-            time.sleep(0.01)
+            time.sleep(self.speed(0.01))
 
         self.fixGaps()
 
@@ -774,7 +780,7 @@ class Array(object):
         global running
         running = True
         while not self.isSorted() and running:
-            time.sleep(1) # pauses in between shuffles to show that checking if its sorted
+            time.sleep(self.speed(1)) # pauses in between shuffles to show that checking if its sorted
             self.shuffle()
 
     def medianOfThree(self, left, right):
@@ -821,9 +827,9 @@ class Array(object):
         doneCellObjects.append(doneArrow)
         doneCellObjects.append(doneTxt)
 
-        curArrow = canvas.create_line(x + CELL_SIZE * (left-1), y0, x + CELL_SIZE * (left-1), y1, arrow="first",
+        curArrow = canvas.create_line(x + CELL_SIZE * left, y0, x + CELL_SIZE * left, y1, arrow="first",
                                         fill="blue")
-        curTxt = canvas.create_text(x + CELL_SIZE * (left-1), y1 - 5, text="cur",
+        curTxt = canvas.create_text(x + CELL_SIZE * left, y1 - 20, text="cur",
                                  font=('Helvetica', '15'))
         # for each position except for the pivot position
         for cur in range(left, right):
@@ -838,17 +844,17 @@ class Array(object):
                 done += 1
                 canvas.move(doneArrow, CELL_SIZE, 0)
                 canvas.move(doneTxt, CELL_SIZE, 0)
-                output += "cur <= pivot"
-
-
-            canvas.move(curArrow, CELL_SIZE, 0)
-            canvas.move(curTxt, CELL_SIZE, 0)
-            output += "cur > pivot"
+                output += "cur <= pivot --> SWAPPING"
+            else:
+                output += "cur > pivot"
 
             txt = canvas.create_text(ARRAY_X0+100, ARRAY_Y0+100, text=output, font=('Helvetica', '15'))
             window.update()
-            time.sleep(1)
+            time.sleep(self.speed(1))
             canvas.delete(txt)
+
+            canvas.move(curArrow, CELL_SIZE, 0)
+            canvas.move(curTxt, CELL_SIZE, 0)
 
         canvas.delete(curArrow)
         canvas.delete(curTxt)
@@ -866,7 +872,7 @@ class Array(object):
         canvas.delete(r)
 
         # At this point, done is the location where the pivot value got placed
-        time.sleep(0.1)
+        time.sleep(self.speed(0.1))
         return done
 
     def quickSort(self, left=-1, right=-1):
@@ -881,22 +887,25 @@ class Array(object):
             self.quickSort(left, partition - 1)
             self.quickSort(partition + 1, right)
 
-def stop(): # will stop after the current shuffle is done
+def stop(pauseButton): # will stop after the current shuffle is done
     global running
     running = False
+
+    if waitVar.get():
+        play(pauseButton)
 
 def pause(pauseButton):
-    global running
-    running = False
+    global waitVar
+    waitVar.set(True)
 
-    # make an infinite loop that sleeps unless play is pressed 
     pauseButton['text'] = "Play"
     pauseButton['command'] = lambda: onClick(play, pauseButton)
-    enableButtons()
+
+    canvas.wait_variable(waitVar)
 
 def play(pauseButton):
-    global running
-    running = True
+    global waitVar
+    waitVar.set(False)
 
     pauseButton['text'] = 'Pause'
     pauseButton['command'] = lambda: onClick(pause, pauseButton)
@@ -908,7 +917,8 @@ def onClick(command, parameter = None):
         command(parameter)
     else:
         command()
-    enableButtons()
+    if command not in [pause, play]:
+        enableButtons()
 
 def cleanUp():
     global cleanup
@@ -949,30 +959,30 @@ def enableButtons():
         button.config(state = NORMAL)
 
 def makeButtons():
-    bubbleSortButton = Button(text="Bubble Sort", width=11, command= lambda: onClick(array.bubbleSort))
-    bubbleSortButton.pack(side = LEFT)
-    selectionSortButton = Button(text="Selection Sort", width=14, command= lambda: onClick(array.selectionSort))
-    selectionSortButton.pack(side = LEFT)
-    insertionSortButton = Button(text="Insertion Sort", width=14, command= lambda: onClick(array.insertionSort))
-    insertionSortButton.pack(side = LEFT)
-    bogoSortButton = Button(text="Bogo Sort", width=9, command= lambda: onClick(array.bogoSort))
-    bogoSortButton.pack(side = LEFT)
-    mergeSortButton = Button(text="Merge Sort", width=9, command= lambda: onClick(array.mergeSort))
-    mergeSortButton.pack(side = LEFT)
-    quickSortButton = Button(text="Quick Sort", width=9, command= lambda: onClick(array.quickSort))
-    quickSortButton.pack(side = LEFT)
-    shuffleButton = Button(text="Shuffle", width=7, command= lambda: onClick(array.shuffle))
-    shuffleButton.pack(side = LEFT)
-    stopButton = Button(text="Stop", width=7, command = lambda: onClick(stop))
-    stopButton.pack(side = LEFT)
-    pauseButton = Button(text="Pause", width=8, command = lambda: onClick(pause, pauseButton))
-    pauseButton.pack(side=LEFT)
-    findButton = Button(text="Find", width=7, command= lambda: onClick(clickFind))
-    findButton.pack()
-    insertButton = Button(text="Insert", width=7, command= lambda: onClick(clickInsert))
-    insertButton.pack()
-    deleteButton = Button(text="Delete", width=7, command= lambda: onClick(array.removeFromEnd))
-    deleteButton.pack()
+    bubbleSortButton = Button(bottomframe, text="Bubble Sort", width=11, command= lambda: onClick(array.bubbleSort))
+    bubbleSortButton.grid(row=0, column=0)
+    selectionSortButton = Button(bottomframe, text="Selection Sort", width=14, command= lambda: onClick(array.selectionSort))
+    selectionSortButton.grid(row=0, column=1)
+    insertionSortButton = Button(bottomframe, text="Insertion Sort", width=14, command= lambda: onClick(array.insertionSort))
+    insertionSortButton.grid(row=0, column=2)
+    bogoSortButton = Button(bottomframe, text="Bogo Sort", width=9, command= lambda: onClick(array.bogoSort))
+    bogoSortButton.grid(row=0, column=3)
+    mergeSortButton = Button(bottomframe, text="Merge Sort", width=9, command= lambda: onClick(array.mergeSort))
+    mergeSortButton.grid(row=1, column=0)
+    quickSortButton = Button(bottomframe, text="Quick Sort", width=9, command= lambda: onClick(array.quickSort))
+    quickSortButton.grid(row=1, column=1)
+    shuffleButton = Button(bottomframe, text="Shuffle", width=7, command= lambda: onClick(array.shuffle))
+    shuffleButton.grid(row=1, column=2)
+    pauseButton = Button(bottomframe, text="Pause", width=8, command = lambda: onClick(pause, pauseButton))
+    pauseButton.grid(row=2, column=0)
+    stopButton = Button(bottomframe, text="Stop", width=7, command = lambda: onClick(stop, pauseButton))
+    stopButton.grid(row=1, column=3)
+    findButton = Button(bottomframe, text="Find", width=7, command= lambda: onClick(clickFind))
+    findButton.grid(row=2, column=1)
+    insertButton = Button(bottomframe, text="Insert", width=7, command= lambda: onClick(clickInsert))
+    insertButton.grid(row=2, column=2)
+    deleteButton = Button(bottomframe, text="Delete", width=7, command= lambda: onClick(array.removeFromEnd))
+    deleteButton.grid(row=2, column=3)
     buttons = [bubbleSortButton, selectionSortButton, insertionSortButton, bogoSortButton, mergeSortButton,
                quickSortButton, shuffleButton, findButton, insertButton, deleteButton]
     return buttons
@@ -980,6 +990,8 @@ def makeButtons():
 window = Tk()
 frame = Frame(window)
 frame.pack()
+
+waitVar = BooleanVar()
 
 canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
 window.title("Array")
@@ -990,17 +1002,23 @@ bottomframe.pack(side=BOTTOM)
 
 #Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
 textBox = Entry(bottomframe, width=20, bg="white")
-textBox.grid(row=0, column=1, sticky=W)
+textBox.grid(row=4, column=0, sticky=W)
+scaleDefault = 100
+scale = Scale(bottomframe, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
+scale.grid(row=5, column=1, sticky=W)
+scale.set(scaleDefault)
+scaleLabel = Label(bottomframe, text="Speed:", font="none 10")
+scaleLabel.grid(row=5, column=0, sticky=E)
 
 # add a submit button
 #Button(bottomframe, text="Find", width=6, command=lambda: array.onClick(clickFind)).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
 output = Label(bottomframe, textvariable=outputText, font="none 12 bold")
-output.grid(row=0, column=3, sticky=E)
+output.grid(row=4, column=1, sticky=E)
 
 # exit button
-Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=2, column=0, sticky=W)
+Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, column=3, sticky=W)
 
 cleanup = []
 array = Array()
