@@ -1036,11 +1036,6 @@ To Do:
 - make it look pretty
 - animate insert and delete
 - delete/insert at index?
-- make shuffle better
-- add code on screen to follow along
-- add stop and pause/play (same button)
-- add slider bar for speed
-- fix merge sort
-- label arrows for sorts
+- label arrows for sorts (inner, outer, etc.)
 - implement shell sort, radix sort, quick sort
 '''

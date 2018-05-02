@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/datastructures-applets.iml" filepath="$PROJECT_DIR$/.idea/datastructures-applets.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/DataStructuresVisualizations.iml" filepath="$PROJECT_DIR$/.idea/DataStructuresVisualizations.iml" />
     </modules>
   </component>
 </project>
