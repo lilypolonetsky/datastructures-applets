@@ -1,6 +1,6 @@
-from tkinter import *
-import time
 import random
+import time
+from tkinter import *
 from recordclass import recordclass
 
 WIDTH = 800
@@ -451,7 +451,7 @@ class Array(object):
         self.fixGaps()
 
     def bubbleSort(self):
-        global running, cleanup
+        global running
         running = True
         n = len(self.list)
 
