@@ -4,7 +4,7 @@ To Do:
     - animate insert and delete
     - delete/insert at index?
     - label arrows for sorts (inner, outer, etc.)
-    - implement shell sort, radix sort
+    - implement shell sort, radix sort, binary search
     - add text on screen that explains what's happening as it's
       happening (e.g. shows comparisons)
 
