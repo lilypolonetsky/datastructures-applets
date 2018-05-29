@@ -289,3 +289,10 @@ def __main():
 
 if __name__ == '__main__':
     __main()
+
+
+'''
+Useful Links:
+http://effbot.org/zone/tkinter-complex-canvas.htm
+https://mail.python.org/pipermail/python-list/2000-December/022013.html
+'''
