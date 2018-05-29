@@ -1,3 +1,0 @@
-To run a Java applet on Linux:
-`javac *.java`
-`appletviewer *.html`
