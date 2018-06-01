@@ -887,6 +887,59 @@ class Array(object):
             self.quickSort(left, partition - 1)
             self.quickSort(partition + 1, right)
 
+    def countingSortOnDigit(self, d):
+        #ans = [0] * len(self.__a)  # the sorted numbers will go here
+        tempList = self.list
+        counts = [0] * 10  # the counts are accumulated here
+        list = self.list
+        someRemaining = False
+        tenPower = 10 ** d
+
+        length = len(list)
+        for i in range(length):
+            temp = tempList[i].val // tenPower
+            if temp > 0: someRemaining = True
+            counts[temp % 10] += 1
+        if someRemaining == False: return False
+        # counts[j] now contains the number of values
+        # in Array whose d'th digit is == j
+
+        # convert the counts into cumulative counts:
+        for j in range(1, len(counts)): counts[j] += counts[j - 1]
+        # counts[j] now contains the number of values
+        # in arr whose d'th digit is <= to j
+
+        # place the values of arr into the correct slot of the answer array
+        for i in range(length - 1, -1, -1):
+            temp = (tempList[i].val // tenPower) % 10
+            counts[temp] -= 1
+            list[counts[temp]] = tempList[i]
+
+        #self.__a = ans
+        return True
+
+    def radixSort(self):
+        global running
+        # get the y coordinates of the next level down
+        shapeX = canvas.coords(self.list[0].display_shape)[0]
+        valX = canvas.coords(self.list[0].display_val)[0]
+
+        for i in range(0, len(self.list)):
+            cur = self.list[i]
+            canvas.move(cur.display_shape, -(canvas.coords(cur.display_shape)[0] - shapeX), CELL_SIZE*i - 80)
+            canvas.move(cur.display_val, -(canvas.coords(cur.display_val)[0] - valX), CELL_SIZE*i - 80)
+            canvas.config(width = 1200, height = 600)
+
+            window.update()
+            time.sleep(self.speed(0.01))
+
+        i = 0
+        while self.countingSortOnDigit(i):
+            i += 1
+
+        self.display()
+
+
 def stop(pauseButton): # will stop after the current shuffle is done
     global running
     running = False
@@ -971,12 +1024,14 @@ def makeButtons():
     mergeSortButton.grid(row=1, column=0)
     quickSortButton = Button(bottomframe, text="Quick Sort", width=9, command= lambda: onClick(array.quickSort))
     quickSortButton.grid(row=1, column=1)
+    radixSortButton = Button(bottomframe, text="Radix Sort", width=9, command= lambda: onClick(array.radixSort))
+    radixSortButton.grid(row=1, column=2)
     shuffleButton = Button(bottomframe, text="Shuffle", width=7, command= lambda: onClick(array.shuffle))
-    shuffleButton.grid(row=1, column=2)
+    shuffleButton.grid(row=1, column=3)
     pauseButton = Button(bottomframe, text="Pause", width=8, command = lambda: onClick(pause, pauseButton))
     pauseButton.grid(row=2, column=0)
     stopButton = Button(bottomframe, text="Stop", width=7, command = lambda: onClick(stop, pauseButton))
-    stopButton.grid(row=1, column=3)
+    stopButton.grid(row=1, column=4)
     findButton = Button(bottomframe, text="Find", width=7, command= lambda: onClick(clickFind))
     findButton.grid(row=2, column=1)
     insertButton = Button(bottomframe, text="Insert", width=7, command= lambda: onClick(clickInsert))
