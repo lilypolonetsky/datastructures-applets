@@ -1113,10 +1113,8 @@ buttons = makeButtons()
 array.display()
 
 
-#for i in range(10):
-#    array.append(i)
-for i in range(8):
-    array.append(random.randint(1, 1000))
+for i in range(10):
+    array.append(i)
 
 window.mainloop()
 
