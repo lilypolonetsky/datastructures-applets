@@ -231,6 +231,17 @@ class Array(object):
             window.update()
             time.sleep(self.speed(0.01))
 
+    def placeHolderArray(self):
+        for cur in self.list:
+            posCell = canvas.coords(cur.display_shape)
+            posCellVal = canvas.coords(cur.display_val)
+
+            # create new display objects that are copies of the cell
+            canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3],
+                                               fill=cur[1])
+            canvas.create_text(posCellVal[0], posCellVal[1], text=cur[0],
+                                        font=('Helvetica', '20'))
+
     # ARRAY FUNCTIONALITY
     def isSorted(self):
         for i in range(1, len(self.list)):
@@ -888,16 +899,15 @@ class Array(object):
             self.quickSort(partition + 1, right)
 
     def countingSortOnDigit(self, d):
-        #ans = [0] * len(self.__a)  # the sorted numbers will go here
-        tempList = self.list
+        ans = [0] * len(self.list)  # the sorted numbers will go here
         counts = [0] * 10  # the counts are accumulated here
-        list = self.list
+        a = self.list[:]
         someRemaining = False
         tenPower = 10 ** d
 
-        length = len(list)
+        length = len(self.list)
         for i in range(length):
-            temp = tempList[i].val // tenPower
+            temp = a[i].val // tenPower
             if temp > 0: someRemaining = True
             counts[temp % 10] += 1
         if someRemaining == False: return False
@@ -910,12 +920,33 @@ class Array(object):
         # in arr whose d'th digit is <= to j
 
         # place the values of arr into the correct slot of the answer array
-        for i in range(length - 1, -1, -1):
-            temp = (tempList[i].val // tenPower) % 10
-            counts[temp] -= 1
-            list[counts[temp]] = tempList[i]
 
-        #self.__a = ans
+        x = canvas.coords(self.list[length-1].display_shape)[0]
+        y0 = canvas.coords(self.list[length-1].display_shape)[1] + CELL_SIZE/2
+
+        curArrow = canvas.create_line(x, y0, x - CELL_SIZE, y0, arrow="first", fill="red")
+        curTxt = canvas.create_text(x-30, y0-10, text="cur",
+                                     font=('Helvetica', '15'))
+
+        self.placeHolderArray()
+
+        for i in range(length - 1, -1, -1):
+            temp = (a[i].val // tenPower) % 10
+            counts[temp] -= 1
+            ans[counts[temp]] = a[i]
+
+            canvas.move(self.list[i].display_shape, CELL_SIZE*3, (counts[temp]-i) * CELL_SIZE)
+            canvas.move(self.list[i].display_val, CELL_SIZE*3, (counts[temp]-i) * CELL_SIZE)
+
+            window.update()
+            time.sleep(self.speed(0.8))
+            canvas.move(curArrow, 0, - CELL_SIZE)
+            canvas.move(curTxt, 0, - CELL_SIZE)
+
+        canvas.delete(curArrow)
+        canvas.delete(curTxt)
+        window.update()
+        self.list = ans
         return True
 
     def radixSort(self):
@@ -923,12 +954,12 @@ class Array(object):
         # get the y coordinates of the next level down
         shapeX = canvas.coords(self.list[0].display_shape)[0]
         valX = canvas.coords(self.list[0].display_val)[0]
+        canvas.config(width=1200, height=600)
 
         for i in range(0, len(self.list)):
             cur = self.list[i]
-            canvas.move(cur.display_shape, -(canvas.coords(cur.display_shape)[0] - shapeX), CELL_SIZE*i - 80)
-            canvas.move(cur.display_val, -(canvas.coords(cur.display_val)[0] - valX), CELL_SIZE*i - 80)
-            canvas.config(width = 1200, height = 600)
+            canvas.move(cur.display_shape, -(canvas.coords(cur.display_shape)[0] - shapeX), CELL_SIZE*i - 30)
+            canvas.move(cur.display_val, -(canvas.coords(cur.display_val)[0] - valX), CELL_SIZE*i - 30)
 
             window.update()
             time.sleep(self.speed(0.01))
@@ -937,6 +968,7 @@ class Array(object):
         while self.countingSortOnDigit(i):
             i += 1
 
+        canvas.config(width = WIDTH, height = HEIGHT)
         self.display()
 
 
@@ -1039,7 +1071,7 @@ def makeButtons():
     deleteButton = Button(bottomframe, text="Delete", width=7, command= lambda: onClick(array.removeFromEnd))
     deleteButton.grid(row=2, column=3)
     buttons = [bubbleSortButton, selectionSortButton, insertionSortButton, bogoSortButton, mergeSortButton,
-               quickSortButton, shuffleButton, findButton, insertButton, deleteButton]
+               quickSortButton, radixSortButton, shuffleButton, findButton, insertButton, deleteButton]
     return buttons
 
 window = Tk()
@@ -1081,8 +1113,10 @@ buttons = makeButtons()
 array.display()
 
 
-for i in range(10):
-    array.append(i)
+#for i in range(10):
+#    array.append(i)
+for i in range(8):
+    array.append(random.randint(1, 1000))
 
 window.mainloop()
 
