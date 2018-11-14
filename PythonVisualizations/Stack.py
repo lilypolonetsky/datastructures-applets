@@ -10,7 +10,7 @@ from recordclass import recordclass
 WIDTH = 800
 HEIGHT = 400
 
-CELL_SIZE = 50
+CELL_SIZE = 50 # comment
 ARRAY_X0 = 100
 ARRAY_Y0 = 100
 
