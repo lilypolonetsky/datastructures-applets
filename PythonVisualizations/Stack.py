@@ -2,10 +2,12 @@ import random
 import time
 from tkinter import *
 # ASK Giving an error, no recordclass module
+# she'll show us how to download it and then we can press play
+# and have it run. 
 from recordclass import recordclass 
 
-# clarify generally - are we adding buttons to her's, 
-# or creating an entirely new visualization
+# creating entirely new visualization
+# Rewrite??
 
 WIDTH = 800
 HEIGHT = 400
@@ -29,6 +31,9 @@ class Stack(object):
         return str(self.list)
 
     # ANIMATION METHODS
+    # Will need to change motion to be vertical not
+    # horizontal because we're 
+    
     def speed(self, sleepTime):
         return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
 
@@ -73,151 +78,7 @@ class Stack(object):
         # update the window
         window.update()
 
-# ASK: What is this doing?
-    def assignToTemp(self, index, varName="temp"):
-
-        y0 = canvas.coords(self.list[index].display_shape)[1]
-
-        posCell = canvas.coords(self.list[index].display_shape)
-        posCellVal = canvas.coords(self.list[index].display_val)
-
-        yspeed = -5
-        shape = canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3], fill=self.list[index][1])
-        val = canvas.create_text(posCellVal[0], posCellVal[1], text=str(self.list[index][0]),
-                                 font=('Helvetica', '20'))
-
-        while canvas.coords(shape)[1] > (y0 - CELL_SIZE - 15):
-            canvas.move(shape, 0, yspeed)
-            canvas.move(val, 0, yspeed)
-            window.update()
-            time.sleep(self.speed(0.01))
-
-        text = canvas.create_text(posCell[0] + (CELL_SIZE / 2), y0 - CELL_SIZE - 30, text=varName,
-                                  font=('Helvetica', '20'))
-        temp = Array.Element(self.list[index][0], self.list[index][1], shape, val)
-
-        window.update()
-        return temp, text
-
-# ASK - follows from above method (probably?)
-    def assignFromTemp(self, index, temp, text):
-
-        y0 = canvas.coords(self.list[index].display_shape)[1]
-
-        posCell = canvas.coords(self.list[index].display_shape)
-        posCellVal = canvas.coords(self.list[index].display_val)
-
-        xspeed = 5
-        moveRight = True
-        if canvas.coords(temp.display_shape)[0] > posCell[0]:
-            xspeed = -xspeed
-            moveRight = False
-
-        while (moveRight and canvas.coords(temp.display_shape)[0] < posCell[0]) or \
-                (not moveRight and canvas.coords(temp.display_shape)[0] > posCell[0]):
-            canvas.move(temp.display_shape, xspeed, 0)
-            canvas.move(temp.display_val, xspeed, 0)
-            canvas.move(text, xspeed, 0)
-            window.update()
-            time.sleep(self.speed(0.01))
-
-        time.sleep(0.1)
-
-        yspeed = 5
-        while canvas.coords(temp.display_shape)[1] < y0:
-            canvas.move(temp.display_shape, 0, yspeed)
-            canvas.move(temp.display_val, 0, yspeed)
-            window.update()
-            time.sleep(self.speed(0.01))
-
-        time.sleep(self.speed(0.1))
-        canvas.delete(text)
-        canvas.delete(self.list[index].display_shape)
-        canvas.delete(self.list[index].display_val)
-        self.list[index] = temp
-
-# ASK: Is this already a type of sort?
-#      We're not going to need this, right?
-    def swap(self, a, b, aCellObjects = [], bCellObjects = []):
-        y0 = canvas.coords(self.list[a].display_shape)[1]
-        if a == b:
-            yspeed = -5
-            shapeA = self.list[a].display_shape
-            while canvas.coords(shapeA)[1] != (y0 - CELL_SIZE - 15):
-                canvas.move(shapeA, 0, yspeed)
-                canvas.move(self.list[a].display_val, 0, yspeed)
-                for o in (aCellObjects + bCellObjects):
-                    canvas.move(o, 0, yspeed)
-                window.update()
-                time.sleep(self.speed(0.01))
-
-            time.sleep(self.speed(0.1))
-
-            while canvas.coords(shapeA)[1] != y0:
-                canvas.move(shapeA, 0, -yspeed)
-                canvas.move(self.list[a].display_val, 0, -yspeed)
-                for o in (aCellObjects + bCellObjects):
-                    canvas.move(o, 0, -yspeed)
-                window.update()
-                time.sleep(self.speed(0.01))
-
-            return
-
-        # save original coordinates of b cell
-        posCellB = canvas.coords(self.list[b].display_shape)
-
-        # move a and b cells up
-        yspeed = -5
-        shapeA = self.list[a].display_shape
-        while canvas.coords(shapeA)[1] != (y0 - CELL_SIZE - 15):
-            canvas.move(shapeA, 0, yspeed)
-            canvas.move(self.list[a].display_val, 0, yspeed)
-            canvas.move(self.list[b].display_shape, 0, yspeed)
-            canvas.move(self.list[b].display_val, 0, yspeed)
-            for o in (aCellObjects + bCellObjects):
-                canvas.move(o, 0, yspeed)
-            window.update()
-            time.sleep(self.speed(0.01))
-
-        time.sleep(self.speed(0.1))
-
-        # make a and b cells switch places
-        xspeed = 5
-        if b < a:
-            xspeed = -xspeed
-
-        # move the cells until the a cell is above the original position of the b cell
-        while (a < b and canvas.coords(shapeA)[0] < posCellB[0]) or \
-                (a > b and canvas.coords(shapeA)[0] > posCellB[0]):
-            canvas.move(shapeA, xspeed, 0)
-            canvas.move(self.list[a].display_val, xspeed, 0)
-            for o in aCellObjects:
-                canvas.move(o, xspeed, 0)
-
-            canvas.move(self.list[b].display_shape, -xspeed, 0)
-            canvas.move(self.list[b].display_val, -xspeed, 0)
-            for o in bCellObjects:
-                canvas.move(o, -xspeed, 0)
-
-            window.update()
-            time.sleep(self.speed(0.01))
-
-        time.sleep(self.speed(0.1))
-
-        # move the cells back down into the list
-        while canvas.coords(shapeA)[1] != y0:
-            canvas.move(shapeA, 0, -yspeed)
-            canvas.move(self.list[a].display_val, 0, -yspeed)
-            canvas.move(self.list[b].display_shape, 0, -yspeed)
-            canvas.move(self.list[b].display_val, 0, -yspeed)
-            for o in (aCellObjects + bCellObjects):
-                canvas.move(o, 0, -yspeed)
-            window.update()
-            time.sleep(self.speed(0.01))
-
-        # perform the actual swap operation in the list
-        self.list[a], self.list[b] = self.list[b], self.list[a]
-
+# CHANGE FOR VERTICAL - but not reassigning -- may need something different
     def moveUp(self, dy, toX, toY, curDisplayShape, curDisplayVal):
         global running
 
@@ -238,18 +99,6 @@ class Stack(object):
             canvas.move(curDisplayVal, dx, dy)
             window.update()
             time.sleep(self.speed(0.01))
-
-# ASK: What is it? Do we need this if we're not swapping?
-    def placeHolderArray(self):
-        for cur in self.list:
-            posCell = canvas.coords(cur.display_shape)
-            posCellVal = canvas.coords(cur.display_val)
-
-            # create new display objects that are copies of the cell
-            canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3],
-                                               fill=cur[1])
-            canvas.create_text(posCellVal[0], posCellVal[1], text=cur[0],
-                                        font=('Helvetica', '20'))
 
 # ASK: Is this where we'd want to put our stack functionality?
 # If so, do animations go here also, or are they called?
@@ -282,25 +131,24 @@ class Stack(object):
         # update window
         window.update()
 
+# Important: SHOW HOW TO CREATE NEW BLOCKS!
     def append(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Array.colors[Array.nextColor])
+        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
         cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
-        self.list.append(Array.Element(val, Array.colors[Array.nextColor], cell, cell_val))
+        self.list.append(Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val))
 
         # increment nextColor
-        Array.nextColor = (Array.nextColor + 1) % len(Array.colors)
+        Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
 
         # update window
         window.update()
 
-# ASK: Is this exactly the same as our pop? Do we have a built-in push?
-#      do we want to animate it differently?
-
-    def removeFromEnd(self):
+# Animate differently
+    def pop(self):
         # pop an Element from the list
         n = self.list.pop()
 
@@ -310,7 +158,13 @@ class Stack(object):
 
         # update window
         window.update()
+        
+    def push(self):
+        # Fill in our push code here. 
+        window.update()
 
+# Will be close, but not exactly, 
+# modify to display vertically. 
     def display(self):
         canvas.delete("all")
         xpos = ARRAY_X0
@@ -331,103 +185,6 @@ class Stack(object):
             xpos += CELL_SIZE
 
         window.update()
-
-# ASK: Clarify functionality?
-
-    def find(self, val):
-        global cleanup, running
-        running = True
-        findDisplayObjects = []
-        #canvas.delete(findDisplayObjects)
-        self.display()
-
-        # draw an arrow over the first cell
-        x = ARRAY_X0 + (CELL_SIZE/2)
-        y0 = ARRAY_Y0 - 40
-        y1 = ARRAY_Y0 - 15
-        arrow = canvas.create_line(x, y0, x, y1, arrow="last", fill='red')
-        findDisplayObjects.append(arrow)
-
-        # go through each Element in the list
-        for n in self.list:
-            window.update()
-
-            # if the value is found
-            if n.val == val:
-                # get the position of the displayed cell and val
-                #posCell = canvas.coords(n.display_shape)
-                posVal = canvas.coords(n.display_val)
-
-                # cover the current display value with the updated value in green
-                #cell_shape = canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3], fill=n[1])
-                cell_val = canvas.create_text(posVal[0], posVal[1], text=str(val), font=('Helvetica', '25'), fill='green2')
-
-                # add the green value to findDisplayObjects for cleanup later
-                #findDisplayObjects.append(cell_shape)
-                findDisplayObjects.append(cell_val)
-
-                # update the display
-                window.update()
-
-                cleanup += findDisplayObjects
-                #canvas.after(1000, canvas.delete, arrow)
-                #canvas.after(1000, canvas.delete, cell_val)
-                return True
-
-            # if the value hasn't been found, wait 1 second, and then move the arrow over one cell
-            time.sleep(self.speed(1))
-            canvas.move(arrow, CELL_SIZE, 0)
-
-            if not running:
-                break
-
-        cleanup += findDisplayObjects
-        #canvas.after(1000, canvas.delete, arrow)
-        return False
-
-    def remove(self, index):
-        n = self.list.pop(3)
-        canvas.delete(n.display_shape)
-        canvas.delete(n.display_val)
-        window.update()
-
-# ASK: Is this relevant to us?
-    def shuffle(self):
-        global running
-        running = True
-
-        maxHeight = HEIGHT - 5
-        maxWidth = WIDTH -5
-        y = ARRAY_Y0
-        for i in range(len(self.list)):
-            newX = random.randint(0, len(self.list)-1)
-            self.list[i], self.list[newX] = self.list[newX], self.list[i]
-            finalX = ARRAY_X0 + (CELL_SIZE * newX)
-
-        times = 0
-
-        # while all of the elements have not yet been returned to the original position
-        while times < len(self.list)*2 and running:
-            for i in range(len(self.list)):
-                time.sleep(self.speed(0.01))
-                shuffleY = random.randint(-30, 30)
-                shuffleX = random.randint(-30, 30)
-
-
-                # not go off the sides
-                if canvas.coords(self.list[i].display_shape)[0] + shuffleX <= 0 or canvas.coords(self.list[i].display_shape)[0] + shuffleX >= maxWidth:
-                    shuffleX = -shuffleX * 2
-                if canvas.coords(self.list[i].display_shape)[1] + shuffleY <= ARRAY_Y0 or canvas.coords(self.list[i].display_shape)[1] + shuffleY >= maxHeight:
-                    shuffleY = -shuffleY * 2
-                canvas.move(self.list[i].display_shape, shuffleX, shuffleY)
-                canvas.move(self.list[i].display_val, shuffleX, shuffleY)
-            times += 1
-            time.sleep(self.speed(0.01))
-            window.update()
-
-        self.stopMergeSort()
-
-# COMMENTED OUT ILANA'S SORTS THAT WERE HERE
 
 def stop(pauseButton): # will stop after the current shuffle is done
     global running
@@ -471,17 +228,6 @@ def cleanUp():
     window.update()
 
 # Button functions
-def clickFind():
-    entered_text = textBox.get()
-    txt = ''
-    if entered_text:
-        result = array.find(int(entered_text))
-        if result:
-            txt = "Found!"
-        else:
-            txt = "Value not found"
-        outputText.set(txt)
-
 def clickInsert():
     entered_text = textBox.get()
     if entered_text:
@@ -567,7 +313,9 @@ output.grid(row=4, column=1, sticky=E)
 Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, column=3, sticky=W)
 
 cleanup = []
-array = Array()
+
+# change to stack = Stack()
+array = Stack()
 buttons = makeButtons()
 array.display()
 
