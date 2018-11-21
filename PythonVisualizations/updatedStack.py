@@ -6,6 +6,13 @@ from recordclass import recordclass
 # creating entirely new visualization
 # Rewrite??
 
+# TO DO LIST
+# - iron out the push() method - figure out the tkinter stuff
+# - add a check for the pop() method in case there's nothing left
+# - change animations
+#      - Add flying in and flying out
+#      - flip to vertical 
+
 WIDTH = 800
 HEIGHT = 400
 
@@ -155,8 +162,27 @@ class Stack(object):
 
         # update window
         window.update()
-        
+     
+     # THIS NEEDS TO BE IRONED OUT   
     def push(self):
+        # create new cell and cell value display objects
+        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
+        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+                                      font=('Helvetica', '20'))
+
+        # add a new Element to the list with the new value, color, and display objects
+        self.list.append(Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val))
+
+        # increment nextColor
+        Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
+        
+        # push an Element on the list
+        n = self.list.push()        
+        
+        # ADD the associated display objects
+        canvas.delete(n.display_shape)
+        canvas.delete(n.display_val)        
+        
         # Fill in our push code here. 
         window.update()
 
@@ -225,10 +251,10 @@ def cleanUp():
     window.update()
 
 # Button functions
-def clickInsert():
+def clickPush():
     entered_text = textBox.get()
     if entered_text:
-        array.append(int(entered_text))
+        array.push(int(entered_text)) # will need to define our push
         textBox.setvar('')
 
 def close_window():
@@ -244,36 +270,11 @@ def enableButtons():
         button.config(state = NORMAL)
 
 def makeButtons():
-    # REPLACE WITH A PUSH AND A POP BUTTON, 
-    # DON'T NEED ALL THESE SORTS
-    bubbleSortButton = Button(bottomframe, text="Bubble Sort", width=11, command= lambda: onClick(array.bubbleSort))
-    bubbleSortButton.grid(row=0, column=0)
-    selectionSortButton = Button(bottomframe, text="Selection Sort", width=14, command= lambda: onClick(array.selectionSort))
-    selectionSortButton.grid(row=0, column=1)
-    insertionSortButton = Button(bottomframe, text="Insertion Sort", width=14, command= lambda: onClick(array.insertionSort))
-    insertionSortButton.grid(row=0, column=2)
-    bogoSortButton = Button(bottomframe, text="Bogo Sort", width=9, command= lambda: onClick(array.bogoSort))
-    bogoSortButton.grid(row=0, column=3)
-    mergeSortButton = Button(bottomframe, text="Merge Sort", width=9, command= lambda: onClick(array.mergeSort))
-    mergeSortButton.grid(row=1, column=0)
-    quickSortButton = Button(bottomframe, text="Quick Sort", width=9, command= lambda: onClick(array.quickSort))
-    quickSortButton.grid(row=1, column=1)
-    radixSortButton = Button(bottomframe, text="Radix Sort", width=9, command= lambda: onClick(array.radixSort))
-    radixSortButton.grid(row=1, column=2)
-    shuffleButton = Button(bottomframe, text="Shuffle", width=7, command= lambda: onClick(array.shuffle))
-    shuffleButton.grid(row=1, column=3)
-    pauseButton = Button(bottomframe, text="Pause", width=8, command = lambda: onClick(pause, pauseButton))
-    pauseButton.grid(row=2, column=0)
-    stopButton = Button(bottomframe, text="Stop", width=7, command = lambda: onClick(stop, pauseButton))
-    stopButton.grid(row=1, column=4)
-    findButton = Button(bottomframe, text="Find", width=7, command= lambda: onClick(clickFind))
-    findButton.grid(row=2, column=1)
-    insertButton = Button(bottomframe, text="Insert", width=7, command= lambda: onClick(clickInsert))
-    insertButton.grid(row=2, column=2)
-    deleteButton = Button(bottomframe, text="Delete", width=7, command= lambda: onClick(array.removeFromEnd))
-    deleteButton.grid(row=2, column=3)
-    buttons = [bubbleSortButton, selectionSortButton, insertionSortButton, bogoSortButton, mergeSortButton,
-               quickSortButton, radixSortButton, shuffleButton, findButton, insertButton, deleteButton]
+    pushButton = Button(bottomframe, text="Push", width=7, command= lambda: onClick(array.clickPush))
+    pushButton.grid(row=3, column=2)
+    popButton = Button(bottomframe, text="Pop", width=7, command= lambda: onClick(array.pop))
+    popButton.grid(row=3, column=3)
+    buttons = [pushButton, popButton]
     return buttons
 
 window = Tk()
@@ -283,7 +284,7 @@ frame.pack()
 waitVar = BooleanVar()
 
 canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
-window.title("Array")
+window.title("Stack")
 canvas.pack()
 
 bottomframe = Frame(window)
