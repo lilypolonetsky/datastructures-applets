@@ -36,7 +36,7 @@ class Stack(object):
 
     # ANIMATION METHODS
     # Will need to change motion to be vertical not
-    # horizontal because we're 
+    # horizontal because we're creating a vertical stack
     
     def speed(self, sleepTime):
         return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
@@ -136,7 +136,7 @@ class Stack(object):
         window.update()
 
 # Important: SHOW HOW TO CREATE NEW BLOCKS!
-    def append(self, val):
+    def push(self, val):
         # create new cell and cell value display objects
         cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
         cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
@@ -164,7 +164,7 @@ class Stack(object):
         window.update()
      
      # THIS NEEDS TO BE IRONED OUT   
-    def push(self):
+    def append(self):
         # create new cell and cell value display objects
         cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
         cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
@@ -209,28 +209,6 @@ class Stack(object):
 
         window.update()
 
-def stop(pauseButton): # will stop after the current shuffle is done
-    global running
-    running = False
-
-    if waitVar.get():
-        play(pauseButton)
-
-def pause(pauseButton):
-    global waitVar
-    waitVar.set(True)
-
-    pauseButton['text'] = "Play"
-    pauseButton['command'] = lambda: onClick(play, pauseButton)
-
-    canvas.wait_variable(waitVar)
-
-def play(pauseButton):
-    global waitVar
-    waitVar.set(False)
-
-    pauseButton['text'] = 'Pause'
-    pauseButton['command'] = lambda: onClick(pause, pauseButton)
 
 def onClick(command, parameter = None):
     cleanUp()
@@ -239,7 +217,6 @@ def onClick(command, parameter = None):
         command(parameter)
     else:
         command()
-    if command not in [pause, play]:
         enableButtons()
 
 def cleanUp():
@@ -270,7 +247,7 @@ def enableButtons():
         button.config(state = NORMAL)
 
 def makeButtons():
-    pushButton = Button(bottomframe, text="Push", width=7, command= lambda: onClick(array.clickPush))
+    pushButton = Button(bottomframe, text="Push", width=7, command= lambda: onClick(clickPush))
     pushButton.grid(row=3, column=2)
     popButton = Button(bottomframe, text="Pop", width=7, command= lambda: onClick(array.pop))
     popButton.grid(row=3, column=3)
@@ -319,7 +296,7 @@ array.display()
 
 
 for i in range(10):
-    array.append(i)
+    array.push(i)
 
 window.mainloop()
 
