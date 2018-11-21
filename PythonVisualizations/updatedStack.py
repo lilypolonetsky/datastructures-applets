@@ -1,9 +1,6 @@
 import random
 import time
 from tkinter import *
-# ASK Giving an error, no recordclass module
-# she'll show us how to download it and then we can press play
-# and have it run. 
 from recordclass import recordclass 
 
 # creating entirely new visualization
@@ -16,7 +13,7 @@ CELL_SIZE = 50 # comment
 ARRAY_X0 = 100
 ARRAY_Y0 = 100
 
-class Array(object):
+class Stack(object):
     Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
     Element.__new__.__defaults__ = (None,) * len(Element._fields)
 

@@ -16,7 +16,7 @@ CELL_SIZE = 50 # comment
 ARRAY_X0 = 100
 ARRAY_Y0 = 100
 
-class Array(object):
+class Stack(object):
     Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
     Element.__new__.__defaults__ = (None,) * len(Element._fields)
 
