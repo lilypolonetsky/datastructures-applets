@@ -134,6 +134,9 @@ class Stack(object):
 
         # update window
         window.update()
+        
+    def getSize(self):
+        return len(self.list)
 
 # Important: SHOW HOW TO CREATE NEW BLOCKS!
     def push(self, val):
@@ -233,6 +236,16 @@ def clickPush():
     if entered_text:
         array.push(int(entered_text)) # will need to define our push
         textBox.setvar('')
+        
+def clickPop():
+    if array.getSize() == 0:
+        disableButtons()    #with this line no errors are thrown when pop is pushed
+                            #when the list is empty, but the button can still be pushed.
+                            #fix this so the pop button becomes grayed-out and doesn't
+                            #work but the push button still works
+    else:
+        array.pop()
+        
 
 def close_window():
     window.destroy()
@@ -249,7 +262,7 @@ def enableButtons():
 def makeButtons():
     pushButton = Button(bottomframe, text="Push", width=7, command= lambda: onClick(clickPush))
     pushButton.grid(row=3, column=2)
-    popButton = Button(bottomframe, text="Pop", width=7, command= lambda: onClick(array.pop))
+    popButton = Button(bottomframe, text="Pop", width=7, command= lambda: onClick(clickPop))
     popButton.grid(row=3, column=3)
     buttons = [pushButton, popButton]
     return buttons
