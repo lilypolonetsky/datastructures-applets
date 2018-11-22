@@ -7,8 +7,6 @@ from recordclass import recordclass
 # Rewrite??
 
 # TO DO LIST
-# - iron out the push() method - figure out the tkinter stuff
-# - add a check for the pop() method in case there's nothing left
 # - change animations
 #      - Add flying in and flying out
 #      - flip to vertical 
@@ -51,9 +49,11 @@ class Stack(object):
         posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
 
         # create new display objects that are copies of the "from" cell and value
-        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], posFromCell[2], posFromCell[3],
+        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], \
+                                               posFromCell[2], posFromCell[3],
                                                fill=self.list[fromIndex][1])
-        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], text=self.list[fromIndex][0],
+        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], \
+                                        text=self.list[fromIndex][0],
                                         font=('Helvetica', '20'))
 
         # set xspeed to move in the correct direction
@@ -141,8 +141,11 @@ class Stack(object):
 # Important: SHOW HOW TO CREATE NEW BLOCKS!
     def push(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
-        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
+                                       ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
+                                       ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
+        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
+                                      ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
@@ -150,6 +153,8 @@ class Stack(object):
 
         # increment nextColor
         Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
+        
+        #THE APPEND METHOD HAS EXTRA THINGS HERE THAT PUSH() DOESN'T HAVE - DO WE NEED THEM?
 
         # update window
         window.update()
@@ -186,7 +191,7 @@ class Stack(object):
         canvas.delete(n.display_shape)
         canvas.delete(n.display_val)        
         
-        # Fill in our push code here. 
+        # Fill in our push code here?
         window.update()
 
 # Will be close, but not exactly, 
@@ -259,10 +264,10 @@ def enableButtons():
         button.config(state = NORMAL)
 
 def makeButtons():
-    pushButton = Button(bottomframe, text="Push", width=7, command= lambda: onClick(clickPush))
-    pushButton.grid(row=3, column=2)
-    popButton = Button(bottomframe, text="Pop", width=7, command= lambda: onClick(clickPop))
-    popButton.grid(row=3, column=3)
+    pushButton = Button(bottomframe, text="Push", width=20, command= lambda: onClick(clickPush))
+    pushButton.grid(row=3, column=0)
+    popButton = Button(bottomframe, text="Pop", width=20, command= lambda: onClick(clickPop))
+    popButton.grid(row=3, column=1)
     buttons = [pushButton, popButton]
     return buttons
 
@@ -281,7 +286,9 @@ bottomframe.pack(side=BOTTOM)
 
 #Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
 textBox = Entry(bottomframe, width=20, bg="white")
-textBox.grid(row=4, column=0, sticky=W)
+textBox.grid(row=4, column=1, sticky=W)
+textBoxLabel = Label(bottomframe, text="To Push:", font="none 10")
+textBoxLabel.grid(row=4, column=0, sticky=E)
 scaleDefault = 100
 scale = Scale(bottomframe, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
 scale.grid(row=5, column=1, sticky=W)
@@ -315,8 +322,4 @@ window.mainloop()
 '''
 To Do:
 - make it look pretty
-- animate insert and delete
-- delete/insert at index?
-- label arrows for sorts (inner, outer, etc.)
-- implement shell sort, radix sort, quick sort
 '''
