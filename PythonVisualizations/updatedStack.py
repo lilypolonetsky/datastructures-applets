@@ -3,8 +3,6 @@ import time
 from tkinter import *
 from recordclass import recordclass 
 
-# creating entirely new visualization
-# Rewrite??
 
 # TO DO LIST
 # - change animations
@@ -14,7 +12,7 @@ from recordclass import recordclass
 WIDTH = 800
 HEIGHT = 400
 
-CELL_SIZE = 50 # comment
+CELL_SIZE = 50
 ARRAY_X0 = 100
 ARRAY_Y0 = 100
 
@@ -108,7 +106,7 @@ class Stack(object):
 # If so, do animations go here also, or are they called?
 
     # ARRAY FUNCTIONALITY
-    def isSorted(self):
+    def isSorted(self):   #do we need this?
         for i in range(1, len(self.list)):
             if self.list[i] < self.list[i-1]:
                 return False
@@ -135,7 +133,7 @@ class Stack(object):
         # update window
         window.update()
         
-    def getSize(self):
+    def getSize(self):   #I added this method so that I could make the pop conditional
         return len(self.list)
 
 # Important: SHOW HOW TO CREATE NEW BLOCKS!
@@ -154,7 +152,8 @@ class Stack(object):
         # increment nextColor
         Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
         
-        #THE APPEND METHOD HAS EXTRA THINGS HERE THAT PUSH() DOESN'T HAVE - DO WE NEED THEM?
+        #the append method has extra lines inserted here - does push need them?
+        #Do we need append at all, or does push do whatever we need?
 
         # update window
         window.update()
@@ -224,7 +223,8 @@ def onClick(command, parameter = None):
     if parameter:
         command(parameter)
     else:
-        enableButtons()
+        enableButtons()   #I added this line because the Tkinter window wasn't working properly.
+                          #I'm not sure if it belongs somewhere else, but it seems to work now.
         command()
 
 def cleanUp():
@@ -239,12 +239,13 @@ def cleanUp():
 def clickPush():
     entered_text = textBox.get()
     if entered_text:
-        array.push(int(entered_text)) # will need to define our push
-        textBox.setvar('')
+        stack.push(int(entered_text)) # will need to define our push
+        textBox.setvar('') #this line isn't working - it should reset the textBox
         
 def clickPop():
-    array.pop()
-    if array.getSize() == 0:
+    stack.pop()
+    #Check if the stack is empty
+    if stack.getSize() == 0:
         disablePop()
         
 
@@ -284,7 +285,6 @@ canvas.pack()
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
 
-#Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
 textBox = Entry(bottomframe, width=20, bg="white")
 textBox.grid(row=4, column=1, sticky=W)
 textBoxLabel = Label(bottomframe, text="To Push:", font="none 10")
@@ -296,8 +296,6 @@ scale.set(scaleDefault)
 scaleLabel = Label(bottomframe, text="Speed:", font="none 10")
 scaleLabel.grid(row=5, column=0, sticky=E)
 
-# add a submit button
-#Button(bottomframe, text="Find", width=6, command=lambda: array.onClick(clickFind)).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
 output = Label(bottomframe, textvariable=outputText, font="none 12 bold")
@@ -309,15 +307,15 @@ Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, colu
 cleanup = []
 
 # change to stack = Stack()
-array = Stack()
+stack = Stack()
 buttons = makeButtons()
-array.display()
-
+stack.display()
 
 for i in range(10):
-    array.push(i)
-
+    stack.push(i)
+    
 window.mainloop()
+
 
 '''
 To Do:
