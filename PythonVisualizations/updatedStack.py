@@ -7,8 +7,6 @@ from recordclass import recordclass
 # Rewrite??
 
 # TO DO LIST
-# - iron out the push() method - figure out the tkinter stuff
-# - add a check for the pop() method in case there's nothing left
 # - change animations
 #      - Add flying in and flying out
 #      - flip to vertical 
