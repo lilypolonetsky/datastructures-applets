@@ -219,8 +219,8 @@ def onClick(command, parameter = None):
     if parameter:
         command(parameter)
     else:
-        command()
         enableButtons()
+        command()
 
 def cleanUp():
     global cleanup
@@ -238,13 +238,9 @@ def clickPush():
         textBox.setvar('')
         
 def clickPop():
+    array.pop()
     if array.getSize() == 0:
-        disableButtons()    #with this line no errors are thrown when pop is pushed
-                            #when the list is empty, but the button can still be pushed.
-                            #fix this so the pop button becomes grayed-out and doesn't
-                            #work but the push button still works
-    else:
-        array.pop()
+        disableButtons()    #make only pop button disabled, not push
         
 
 def close_window():
