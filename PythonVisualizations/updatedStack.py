@@ -3,8 +3,6 @@ import time
 from tkinter import *
 from recordclass import recordclass 
 
-# creating entirely new visualization
-# Rewrite??
 
 # TO DO LIST
 # - change animations
@@ -14,7 +12,7 @@ from recordclass import recordclass
 WIDTH = 800
 HEIGHT = 400
 
-CELL_SIZE = 50 # comment
+CELL_SIZE = 50
 ARRAY_X0 = 100
 ARRAY_Y0 = 100
 
@@ -49,9 +47,11 @@ class Stack(object):
         posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
 
         # create new display objects that are copies of the "from" cell and value
-        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], posFromCell[2], posFromCell[3],
+        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], \
+                                               posFromCell[2], posFromCell[3],
                                                fill=self.list[fromIndex][1])
-        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], text=self.list[fromIndex][0],
+        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], \
+                                        text=self.list[fromIndex][0],
                                         font=('Helvetica', '20'))
 
         # set xspeed to move in the correct direction
@@ -106,7 +106,7 @@ class Stack(object):
 # If so, do animations go here also, or are they called?
 
     # ARRAY FUNCTIONALITY
-    def isSorted(self):
+    def isSorted(self):   #do we need this?
         for i in range(1, len(self.list)):
             if self.list[i] < self.list[i-1]:
                 return False
@@ -133,14 +133,17 @@ class Stack(object):
         # update window
         window.update()
         
-    def getSize(self):
+    def getSize(self):   #I added this method so that I could make the pop conditional
         return len(self.list)
 
 # Important: SHOW HOW TO CREATE NEW BLOCKS!
     def push(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
-        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
+                                       ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
+                                       ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
+        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
+                                      ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
@@ -148,6 +151,9 @@ class Stack(object):
 
         # increment nextColor
         Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
+        
+        #the append method has extra lines inserted here - does push need them?
+        #Do we need append at all, or does push do whatever we need?
 
         # update window
         window.update()
@@ -184,7 +190,7 @@ class Stack(object):
         canvas.delete(n.display_shape)
         canvas.delete(n.display_val)        
         
-        # Fill in our push code here. 
+        # Fill in our push code here?
         window.update()
 
 # Will be close, but not exactly, 
@@ -217,8 +223,9 @@ def onClick(command, parameter = None):
     if parameter:
         command(parameter)
     else:
+        enableButtons()   #I added this line because the Tkinter window wasn't working properly.
+                          #I'm not sure if it belongs somewhere else, but it seems to work now.
         command()
-        enableButtons()
 
 def cleanUp():
     global cleanup
@@ -232,17 +239,14 @@ def cleanUp():
 def clickPush():
     entered_text = textBox.get()
     if entered_text:
-        array.push(int(entered_text)) # will need to define our push
-        textBox.setvar('')
+        stack.push(int(entered_text)) # will need to define our push
+        textBox.setvar('') #this line isn't working - it should reset the textBox
         
 def clickPop():
-    if array.getSize() == 0:
-        disableButtons()    #with this line no errors are thrown when pop is pushed
-                            #when the list is empty, but the button can still be pushed.
-                            #fix this so the pop button becomes grayed-out and doesn't
-                            #work but the push button still works
-    else:
-        array.pop()
+    stack.pop()
+    #Check if the stack is empty
+    if stack.getSize() == 0:
+        disablePop()
         
 
 def close_window():
@@ -252,16 +256,19 @@ def close_window():
 def disableButtons():
     for button in buttons:
         button.config(state = DISABLED)
+        
+def disablePop():
+    buttons[1].config(state = DISABLED)
 
 def enableButtons():
     for button in buttons:
         button.config(state = NORMAL)
 
 def makeButtons():
-    pushButton = Button(bottomframe, text="Push", width=7, command= lambda: onClick(clickPush))
-    pushButton.grid(row=3, column=2)
-    popButton = Button(bottomframe, text="Pop", width=7, command= lambda: onClick(clickPop))
-    popButton.grid(row=3, column=3)
+    pushButton = Button(bottomframe, text="Push", width=20, command= lambda: onClick(clickPush))
+    pushButton.grid(row=3, column=0)
+    popButton = Button(bottomframe, text="Pop", width=20, command= lambda: onClick(clickPop))
+    popButton.grid(row=3, column=1)
     buttons = [pushButton, popButton]
     return buttons
 
@@ -278,9 +285,10 @@ canvas.pack()
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
 
-#Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
 textBox = Entry(bottomframe, width=20, bg="white")
-textBox.grid(row=4, column=0, sticky=W)
+textBox.grid(row=4, column=1, sticky=W)
+textBoxLabel = Label(bottomframe, text="To Push:", font="none 10")
+textBoxLabel.grid(row=4, column=0, sticky=E)
 scaleDefault = 100
 scale = Scale(bottomframe, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
 scale.grid(row=5, column=1, sticky=W)
@@ -288,8 +296,6 @@ scale.set(scaleDefault)
 scaleLabel = Label(bottomframe, text="Speed:", font="none 10")
 scaleLabel.grid(row=5, column=0, sticky=E)
 
-# add a submit button
-#Button(bottomframe, text="Find", width=6, command=lambda: array.onClick(clickFind)).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
 output = Label(bottomframe, textvariable=outputText, font="none 12 bold")
@@ -301,21 +307,17 @@ Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, colu
 cleanup = []
 
 # change to stack = Stack()
-array = Stack()
+stack = Stack()
 buttons = makeButtons()
-array.display()
-
+stack.display()
 
 for i in range(10):
-    array.push(i)
-
+    stack.push(i)
+    
 window.mainloop()
+
 
 '''
 To Do:
 - make it look pretty
-- animate insert and delete
-- delete/insert at index?
-- label arrows for sorts (inner, outer, etc.)
-- implement shell sort, radix sort, quick sort
 '''
