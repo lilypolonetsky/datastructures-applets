@@ -240,7 +240,7 @@ def clickPush():
 def clickPop():
     array.pop()
     if array.getSize() == 0:
-        disableButtons()    #make only pop button disabled, not push
+        disablePop()
         
 
 def close_window():
@@ -250,6 +250,9 @@ def close_window():
 def disableButtons():
     for button in buttons:
         button.config(state = DISABLED)
+        
+def disablePop():
+    buttons[1].config(state = DISABLED)
 
 def enableButtons():
     for button in buttons:
