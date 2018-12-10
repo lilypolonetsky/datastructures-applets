@@ -65,7 +65,7 @@ class Stack(object):
             canvas.move(newCellShape, xspeed, 0)
             canvas.move(newCellVal, xspeed, 0)
             window.update()
-            time.sleep(self.speed(0.01))
+            time.sleep(self.speed(0.15))
 
         # delete the original "to" display value and the new display shape
         canvas.delete(self.list[toIndex].display_val)
@@ -86,14 +86,16 @@ class Stack(object):
 
         if not running:
             return
-
+        
+        # WANT TO CHANGE THIS TO A DY?
         # given a toX, toY, and dy, calculate the dx required to get
         # from the current position to the new position
         fromX = canvas.coords(curDisplayShape)[0]
         fromY = canvas.coords(curDisplayShape)[1]
         if toY < fromY:
             dx = dy * (toX - fromX) / (toY - fromY)
-
+            
+        # SWITCH THIS TO A Y
         # while the cell has not yet reached the new y position,
         # move it up using dx and dy
         while canvas.coords(curDisplayShape)[1] > toY:

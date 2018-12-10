@@ -134,15 +134,15 @@ class Array(object):
 # Important: SHOW HOW TO CREATE NEW BLOCKS!
     def append(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
+        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Array.colors[Array.nextColor])
         cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
-        self.list.append(Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val))
+        self.list.append(Array.Element(val, Array.colors[Array.nextColor], cell, cell_val))
 
         # increment nextColor
-        Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
+        Array.nextColor = (Array.nextColor + 1) % len(Array.colors)
 
         # update window
         window.update()
@@ -249,34 +249,11 @@ def enableButtons():
 def makeButtons():
     # REPLACE WITH A PUSH AND A POP BUTTON, 
     # DON'T NEED ALL THESE SORTS
-    bubbleSortButton = Button(bottomframe, text="Bubble Sort", width=11, command= lambda: onClick(array.bubbleSort))
-    bubbleSortButton.grid(row=0, column=0)
-    selectionSortButton = Button(bottomframe, text="Selection Sort", width=14, command= lambda: onClick(array.selectionSort))
-    selectionSortButton.grid(row=0, column=1)
-    insertionSortButton = Button(bottomframe, text="Insertion Sort", width=14, command= lambda: onClick(array.insertionSort))
-    insertionSortButton.grid(row=0, column=2)
-    bogoSortButton = Button(bottomframe, text="Bogo Sort", width=9, command= lambda: onClick(array.bogoSort))
-    bogoSortButton.grid(row=0, column=3)
-    mergeSortButton = Button(bottomframe, text="Merge Sort", width=9, command= lambda: onClick(array.mergeSort))
-    mergeSortButton.grid(row=1, column=0)
-    quickSortButton = Button(bottomframe, text="Quick Sort", width=9, command= lambda: onClick(array.quickSort))
-    quickSortButton.grid(row=1, column=1)
-    radixSortButton = Button(bottomframe, text="Radix Sort", width=9, command= lambda: onClick(array.radixSort))
-    radixSortButton.grid(row=1, column=2)
-    shuffleButton = Button(bottomframe, text="Shuffle", width=7, command= lambda: onClick(array.shuffle))
-    shuffleButton.grid(row=1, column=3)
-    pauseButton = Button(bottomframe, text="Pause", width=8, command = lambda: onClick(pause, pauseButton))
-    pauseButton.grid(row=2, column=0)
-    stopButton = Button(bottomframe, text="Stop", width=7, command = lambda: onClick(stop, pauseButton))
-    stopButton.grid(row=1, column=4)
-    findButton = Button(bottomframe, text="Find", width=7, command= lambda: onClick(clickFind))
-    findButton.grid(row=2, column=1)
-    insertButton = Button(bottomframe, text="Insert", width=7, command= lambda: onClick(clickInsert))
-    insertButton.grid(row=2, column=2)
-    deleteButton = Button(bottomframe, text="Delete", width=7, command= lambda: onClick(array.removeFromEnd))
-    deleteButton.grid(row=2, column=3)
-    buttons = [bubbleSortButton, selectionSortButton, insertionSortButton, bogoSortButton, mergeSortButton,
-               quickSortButton, radixSortButton, shuffleButton, findButton, insertButton, deleteButton]
+    insertButton = Button(bottomframe, text="Pop", width=7, command= lambda: onClick(clickInsert))
+    insertButton.grid(row=1, column=1)
+    deleteButton = Button(bottomframe, text="Push", width=7, command= lambda: onClick(array.removeFromEnd))
+    deleteButton.grid(row=1, column=0)
+    buttons = [insertButton, deleteButton]
     return buttons
 
 window = Tk()
@@ -285,7 +262,7 @@ frame.pack()
 
 waitVar = BooleanVar()
 
-canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
+canvas = Canvas(frame, width=WIDTH, height=HEIGHT, bg="blue")
 window.title("Array")
 canvas.pack()
 
@@ -293,8 +270,8 @@ bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
 
 #Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
-textBox = Entry(bottomframe, width=20, bg="white")
-textBox.grid(row=4, column=0, sticky=W)
+textBox = Entry(bottomframe, width=15, bg="white")
+textBox.grid(row=4, column=1, sticky=W)
 scaleDefault = 100
 scale = Scale(bottomframe, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
 scale.grid(row=5, column=1, sticky=W)
@@ -315,7 +292,7 @@ Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, colu
 cleanup = []
 
 # change to stack = Stack()
-array = Stack()
+array = Array()
 buttons = makeButtons()
 array.display()
 
