@@ -7,7 +7,10 @@ from recordclass import recordclass
 # TO DO LIST
 # - change animations
 #      - Add flying in and flying out
-#      - flip to vertical 
+#      - flip to vertical
+#      - make it pretty
+# Make the textbox that accepts the number to pop reset after each pop (see line 249)
+# Do we need the "append" method? How is it different from pop?
 
 WIDTH = 800
 HEIGHT = 400
@@ -175,8 +178,11 @@ class Stack(object):
      # THIS NEEDS TO BE IRONED OUT   
     def append(self):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
-        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
+                                       ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
+                                       ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
+        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
+                                      ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
@@ -192,7 +198,6 @@ class Stack(object):
         canvas.delete(n.display_shape)
         canvas.delete(n.display_val)        
         
-        # Fill in our push code here?
         window.update()
 
 # Will be close, but not exactly, 
@@ -317,9 +322,3 @@ for i in range(10):
     stack.push(i)
     
 window.mainloop()
-
-
-'''
-To Do:
-- make it look pretty
-'''
