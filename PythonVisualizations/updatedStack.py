@@ -3,6 +3,12 @@ import time
 from tkinter import *
 from recordclass import recordclass 
 
+#How to read Tkinter of radix sort
+#How to implement Tkinter of radix sort
+#How to change coordinate assignment
+#How to update textbox after push
+#Push vs Append
+#Animations tutorial
 
 # TO DO LIST
 # - change animations
@@ -39,7 +45,18 @@ class Stack(object):
     
     def speed(self, sleepTime):
         return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
+    
+#    shapeX = canvas.coords(self.list[0].display_shape)[0]
+#        valX = canvas.coords(self.list[0].display_val)[0]
+#        canvas.config(width=1200, height=600)
+#
+#        for i in range(0, len(self.list)):
+#            cur = self.list[i]
+#            canvas.move(cur.display_shape, -(canvas.coords(cur.display_shape)[0] - shapeX), CELL_SIZE*i - 30)
+#            canvas.move(cur.display_val, -(canvas.coords(cur.display_val)[0] - valX), CELL_SIZE*i - 30)
 
+# must change assignElement to match what we copied from radixSort (vertical)
+        
     def assignElement(self, fromIndex, toIndex):
 
         # get position of "to" cell
@@ -247,7 +264,8 @@ def clickPush():
     entered_text = textBox.get()
     if entered_text:
         stack.push(int(entered_text)) # will need to define our push
-        textBox.setvar('') #this line isn't working - it should reset the textBox
+        textBox.setvar('') #this line isn't working - it should reset the textbox
+
         
 def clickPop():
     stack.pop()
@@ -322,3 +340,5 @@ for i in range(10):
     stack.push(i)
     
 window.mainloop()
+
+# 90 degrees about origin is (y,-x), and then make y into -y to not fall off the screen
