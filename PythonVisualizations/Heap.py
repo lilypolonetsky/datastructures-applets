@@ -1,7 +1,4 @@
-#Heap Visualization 
-
-# MIN HEAP:
-
+import tkinter as tk
 import random
 
 class Node(object):
@@ -15,26 +12,37 @@ class Node(object):
 class Heap(object):
     def __init__(self, size):
         self.__arr = [None] * size
-        self.__nElems = 0        
+        self.__nElems = 0 
+        
+    # Grow the array, if necessary    
+    def __grow(self):
+        oldSize = len(self.__arr)
+        newSize = oldSize * 2    # how big should the new array be?
+        
+        # allocate the new array and copy the old array into it
+        newA = [None] * newSize
+        for i in range(oldSize): 
+            newA[i] = self.__arr[i]
+        self.__arr = newA           
 
     def insert(self, k, d):
-        # if the heap is full, make the heap bigger so that insert cannot fail
-        if self.__nElems == len(self.__arr):
-            self.__arr = self.__arr * 2
+        # grow array if the heap is full
+        if self.__nElems == len(self.__arr): self.__grow()   
         
         # Place new node at end of heap & trickle it up
         self.__arr[self.__nElems] = Node(k, d)
         self.__trickleUp(self.__nElems)
         self.__nElems += 1
         return True
-          
+    
+       
     def __trickleUp(self, cur):
         bottom = self.__arr[cur] # the recently inserted Node
         parent = (cur-1) // 2    # its parent's location
        
         # While cur hasn't reached the root, and cur's parent's
-        # key is bigger than the new Node's key
-        while cur > 0 and self.__arr[parent].key > bottom.key:
+        # key is smaller than the new Node's key
+        while cur > 0 and self.__arr[parent].key < bottom.key:
             self.__arr[cur] = self.__arr[parent] # move parent down
             cur = parent                         # cur goes up one level
             parent = (cur-1) // 2
@@ -58,7 +66,8 @@ class Heap(object):
         self.__trickleDown()
         
         return root.key, root.data
-           
+    
+    # this heap is now a min-heap       
     def __trickleDown(self, cur = 0, size = -1):
         if size == -1: size = self.__nElems
         top = self.__arr[cur]   # save the Node at the root
@@ -69,62 +78,45 @@ class Heap(object):
             rightChild = leftChild + 1
             
             # find smaller child (right child might not exist)
-            smallerChild = leftChild
-            if rightChild < size and \
-               self.__arr[leftChild].key > self.__arr[rightChild].key:
-                smallerChild = rightChild
+            largerChild = leftChild
+            if rightChild > size and \
+               self.__arr[leftChild].key < self.__arr[rightChild].key:
+                largerChild = rightChild
                 
-            # done trickling if top's key is <= the key of smaller child
-            if top.key <= self.__arr[smallerChild].key:
+            # done trickling if top's key is >= the key of larger child
+            if top.key >= self.__arr[largerChild].key:
                 break
             
             # shift child up
-            self.__arr[cur] = self.__arr[smallerChild]            
-            cur = smallerChild            # go down
+            self.__arr[cur] = self.__arr[largerChild]
+            cur = largerChild            # go down
             
         # when we make it to this point, either cur is a leaf, or
         # cur is at the highest point in the tree where the root's key
         # is larger than both children. So place the old root node there
         
         self.__arr[cur] = top  # move original root to its correct position 
+    
+    #test that this heap follows min-heap conditions
+    def isHeap(self, cur = 0):
+        # if the current Node has no children...
+        if cur > self.__nElems // 2: return True
         
-        
-    def __isHeap(self, cur = 0, size = -1):
-        if size == -1: size = self.__nElems
-        
-        top = self.__arr[cur]   # save the Node at the root
-        
-        # define left and right children in terms of cur
+        parent = (cur-1) // 2
         leftChild  = 2*cur + 1
-        rightChild = leftChild + 1        
-           
-        # if it only has a left child and not a right child
-        if leftChild < size and not rightChild < size:
-            # if the left child is less than its top
-            if self.__arr[leftChild].key < top.key:
-                return False
-            # if left child is greater than top
-            # recurse down to check it's child 
-            return self.__isHeap(leftChild, size)
+        rightChild = leftChild + 1 
+        #If the current node has a left or right children then recurse further into list
+        if self.__nElems >= leftChild:
+            self.isHeap(leftChild)
+        if self.__nElems >= rightChild:
+            self.isHeap(rightChild)  
             
-        # if it has right child and left child 
-        elif rightChild < size and leftChild < size:
-            # if either the left child or right child is less than top
-            if self.__arr[leftChild].key < top.key or self.__arr[rightChild].key < top.key:
-                return False
-            # if neither left or right children are less than top
-            # recurse down to each of the children to check their left and right children
-            return self.__isHeap(leftChild, size) and self.__isHeap(rightChild, size)
-     
-        # if it has no children, just return True
-        else:
-            return True
-
-
-    def isHeap(self):
-        return self.__isHeap(cur = 0, size = -1)
-                    
-       
+        #if a child node is greater than its parent, the heap is not a max-heap
+        if self.__arr[parent] and self.__arr[cur].key > self.__arr[parent].key: return False
+        
+        #otherwise, it is a max-heap
+        return True 
+    
     def displayHeap(self):
         print("heapArray: ", end="")
         for m in range(self.__nElems):
@@ -141,50 +133,88 @@ class Heap(object):
     
     def display(self): 
         self.__display(0, 0)
-        
+    def length(self):
+        return self.__nElems
+    def getElem(self, x):
+        return self.__arr[x]
+ 
+#### THIS IS WHERE I STARTED TO PLAY WITH TKinter #######   
+root = tk.Tk()
+canvas_width = 800
+canvas_height = 800
+
+ # Make the canvas with title 'Heaps' 
+root.title("Heaps Data Vis")
+w = tk.Canvas(root, width = canvas_width, height=canvas_height, bg='lightblue')
+w.pack()
+w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')
+
+
+def drawMaxHeap(heap):
+    
+    for i in range(0, heap.length()-1):
+        if i == 0:
+            positionX = (350)
+            positionY = (100)
+        else:
+            positionX = (i*100+150)
+            positionY = ((i-1)//2)*100+200
+        w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='yellow')
+        w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(heap.getElem(i).key))
+# This function doesn't really mean much, im just displaying the values on the screen
+# we need to find a way to make it look like a heap, like a pyramid
+# maybe we can look at his __display() function for inspiration/guidance    
+    
         
 def __main():
-   
-   
+    
     h = Heap(31)  # make a new heap with maximum of 31 elements
     
-    for i in range(30):  # insert 30 items
-        h.insert(random.randint(0, 100), chr(ord('A') + 1 + i))
-
-    for i in range(1000):   #insert 1000 more items
-        h.insert(random.randint(0, 100), chr(ord('A') + 1 + i))
+    for i in range(1000):  # insert 1000 items
+        h.insert(random.randint(0, 10000), chr(ord('A') + 1 + i))
     
-    #confirm that it is still a heap    
-    print("It is", h.isHeap(), "that the heap is a minHeap")
-
-    while True:
-        ans = input("Enter first letter of show, insert, remove, empty, heap: ")
-        if ans[:1] == 's':    # show
-            h.display()
-            
-        elif ans[:1] == 'e':  # empty the heap
-            h = Heap(31)
-            
-        elif ans[:1] == 'i':  # insert
-            key  = int(input("Enter integer key to insert: "))
-            data = input("Enter data to insert: ")
-            if not h.insert(key, data):
-                print("Can't insert; heap is full")
-                
-        elif ans[:1] == 'r':  # remove
-            key, data = h.remove() 
-            if key == None:
-                print("Can't remove; heap empty")
-            else:
-                print("Removed this key/data pair from heap: " + \
-                      str(key) + ", " + repr(data))
-        
-        elif ans[:1] == 'h':
-            print("It is", h.isHeap(), "that the heap is a minHeap")
-
-        else:
-            print("Invalid command");
+    drawMaxHeap(h)
+   
     
 if __name__ == '__main__':
     __main()       
+# create button for REMOVE and ADD which will trickle_up or trickle_down 
+
+# Perhaps have option for a min-heap
+
+root.mainloop()
+
+
+
+
+
+
+
+######## test code he used to play with the heap ################
+#while True:
+    #ans = input("Enter first letter of show, insert, remove, empty, test isHeap: ")
+    #if ans[:1] == 's':    # show
+        #h.display()
         
+    #elif ans[:1] == 'e':  # empty the heap
+        #h = Heap(31)
+        
+    #elif ans[:1] == 'i':  # insert
+        #key  = int(input("Enter integer key to insert: "))
+        #data = input("Enter data to insert: ")
+        #if not h.insert(key, data):
+            #print("Can't insert; heap is full")
+            
+    #elif ans[:1] == 'r':  # remove
+        #key, data = h.remove() 
+        #if key == None:
+            #print("Can't remove; heap empty")
+        #else:
+            #print("Removed this key/data pair from heap: " + \
+                  #str(key) + ", " + repr(data))
+            
+    #elif ans[:1] == 't':  # Test the min-heap conditions
+        #print("It is ", h.isHeap(), "that this heap is a min-heap" )
+
+    #else:
+        #print("Invalid command");
