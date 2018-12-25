@@ -7,7 +7,7 @@ from recordclass import recordclass
 #How to implement Tkinter of radix sort
 #How to change coordinate assignment
 #How to update textbox after push
-#Push vs Append
+#Push vs Append - work on this
 #Animations tutorial
 
 # TO DO LIST
@@ -22,7 +22,7 @@ WIDTH = 800
 HEIGHT = 400
 
 CELL_SIZE = 50
-ARRAY_X0 = 100
+ARRAY_X0 = 100 #top left corner first cell
 ARRAY_Y0 = 100
 
 class Stack(object):
@@ -57,48 +57,7 @@ class Stack(object):
 
 # must change assignElement to match what we copied from radixSort (vertical)
         
-    def assignElement(self, fromIndex, toIndex):
-
-        # get position of "to" cell
-        posToCell = canvas.coords(self.list[toIndex].display_shape)
-
-        # get position of "from" cell and value
-        posFromCell = canvas.coords(self.list[fromIndex].display_shape)
-        posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
-
-        # create new display objects that are copies of the "from" cell and value
-        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], \
-                                               posFromCell[2], posFromCell[3],
-                                               fill=self.list[fromIndex][1])
-        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], \
-                                        text=self.list[fromIndex][0],
-                                        font=('Helvetica', '20'))
-
-        # set xspeed to move in the correct direction
-        xspeed = 5
-        if fromIndex > toIndex:
-            xspeed = -xspeed
-
-        # move the new display objects until they are in the position of the "to" cell
-        while (fromIndex < toIndex and canvas.coords(newCellShape) < posToCell) or \
-                (fromIndex > toIndex and canvas.coords(newCellShape) > posToCell):
-            canvas.move(newCellShape, xspeed, 0)
-            canvas.move(newCellVal, xspeed, 0)
-            window.update()
-            time.sleep(self.speed(0.15))
-
-        # delete the original "to" display value and the new display shape
-        canvas.delete(self.list[toIndex].display_val)
-        canvas.delete(self.list[toIndex].display_shape)
-
-        # update value and display value in "to" position in the list
-        self.list[toIndex].display_val = newCellVal
-        self.list[toIndex].val = self.list[fromIndex].val
-        self.list[toIndex].display_shape = newCellShape
-        self.list[toIndex].color = self.list[fromIndex].color
-
-        # update the window
-        window.update()
+  
 
 # CHANGE FOR VERTICAL - but not reassigning -- may need something different
     def moveUp(self, dy, toX, toY, curDisplayShape, curDisplayVal):
@@ -219,6 +178,7 @@ class Stack(object):
 
 # Will be close, but not exactly, 
 # modify to display vertically. 
+        #CHANGE THIS AND PUSH TO BE VERTICAL
     def display(self):
         canvas.delete("all")
         xpos = ARRAY_X0
@@ -236,6 +196,7 @@ class Stack(object):
             n.display_val = cell_val
 
             # increment xpos
+            #DECREMENT Y INSTEAD
             xpos += CELL_SIZE
 
         window.update()
@@ -342,3 +303,18 @@ for i in range(10):
 window.mainloop()
 
 # 90 degrees about origin is (y,-x), and then make y into -y to not fall off the screen
+
+#    def swap(self, a, b, aCellObjects = [], bCellObjects = []):
+#        y0 = canvas.coords(self.list[a].display_shape)[1]
+#        if a == b:
+#            yspeed = -5
+#            shapeA = self.list[a].display_shape
+#            while canvas.coords(shapeA)[1] != (y0 - CELL_SIZE - 15):
+#                canvas.move(shapeA, 0, yspeed)
+#                canvas.move(self.list[a].display_val, 0, yspeed)
+#                window.update()
+#                time.sleep(self.speed(0.01))
+#
+#            time.sleep(self.speed(0.1))
+
+#canvas.coords returns a tuple - x and y of location of the object
