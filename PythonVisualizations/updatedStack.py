@@ -22,8 +22,8 @@ WIDTH = 800
 HEIGHT = 400
 
 CELL_SIZE = 50
-ARRAY_X0 = 100 #top left corner first cell
-ARRAY_Y0 = 100
+ARRAY_X0 = 350 #top left corner first cell
+ARRAY_Y0 = 350
 
 class Stack(object):
     Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
