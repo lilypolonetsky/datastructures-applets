@@ -12,7 +12,7 @@ WIDTH = 400
 HEIGHT = 600
 
 CELL_SIZE = 50
-ARRAY_X0 = 150 #top left corner first cell
+ARRAY_X0 = 50 #top left corner first cell
 ARRAY_Y0 = 550
 
 class Stack(object):
@@ -74,11 +74,11 @@ class Stack(object):
 # If so, do animations go here also, or are they called?
 
     # ARRAY FUNCTIONALITY
-    def isSorted(self):   #do we need this?
-        for i in range(1, len(self.list)):
-            if self.list[i] < self.list[i-1]:
-                return False
-        return True
+#    def isSorted(self):   #do we need this?
+#        for i in range(1, len(self.list)):
+#            if self.list[i] < self.list[i-1]:
+#                return False
+#        return True
 
     def get(self, index):
         try:
@@ -104,7 +104,6 @@ class Stack(object):
     def getSize(self):   #I added this method so that I could make the pop conditional
         return len(self.list)
 
-# Important: SHOW HOW TO CREATE NEW BLOCKS!
     def push(self, val):
         # create new cell and cell value display objects
         cell = canvas.create_rectangle(ARRAY_X0, ARRAY_Y0-CELL_SIZE*len(self.list), \
@@ -213,6 +212,7 @@ def clickPush():
         
 def clickPop():
     stack.pop()
+    
     #Check if the stack is empty
     if stack.getSize() == 0:
         disablePop()
@@ -235,9 +235,9 @@ def enableButtons():
 
 def makeButtons():
     pushButton = Button(bottomframe, text="Push", width=20, command= lambda: onClick(clickPush))
-    pushButton.grid(row=3, column=0)
+    pushButton.grid(row=0, column=1)
     popButton = Button(bottomframe, text="Pop", width=20, command= lambda: onClick(clickPop))
-    popButton.grid(row=3, column=1)
+    popButton.grid(row=1, column=1)
     buttons = [pushButton, popButton]
     return buttons
 
@@ -252,7 +252,7 @@ window.title("Stack")
 canvas.pack()
 
 bottomframe = Frame(window)
-bottomframe.pack(side=BOTTOM)
+bottomframe.pack(side=RIGHT)
 
 textBox = Entry(bottomframe, width=20, bg="white")
 textBox.grid(row=4, column=1, sticky=W)
