@@ -188,17 +188,22 @@ class Stack(object):
         for n in self.list:
             print(n)
             # create display objects for the associated Elements
-            cell = canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1])
+            # switched to subtraction in an attempt to make it vertical
+            cell = canvas.create_rectangle(xpos, ypos, xpos-CELL_SIZE, ypos-CELL_SIZE, fill=n[1])
             cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
 
             # save the display objects to the appropriate attributes of the Element object
             n.display_shape = cell
             n.display_val = cell_val
 
-            # increment xpos
             #DECREMENT Y INSTEAD
+<<<<<<< HEAD
             xpos += CELL_SIZE
             
+=======
+            ypos -= CELL_SIZE
+
+>>>>>>> 9eb48a2fb1ea7814d30b3c6e2506fd7bd6beaf07
         window.update()
 
 
