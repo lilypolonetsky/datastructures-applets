@@ -198,7 +198,7 @@ class Stack(object):
             # increment xpos
             #DECREMENT Y INSTEAD
             xpos += CELL_SIZE
-
+            
         window.update()
 
 
