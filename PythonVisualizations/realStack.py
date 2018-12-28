@@ -120,12 +120,19 @@ class Stack(object):
 # Important: SHOW HOW TO CREATE NEW BLOCKS!
     def push(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
-                                       ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
-                                       ARRAY_Y0 - CELL_SIZE, fill=Stack.colors[Stack.nextColor])
-        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
-                                      ARRAY_Y0 - (CELL_SIZE / 2), text=val,
+        cell = canvas.create_rectangle(ARRAY_X0, ARRAY_Y0-CELL_SIZE*len(self.list), \
+                                       ARRAY_X0+CELL_SIZE, \
+                                       ARRAY_Y0 - CELL_SIZE*(len(self.list)-1), fill=Stack.colors[Stack.nextColor])
+        cell_val = canvas.create_text(ARRAY_X0 + (CELL_SIZE / 2), \
+                                      ARRAY_Y0-CELL_SIZE*(len(self.list)-1) - (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
+        
+#        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
+#                                       ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
+#                                       ARRAY_Y0 - CELL_SIZE, fill=Stack.colors[Stack.nextColor])
+#        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
+#                                      ARRAY_Y0 - (CELL_SIZE / 2), text=val,
+#                                      font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
         self.list.append(Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val))
