@@ -1,4 +1,4 @@
-        mport random
+import random
 import time
 from tkinter import *
 from recordclass import recordclass 
@@ -122,9 +122,9 @@ class Stack(object):
         # create new cell and cell value display objects
         cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
                                        ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
-                                       ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
+                                       ARRAY_Y0 - CELL_SIZE, fill=Stack.colors[Stack.nextColor])
         cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
-                                      ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+                                      ARRAY_Y0 - (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
@@ -152,29 +152,29 @@ class Stack(object):
         window.update()
      
      # THIS NEEDS TO BE IRONED OUT   
-    def append(self):
-        # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
-                                       ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
-                                       ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
-        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
-                                      ARRAY_Y0 + (CELL_SIZE / 2), text=val,
-                                      font=('Helvetica', '20'))
+    #def append(self):
+        ## create new cell and cell value display objects
+        #cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
+                                       #ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
+                                       #ARRAY_Y0 + CELL_SIZE, fill=Stack.colors[Stack.nextColor])
+        #cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
+                                      #ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+                                      #font=('Helvetica', '20'))
 
-        # add a new Element to the list with the new value, color, and display objects
-        self.list.append(Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val))
+        ## add a new Element to the list with the new value, color, and display objects
+        #self.list.append(Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val))
 
-        # increment nextColor
-        Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
+        ## increment nextColor
+        #Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
         
-        # push an Element on the list
-        n = self.list.push()        
+        ## push an Element on the list
+        #n = self.list.push()        
         
-        # ADD the associated display objects
-        canvas.delete(n.display_shape)
-        canvas.delete(n.display_val)        
+        ## ADD the associated display objects
+        #canvas.delete(n.display_shape)
+        #canvas.delete(n.display_val)        
         
-        window.update()
+        #window.update()
 
 # Will be close, but not exactly, 
 # modify to display vertically. 
@@ -186,7 +186,7 @@ class Stack(object):
 
         # go through each Element in the list
         for n in self.list:
-            print(n)
+            # print(n)
             # create display objects for the associated Elements
             # switched to subtraction in an attempt to make it vertical
             cell = canvas.create_rectangle(xpos, ypos, xpos-CELL_SIZE, ypos-CELL_SIZE, fill=n[1])
@@ -196,7 +196,7 @@ class Stack(object):
             n.display_shape = cell
             n.display_val = cell_val
 
-            #DECREMENT Y INSTEAD
+            # Decrement y to grow up
             ypos -= CELL_SIZE
 
         window.update()
