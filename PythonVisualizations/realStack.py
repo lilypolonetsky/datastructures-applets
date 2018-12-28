@@ -7,7 +7,6 @@ from recordclass import recordclass
 # - change animations
 #      - Add flying in and flying out
 #      - make it pretty
-# Make the textbox that accepts the number to pop reset after each pop (see line 249)
 
 WIDTH = 400
 HEIGHT = 600
@@ -136,7 +135,6 @@ class Stack(object):
         # update window
         window.update()
      
-     # THIS NEEDS TO BE IRONED OUT   
     #def append(self):
         ## create new cell and cell value display objects
         #cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
@@ -209,8 +207,8 @@ def cleanUp():
 def clickPush():
     entered_text = textBox.get()
     if entered_text:
-        stack.push(int(entered_text)) # will need to define our push
-        textBox.setvar('') #this line isn't working - it should reset the textbox
+        stack.push(int(entered_text))
+        textBox.delete(0, END)
 
         
 def clickPop():
