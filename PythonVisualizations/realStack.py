@@ -3,27 +3,18 @@ import time
 from tkinter import *
 from recordclass import recordclass 
 
-#How to read Tkinter of radix sort
-#How to implement Tkinter of radix sort
-#How to change coordinate assignment
-#How to update textbox after push
-#Push vs Append - work on this
-#Animations tutorial
-
 # TO DO LIST
 # - change animations
 #      - Add flying in and flying out
-#      - flip to vertical
 #      - make it pretty
 # Make the textbox that accepts the number to pop reset after each pop (see line 249)
-# Do we need the "append" method? How is it different from pop?
 
-WIDTH = 800
-HEIGHT = 400
+WIDTH = 400
+HEIGHT = 600
 
 CELL_SIZE = 50
-ARRAY_X0 = 350 #top left corner first cell
-ARRAY_Y0 = 350
+ARRAY_X0 = 150 #top left corner first cell
+ARRAY_Y0 = 550
 
 class Stack(object):
     Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
@@ -54,10 +45,7 @@ class Stack(object):
 #            cur = self.list[i]
 #            canvas.move(cur.display_shape, -(canvas.coords(cur.display_shape)[0] - shapeX), CELL_SIZE*i - 30)
 #            canvas.move(cur.display_val, -(canvas.coords(cur.display_val)[0] - valX), CELL_SIZE*i - 30)
-
-# must change assignElement to match what we copied from radixSort (vertical)
-        
-  
+          
 
 # CHANGE FOR VERTICAL - but not reassigning -- may need something different
     def moveUp(self, dy, toX, toY, curDisplayShape, curDisplayVal):
@@ -126,22 +114,12 @@ class Stack(object):
         cell_val = canvas.create_text(ARRAY_X0 + (CELL_SIZE / 2), \
                                       ARRAY_Y0-CELL_SIZE*(len(self.list)-1) - (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
-        
-#        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), \
-#                                       ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), \
-#                                       ARRAY_Y0 - CELL_SIZE, fill=Stack.colors[Stack.nextColor])
-#        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), \
-#                                      ARRAY_Y0 - (CELL_SIZE / 2), text=val,
-#                                      font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
         self.list.append(Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val))
 
         # increment nextColor
         Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
-        
-        #the append method has extra lines inserted here - does push need them?
-        #Do we need append at all, or does push do whatever we need?
 
         # update window
         window.update()
@@ -186,27 +164,27 @@ class Stack(object):
 # Will be close, but not exactly, 
 # modify to display vertically. 
         #CHANGE THIS AND PUSH TO BE VERTICAL
-    def display(self):
-        canvas.delete("all")
-        xpos = ARRAY_X0
-        ypos = ARRAY_Y0
-
-        # go through each Element in the list
-        for n in self.list:
-            # print(n)
-            # create display objects for the associated Elements
-            # switched to subtraction in an attempt to make it vertical
-            cell = canvas.create_rectangle(xpos, ypos, xpos-CELL_SIZE, ypos-CELL_SIZE, fill=n[1])
-            cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
-
-            # save the display objects to the appropriate attributes of the Element object
-            n.display_shape = cell
-            n.display_val = cell_val
-
-            # Decrement y to grow up
-            ypos -= CELL_SIZE
-
-        window.update()
+#    def display(self):
+#        canvas.delete("all")
+#        xpos = ARRAY_X0
+#        ypos = ARRAY_Y0
+#
+#        # go through each Element in the list
+#        for n in self.list:
+#            # print(n)
+#            # create display objects for the associated Elements
+#            # switched to subtraction in an attempt to make it vertical
+#            cell = canvas.create_rectangle(xpos, ypos, xpos-CELL_SIZE, ypos-CELL_SIZE, fill=n[1])
+#            cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
+#
+#            # save the display objects to the appropriate attributes of the Element object
+#            n.display_shape = cell
+#            n.display_val = cell_val
+#
+#            # Decrement y to grow up
+#            ypos -= CELL_SIZE
+#
+#        window.update()
 
 
 def onClick(command, parameter = None):
@@ -302,7 +280,7 @@ cleanup = []
 # change to stack = Stack()
 stack = Stack()
 buttons = makeButtons()
-stack.display()
+#stack.display()
 
 for i in range(10):
     stack.push(i)
