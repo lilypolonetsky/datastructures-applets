@@ -87,8 +87,7 @@ def onClick(command, parameter = None):
     if parameter:
         command(parameter)
     else:
-        enableButtons()   #I added this line because the Tkinter window wasn't working properly.
-                          #I'm not sure if it belongs somewhere else, but it seems to work now.
+        enableButtons()
         command()
 
 def cleanUp():
@@ -106,7 +105,6 @@ def clickPush():
         stack.push(int(entered_text))
         textBox.delete(0, END)
 
-        
 def clickPop():
     stack.pop()
     
@@ -166,10 +164,8 @@ Button(sideframe, text="EXIT", width=4, command=close_window).grid(row=6, column
 
 cleanup = []
 
-# change to stack = Stack()
 stack = Stack()
 buttons = makeButtons()
-#stack.display()
 
 for i in range(10):
     stack.push(i)
