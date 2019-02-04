@@ -69,23 +69,36 @@ class Stack(object):
 
     def push(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0, ARRAY_Y0-CELL_SIZE*len(self.list), \
-                                       ARRAY_X0+CELL_SIZE, \
-                                       ARRAY_Y0 - CELL_SIZE*(len(self.list)-1), fill=Stack.colors[Stack.nextColor])
+        # cell = canvas.create_rectangle(ARRAY_X0, ARRAY_Y0-CELL_SIZE*len(self.list), \
+        #                               ARRAY_X0+CELL_SIZE, \
+        #                               ARRAY_Y0 - CELL_SIZE*(len(self.list)-1), fill=Stack.colors[Stack.nextColor])
+        #cell_val = canvas.create_text(ARRAY_X0 + (CELL_SIZE / 2), \
+        #                              ARRAY_Y0-CELL_SIZE*(len(self.list)-1) - (CELL_SIZE / 2), text=val,
+        #                              font=('Helvetica', '20'))
+        
+        # Using old code for push() to try and create cells off-screen
+        # to enable our animation
+        cell = canvas.create_rectangle(ARRAY_X0, 0-CELL_SIZE, ARRAY_X0+CELL_SIZE, \
+                                       0, fill=Stack.colors[Stack.nextColor])
         cell_val = canvas.create_text(ARRAY_X0 + (CELL_SIZE / 2), \
-                                      ARRAY_Y0-CELL_SIZE*(len(self.list)-1) - (CELL_SIZE / 2), text=val,
+                                      0 - (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
+        
+        # Top left corner (could need to be changed to bottom right)
+        desiredY = ARRAY_Y0-CELL_SIZE*len(self.list)
 
         # add a new Element to the list with the new value, color, and display objects
-        self.list.append(Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val))
+        n = Stack.Element(val, Stack.colors[Stack.nextColor], cell, cell_val)
+        self.list.append(n)
 
         # increment nextColor
         Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
         
         # Move the visible shape on to stack
-        # Animation
-        # Move animation
-        while (canvas.coords(n.display_shape)[1] < 0):
+        # - create object off screen
+        # - Get coords of desired location -- original coords
+        # - move incrementally until you hit that location
+        while (canvas.coords(n.display_shape)[1] < desiredY):
             canvas.move(n.display_shape, 0, 3.75)
             canvas.move(n.display_val, 0, 3.75)
             window.update()        
