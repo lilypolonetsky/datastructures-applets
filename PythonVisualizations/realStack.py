@@ -3,6 +3,23 @@ import time
 from tkinter import *
 from recordclass import recordclass 
 
+# Three methods used in animation
+# 1) canvas.coords() - give you current location, put the object (i.e. square) inside the parameters
+#     - For pop, find where the top square currently is located
+#     - Then go up, and move off the screen. 
+#     - For push, need to know where last elem is to know where to push the next element (100 pixels higher, for example)
+# 2) canvas.move(objectMoving, deltaX, deltaY)
+#     - Put this into a while loop, and have a computation to know how long to keep iterating
+#     - while canvas.coords() desired location is !=, then move again incrementally using the deltaX and deltaY
+# 3) window.update() - after each incremental movement to update
+
+# POP (sketch)
+# - canvas.move(object, deltaX, deltaY) until the object is off the screen
+#    - deltaX == 0
+#    - put in while loop to some huge number to ensure it gets off screen
+
+
+
 # Size of the canvas
 WIDTH = 150
 HEIGHT = 600
@@ -64,6 +81,14 @@ class Stack(object):
 
         # increment nextColor
         Stack.nextColor = (Stack.nextColor + 1) % len(Stack.colors)
+        
+        # Move the visible shape on to stack
+        # Animation
+        # Move animation
+        while (canvas.coords(n.display_shape)[1] < 0):
+            canvas.move(n.display_shape, 0, 3.75)
+            canvas.move(n.display_val, 0, 3.75)
+            window.update()        
 
         # update window
         window.update()
@@ -72,6 +97,15 @@ class Stack(object):
     def pop(self):
         # pop an Element from the list
         n = self.list.pop()
+        
+        # Move animation
+        
+        # While y >=0 (i.e. the y of the top object on the screen
+        # is still visible on the canvas)
+        while (canvas.coords(n.display_shape)[1] != 0):
+            canvas.move(n.display_shape, 0, -3.75)
+            canvas.move(n.display_val, 0, -3.75)
+            window.update()
 
         # delete the associated display objects
         canvas.delete(n.display_shape)
@@ -147,12 +181,12 @@ window.title("Stack")
 canvas.pack()
 
 sideframe = Frame(window)
-sideframe.pack(side="right")
+sideframe.pack(side="left")
 
-textBox = Entry(sideframe, width=20, bg="white")
-textBox.grid(row=4, column=1, sticky=W)
-textBoxLabel = Label(sideframe, text="To Push:", font="none 10")
-textBoxLabel.grid(row=4, column=0, sticky=E)
+textBox = Entry(sideframe, width=14, bg="white")
+textBox.grid(row=4, column=1, sticky=E)
+textBoxLabel = Label(sideframe, text="To Push:", font="none 12")
+textBoxLabel.grid(row=4, column=1, sticky=W)
 
 outputText = StringVar()
 outputText.set('')
@@ -160,7 +194,7 @@ output = Label(sideframe, textvariable=outputText, font="none 12 bold")
 output.grid(row=4, column=1, sticky=E)
 
 # exit button
-Button(sideframe, text="EXIT", width=4, command=close_window).grid(row=6, column=1, sticky=W)
+#Button(sideframe, text="EXIT", width=4, command=close_window).grid(row=6, column=1, sticky=W)
 
 cleanup = []
 
