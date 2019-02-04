@@ -1,5 +1,6 @@
 import tkinter as tk
 import random
+import time
 
 class Node(object):
     def __init__(self, k, d):
@@ -139,6 +140,24 @@ class Heap(object):
         return self.__arr[x]
  
 #### THIS IS WHERE I STARTED TO PLAY WITH TKinter #######   
+#root = tk.Tk()
+
+def drawMaxHeap(heap):
+    
+    for i in range(0, heap.length()):
+        positionX = coordinates[0][i]
+        positionY = coordinates[1][i]
+        #else:
+            #positionX = (i*100+150)
+            #positionY = ((i-1)//2)*100+200
+        w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='yellow')
+        w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(heap.getElem(i).key))
+# This function doesn't really mean much, im just displaying the values on the screen
+# we need to find a way to make it look like a heap, like a pyramid
+# maybe we can look at his __display() function for inspiration/guidance    
+    
+coordinates = [ [375, 175, 575, 75, 275, 475, 675, 25, 125, 225, 325, 425, 525, 625, 725],
+                [100, 200, 200, 300, 300, 300, 300, 400, 400, 400, 400, 400, 400, 400, 400] ]
 root = tk.Tk()
 canvas_width = 800
 canvas_height = 800
@@ -150,71 +169,48 @@ w.pack()
 w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')
 
 
-def drawMaxHeap(heap):
-    
-    for i in range(0, heap.length()-1):
-        if i == 0:
-            positionX = (350)
-            positionY = (100)
-        else:
-            positionX = (i*100+150)
-            positionY = ((i-1)//2)*100+200
-        w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='yellow')
-        w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(heap.getElem(i).key))
-# This function doesn't really mean much, im just displaying the values on the screen
-# we need to find a way to make it look like a heap, like a pyramid
-# maybe we can look at his __display() function for inspiration/guidance    
-    
-        
 def __main():
     
-    h = Heap(31)  # make a new heap with maximum of 31 elements
     
-    for i in range(1000):  # insert 1000 items
+    h = Heap(3)  # make a new heap with maximum of 31 elements
+    
+    for i in range(10):  # insert 10 items
         h.insert(random.randint(0, 10000), chr(ord('A') + 1 + i))
     
     drawMaxHeap(h)
-   
+    #ans = input("Enter first letter of show, insert, remove, empty, test isHeap: ")
+    #while ans:
+        
+        #if ans[:1] == 'e':  # empty the heap
+            #h = Heap(3)    
+        #elif ans[:1] == 'i':  # insert
+            #key  = int(input("Enter integer key to insert: "))
+            #data = input("Enter data to insert: ")
+            #if not h.insert(key, data):
+                #print("Can't insert; heap is full")
+                
+        #elif ans[:1] == 'r':  # remove
+            #key, data = h.remove() 
+            #if key == None:
+                #print("Can't remove; heap empty")
+            #else:
+                #print("Removed this key/data pair from heap: " + \
+                      #str(key) + ", " + repr(data))
+                
+        #elif ans[:1] == 't':  # Test the min-heap conditions
+            #print("It is ", h.isHeap(), "that this heap is a min-heap" )
+
+        #else:
+            #print("Invalid command");
+        #w.delete("all")
+        #w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')
+        #drawMaxHeap(h, w)
     
-if __name__ == '__main__':
-    __main()       
+    
+#if __name__ == '__main__':
+    #__main()       
 # create button for REMOVE and ADD which will trickle_up or trickle_down 
 
 # Perhaps have option for a min-heap
-
+__main()
 root.mainloop()
-
-
-
-
-
-
-
-######## test code he used to play with the heap ################
-#while True:
-    #ans = input("Enter first letter of show, insert, remove, empty, test isHeap: ")
-    #if ans[:1] == 's':    # show
-        #h.display()
-        
-    #elif ans[:1] == 'e':  # empty the heap
-        #h = Heap(31)
-        
-    #elif ans[:1] == 'i':  # insert
-        #key  = int(input("Enter integer key to insert: "))
-        #data = input("Enter data to insert: ")
-        #if not h.insert(key, data):
-            #print("Can't insert; heap is full")
-            
-    #elif ans[:1] == 'r':  # remove
-        #key, data = h.remove() 
-        #if key == None:
-            #print("Can't remove; heap empty")
-        #else:
-            #print("Removed this key/data pair from heap: " + \
-                  #str(key) + ", " + repr(data))
-            
-    #elif ans[:1] == 't':  # Test the min-heap conditions
-        #print("It is ", h.isHeap(), "that this heap is a min-heap" )
-
-    #else:
-        #print("Invalid command");
