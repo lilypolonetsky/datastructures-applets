@@ -24,19 +24,41 @@ class Heap(object):
         newA = [None] * newSize
         for i in range(oldSize): 
             newA[i] = self.__arr[i]
-        self.__arr = newA           
+        self.__arr = newA                
+        
+        
+    def drawHeap(self):
+        w.delete("all")
+        #nodes = []        
+        button1=tk.Button(root,text='Insert',bg='blue',fg='red',command=insert_node)
+        w.create_window(300,600, window=button1)  
+        button2 = tk.Button(root,text='Remove', command=remove_node)
+        w.create_window(500,600,window=button2)            
+        #w.delete(nodes)
+        w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')  
+        for i in range(self.__nElems):
+            parent = (i-1)//2
+            positionX = coordinates[0][i]
+            positionY = coordinates[1][i]
+            oval = w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='yellow')
+            text = w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(self.__arr[i].key))
+            if i != 0:
+                w.create_line(coordinates[0][parent]+25, coordinates[1][parent]+50, positionX+20, positionY, arrow=tk.LAST)
+            #nodes.append([oval,text])
+            
 
     def insert(self, k, d):
         # grow array if the heap is full
         if self.__nElems == len(self.__arr): self.__grow()   
-        
         # Place new node at end of heap & trickle it up
         self.__arr[self.__nElems] = Node(k, d)
         self.__trickleUp(self.__nElems)
+        self.drawHeap()
         self.__nElems += 1
         return True
-    
-       
+  
+  
+            
     def __trickleUp(self, cur):
         bottom = self.__arr[cur] # the recently inserted Node
         parent = (cur-1) // 2    # its parent's location
@@ -45,6 +67,7 @@ class Heap(object):
         # key is smaller than the new Node's key
         while cur > 0 and self.__arr[parent].key < bottom.key:
             self.__arr[cur] = self.__arr[parent] # move parent down
+            #self.drawHeap()
             cur = parent                         # cur goes up one level
             parent = (cur-1) // 2
          
@@ -52,6 +75,8 @@ class Heap(object):
         # root, or cur's parent's key is >= the new node's key. 
         # so place the new node into the current spot on the tree.
         self.__arr[cur] = bottom
+        #self.drawHeap()
+
     
     # return the key/data pair with the highest priority   
     def remove(self): 
@@ -60,12 +85,12 @@ class Heap(object):
         # the answer will be the key/data from the root node
         root = self.__arr[0]
         self.__nElems -= 1
+        self.drawHeap()
         
         # Now place the last Node in the heap into the 
         # root location, and trickle it down
         self.__arr[0] = self.__arr[self.__nElems]
         self.__trickleDown()
-        
         return root.key, root.data
     
     # this heap is now a min-heap       
@@ -142,75 +167,64 @@ class Heap(object):
 #### THIS IS WHERE I STARTED TO PLAY WITH TKinter #######   
 #root = tk.Tk()
 
-def drawMaxHeap(heap):
-    
-    for i in range(0, heap.length()):
-        positionX = coordinates[0][i]
-        positionY = coordinates[1][i]
-        #else:
-            #positionX = (i*100+150)
-            #positionY = ((i-1)//2)*100+200
-        w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='yellow')
-        w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(heap.getElem(i).key))
-# This function doesn't really mean much, im just displaying the values on the screen
-# we need to find a way to make it look like a heap, like a pyramid
-# maybe we can look at his __display() function for inspiration/guidance    
+#def drawMaxHeap(heap):
+    #w.delete("all")
+    #w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')    
+    #for i in range(0, heap.length()):
+        #positionX = coordinates[0][i]
+        #positionY = coordinates[1][i]
+        ##else:
+            ##positionX = (i*100+150)
+            ##positionY = ((i-1)//2)*100+200
+        #w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='yellow')
+        #w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(heap.getElem(i).key))
+         
     
 coordinates = [ [375, 175, 575, 75, 275, 475, 675, 25, 125, 225, 325, 425, 525, 625, 725],
                 [100, 200, 200, 300, 300, 300, 300, 400, 400, 400, 400, 400, 400, 400, 400] ]
+
+
+
+
+
+h = Heap(3)
+
+def insert_node():
+    h.insert(random.randint(0, 10000), chr(ord('A') + 1))
+def remove_node():
+    h.remove()
+    
 root = tk.Tk()
 canvas_width = 800
-canvas_height = 800
-
- # Make the canvas with title 'Heaps' 
+canvas_height = 800    
+# Make the canvas with title 'Heaps' 
 root.title("Heaps Data Vis")
 w = tk.Canvas(root, width = canvas_width, height=canvas_height, bg='lightblue')
-w.pack()
+w.pack()   
 w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')
+h.drawHeap()
+
+#button1=tk.Button(root,text='Insert',bg='blue',fg='red',command=insert_node)
+#w.create_window(300,600, window=button1)  
+#button2 = tk.Button(root,text='Remove', command=remove_node)
+#w.create_window(500,600,window=button2)
 
 
-def __main():
-    
-    
-    h = Heap(3)  # make a new heap with maximum of 31 elements
-    
-    for i in range(10):  # insert 10 items
-        h.insert(random.randint(0, 10000), chr(ord('A') + 1 + i))
-    
-    drawMaxHeap(h)
-    #ans = input("Enter first letter of show, insert, remove, empty, test isHeap: ")
-    #while ans:
+#w.create_line(380, 140, 225, 210, arrow=tk.LAST)
+#w.create_line(420, 140, 575, 210, arrow=tk.LAST)
+
+
+
+#def __main():
+    #h = Heap(3)  # make a new heap with maximum of 31 elements
+
+    #for i in range(15):  # insert 10 items
+        #h.insert(random.randint(0, 10000), chr(ord('A') + 1 + i))
         
-        #if ans[:1] == 'e':  # empty the heap
-            #h = Heap(3)    
-        #elif ans[:1] == 'i':  # insert
-            #key  = int(input("Enter integer key to insert: "))
-            #data = input("Enter data to insert: ")
-            #if not h.insert(key, data):
-                #print("Can't insert; heap is full")
-                
-        #elif ans[:1] == 'r':  # remove
-            #key, data = h.remove() 
-            #if key == None:
-                #print("Can't remove; heap empty")
-            #else:
-                #print("Removed this key/data pair from heap: " + \
-                      #str(key) + ", " + repr(data))
-                
-        #elif ans[:1] == 't':  # Test the min-heap conditions
-            #print("It is ", h.isHeap(), "that this heap is a min-heap" )
+    #h.drawHeap()
+    #h.remove()
+    #h.drawHeap()
 
-        #else:
-            #print("Invalid command");
-        #w.delete("all")
-        #w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')
-        #drawMaxHeap(h, w)
-    
-    
-#if __name__ == '__main__':
-    #__main()       
-# create button for REMOVE and ADD which will trickle_up or trickle_down 
 
-# Perhaps have option for a min-heap
-__main()
+#__main()
 root.mainloop()
