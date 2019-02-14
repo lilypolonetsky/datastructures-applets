@@ -28,6 +28,9 @@ CELL_SIZE = 50
 ARRAY_X0 = 50 #top left corner first cell
 ARRAY_Y0 = 550
 
+# Boolean for enabling buttons
+running = False
+
 class Stack(object):
     Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
     Element.__new__.__defaults__ = (None,) * len(Element._fields)
@@ -68,13 +71,6 @@ class Stack(object):
         return len(self.list)
 
     def push(self, val):
-        # create new cell and cell value display objects
-        # cell = canvas.create_rectangle(ARRAY_X0, ARRAY_Y0-CELL_SIZE*len(self.list), \
-        #                               ARRAY_X0+CELL_SIZE, \
-        #                               ARRAY_Y0 - CELL_SIZE*(len(self.list)-1), fill=Stack.colors[Stack.nextColor])
-        #cell_val = canvas.create_text(ARRAY_X0 + (CELL_SIZE / 2), \
-        #                              ARRAY_Y0-CELL_SIZE*(len(self.list)-1) - (CELL_SIZE / 2), text=val,
-        #                              font=('Helvetica', '20'))
         
         # Using old code for push() to try and create cells off-screen
         # to enable our animation
@@ -99,8 +95,8 @@ class Stack(object):
         # - Get coords of desired location -- original coords
         # - move incrementally until you hit that location
         while (canvas.coords(n.display_shape)[1] < desiredY):
-            canvas.move(n.display_shape, 0, 3.75)
-            canvas.move(n.display_val, 0, 3.75)
+            canvas.move(n.display_shape, 0, 5)
+            canvas.move(n.display_val, 0, 5)
             window.update()        
 
         # update window
@@ -115,9 +111,9 @@ class Stack(object):
         
         # While y >=0 (i.e. the y of the top object on the screen
         # is still visible on the canvas)
-        while (canvas.coords(n.display_shape)[1] != 0):
-            canvas.move(n.display_shape, 0, -3.75)
-            canvas.move(n.display_val, 0, -3.75)
+        while (canvas.coords(n.display_shape)[1] + CELL_SIZE >= 0):
+            canvas.move(n.display_shape, 0, -5)
+            canvas.move(n.display_val, 0, -5)
             window.update()
 
         # delete the associated display objects
@@ -134,8 +130,8 @@ def onClick(command, parameter = None):
     if parameter:
         command(parameter)
     else:
-        enableButtons()
         command()
+        enableButtons()
 
 def cleanUp():
     global cleanup
