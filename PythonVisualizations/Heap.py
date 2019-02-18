@@ -105,7 +105,7 @@ class Heap(object):
             
             # find smaller child (right child might not exist)
             largerChild = leftChild
-            if rightChild > size and \
+            if rightChild < size and \
                self.__arr[leftChild].key < self.__arr[rightChild].key:
                 largerChild = rightChild
                 
