@@ -1074,6 +1074,14 @@ def makeButtons():
                quickSortButton, radixSortButton, shuffleButton, findButton, insertButton, deleteButton]
     return buttons
 
+# validate text entry
+def validate(action, index, value_if_allowed,
+             prior_value, text, validation_type, trigger_type, widget_name):
+    if text in '0123456789':
+        return True
+    else:
+        return False
+
 window = Tk()
 frame = Frame(window)
 frame.pack()
@@ -1088,7 +1096,9 @@ bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
 
 #Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
-textBox = Entry(bottomframe, width=20, bg="white")
+vcmd = (window.register(validate),
+        '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+textBox = Entry(bottomframe, width=20, bg="white", validate='key', validatecommand=vcmd)
 textBox.grid(row=4, column=0, sticky=W)
 scaleDefault = 100
 scale = Scale(bottomframe, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
