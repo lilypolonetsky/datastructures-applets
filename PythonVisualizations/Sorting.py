@@ -1081,7 +1081,7 @@ frame.pack()
 waitVar = BooleanVar()
 
 canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
-window.title("Array")
+window.title("Sorting")
 canvas.pack()
 
 bottomframe = Frame(window)
