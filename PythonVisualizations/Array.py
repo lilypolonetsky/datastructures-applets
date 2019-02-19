@@ -281,8 +281,8 @@ def clickFind():
 
 def clickInsert():
     entered_text = textBox.get()
-    val = int(entered_text)
     if entered_text:
+        val = int(entered_text)
         if val < 100:
             array.append(int(entered_text))
         else:
@@ -317,13 +317,13 @@ def enableButtons():
 
 def makeButtons():
     findButton = Button(bottomframe, text="Find", width=7, command= lambda: onClick(clickFind))
-    findButton.grid(row=2, column=1)
+    findButton.grid(row=1, column=0)
     insertButton = Button(bottomframe, text="Insert", width=7, command= lambda: onClick(clickInsert))
-    insertButton.grid(row=2, column=2)
+    insertButton.grid(row=2, column=0)
     deleteRightmostButton = Button(bottomframe, text="Delete From End", width=16, command= lambda: onClick(array.removeFromEnd))
     deleteRightmostButton.grid(row=2, column=3)
     deleteValueButton = Button(bottomframe, text="Delete", width=7, command= lambda: onClick(clickDelete))
-    deleteValueButton.grid(row=2, column=4)
+    deleteValueButton.grid(row=3, column=0)
     buttons = [findButton, insertButton, deleteRightmostButton, deleteValueButton]
     return buttons
 
@@ -368,7 +368,7 @@ output = Label(bottomframe, textvariable=outputText, font="none 12 bold")
 output.grid(row=4, column=1, sticky=E)
 
 # exit button
-Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, column=3, sticky=W)
+Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, column=3, sticky=E)
 
 cleanup = []
 array = Array()
