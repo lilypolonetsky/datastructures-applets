@@ -206,18 +206,26 @@ def clickFind():
     entered_text = textBox.get()
     txt = ''
     if entered_text:
-        result = array.find(int(entered_text))
-        if result:
-            txt = "Found!"
+        if int(entered_text) < 100:
+            result = array.find(int(entered_text))
+            if result:
+                txt = "Found!"
+            else:
+                txt = "Value not found"
+            outputText.set(txt)
         else:
-            txt = "Value not found"
-        outputText.set(txt)
+            outputText.set("Input value must be an integer from 0 to 99.")
+            textBox.delete(0, END )
 
 def clickInsert():
     entered_text = textBox.get()
+    val = int(entered_text)
     if entered_text:
-        array.append(int(entered_text))
-        textBox.setvar('')
+        if val < 100:
+            array.append(int(entered_text))
+        else:
+            outputText.set("Input value must be an integer from 0 to 99.")
+        textBox.delete(0, END )
 
 def close_window():
     window.destroy()
