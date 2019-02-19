@@ -82,6 +82,47 @@ class Array(object):
         # update window
         window.update()
 
+    def assignElement(self, fromIndex, toIndex):
+
+        # get position of "to" cell
+        posToCell = canvas.coords(self.list[toIndex].display_shape)
+
+        # get position of "from" cell and value
+        posFromCell = canvas.coords(self.list[fromIndex].display_shape)
+        posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
+
+        # create new display objects that are copies of the "from" cell and value
+        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], posFromCell[2], posFromCell[3],
+                                               fill=self.list[fromIndex][1])
+        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], text=self.list[fromIndex][0],
+                                        font=('Helvetica', '20'))
+
+        # set xspeed to move in the correct direction
+        xspeed = 1
+        if fromIndex > toIndex:
+            xspeed = -xspeed
+
+        # move the new display objects until they are in the position of the "to" cell
+        while (fromIndex < toIndex and canvas.coords(newCellShape) < posToCell) or \
+                (fromIndex > toIndex and canvas.coords(newCellShape) > posToCell):
+            canvas.move(newCellShape, xspeed, 0)
+            canvas.move(newCellVal, xspeed, 0)
+            window.update()
+            time.sleep(self.speed(0.01))
+
+        # delete the original "to" display value and the new display shape
+        canvas.delete(self.list[toIndex].display_val)
+        canvas.delete(self.list[toIndex].display_shape)
+
+        # update value and display value in "to" position in the list
+        self.list[toIndex].display_val = newCellVal
+        self.list[toIndex].val = self.list[fromIndex].val
+        self.list[toIndex].display_shape = newCellShape
+        self.list[toIndex].color = self.list[fromIndex].color
+
+        # update the window
+        window.update()
+
     def display(self):
         canvas.delete("all")
         xpos = ARRAY_X0
@@ -118,8 +159,10 @@ class Array(object):
         findDisplayObjects.append(arrow)
 
         # go through each Element in the list
-        for n in self.list:
+        for i in range(len(self.list)):
             window.update()
+
+            n = self.list[i]
 
             # if the value is found
             if n.val == val:
@@ -141,7 +184,7 @@ class Array(object):
                 cleanup += findDisplayObjects
                 #canvas.after(1000, canvas.delete, arrow)
                 #canvas.after(1000, canvas.delete, cell_val)
-                return True
+                return i
 
             # if the value hasn't been found, wait 1 second, and then move the arrow over one cell
             time.sleep(self.speed(1))
@@ -152,13 +195,32 @@ class Array(object):
 
         cleanup += findDisplayObjects
         #canvas.after(1000, canvas.delete, arrow)
-        return False
+        return None
 
-    def remove(self, index):
-        n = self.list.pop(3)
-        canvas.delete(n.display_shape)
-        canvas.delete(n.display_val)
-        window.update()
+    def remove(self, val):
+        index = self.find(val)
+        if index != None:
+            time.sleep(1)
+            cleanUp()
+
+            n = self.list[index]
+
+            while canvas.coords(n.display_shape)[3] > 0:
+                canvas.move(n.display_shape, 0, -1)
+                canvas.move(n.display_val, 0, -1)
+                window.update()
+                time.sleep(self.speed(0.01))
+
+            #canvas.delete(n.display_shape)
+            #canvas.delete(n.display_val)
+            window.update()
+
+            for i in range(index+1, len(self.list)):
+                self.assignElement(i, i-1)
+
+            self.removeFromEnd()
+            return True
+        return False
 
 def stop(pauseButton): # will stop after the current shuffle is done
     global running
@@ -208,7 +270,7 @@ def clickFind():
     if entered_text:
         if int(entered_text) < 100:
             result = array.find(int(entered_text))
-            if result:
+            if result != None:
                 txt = "Found!"
             else:
                 txt = "Value not found"
@@ -227,6 +289,20 @@ def clickInsert():
             outputText.set("Input value must be an integer from 0 to 99.")
         textBox.delete(0, END )
 
+def clickDelete():
+    entered_text = textBox.get()
+    txt = ''
+    if entered_text:
+        if int(entered_text) < 100:
+            result = array.remove(int(entered_text))
+            if result:
+                txt = "Value deleted!"
+            else:
+                txt = "Value not found"
+            outputText.set(txt)
+        else:
+            outputText.set("Input value must be an integer from 0 to 99.")
+            textBox.delete(0, END )
 def close_window():
     window.destroy()
     exit()
@@ -244,9 +320,11 @@ def makeButtons():
     findButton.grid(row=2, column=1)
     insertButton = Button(bottomframe, text="Insert", width=7, command= lambda: onClick(clickInsert))
     insertButton.grid(row=2, column=2)
-    deleteButton = Button(bottomframe, text="Delete", width=7, command= lambda: onClick(array.removeFromEnd))
-    deleteButton.grid(row=2, column=3)
-    buttons = [findButton, insertButton, deleteButton]
+    deleteRightmostButton = Button(bottomframe, text="Delete From End", width=16, command= lambda: onClick(array.removeFromEnd))
+    deleteRightmostButton.grid(row=2, column=3)
+    deleteValueButton = Button(bottomframe, text="Delete", width=7, command= lambda: onClick(clickDelete))
+    deleteValueButton.grid(row=2, column=4)
+    buttons = [findButton, insertButton, deleteRightmostButton, deleteValueButton]
     return buttons
 
 # validate text entry
