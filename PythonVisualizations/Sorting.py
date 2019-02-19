@@ -1031,8 +1031,8 @@ def clickFind():
 
 def clickInsert():
     entered_text = textBox.get()
-    val = int(entered_text)
     if entered_text:
+        val = int(entered_text)
         if val < 100:
             array.append(int(entered_text))
         else:
