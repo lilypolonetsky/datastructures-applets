@@ -316,13 +316,13 @@ def enableButtons():
         button.config(state = NORMAL)
 
 def makeButtons():
-    findButton = Button(bottomframe, text="Find", width=7, command= lambda: onClick(clickFind))
+    findButton = Button(operationsLeft, text="Find", width=7, command= lambda: onClick(clickFind))
     findButton.grid(row=1, column=0)
-    insertButton = Button(bottomframe, text="Insert", width=7, command= lambda: onClick(clickInsert))
+    insertButton = Button(operationsLeft, text="Insert", width=7, command= lambda: onClick(clickInsert))
     insertButton.grid(row=2, column=0)
-    deleteRightmostButton = Button(bottomframe, text="Delete From End", width=16, command= lambda: onClick(array.removeFromEnd))
-    deleteRightmostButton.grid(row=2, column=3)
-    deleteValueButton = Button(bottomframe, text="Delete", width=7, command= lambda: onClick(clickDelete))
+    deleteRightmostButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(array.removeFromEnd))
+    deleteRightmostButton.grid(row=1, column=0)
+    deleteValueButton = Button(operationsLeft, text="Delete", width=7, command= lambda: onClick(clickDelete))
     deleteValueButton.grid(row=3, column=0)
     buttons = [findButton, insertButton, deleteRightmostButton, deleteValueButton]
     return buttons
@@ -347,28 +347,38 @@ canvas.pack()
 
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
+operationsUpper = LabelFrame(bottomframe, text="Operations", padx=4, pady=4)
+operationsUpper.pack(side=TOP)
+operationsLeft = Frame(operationsUpper, bd=5)
+operationsLeft.pack(side=LEFT)
+operationsRight = Frame(operationsUpper, bd=5)
+operationsRight.pack(side=RIGHT)
+operationsLower = Frame(bottomframe)
+operationsLower.pack(side=BOTTOM)
 
 #Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
 vcmd = (window.register(validate),
         '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-textBox = Entry(bottomframe, width=20, bg="white", validate='key', validatecommand=vcmd)
-textBox.grid(row=4, column=0, sticky=W)
+textBox = Entry(operationsLeft, width=20, bg="white", validate='key', validatecommand=vcmd)
+textBox.grid(row=2, column=2, padx=5, sticky=E)
 scaleDefault = 100
-scale = Scale(bottomframe, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
-scale.grid(row=5, column=1, sticky=W)
+scale = Scale(operationsLower, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
+scale.grid(row=0, column=1, sticky=W)
 scale.set(scaleDefault)
-scaleLabel = Label(bottomframe, text="Speed:", font="none 10")
-scaleLabel.grid(row=5, column=0, sticky=E)
+scaleLabel = Label(operationsLower, text="Speed:", font="none 10")
+scaleLabel.grid(row=0, column=0, sticky=W)
 
 # add a submit button
 #Button(bottomframe, text="Find", width=6, command=lambda: array.onClick(clickFind)).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
-output = Label(bottomframe, textvariable=outputText, font="none 12 bold")
-output.grid(row=4, column=1, sticky=E)
+output = Label(operationsLower, textvariable=outputText, font="none 10 italic", fg="blue")
+output.grid(row=0, column=3, sticky=(E, W))
+operationsLower.grid_columnconfigure(3, minsize=160)
 
 # exit button
-Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, column=3, sticky=E)
+Button(operationsLower, text="EXIT", width=0, command=close_window)\
+    .grid(row=0, column=4, sticky=E)
 
 cleanup = []
 array = Array()
