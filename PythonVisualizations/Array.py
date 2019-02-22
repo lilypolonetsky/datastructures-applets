@@ -18,8 +18,9 @@ class Array(object):
               'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
     nextColor = 0
 
-    def __init__(self, size=0):
-        self.list = [0]*size
+    def __init__(self, size=10):
+        self.list = []
+        self.size = size
 
     def __str__(self):
         return str(self.list)
@@ -58,7 +59,7 @@ class Array(object):
 
     def append(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Array.colors[Array.nextColor])
+        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Array.colors[Array.nextColor], outline='')
         cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
@@ -93,7 +94,7 @@ class Array(object):
 
         # create new display objects that are copies of the "from" cell and value
         newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], posFromCell[2], posFromCell[3],
-                                               fill=self.list[fromIndex][1])
+                                               fill=self.list[fromIndex][1], outline='')
         newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], text=self.list[fromIndex][0],
                                         font=('Helvetica', '20'))
 
@@ -128,11 +129,15 @@ class Array(object):
         xpos = ARRAY_X0
         ypos = ARRAY_Y0
 
+        print(self.size)
+        for i in range(self.size):
+            canvas.create_rectangle(xpos + CELL_SIZE*i, ypos, xpos + CELL_SIZE*(i+1), ypos + CELL_SIZE, fill='white', outline='black')
+
         # go through each Element in the list
         for n in self.list:
             print(n)
             # create display objects for the associated Elements
-            cell = canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1])
+            cell = canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1], outline='')
             cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
 
             # save the display objects to the appropriate attributes of the Element object
@@ -149,7 +154,7 @@ class Array(object):
         running = True
         findDisplayObjects = []
         #canvas.delete(findDisplayObjects)
-        self.display()
+        #self.display()
 
         # draw an arrow over the first cell
         x = ARRAY_X0 + (CELL_SIZE/2)
@@ -385,7 +390,7 @@ array = Array()
 buttons = makeButtons()
 array.display()
 
-for i in range(10):
+for i in range(9):
     array.append(i)
 
 window.mainloop()
