@@ -51,20 +51,6 @@ class Stack(object):
         except:
             print("Invalid list index")
             return -1
-
-    def set(self, index, val):
-        # reset the value of the Element at that index to val
-        self.list[index].val = val
-
-        # get the position of the displayed value
-        pos = canvas.coords(self.list[index].display_val)
-
-        # delete the displayed value and replace it with the updated value
-        canvas.delete(self.list[index].display_val)
-        self.list[index].display_val = canvas.create_text(pos[0], pos[1], text=str(val), font=('Helvetica', '20'))
-
-        # update window
-        window.update()
         
     # Allows us to make pop conditional    
     def getSize(self):   
