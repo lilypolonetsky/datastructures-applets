@@ -1,6 +1,6 @@
 # TO DO
 # Add Queue functionality to the array
-# - switching method names, switching to array
+# - Having array overflow for our insert, doesn't make sense to us
 # - adding variables to the init to keep track of header and rear
 # - using those to insert and delete accordingly
 # - get rid of superfluous code
@@ -26,8 +26,11 @@ class Queue(object):
     nextColor = 0
 
     def __init__(self, size=10):
-        self.list = []
-        self.size = size    
+        self.list = [None]*size
+        self.size = size
+        self.front = 1  # when Queue is empty, front 
+        self.rear = 0   # should be to right of rear.
+        self.nItems = 0        
 
     def __str__(self):
         return str(self.list)
@@ -59,14 +62,16 @@ class Queue(object):
 
     # CHANGE TO INSERT AND REMOVE
     
-    def append(self, val):
+    def insert(self, val):
         # create new cell and cell value display objects
         cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Queue.colors[Queue.nextColor], outline='')
         cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
-        self.list.append(Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
+        self.rear += 1
+        self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
+        self.nItems += 1
 
         # increment nextColor
         Queue.nextColor = (Queue.nextColor + 1) % len(Queue.colors)
@@ -75,13 +80,18 @@ class Queue(object):
         window.update()
 
         
-    # Our LIFO needs to be removeFromHead
-    # (but will need this for the Deque)
     def removeFromFront(self):
-        # pop an Element from the list
-        # where 0 == header
-        # MAKE THIS HEADER
-        n = self.list[rear]
+        
+        # Set front value in list to None
+        self.list[self.front] = None
+        
+        # Increment front
+        self.front += 1
+        
+        # TODO Deal with wraparound here
+        
+        # Decrement number of items
+        self.nItems -= 1
 
         # delete the associated display objects
         canvas.delete(n.display_shape)
@@ -89,7 +99,8 @@ class Queue(object):
 
         # update window
         window.update()
-        
+      
+    # TODO    
     # Our LIFO needs to be removeFromHead
     # (but will need this for the Deque)
     def removeFromEnd(self):
@@ -219,7 +230,7 @@ def clickFind():
     txt = ''
     if entered_text:
         if int(entered_text) < 100:
-            result = array.find(int(entered_text))
+            result = queue.find(int(entered_text))
             if result != None:
                 txt = "Found!"
             else:
@@ -234,7 +245,7 @@ def clickInsert():
     if entered_text:
         val = int(entered_text)
         if val < 100:
-            array.append(int(entered_text))
+            queue.insert(int(entered_text))
         else:
             outputText.set("Input value must be an integer from 0 to 99.")
         textBox.delete(0, END )
@@ -244,7 +255,7 @@ def clickDelete():
     txt = ''
     if entered_text:
         if int(entered_text) < 100:
-            result = array.remove(int(entered_text))
+            result = queue.remove(int(entered_text))
             if result:
                 txt = "Value deleted!"
             else:
@@ -270,9 +281,9 @@ def makeButtons():
     findButton.grid(row=1, column=0)
     insertButton = Button(operationsLeft, text="Insert", width=7, command= lambda: onClick(clickInsert))
     insertButton.grid(row=2, column=0)
-    deleteRightmostButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(array.removeFromEnd))
+    deleteRightmostButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(queue.removeFromEnd))
     deleteRightmostButton.grid(row=1, column=0)
-    deleteValueButton = Button(operationsLeft, text="Delete", width=7, command= lambda: onClick(array.removeFromFront))
+    deleteValueButton = Button(operationsLeft, text="Delete", width=7, command= lambda: onClick(queue.removeFromFront))
     deleteValueButton.grid(row=3, column=0)
     buttons = [findButton, insertButton, deleteRightmostButton, deleteValueButton]
     return buttons
@@ -292,7 +303,7 @@ frame.pack()
 waitVar = BooleanVar()
 
 canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
-window.title("Array")
+window.title("Queue")
 canvas.pack()
 
 bottomframe = Frame(window)
@@ -319,7 +330,7 @@ scaleLabel = Label(operationsLower, text="Speed:", font="none 10")
 scaleLabel.grid(row=0, column=0, sticky=W)
 
 # add a submit button
-#Button(bottomframe, text="Find", width=6, command=lambda: array.onClick(clickFind)).grid(row=0, column=2, sticky=W)
+#Button(bottomframe, text="Find", width=6, command=lambda: queue.onClick(clickFind)).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
 output = Label(operationsLower, textvariable=outputText, font="none 10 italic", fg="blue")
@@ -331,12 +342,12 @@ Button(operationsLower, text="EXIT", width=0, command=close_window)\
     .grid(row=0, column=4, sticky=E)
 
 cleanup = []
-array = Queue()
+queue = Queue()
 buttons = makeButtons()
-array.display()
+queue.display()
 
-for i in range(9):
-    array.append(i)
+for i in range(4):
+    queue.insert(i)
 
 window.mainloop()
 
