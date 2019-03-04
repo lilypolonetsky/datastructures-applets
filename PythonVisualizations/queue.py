@@ -1,9 +1,9 @@
 # TO DO
 # Add Queue functionality to the array
-# - Having array overflow for our insert, doesn't make sense to us
-# - adding variables to the init to keep track of header and rear
-# - using those to insert and delete accordingly
-# - get rid of superfluous code
+# - Currently is circular, need to prevent it from overriding if exisiting (check if something there, or nElems vs size)
+#    - Both in insert and in delete
+# - Get rid of superfluous code
+# - Toggle switch between deque and queue functionality
 
 import random
 import time
@@ -60,16 +60,16 @@ class Queue(object):
         # update window
         window.update()
 
-    # CHANGE TO INSERT AND REMOVE
     
     def insert(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Queue.colors[Queue.nextColor], outline='')
-        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+        # Start drawing new one at rear
+        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, fill=Queue.colors[Queue.nextColor], outline='')
+        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
-        self.rear += 1
+        self.rear = (self.rear+1) % (self.size)
         self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
         self.nItems += 1
 
@@ -83,12 +83,11 @@ class Queue(object):
     def removeFromFront(self):
         
         # Set front value in list to None
+        n = self.list[self.front]
         self.list[self.front] = None
         
         # Increment front
         self.front += 1
-        
-        # TODO Deal with wraparound here
         
         # Decrement number of items
         self.nItems -= 1
@@ -100,12 +99,14 @@ class Queue(object):
         # update window
         window.update()
       
-    # TODO    
-    # Our LIFO needs to be removeFromHead
-    # (but will need this for the Deque)
+
     def removeFromEnd(self):
+        
         # pop an Element from the list
-        n = self.list.pop()
+        n = self.list[self.rear]
+        self.list[self.rear] = None
+        self.rear -= 1
+        self.nItems -= 1
 
         # delete the associated display objects
         canvas.delete(n.display_shape)
@@ -166,17 +167,20 @@ class Queue(object):
 
         # go through each Element in the list
         for n in self.list:
-            print(n)
-            # create display objects for the associated Elements
-            cell = canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1], outline='')
-            cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
-
-            # save the display objects to the appropriate attributes of the Element object
-            n.display_shape = cell
-            n.display_val = cell_val
-
-            # increment xpos
-            xpos += CELL_SIZE
+            
+            # Only loop through the existing elements
+            if n:
+                print(n)
+                # create display objects for the associated Elements
+                cell = canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1], outline='')
+                cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
+    
+                # save the display objects to the appropriate attributes of the Element object
+                n.display_shape = cell
+                n.display_val = cell_val
+    
+                # increment xpos
+                xpos += CELL_SIZE
 
         window.update()
 
@@ -283,7 +287,7 @@ def makeButtons():
     insertButton.grid(row=2, column=0)
     deleteRightmostButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(queue.removeFromEnd))
     deleteRightmostButton.grid(row=1, column=0)
-    deleteValueButton = Button(operationsLeft, text="Delete", width=7, command= lambda: onClick(queue.removeFromFront))
+    deleteValueButton = Button(operationsLeft, text="Delete From Front", width=16, command= lambda: onClick(queue.removeFromFront))
     deleteValueButton.grid(row=3, column=0)
     buttons = [findButton, insertButton, deleteRightmostButton, deleteValueButton]
     return buttons
