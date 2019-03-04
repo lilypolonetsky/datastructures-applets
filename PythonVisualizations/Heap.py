@@ -55,17 +55,18 @@ class Heap(object):
     def swapNodes(self, cur, parent, x, y):
         changeX = x
         changeY = y
+        print("this is change x ", changeX)
+        print("this is change y: ", changeY)
         print("cur", cur)
         print("parent", parent)
         print("o", self.__ovals[cur])
         print("oo", self.__ovals[parent])
         for i in range(100):  
-            w.move(self.__ovals[cur], changeX/100, changeY/100)
-            w.move(self.__ovals[parent], abs(changeX/100), abs(changeY/100))
-            w.move(self.__nums[cur], changeX/100, changeY/100)
+            w.move(self.__ovals[cur], -(changeX/100), -(changeY/100))
+            w.move(self.__ovals[parent], (changeX/100), (changeY/100))
+            w.move(self.__nums[cur], -(changeX/100), -(changeY/100))
             root.update() 
-            
-    
+        #print("just swapped " + self.__ovals[cur] + "and " + self.__ovlas[parent])   
     def insert(self, k, d):
         # grow array if the heap is full
         #if self.__nElems == len(self.__arr): self.__grow()   
@@ -78,7 +79,7 @@ class Heap(object):
             self.__nElems += 1
             print("self.__nelems:", self.__nElems)
             
-            return True 
+            return self.__nElems-1
         except:
             pass
   
@@ -99,10 +100,10 @@ class Heap(object):
             parY = coordinates[1][parent]
             changeX = curX-parX
             changeY = curY-parY            
-                                                
+            self.swapNodes(cur, parent, changeX, changeY)                                    
             self.__arr[cur] = self.__arr[parent] # move parent down
             
-            self.swapNodes(cur, parent, changeX, changeY)
+            #self.swapNodes(cur, parent, changeX, changeY)
                         
             
             cur = parent                         # cur goes up one level
@@ -150,6 +151,16 @@ class Heap(object):
             # done trickling if top's key is >= the key of larger child
             if top.key >= self.__arr[largerChild].key:
                 break
+            
+            parent = (cur-1) // 2
+            curX = coordinates[0][cur]
+            curY = coordinates[1][cur]
+            parX = coordinates[0][parent]
+            parY = coordinates[1][parent]
+            changeX = curX-parX
+            changeY = curY-parY            
+            self.swapNodes(cur, parent, changeX, changeY)
+            
             
             # shift child up
             self.__arr[cur] = self.__arr[largerChild]
@@ -214,7 +225,8 @@ h = Heap(15)
 
 
 def insert_node():
-    h.insert(random.randint(0, 10000), chr(ord('A') + 1))
+    
+    num = h.insert(random.randint(0, 10000), chr(ord('A') + 1))
     
     h.drawHeap()
     h.trickleUp(num)
