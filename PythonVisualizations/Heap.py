@@ -16,6 +16,7 @@ class Heap(object):
         self.__nElems = 0 
         self.__ovals = []
         self.__nums = []
+        self.__arrows = []
         
     # Grow the array, if necessary    
     def __grow(self):
@@ -36,80 +37,65 @@ class Heap(object):
         button2 = tk.Button(root,text='Remove', command=remove_node)
         w.create_window(500,600,window=button2)            
         w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')  
-        for i in range(self.__nElems):
-            parent = (i-1)//2
-            positionX = coordinates[0][i]
-            positionY = coordinates[1][i]
-            oval = w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='yellow')
-            text = w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(self.__arr[i].key))
-            # list of each oval to access later on for swapping
-            if i >= len(self.__ovals):
-                self.__ovals.append(oval)
-                print(self.__ovals)
-                self.__nums.append(text)
-            
-            if i != 0:
-                w.create_line(coordinates[0][parent]+25, coordinates[1][parent]+50, positionX+20, positionY, arrow=tk.LAST)
+
         
         
-    def swapNodes(self, cur, parent, x, y):
+    def swapNodes(self, cur, other, x, y):
         changeX = x
         changeY = y
-        print("this is change x ", changeX)
-        print("this is change y: ", changeY)
-        print("cur", cur)
-        print("parent", parent)
-        print("cur", self.__ovals[cur])
-        print("oo", self.__ovals[parent])
-        for i in range(100):  
-            w.move(self.__ovals[cur], -(changeX/100), -(changeY/100))
-            w.move(self.__ovals[parent], (changeX/100), (changeY/100))
-            w.move(self.__nums[cur], -(changeX/100), -(changeY/100))
-            w.move(self.__nums[parent], (changeX/100), (changeY/100))
-            ## do we need to also move __nums[parent]?
+        increment = 100
+        for i in range(increment):  
+            w.move(self.__ovals[cur], -(changeX/increment), -(changeY/increment))
+            w.move(self.__ovals[other], (changeX/increment), (changeY/increment))
+            w.move(self.__nums[cur], -(changeX/increment), -(changeY/increment))
+            w.move(self.__nums[other], (changeX/increment), (changeY/increment))
             root.update() 
-        self.__ovals[cur], self.__ovals[parent] = self.__ovals[parent], self.__ovals[cur]
-        self.__nums[cur], self.__nums[parent] = self.__nums[parent], self.__nums[cur]
-        #print("just swapped " + self.__ovals[cur] + "and " + self.__ovlas[parent])   
+        self.__ovals[cur], self.__ovals[other] = self.__ovals[other], self.__ovals[cur]
+        self.__nums[cur], self.__nums[other] = self.__nums[other], self.__nums[cur]
+     
+     
+
     def insert(self, k, d):
-        # grow array if the heap is full
-        #if self.__nElems == len(self.__arr): self.__grow()   
+   
         # Place new node at end of heap & trickle it up
 
         try: 
             self.__arr[self.__nElems] = Node(k, d)
-            print("arr:", self.__arr)
-            #self.__trickleUp(self.__nElems)
             self.__nElems += 1
-            print("self.__nelems:", self.__nElems)
+        
+            positionX = coordinates[0][self.__nElems-1]
+            positionY = coordinates[1][self.__nElems-1]
+            oval = w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='yellow')
+            text = w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(self.__arr[self.__nElems-1].key))
+            # list of each oval to access later on for swapping
+            self.__ovals.append(oval)
+            self.__nums.append(text)
+            parent = (self.__nElems-2)//2
+            if self.__nElems != 1:
+                arrow = w.create_line(coordinates[0][parent]+25, coordinates[1][parent]+50, positionX+20, positionY, arrow=tk.LAST)    
+                self.__arrows.append(arrow)
             
-            return self.__nElems-1
+            
+            return oval, text
         except:
             pass
   
             
     def trickleUp(self, cur):
+        cur = self.__nElems-1
         bottom = self.__arr[self.__nElems-1] # the recently inserted Node
         parent = (cur-1) // 2    # its parent's location
-        print(self.__arr)        
-        #print("self.__arr[parent]", self.__arr[parent].key)
-        print("bottom", bottom)
         # While cur hasn't reached the root, and cur's parent's
         # key is smaller than the new Node's key
         while cur > 0 and self.__arr[parent].key < bottom.key:
             
-            curX = coordinates[0][cur]
-            curY = coordinates[1][cur]
-            parX = coordinates[0][parent]
-            parY = coordinates[1][parent]
+            curX, curY = coordinates[0][cur], coordinates[1][cur]
+            parX, parY = coordinates[0][parent], coordinates[1][parent]
             changeX = curX-parX
-            changeY = curY-parY            
+            changeY = curY-parY
+            
             self.swapNodes(cur, parent, changeX, changeY)                                    
             self.__arr[cur] = self.__arr[parent] # move parent down
-            
-            #self.swapNodes(cur, parent, changeX, changeY)
-                        
-            
             cur = parent                         # cur goes up one level
             parent = (cur-1) // 2
          
@@ -118,6 +104,32 @@ class Heap(object):
         # so place the new node into the current spot on the tree.
         self.__arr[cur] = bottom
          
+    
+    def swapRoot(self):
+        # coordinates of the last node
+        x, y = coordinates[0][self.__nElems], coordinates[1][self.__nElems]
+        # change in coordinates of last node and root node
+        changeX = coordinates[0][0]-x
+        changeY = coordinates[1][0]-y
+        increment = 100
+        # swap the root node with the last node
+        for i in range(increment):
+            w.move(self.__ovals[self.__nElems], changeX/increment, changeY/increment)
+            w.move(self.__nums[self.__nElems], changeX/increment, changeY/increment)
+             
+        # remove the node at the root
+        w.delete(self.__ovals[0])
+        w.delete(self.__nums[0])
+        # remove the last arrow
+        w.delete(self.__arrows[self.__nElems-1])
+        self.__arrows[self.__nElems-1] = None
+        self.__ovals[0] = self.__ovals[self.__nElems]
+        self.__nums[0] = self.__nums[self.__nElems]
+        # remove the last node from the oval list
+        self.__ovals[self.__nElems] = None
+        self.__nums[self.__nElems] = None          
+        root.update()    
+    
     
     # return the key/data pair with the highest priority   
     def remove(self): 
@@ -130,8 +142,13 @@ class Heap(object):
         
         # Now place the last Node in the heap into the 
         # root location, and trickle it down
-        self.__arr[0] = self.__arr[self.__nElems]
+        self.__arr[0] = self.__arr[self.__nElems]        
+        
+        # first swap the root
+        self.swapRoot()
+        # then trickle down normally
         self.__trickleDown()
+        
         return root.key, root.data
     
     # this heap is now a min-heap       
@@ -156,18 +173,19 @@ class Heap(object):
             if top.key >= self.__arr[largerChild].key:
                 break
             
-            parent = (cur-1) // 2
             curX = coordinates[0][cur]
             curY = coordinates[1][cur]
-            parX = coordinates[0][parent]
-            parY = coordinates[1][parent]
-            changeX = curX-parX
-            changeY = curY-parY            
-            self.swapNodes(cur, parent, changeX, changeY)
-            
+            largX = coordinates[0][largerChild]
+            largY = coordinates[1][largerChild]
+            changeX = curX-largX
+            changeY = curY-largY 
+
             
             # shift child up
             self.__arr[cur] = self.__arr[largerChild]
+            
+            self.swapNodes(cur, largerChild, changeX, changeY)
+            
             cur = largerChild            # go down
             
         # when we make it to this point, either cur is a leaf, or
@@ -230,15 +248,12 @@ h = Heap(15)
 
 def insert_node():
     
-    num = h.insert(random.randint(0, 10000), chr(ord('A') + 1))
-    
-    h.drawHeap()
-    h.trickleUp(num)
-    h.drawHeap()
+    num = h.insert(random.randint(0, 100), chr(ord('A') + 1))
+    h.trickleUp(num[0])
+
 
 def remove_node():
     h.remove()
-    h.drawHeap()
     
 root = tk.Tk()
 canvas_width = 800
