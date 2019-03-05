@@ -7,8 +7,20 @@ WIDTH = 800
 HEIGHT = 400
 
 CELL_SIZE = 50
+CELL_BORDER = 2
 ARRAY_X0 = 100
 ARRAY_Y0 = 100
+OPERATIONS_BG = 'beige'
+OPERATIONS_BORDER = 'black'
+FONT_SIZE = '20'
+VALUE_FONT = ('Helvetica', FONT_SIZE)
+VALUE_COLOR = 'black'
+FOUND_FONT = ('Helvetica', FONT_SIZE)
+FOUND_COLOR = 'green2'
+CONTROLS_FONT = ('none', '14')
+
+def add_vector(v1, v2):
+    return tuple(map(lambda x, y: x + y, v1, v2))
 
 class Array(object):
     Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
@@ -52,16 +64,15 @@ class Array(object):
 
         # delete the displayed value and replace it with the updated value
         canvas.delete(self.list[index].display_val)
-        self.list[index].display_val = canvas.create_text(pos[0], pos[1], text=str(val), font=('Helvetica', '20'))
+        self.list[index].display_val = canvas.create_text(pos[0], pos[1], text=str(val), font=VALUE_FONT, fill=VALUE_COLOR)
 
         # update window
         window.update()
 
     def append(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*len(self.list), ARRAY_Y0, ARRAY_X0+CELL_SIZE*(len(self.list)+1), ARRAY_Y0 + CELL_SIZE, fill=Array.colors[Array.nextColor], outline='')
-        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*len(self.list) + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
-                                      font=('Helvetica', '20'))
+        cell = canvas.create_rectangle(*self.cellCoords(len(self.list)), fill=Array.colors[Array.nextColor], outline='')
+        cell_val = canvas.create_text(*self.cellCenter(len(self.list)), text=val, font=VALUE_FONT, fill=VALUE_COLOR)
 
         # add a new Element to the list with the new value, color, and display objects
         self.list.append(Array.Element(val, Array.colors[Array.nextColor], cell, cell_val))
@@ -93,19 +104,18 @@ class Array(object):
         posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
 
         # create new display objects that are copies of the "from" cell and value
-        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], posFromCell[2], posFromCell[3],
-                                               fill=self.list[fromIndex][1], outline='')
-        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], text=self.list[fromIndex][0],
-                                        font=('Helvetica', '20'))
+        newCellShape = canvas.create_rectangle(*posFromCell, fill=self.list[fromIndex][1], outline='')
+        newCellVal = canvas.create_text(*posFromCellVal, text=self.list[fromIndex][0],
+                                        font=VALUE_FONT, fill=VALUE_COLOR)
 
         # set xspeed to move in the correct direction
         xspeed = 1
         if fromIndex > toIndex:
             xspeed = -xspeed
+        distance = abs(int(posToCell[0] - posFromCell[0]))
 
         # move the new display objects until they are in the position of the "to" cell
-        while (fromIndex < toIndex and canvas.coords(newCellShape) < posToCell) or \
-                (fromIndex > toIndex and canvas.coords(newCellShape) > posToCell):
+        for i in range(distance):
             canvas.move(newCellShape, xspeed, 0)
             canvas.move(newCellVal, xspeed, 0)
             window.update()
@@ -124,28 +134,36 @@ class Array(object):
         # update the window
         window.update()
 
+    def cellCoords(self, cell_index):          # Get bounding rectangle for colored cell at a particular index
+        return (ARRAY_X0 + CELL_SIZE * cell_index, ARRAY_Y0,
+                ARRAY_X0 + CELL_SIZE * (cell_index + 1) - CELL_BORDER, ARRAY_Y0 + CELL_SIZE - CELL_BORDER)
+
+    def cellCenter(self, cell_index):          # Get center point for colored cell at a particular index
+        half_cell = (CELL_SIZE - CELL_BORDER) // 2
+        return add_vector(self.cellCoords(cell_index), (half_cell, half_cell))
+
     def display(self):
         canvas.delete("all")
-        xpos = ARRAY_X0
-        ypos = ARRAY_Y0
 
-        print(self.size)
-        for i in range(self.size):
-            canvas.create_rectangle(xpos + CELL_SIZE*i, ypos, xpos + CELL_SIZE*(i+1), ypos + CELL_SIZE, fill='white', outline='black')
+        # print(self.size)
+        for i in range(self.size):  # Draw grid of cells
+            cell_coords = self.cellCoords(i)
+            half_border = CELL_BORDER // 2
+            canvas.create_rectangle(*add_vector(cell_coords, 
+                                                (-half_border, -half_border,
+                                                 CELL_BORDER - half_border, CELL_BORDER - half_border)),
+                                    fill='white', outline='black', width=CELL_BORDER)
 
         # go through each Element in the list
-        for n in self.list:
-            print(n)
+        for i, n in enumerate(self.list):
+            # print(n)
             # create display objects for the associated Elements
-            cell = canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1], outline='')
-            cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
+            cell = canvas.create_rectangle(*self.cellCoords(i), fill=n[1], outline='', width=0)
+            cell_val = canvas.create_text(*self.cellCenter(i), text=n[0], font=VALUE_FONT, fill=VALUE_COLOR)
 
             # save the display objects to the appropriate attributes of the Element object
             n.display_shape = cell
             n.display_val = cell_val
-
-            # increment xpos
-            xpos += CELL_SIZE
 
         window.update()
 
@@ -157,9 +175,11 @@ class Array(object):
         #self.display()
 
         # draw an arrow over the first cell
-        x = ARRAY_X0 + (CELL_SIZE/2)
-        y0 = ARRAY_Y0 - 40
-        y1 = ARRAY_Y0 - 15
+        cell_coords = self.cellCoords(0)
+        cell_center = self.cellCenter(0)
+        x = cell_center[0]
+        y0 = cell_coords[1] - 40
+        y1 = cell_coords[1] - 15
         arrow = canvas.create_line(x, y0, x, y1, arrow="last", fill='red')
         findDisplayObjects.append(arrow)
 
@@ -177,7 +197,7 @@ class Array(object):
 
                 # cover the current display value with the updated value in green
                 #cell_shape = canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3], fill=n[1])
-                cell_val = canvas.create_text(posVal[0], posVal[1], text=str(val), font=('Helvetica', '25'), fill='green2')
+                cell_val = canvas.create_text(*posVal, text=str(val), font=FOUND_FONT, fill=FOUND_COLOR)
 
                 # add the green value to findDisplayObjects for cleanup later
                 #findDisplayObjects.append(cell_shape)
@@ -210,6 +230,7 @@ class Array(object):
 
             n = self.list[index]
 
+            # Slide value rectangle up and off screen
             while canvas.coords(n.display_shape)[3] > 0:
                 canvas.move(n.display_shape, 0, -1)
                 canvas.move(n.display_val, 0, -1)
@@ -220,6 +241,7 @@ class Array(object):
             #canvas.delete(n.display_val)
             window.update()
 
+            # Slide values from right to left to fill gap
             for i in range(index+1, len(self.list)):
                 self.assignElement(i, i-1)
 
@@ -321,15 +343,18 @@ def enableButtons():
         button.config(state = NORMAL)
 
 def makeButtons():
-    findButton = Button(operationsLeft, text="Find", width=7, command= lambda: onClick(clickFind))
-    findButton.grid(row=1, column=0)
-    insertButton = Button(operationsLeft, text="Insert", width=7, command= lambda: onClick(clickInsert))
-    insertButton.grid(row=2, column=0)
-    deleteRightmostButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(array.removeFromEnd))
-    deleteRightmostButton.grid(row=1, column=0)
-    deleteValueButton = Button(operationsLeft, text="Delete", width=7, command= lambda: onClick(clickDelete))
-    deleteValueButton.grid(row=3, column=0)
-    buttons = [findButton, insertButton, deleteRightmostButton, deleteValueButton]
+    findButton = Button(operations, text="Find", command= lambda: onClick(clickFind))
+    findButton.grid(row=1, column=0, padx=8, sticky=(E, W))
+    insertButton = Button(operations, text="Insert", command= lambda: onClick(clickInsert))
+    insertButton.grid(row=2, column=0, padx=8, sticky=(E, W))
+    deleteValueButton = Button(operations, text="Delete", command= lambda: onClick(clickDelete))
+    deleteValueButton.grid(row=3, column=0, padx=8, sticky=(E, W))
+    separator = Frame(operations, width=2, bg=OPERATIONS_BORDER)
+    separator.grid(row=1, column=3, rowspan=3, sticky=(N, E, W, S))
+    deleteRightmostButton = Button(operations, text="Delete Rightmost",
+                                   command= lambda: onClick(array.removeFromEnd))
+    deleteRightmostButton.grid(row=1, column=4, rowspan=3, padx=8)
+    buttons = [findButton, insertButton, deleteValueButton, deleteRightmostButton]
     return buttons
 
 # validate text entry
@@ -352,32 +377,32 @@ canvas.pack()
 
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
-operationsUpper = LabelFrame(bottomframe, text="Operations", padx=4, pady=4)
+operationsUpper = LabelFrame(bottomframe, text="Operations")
 operationsUpper.pack(side=TOP)
-operationsLeft = Frame(operationsUpper, bd=5)
-operationsLeft.pack(side=LEFT)
-operationsRight = Frame(operationsUpper, bd=5)
-operationsRight.pack(side=RIGHT)
+operationsBorder = Frame(operationsUpper, padx=2, pady=2, bg=OPERATIONS_BORDER)
+operationsBorder.pack(side=TOP)
+operations = Frame(operationsBorder, bg=OPERATIONS_BG)
+operations.pack(side=LEFT)
 operationsLower = Frame(bottomframe)
 operationsLower.pack(side=BOTTOM)
 
-#Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
+#Label(bottomframe, text="Find:", font=CONTROLS_FONT + ('bold',)).grid(row=0, column=0, sticky=W)
 vcmd = (window.register(validate),
         '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-textBox = Entry(operationsLeft, width=20, bg="white", validate='key', validatecommand=vcmd)
-textBox.grid(row=2, column=2, padx=5, sticky=E)
+textBox = Entry(operations, width=20, bg="white", validate='key', validatecommand=vcmd)
+textBox.grid(row=2, column=2, padx=8, sticky=E)
 scaleDefault = 100
 scale = Scale(operationsLower, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
 scale.grid(row=0, column=1, sticky=W)
 scale.set(scaleDefault)
-scaleLabel = Label(operationsLower, text="Speed:", font="none 10")
+scaleLabel = Label(operationsLower, text="Speed:", font=CONTROLS_FONT)
 scaleLabel.grid(row=0, column=0, sticky=W)
 
 # add a submit button
 #Button(bottomframe, text="Find", width=6, command=lambda: array.onClick(clickFind)).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
-output = Label(operationsLower, textvariable=outputText, font="none 10 italic", fg="blue")
+output = Label(operationsLower, textvariable=outputText, font=CONTROLS_FONT + ('italic',), fg="blue")
 output.grid(row=0, column=3, sticky=(E, W))
 operationsLower.grid_columnconfigure(3, minsize=160)
 
@@ -398,8 +423,5 @@ window.mainloop()
 '''
 To Do:
 - make it look pretty
-- animate insert and delete
-- delete/insert at index?
-- label arrows for sorts (inner, outer, etc.)
-- implement shell sort, radix sort, quick sort
+- animate insert
 '''
