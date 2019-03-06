@@ -32,7 +32,7 @@ class Heap(object):
         
     def drawHeap(self):
         w.delete("all")
-        button1=tk.Button(root,text='Insert',bg='blue',fg='red',command=insert_node)
+        button1=tk.Button(root,text='Insert',bg='blue',command=insert_node)
         w.create_window(300,600, window=button1)  
         button2 = tk.Button(root,text='Remove', command=remove_node)
         w.create_window(500,600,window=button2)            
@@ -103,32 +103,7 @@ class Heap(object):
         # root, or cur's parent's key is >= the new node's key. 
         # so place the new node into the current spot on the tree.
         self.__arr[cur] = bottom
-         
     
-    def swapRoot(self):
-        # coordinates of the last node
-        x, y = coordinates[0][self.__nElems], coordinates[1][self.__nElems]
-        # change in coordinates of last node and root node
-        changeX = coordinates[0][0]-x
-        changeY = coordinates[1][0]-y
-        increment = 100
-        # swap the root node with the last node
-        for i in range(increment):
-            w.move(self.__ovals[self.__nElems], changeX/increment, changeY/increment)
-            w.move(self.__nums[self.__nElems], changeX/increment, changeY/increment)
-             
-        # remove the node at the root
-        w.delete(self.__ovals[0])
-        w.delete(self.__nums[0])
-        # remove the last arrow
-        w.delete(self.__arrows[self.__nElems-1])
-        self.__arrows[self.__nElems-1] = None
-        self.__ovals[0] = self.__ovals[self.__nElems]
-        self.__nums[0] = self.__nums[self.__nElems]
-        # remove the last node from the oval list
-        self.__ovals[self.__nElems] = None
-        self.__nums[self.__nElems] = None          
-        root.update()    
     
     
     # return the key/data pair with the highest priority   
@@ -150,6 +125,37 @@ class Heap(object):
         self.__trickleDown()
         
         return root.key, root.data
+      
+    
+    def swapRoot(self):
+        # coordinates of the last node
+        x, y = coordinates[0][self.__nElems], coordinates[1][self.__nElems]
+        # change in coordinates of last node and root node
+        changeX = coordinates[0][0]-x
+        changeY = coordinates[1][0]-y
+        
+        # remove the node at the root
+        w.delete(self.__ovals[0])
+        w.delete(self.__nums[0])        
+        # remove the last arrow
+        w.delete(self.__arrows[self.__nElems-1])
+        self.__arrows[self.__nElems-1] = None
+        self.__ovals[0] = self.__ovals[self.__nElems]
+        self.__nums[0] = self.__nums[self.__nElems]
+        
+        increment = 100
+        # swap the root node with the last node
+        for i in range(increment):
+            w.move(self.__ovals[self.__nElems], changeX/increment, changeY/increment)
+            w.move(self.__nums[self.__nElems], changeX/increment, changeY/increment)
+            root.update()
+        
+        
+        # remove the last node from the oval list
+        self.__ovals[self.__nElems] = None
+        self.__nums[self.__nElems] = None          
+        root.update()    
+    
     
     # this heap is now a min-heap       
     def __trickleDown(self, cur = 0, size = -1):
