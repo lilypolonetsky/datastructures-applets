@@ -45,7 +45,7 @@ class Heap(object):
         # change increment based on the size of changeX and changeY
         changeX = x
         changeY = y
-        increment = 10
+        increment = 100
         for i in range(increment):  
             w.move(self.__ovals[cur], -(changeX/increment), -(changeY/increment))
             w.move(self.__ovals[other], (changeX/increment), (changeY/increment))
@@ -100,6 +100,11 @@ class Heap(object):
             self.trickleUp()
             
             # when the trickle up is complete, 
+            # keep this node red for another second
+            root.update()
+            time.sleep(.5)
+            
+            
             # change the most recently inserted node to yellow
             w.itemconfig(oval, fill='yellow')
             
@@ -164,9 +169,11 @@ class Heap(object):
         self.__trickleDown()
         # re-enable the buttons when trickle up is complete
         self.buttonState('normal')
+        
         # if there are no nodes left, disable the remove button
         if self.__nElems == 0:
             button2.config(state="disabled") 
+            
         return root.key, root.data
       
     def swapRoot(self):
@@ -188,7 +195,7 @@ class Heap(object):
         # change the last node that is swapped to the root to red 
         w.itemconfig(self.__ovals[self.__nElems], fill='red')
          
-        increment = 10
+        increment = 100
         # swap the root node with the last node
         for i in range(increment):
             w.move(self.__ovals[self.__nElems], changeX/increment, changeY/increment)
@@ -247,7 +254,12 @@ class Heap(object):
         self.__arr[cur] = top  # move original root to its correct position 
         
         # when cur makes it to its correct position in the trickle down,
-        # change it back to yellow
+        
+        # keep this node red for another second
+        root.update()
+        time.sleep(.5)
+        
+        # then change it back to yellow
         w.itemconfig(self.__ovals[cur], fill='yellow')                
         
         return True
@@ -279,4 +291,3 @@ button1=tk.Button(root,text='Insert',bg='blue',command=insert_node)
 button2 = tk.Button(root,text='Remove', command=remove_node)
 h.drawHeap()
 root.mainloop()
-
