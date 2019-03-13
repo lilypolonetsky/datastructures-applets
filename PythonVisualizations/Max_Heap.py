@@ -13,9 +13,6 @@ import random
 import time
 
 
-import pause
-
-
 class Node(object):
     def __init__(self, k, d):
         self.key  = k
