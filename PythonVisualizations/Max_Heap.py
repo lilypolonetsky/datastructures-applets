@@ -13,8 +13,6 @@ import random
 import time
 
 
-import pause
-
 
 class Node(object):
     def __init__(self, k, d):
@@ -27,11 +25,16 @@ class Node(object):
 class Heap(object):
     def __init__(self, size):
         self.__arr = [None] * size  #an array to store our values
+        self.__state = "max"
         self.__nElems = 0 
         self.__ovals = []      # list of each oval to access later on for swapping
         self.__oElems = 0  
         self.__nums = []       # list of each number-text to access later on for swapping
         self.__arrows = []     # list of each arrow to access for deletion 
+     
+    def changeState(self):
+        ## change the state from max to min
+        pass
         
     def buttonState(self, state):
         button1.config(state=state)
@@ -121,8 +124,9 @@ class Heap(object):
 
         # While cur hasn't reached the root, and cur's parent's
         # key is smaller than the new Node's key
+        
+        ## add an if for if max heap or min heap
         while cur > 0 and self.__arr[parent].key < bottom.key:
-            
             curX, curY = coordinates[0][cur], coordinates[1][cur]
             parX, parY = coordinates[0][parent], coordinates[1][parent]
             changeX = curX-parX
@@ -299,12 +303,17 @@ button2.config(state="disabled")
 
 # when max heap button in clicked, enlarge it to show current heap is max heap
 def runMaxHeap():
+    # delete everything from screen except buttons
     minHeap.config(height=2, width=10)
-    maxHeap.config(height=3, width=15)   
+    maxHeap.config(height=3, width=15)
+    h.changeState("max")
+    
+    
 # when min heap button in clicked, enlarge it to show current heap is min heap
 def runMinHeap():
     minHeap.config(height=3, width=15)
     maxHeap.config(height=2, width=10)    
+    h.changeState("min")
 
 
 # buttons for changing between min heap and max heap    
