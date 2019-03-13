@@ -1,16 +1,19 @@
 # DONE:
 ## disable button-use while nodes are still moving
 ## add highlight for the node being inserted and node being removed/being trickledDown
+## have removed node fade-out more gradually
+
 # TO DO:
-## let the highlight sit for a second even when there is no trickle up
 ## combine min and max heap
-## have insert/removed node fade-out more gradually
 ## change increments
 
 
 import tkinter as tk
 import random
 import time
+
+
+import pause
 
 
 class Node(object):
@@ -30,22 +33,23 @@ class Heap(object):
         self.__nums = []       # list of each number-text to access later on for swapping
         self.__arrows = []     # list of each arrow to access for deletion 
         
-    
-    def drawHeap(self):
-        w.create_window(300,600, window=button1)  
-        w.create_window(500,600,window=button2)            
-        w.create_text(canvas_width/2, 50, font=('calibri', 50), text='MAX HEAP')
-        button2.config(state="disabled")
-
     def buttonState(self, state):
         button1.config(state=state)
-        button2.config(state=state)           
+        button2.config(state=state) 
+        
+    #def drawHeap(self):
+     #   w.create_window(300,600, window=button1)  
+     #   w.create_window(500,600,window=button2)            
+     #   #w.create_text(canvas_width/2, 50, font=('calibri', 50), text='MAX HEAP')
+     #   button2.config(state="disabled")
+
+              
         
     def swapNodes(self, cur, other, x, y):
         # change increment based on the size of changeX and changeY
         changeX = x
         changeY = y
-        increment = 100
+        increment = 50
         for i in range(increment):  
             w.move(self.__ovals[cur], -(changeX/increment), -(changeY/increment))
             w.move(self.__ovals[other], (changeX/increment), (changeY/increment))
@@ -65,7 +69,6 @@ class Heap(object):
             self.__arr[self.__nElems] = Node(k, d)
             #print("this is self.__arr after inserting:", self.__arr)
             self.__nElems += 1
-            print("this is self.__nElems after instering now", self.__nElems)
         
             positionX = coordinates[0][self.__nElems-1]
             positionY = coordinates[1][self.__nElems-1]
@@ -73,13 +76,6 @@ class Heap(object):
             # insert ovals as red
             oval = w.create_oval(positionX, positionY, positionX+50, positionY+50, fill='red')
             text = w.create_text(positionX+25, positionY+25, font=('calibri', 12), text=str(self.__arr[self.__nElems-1].key))
-            
-            # THIS IS NOT WORKING
-            # WANT IT TO PAUSE FOR A FEW SECONDS AFTER OVAL IS INSERTED
-            # SO THAT EVEN WHEN THERE IS NO TRICKLE UP,
-            # IT STILL APPEARS AS RED FOR A FEW SECONDS
-            
-            #time.sleep(1)
             
             parent = (self.__nElems-2)//2      
             if len(self.__ovals) != 0 and self.__ovals[self.__oElems-1]==None:
@@ -97,14 +93,13 @@ class Heap(object):
                 if self.__nElems > 1:
                     arrow = w.create_line(coordinates[0][parent]+25, coordinates[1][parent]+50, positionX+20, positionY, arrow=tk.LAST) 
                     self.__arrows.append(arrow)
+            
+            root.update()
+            time.sleep(.5)            
+            
             self.trickleUp()
             
             # when the trickle up is complete, 
-            # keep this node red for another second
-            root.update()
-            time.sleep(.5)
-            
-            
             # change the most recently inserted node to yellow
             w.itemconfig(oval, fill='yellow')
             
@@ -169,11 +164,9 @@ class Heap(object):
         self.__trickleDown()
         # re-enable the buttons when trickle up is complete
         self.buttonState('normal')
-        
         # if there are no nodes left, disable the remove button
         if self.__nElems == 0:
             button2.config(state="disabled") 
-            
         return root.key, root.data
       
     def swapRoot(self):
@@ -183,9 +176,15 @@ class Heap(object):
         changeX = coordinates[0][0]-x
         changeY = coordinates[1][0]-y
         
+        #increment = 50
         # remove the node at the root
-        w.delete(self.__ovals[0])
-        w.delete(self.__nums[0])        
+        #for i in range(increment):
+            #w.itemconfig(self.__ovals[0], fill='red')
+            #w.move(self.__ovals[0], -425/increment, -150/increment)
+            #w.move(self.__nums[0], -425/increment, -150/increment)
+            #root.update()
+        #w.delete(self.__ovals[0])
+        #w.delete(self.__nums[0])        
         # remove the last arrow
         
         if self.__nElems > 0:
@@ -196,8 +195,12 @@ class Heap(object):
         w.itemconfig(self.__ovals[self.__nElems], fill='red')
          
         increment = 100
+        w.itemconfig(self.__ovals[0], fill='red')
         # swap the root node with the last node
         for i in range(increment):
+            
+            w.move(self.__ovals[0], 0, -150/increment)
+            w.move(self.__nums[0], 0, -150/increment)            
             w.move(self.__ovals[self.__nElems], changeX/increment, changeY/increment)
             w.move(self.__nums[self.__nElems], changeX/increment, changeY/increment)
             root.update()
@@ -254,12 +257,7 @@ class Heap(object):
         self.__arr[cur] = top  # move original root to its correct position 
         
         # when cur makes it to its correct position in the trickle down,
-        
-        # keep this node red for another second
-        root.update()
-        time.sleep(.5)
-        
-        # then change it back to yellow
+        # change it back to yellow
         w.itemconfig(self.__ovals[cur], fill='yellow')                
         
         return True
@@ -270,6 +268,13 @@ coordinates = [ [375, 175, 575, 75, 275, 475, 675, 25, 125, 225, 325, 425, 525, 
 
 
 h = Heap(15)
+    
+root = tk.Tk()
+canvas_width = 800
+canvas_height = 800    
+root.title("Heaps")
+w = tk.Canvas(root, width = canvas_width, height=canvas_height, bg='lightblue')
+w.pack()   
 
 # this is the command called by the button to insert a node
 def insert_node():  
@@ -277,17 +282,38 @@ def insert_node():
   
 def remove_node():
     h.remove()
-    
-root = tk.Tk()
-canvas_width = 800
-canvas_height = 800    
-# Make the canvas with title 'Heaps' 
-root.title("Max Heap Data Vis")
-w = tk.Canvas(root, width = canvas_width, height=canvas_height, bg='lightblue')
-w.pack()   
-#w.create_text(canvas_width/2, 50, font=('calibri', 50), text='HEAPS')
 
-button1=tk.Button(root,text='Insert',bg='blue',command=insert_node)
+# create insert/remove buttons
+# and initialize remove button to disabled
+button1=tk.Button(root,text='Insert',bg='blue', command=insert_node)
 button2 = tk.Button(root,text='Remove', command=remove_node)
-h.drawHeap()
+w.create_window(300,600, window=button1)  
+w.create_window(500,600,window=button2)    
+button2.config(state="disabled")
+
+
+## TO DO:
+## when min or max heap button is clicked,
+## clear everything that is already on the screen (in case of changing in the middle of a heap)
+## make runMaxHeap and runMinHeap run their respective heaps
+
+# when max heap button in clicked, enlarge it to show current heap is max heap
+def runMaxHeap():
+    minHeap.config(height=2, width=10)
+    maxHeap.config(height=3, width=15)   
+# when min heap button in clicked, enlarge it to show current heap is min heap
+def runMinHeap():
+    minHeap.config(height=3, width=15)
+    maxHeap.config(height=2, width=10)    
+
+
+# buttons for changing between min heap and max heap    
+maxHeap=tk.Button(root, text='Max Heap', height=2, width=10, command=runMaxHeap)
+w.create_window(335,50, window=maxHeap)  
+minHeap=tk.Button(root, text='Min Heap', height=2, width=10, command=runMinHeap)
+w.create_window(465,50,window=minHeap) 
+
+
+#h.drawHeap()
 root.mainloop()
+
