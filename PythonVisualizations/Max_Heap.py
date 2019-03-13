@@ -35,6 +35,7 @@ class Heap(object):
         w.create_window(300,600, window=button1)  
         w.create_window(500,600,window=button2)            
         w.create_text(canvas_width/2, 50, font=('calibri', 50), text='MAX HEAP')
+        button2.config(state="disabled")
 
     def buttonState(self, state):
         button1.config(state=state)
