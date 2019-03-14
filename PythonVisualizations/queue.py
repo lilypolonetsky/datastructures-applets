@@ -1,7 +1,6 @@
 # TO DO
-# Add Queue functionality to the array
-# - Currently is circular, need to prevent it from overriding if exisiting (check if something there, or nElems vs size)
-#    - just delete from end
+# - Queue DELETE FROM END major issues, even when commenting out 
+# supposedly helpful code
 # - Get rid of superfluous code
 # - Toggle switch between deque and queue functionality
 
@@ -92,12 +91,7 @@ class Queue(object):
             # update window
             window.update()
             
-
-            
-            
-            
-
-        
+              
     def removeFromFront(self):
         
         # Set front value in list to None
@@ -122,15 +116,23 @@ class Queue(object):
 
     def removeFromEnd(self):
         
-        # If full, decrement 
-        if len(self.list) == self.nItems:
-            self.rear -=1
         
-        # pop an Element from the list
+        # Take last Element from the list
         n = self.list[self.rear]
         self.list[self.rear] = None
+        
+        # Decrement rear and nItems accordingly
         self.rear -= 1
         self.nItems -= 1
+        
+        ## WEIRDNESS BELOW
+        #if self.rear == -1:
+            #self.rear = self.size-1
+            
+        ## If full, decrement 
+        #if len(self.list) == self.nItems:
+            #self.rear -=1        
+        
 
         # delete the associated display objects
         canvas.delete(n.display_shape)
