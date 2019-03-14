@@ -85,6 +85,9 @@ class Queue(object):
             # update window
             window.update()
             
+            
+            
+            
 
         
     def removeFromFront(self):
@@ -108,6 +111,10 @@ class Queue(object):
       
 
     def removeFromEnd(self):
+        
+        # If full, decrement 
+        if len(self.list) == self.nItems:
+            self.rear -=1
         
         # pop an Element from the list
         n = self.list[self.rear]
