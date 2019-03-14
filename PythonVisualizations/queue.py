@@ -1,7 +1,7 @@
 # TO DO
 # Add Queue functionality to the array
 # - Currently is circular, need to prevent it from overriding if exisiting (check if something there, or nElems vs size)
-#    - Both in insert and in delete
+#    - just delete from end
 # - Get rid of superfluous code
 # - Toggle switch between deque and queue functionality
 
@@ -62,22 +62,29 @@ class Queue(object):
 
     
     def insert(self, val):
-        # create new cell and cell value display objects
-        # Start drawing new one at rear
-        cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, fill=Queue.colors[Queue.nextColor], outline='')
-        cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
-                                      font=('Helvetica', '20'))
-
-        # add a new Element to the list with the new value, color, and display objects
-        self.rear = (self.rear+1) % (self.size)
-        self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
-        self.nItems += 1
-
-        # increment nextColor
-        Queue.nextColor = (Queue.nextColor + 1) % len(Queue.colors)
-
-        # update window
-        window.update()
+        
+        # Because queue is circular, first check and make sure the 
+        # position is empty
+        
+        if self.list[self.rear] == None:
+            
+            # create new cell and cell value display objects
+            # Start drawing new one at rear
+            cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, fill=Queue.colors[Queue.nextColor], outline='')
+            cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+                                          font=('Helvetica', '20'))
+    
+            # add a new Element to the list with the new value, color, and display objects
+            self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
+            self.rear = (self.rear+1) % (self.size)
+            self.nItems += 1
+    
+            # increment nextColor
+            Queue.nextColor = (Queue.nextColor + 1) % len(Queue.colors)
+    
+            # update window
+            window.update()
+            
 
         
     def removeFromFront(self):
