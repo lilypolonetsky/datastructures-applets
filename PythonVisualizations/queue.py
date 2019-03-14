@@ -73,10 +73,17 @@ class Queue(object):
             cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, fill=Queue.colors[Queue.nextColor], outline='')
             cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
                                           font=('Helvetica', '20'))
-    
+            
             # add a new Element to the list with the new value, color, and display objects
             self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
             self.rear = (self.rear+1) % (self.size)
+            
+            #if we're inserting the first element in the queue,
+            #move front down to 0 (from its crossed position)
+            #so that removeFromFront will work
+            if self.nItems == 0:
+                self.front -= 1
+                
             self.nItems += 1
     
             # increment nextColor
@@ -85,6 +92,7 @@ class Queue(object):
             # update window
             window.update()
             
+
             
             
             
@@ -98,6 +106,8 @@ class Queue(object):
         
         # Increment front
         self.front += 1
+        if self.front == self.size:
+            self.front = 0
         
         # Decrement number of items
         self.nItems -= 1
