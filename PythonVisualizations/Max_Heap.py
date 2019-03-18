@@ -336,16 +336,16 @@ def runMinHeap():
 
 
 ### all of our buttons ####
-button1=tk.Button(root,text='Insert',bg='blue', command=insert_node)
+button1=tk.Button(root,text='Insert', command=insert_node)
 button2 = tk.Button(root,text='Remove', command=remove_node)
 w.create_window(300,600, window=button1)  
 w.create_window(500,600,window=button2)    
 button2.config(state="disabled")
 
 # buttons for changing between min heap and max heap    
-maxHeap=tk.Button(root, text='Max Heap', height=3, width=15, command=runMaxHeap)
-w.create_window(325,50, window=maxHeap)  
-minHeap=tk.Button(root, text='Min Heap', height=2, width=10, command=runMinHeap)
+maxHeap=tk.Button(root, command=runMaxHeap, relief = 'groove', highlightbackground = "pink", text='Max Heap', height=3, width=15)
+w.create_window(325,50, window=maxHeap) 
+minHeap=tk.Button(root, text='Min Heap', height=2, width=10,highlightbackground = "pink", command=runMinHeap)
 w.create_window(475,50,window=minHeap)  
 # when max heap button in clicked, enlarge it to show current heap is max heap
       
