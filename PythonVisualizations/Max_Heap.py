@@ -13,6 +13,8 @@ import random
 import time
 
 
+import pause
+
 
 class Node(object):
     def __init__(self, k, d):
@@ -180,16 +182,6 @@ class Heap(object):
         changeX = coordinates[0][0]-x
         changeY = coordinates[1][0]-y
         
-        #increment = 50
-        # remove the node at the root
-        #for i in range(increment):
-            #w.itemconfig(self.__ovals[0], fill='red')
-            #w.move(self.__ovals[0], -425/increment, -150/increment)
-            #w.move(self.__nums[0], -425/increment, -150/increment)
-            #root.update()
-        #w.delete(self.__ovals[0])
-        #w.delete(self.__nums[0])        
-        # remove the last arrow
         
         if self.__nElems > 0:
             w.delete(self.__arrows[self.__nElems-1])
@@ -198,7 +190,7 @@ class Heap(object):
         # change the last node that is swapped to the root to red 
         w.itemconfig(self.__ovals[self.__nElems], fill='red')
          
-        increment = 100
+        increment = 50
         w.itemconfig(self.__ovals[0], fill='red')
         # swap the root node with the last node
         for i in range(increment):
@@ -265,6 +257,8 @@ class Heap(object):
         w.itemconfig(self.__ovals[cur], fill='yellow')                
         
         return True
+    
+        
 
     
 coordinates = [ [375, 175, 575, 75, 275, 475, 675, 25, 125, 225, 325, 425, 525, 625, 725],
@@ -272,7 +266,8 @@ coordinates = [ [375, 175, 575, 75, 275, 475, 675, 25, 125, 225, 325, 425, 525, 
 
 
 h = Heap(15)
-    
+
+
 root = tk.Tk()
 canvas_width = 800
 canvas_height = 800    
@@ -304,6 +299,7 @@ button2.config(state="disabled")
 # when max heap button in clicked, enlarge it to show current heap is max heap
 def runMaxHeap():
     # delete everything from screen except buttons
+    
     minHeap.config(height=2, width=10)
     maxHeap.config(height=3, width=15)
     h.changeState("max")
@@ -311,6 +307,7 @@ def runMaxHeap():
     
 # when min heap button in clicked, enlarge it to show current heap is min heap
 def runMinHeap():
+    
     minHeap.config(height=3, width=15)
     maxHeap.config(height=2, width=10)    
     h.changeState("min")
