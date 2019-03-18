@@ -1,8 +1,11 @@
 # TO DO
-# - Queue DELETE FROM END major issues, even when commenting out 
-# supposedly helpful code
+# - Make sure our code aligns with his code
+#    - Implement insertFront() and add button
+#    - Fix issues with insertion and deletion (because front = 1 crossing issues)
 # - Get rid of superfluous code
+# - get rid of find button
 # - Toggle switch between deque and queue functionality
+# - Disable delete buttons when empty
 
 import random
 import time
@@ -60,7 +63,7 @@ class Queue(object):
         window.update()
 
     
-    def insert(self, val):
+    def insertRear(self, val):
         
         # Because queue is circular, first check and make sure the 
         # position is empty
@@ -78,8 +81,8 @@ class Queue(object):
             self.rear = (self.rear+1) % (self.size)
             
             #if we're inserting the first element in the queue,
-            #move front down to 0 (from its crossed position)
-            #so that removeFromFront will work
+            # move front down to 0 (from its crossed position)
+            # so that removeFromFront will work
             if self.nItems == 0:
                 self.front -= 1
                 
@@ -90,6 +93,38 @@ class Queue(object):
     
             # update window
             window.update()
+            
+    # TODO: IMPLEMENT AND ADD BUTTON     
+    def insertFront(self, val):
+        
+        # Because queue is circular, first check and make sure the 
+        # position is empty
+        
+        if self.list[self.rear] == None:
+            
+            # create new cell and cell value display objects
+            # Start drawing new one at rear
+            cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, fill=Queue.colors[Queue.nextColor], outline='')
+            cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), ARRAY_Y0 + (CELL_SIZE / 2), text=val,
+                                          font=('Helvetica', '20'))
+            
+            # add a new Element to the list with the new value, color, and display objects
+            self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
+            self.rear = (self.rear+1) % (self.size)
+            
+            #if we're inserting the first element in the queue,
+            # move front down to 0 (from its crossed position)
+            # so that removeFromFront will work
+            if self.nItems == 0:
+                self.front -= 1
+                
+            self.nItems += 1
+    
+            # increment nextColor
+            Queue.nextColor = (Queue.nextColor + 1) % len(Queue.colors)
+    
+            # update window
+            window.update()    
             
               
     def removeFromFront(self):
@@ -109,34 +144,37 @@ class Queue(object):
         # delete the associated display objects
         canvas.delete(n.display_shape)
         canvas.delete(n.display_val)
+        
+        # So they cross if empty
+        # if (self.nItems == 0):
+        #    self.rear-=1
 
         # update window
         window.update()
+        
+        # print(self.list)
+        # print("front: " + str(self.front))
+        # print("rear: " + str(self.rear))
       
 
     def removeFromEnd(self):
         
+        self.rear -= 1
         
         # Take last Element from the list
         n = self.list[self.rear]
         self.list[self.rear] = None
         
         # Decrement rear and nItems accordingly
-        self.rear -= 1
         self.nItems -= 1
-        
-        ## WEIRDNESS BELOW
-        #if self.rear == -1:
-            #self.rear = self.size-1
-            
-        ## If full, decrement 
-        #if len(self.list) == self.nItems:
-            #self.rear -=1        
-        
 
         # delete the associated display objects
         canvas.delete(n.display_shape)
         canvas.delete(n.display_val)
+        
+        # So they cross if empty
+        # if (self.nItems == 0):
+        #    self.rear-=1        
 
         # update window
         window.update()    
