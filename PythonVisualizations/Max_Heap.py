@@ -13,7 +13,7 @@ import random
 import time
 
 
-import pause
+#import pause
 
 
 class Node(object):
@@ -25,18 +25,30 @@ class Node(object):
         return "(" + str(self.key) + "," + repr(self.data) + ")"
         
 class Heap(object):
-    def __init__(self, size):
-        self.__arr = [None] * size  #an array to store our values
-        self.__state = "max"
+    def __init__(self, size, state="max"):
+        self.__size = size
+        self.__arr = [None] * self.__size  #an array to store our values
+        self.__state = state
         self.__nElems = 0 
         self.__ovals = []      # list of each oval to access later on for swapping
         self.__oElems = 0  
         self.__nums = []       # list of each number-text to access later on for swapping
         self.__arrows = []     # list of each arrow to access for deletion 
      
-    def changeState(self):
-        ## change the state from max to min
-        pass
+    def changeState(self, state):
+        for i in range(len(self.__ovals)):
+            w.delete(self.__ovals[i])
+            w.delete(self.__nums[i])
+        for i in self.__arrows:
+            w.delete(i)
+        
+        self.__arr = [None] * self.__size  #an array to store our values
+        self.__state = state
+        self.__nElems = 0 
+        self.__ovals = []      # list of each oval to access later on for swapping
+        self.__oElems = 0  
+        self.__nums = []       # list of each number-text to access later on for swapping
+        self.__arrows = []     # list of each arrow to access for deletion 
         
     def buttonState(self, state):
         button1.config(state=state)
@@ -123,21 +135,35 @@ class Heap(object):
         cur = self.__nElems-1
         bottom = self.__arr[cur] # the recently inserted Node
         parent = (cur-1) // 2    # its parent's location
-
+        
+        # if max heap
         # While cur hasn't reached the root, and cur's parent's
         # key is smaller than the new Node's key
-        
-        ## add an if for if max heap or min heap
-        while cur > 0 and self.__arr[parent].key < bottom.key:
-            curX, curY = coordinates[0][cur], coordinates[1][cur]
-            parX, parY = coordinates[0][parent], coordinates[1][parent]
-            changeX = curX-parX
-            changeY = curY-parY
-            
-            self.swapNodes(cur, parent, changeX, changeY)                                    
-            self.__arr[cur] = self.__arr[parent] # move parent down
-            cur = parent                         # cur goes up one level
-            parent = (cur-1) // 2
+        if self.__state == "max":
+            ## add an if for if max heap or min heap
+            while cur > 0 and self.__arr[parent].key < bottom.key:
+                curX, curY = coordinates[0][cur], coordinates[1][cur]
+                parX, parY = coordinates[0][parent], coordinates[1][parent]
+                changeX = curX-parX
+                changeY = curY-parY
+                
+                self.swapNodes(cur, parent, changeX, changeY)                                    
+                self.__arr[cur] = self.__arr[parent] # move parent down
+                cur = parent                         # cur goes up one level
+                parent = (cur-1) // 2
+                
+        # if state is 'min' then check if parent.key is bigger
+        if self.__state == "min":
+            while cur > 0 and self.__arr[parent].key > bottom.key:
+                curX, curY = coordinates[0][cur], coordinates[1][cur]
+                parX, parY = coordinates[0][parent], coordinates[1][parent]
+                changeX = curX-parX
+                changeY = curY-parY
+                
+                self.swapNodes(cur, parent, changeX, changeY)                                    
+                self.__arr[cur] = self.__arr[parent] # move parent down
+                cur = parent                         # cur goes up one level
+                parent = (cur-1) // 2            
          
         # when we reach this point, either cur has reached the 
         # root, or cur's parent's key is >= the new node's key. 
@@ -221,15 +247,26 @@ class Heap(object):
         while cur < size // 2: 
             leftChild  = 2*cur + 1
             rightChild = leftChild + 1
-            
-            # find smaller child (right child might not exist)
             largerChild = leftChild
-            if rightChild < size and \
-               self.__arr[leftChild].key < self.__arr[rightChild].key:
-                largerChild = rightChild
-
+            
+            #if this is a max heap
+            if self.__state == "max":
+                # find smaller child (right child might not exist)
+                if rightChild < size and \
+                   self.__arr[leftChild].key < self.__arr[rightChild].key:
+                    largerChild = rightChild
+                    
+            if self.__state == "min":
+                # find smaller child (right child might not exist)
+                if rightChild < size and \
+                   self.__arr[leftChild].key > self.__arr[rightChild].key:
+                    largerChild = rightChild
+                    
+            # if this is a max heap
             # done trickling if top's key is >= the key of larger child
-            if top.key >= self.__arr[largerChild].key:
+            if self.__state =="max" and top.key >= self.__arr[largerChild].key:
+                break
+            elif self.__state =="min" and top.key <= self.__arr[largerChild].key:
                 break
             
             curX = coordinates[0][cur]
@@ -284,11 +321,34 @@ def remove_node():
 
 # create insert/remove buttons
 # and initialize remove button to disabled
+def runMaxHeap():
+    # delete everything from screen except buttons
+    
+    minHeap.config(height=2, width=10)
+    maxHeap.config(height=3, width=15)
+    h.changeState("max")
+# when min heap button in clicked, enlarge it to show current heap is min heap
+def runMinHeap():
+    
+    minHeap.config(height=3, width=15)
+    maxHeap.config(height=2, width=10)    
+    h.changeState("min")  
+
+
+### all of our buttons ####
 button1=tk.Button(root,text='Insert',bg='blue', command=insert_node)
 button2 = tk.Button(root,text='Remove', command=remove_node)
 w.create_window(300,600, window=button1)  
 w.create_window(500,600,window=button2)    
 button2.config(state="disabled")
+
+# buttons for changing between min heap and max heap    
+maxHeap=tk.Button(root, text='Max Heap', height=3, width=15, command=runMaxHeap)
+w.create_window(325,50, window=maxHeap)  
+minHeap=tk.Button(root, text='Min Heap', height=2, width=10, command=runMinHeap)
+w.create_window(475,50,window=minHeap)  
+# when max heap button in clicked, enlarge it to show current heap is max heap
+      
 
 
 ## TO DO:
@@ -296,30 +356,5 @@ button2.config(state="disabled")
 ## clear everything that is already on the screen (in case of changing in the middle of a heap)
 ## make runMaxHeap and runMinHeap run their respective heaps
 
-# when max heap button in clicked, enlarge it to show current heap is max heap
-def runMaxHeap():
-    # delete everything from screen except buttons
-    
-    minHeap.config(height=2, width=10)
-    maxHeap.config(height=3, width=15)
-    h.changeState("max")
-    
-    
-# when min heap button in clicked, enlarge it to show current heap is min heap
-def runMinHeap():
-    
-    minHeap.config(height=3, width=15)
-    maxHeap.config(height=2, width=10)    
-    h.changeState("min")
-
-
-# buttons for changing between min heap and max heap    
-maxHeap=tk.Button(root, text='Max Heap', height=2, width=10, command=runMaxHeap)
-w.create_window(335,50, window=maxHeap)  
-minHeap=tk.Button(root, text='Min Heap', height=2, width=10, command=runMinHeap)
-w.create_window(465,50,window=minHeap) 
-
-
 #h.drawHeap()
 root.mainloop()
-
