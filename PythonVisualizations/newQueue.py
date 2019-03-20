@@ -3,9 +3,10 @@
 #    - Implement insertFront() and add button
 #    - Fix issues with insertion and deletion (because front = 1 crossing issues)
 # - Get rid of superfluous code
-# - get rid of find button
 # - Toggle switch between deque and queue functionality
 # - Disable delete buttons when empty
+# - Discuss animation preferences, making the code prettier
+# - Remove sleep, get, set, and assignElement methods? (All seem unused)
 
 import time
 from tkinter import *
@@ -65,6 +66,7 @@ class Queue(object):
     # insert item at rear of queue   
     def insertRear(self, val):
         
+        #if there's a space to insert into
         if self.nItems != self.size:
         
             # create new cell and cell value display objects
@@ -95,6 +97,7 @@ class Queue(object):
     
     def insertFront(self, val):
         
+        #if there's a space to insert into
         if self.nItems != self.size:
             
             # create new cell and cell value display objects
@@ -126,11 +129,13 @@ class Queue(object):
     # remove the left element of the queue, or None if empty
     def removeFront(self):
         
+        #if the queue is empty, exit
         if self.size == 0:
             return None
 
-        n = self.list[self.front]    # get the value at left
-        self.list[self.front] = None    # keep garbage collector happy
+        #get the value at front, and then set it to None so it will be garbage collected
+        n = self.list[self.front]
+        self.list[self.front] = None
         
         #increment front
         self.front += 1
@@ -150,14 +155,18 @@ class Queue(object):
     
     def removeRear(self):
         
+        #if the queue is empty, exit
         if self.size == 0:
             return None
         
+        #get the value at rear, and then set it to None so it will be garbage collected
         n = self.list[self.rear]
         self.list[self.rear] = None
         
+        #decrement rear
         self.rear -= 1
         
+        #deal with wraparound
         if self.rear == -1:
             self.rear = self.size-1
             
@@ -210,7 +219,7 @@ class Queue(object):
 
         # update the window
         window.update()
-    
+#    
     def display(self):
         canvas.delete("all")
         xpos = ARRAY_X0
@@ -315,9 +324,9 @@ def enableButtons():
         button.config(state = NORMAL)
 
 def makeButtons():
-    insertRearButton = Button(operationsLeft, text="Insert At Rear", width=7, command= lambda: onClick(clickInsertRear))
+    insertRearButton = Button(operationsLeft, text="Insert At Rear", width=16, command= lambda: onClick(clickInsertRear))
     insertRearButton.grid(row=2, column=0)
-    insertFrontButton = Button(operationsLeft, text="Insert At Front", width=7, command= lambda: onClick(clickInsertFront))
+    insertFrontButton = Button(operationsLeft, text="Insert At Front", width=16, command= lambda: onClick(clickInsertFront))
     insertFrontButton.grid(row=1, column=0)
     deleteRightmostButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(queue.removeRear))
     deleteRightmostButton.grid(row=1, column=0)
@@ -355,7 +364,6 @@ operationsRight.pack(side=RIGHT)
 operationsLower = Frame(bottomframe)
 operationsLower.pack(side=BOTTOM)
 
-#Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
 vcmd = (window.register(validate),
         '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
 textBox = Entry(operationsLeft, width=20, bg="white", validate='key', validatecommand=vcmd)
@@ -367,8 +375,6 @@ scale.set(scaleDefault)
 scaleLabel = Label(operationsLower, text="Speed:", font="none 10")
 scaleLabel.grid(row=0, column=0, sticky=W)
 
-# add a submit button
-#Button(bottomframe, text="Find", width=6, command=lambda: queue.onClick(clickFind)).grid(row=0, column=2, sticky=W)
 outputText = StringVar()
 outputText.set('')
 output = Label(operationsLower, textvariable=outputText, font="none 10 italic", fg="blue")
@@ -387,15 +393,4 @@ queue.display()
 for i in range(4):
     queue.insertRear(i)
 
-window.mainloop()
-
-'''
-To Do:
-- make it look pretty
-- animate insert and delete
-- delete/insert at index?
-- label arrows for sorts (inner, outer, etc.)
-- implement shell sort, radix sort, quick sort
-'''
-
-    
+window.mainloop()    
