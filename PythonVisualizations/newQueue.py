@@ -68,7 +68,14 @@ class Queue(object):
         
         #if there's a space to insert into
         if self.nItems != self.size:
-        
+
+            #deal with wraparound
+            if self.rear == self.size-1:
+                self.rear = -1
+                
+            #increment rear
+            self.rear += 1
+            
             # create new cell and cell value display objects
             # Start drawing new one at rear
             cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, \
@@ -77,12 +84,8 @@ class Queue(object):
             cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), \
                                           ARRAY_Y0 + (CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
             
-            #deal with wraparound
-            if self.rear == self.size-1:
-                self.rear = -1
-                
-            #increment rear and insert the item
-            self.rear += 1
+            
+            #insert the item
             self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
             
             self.nItems += 1
@@ -100,20 +103,22 @@ class Queue(object):
         #if there's a space to insert into
         if self.nItems != self.size:
             
-            # create new cell and cell value display objects
-            # Start drawing new one at rear
-            cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, \
-                                           ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, \
-                                           fill=Queue.colors[Queue.nextColor], outline='')
-            cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), \
-                                          ARRAY_Y0 + (CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
-            
             #deal with wraparound
             if self.front == 0:
                 self.front = self.size
             
-            #decrement front and insert the item
+            #decrement front
             self.front -= 1
+                        
+            # create new cell and cell value display objects
+            # Start drawing new one at rear
+            cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.front, ARRAY_Y0, \
+                                           ARRAY_X0+CELL_SIZE*(self.front+1), ARRAY_Y0 + CELL_SIZE, \
+                                           fill=Queue.colors[Queue.nextColor], outline='')
+            cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.front + (CELL_SIZE / 2), \
+                                          ARRAY_Y0 + (CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
+            
+            #insert the item
             self.list[self.front] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
             
             self.nItems += 1
@@ -390,7 +395,7 @@ queue = Queue()
 buttons = makeButtons()
 queue.display()
 
-for i in range(4):
-    queue.insertRear(i)
+#for i in range(4):
+ #   queue.insertRear(i)
 
 window.mainloop()    
