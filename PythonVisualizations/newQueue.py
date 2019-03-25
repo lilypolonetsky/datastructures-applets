@@ -1,6 +1,7 @@
 # TO DO
 # - Toggle switch between deque and queue functionality
 #    - Add sunked / more noticeable that it's a toggle?
+#    - Enable queue not working, needs work
 # - Disable delete buttons when empty
 # - Discuss animation preferences
 
@@ -284,10 +285,9 @@ def clickInsertFront():
         textBox.delete(0, END )
         
 def clickEnableQueue():
-    insertFrontButton.config(state = DISABLED) 
-    deleteRearButton.config(state = DISABLED)
-    insertRearButton.config(state = NORMAL)
-    deleteFrontButton.config(state = NORMAL)
+    #THIS IS HARDWIRED (THE ORDER OF THE BUTTONS) - FIX
+    buttons[1].config(state = DISABLED) 
+    buttons[2].config(state = DISABLED)
                 
 def close_window():
     window.destroy()
