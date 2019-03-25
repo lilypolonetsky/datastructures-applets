@@ -1,12 +1,8 @@
 # TO DO
-# - Make sure our code aligns with his code
-#    - Implement insertFront() and add button
-#    - Fix issues with insertion and deletion (because front = 1 crossing issues)
-# - Get rid of superfluous code
 # - Toggle switch between deque and queue functionality
+#    - when on queue, the the left buttons are not enabled
 # - Disable delete buttons when empty
-# - Discuss animation preferences, making the code prettier
-# - Remove sleep, get, set, and assignElement methods? (All seem unused)
+# - Discuss animation preferences
 
 import time
 from tkinter import *
@@ -40,13 +36,6 @@ class Queue(object):
     # ANIMATION METHODS
     def speed(self, sleepTime):
         return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
-
-    def get(self, index):
-        try:
-            return self.list[index][0]
-        except:
-            print("Invalid list index")
-            return -1
     
     def set(self, index, val):
         # reset the value of the Element at that index to val
@@ -66,8 +55,34 @@ class Queue(object):
     # insert item at rear of queue   
     def insertRear(self, val):
         
+        # Fix to self.rear starting at 1
+        if self.nItems == 0:
+            self.rear = 0
+            self.front = self.size # circular
+            
+            # create new cell and cell value display objects
+            # Start drawing new one at rear
+            cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, \
+                                           ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, \
+                                           fill=Queue.colors[Queue.nextColor], outline='')
+            cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), \
+                                          ARRAY_Y0 + (CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
+            
+            
+            #insert the item
+            self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
+            
+            self.nItems += 1
+            
+            # increment nextColor
+            Queue.nextColor = (Queue.nextColor + 1) % len(Queue.colors)
+        
+            # update window
+            window.update()
+            
+        
         #if there's a space to insert into
-        if self.nItems != self.size:
+        elif self.nItems != self.size:
 
             #deal with wraparound
             if self.rear == self.size-1:
@@ -183,54 +198,12 @@ class Queue(object):
         
         # update window
         window.update()
-        
-    def assignElement(self, fromIndex, toIndex):
-
-        # get position of "to" cell
-        posToCell = canvas.coords(self.list[toIndex].display_shape)
-
-        # get position of "from" cell and value
-        posFromCell = canvas.coords(self.list[fromIndex].display_shape)
-        posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
-
-        # create new display objects that are copies of the "from" cell and value
-        newCellShape = canvas.create_rectangle(posFromCell[0], posFromCell[1], posFromCell[2], posFromCell[3],
-                                               fill=self.list[fromIndex][1], outline='')
-        newCellVal = canvas.create_text(posFromCellVal[0], posFromCellVal[1], text=self.list[fromIndex][0],
-                                        font=('Helvetica', '20'))
-
-        # set xspeed to move in the correct direction
-        xspeed = 1
-        if fromIndex > toIndex:
-            xspeed = -xspeed
-
-        # move the new display objects until they are in the position of the "to" cell
-        while (fromIndex < toIndex and canvas.coords(newCellShape) < posToCell) or \
-                (fromIndex > toIndex and canvas.coords(newCellShape) > posToCell):
-            canvas.move(newCellShape, xspeed, 0)
-            canvas.move(newCellVal, xspeed, 0)
-            window.update()
-            time.sleep(self.speed(0.01))
-
-        # delete the original "to" display value and the new display shape
-        canvas.delete(self.list[toIndex].display_val)
-        canvas.delete(self.list[toIndex].display_shape)
-
-        # update value and display value in "to" position in the list
-        self.list[toIndex].display_val = newCellVal
-        self.list[toIndex].val = self.list[fromIndex].val
-        self.list[toIndex].display_shape = newCellShape
-        self.list[toIndex].color = self.list[fromIndex].color
-
-        # update the window
-        window.update()
-#    
+    
     def display(self):
         canvas.delete("all")
         xpos = ARRAY_X0
         ypos = ARRAY_Y0
 
-        print(self.size)
         for i in range(self.size):
             canvas.create_rectangle(xpos + CELL_SIZE*i, ypos, xpos + CELL_SIZE*(i+1), ypos + CELL_SIZE, fill='white', outline='black')
 
@@ -253,12 +226,6 @@ class Queue(object):
 
         window.update()
         
-def stop(pauseButton): # will stop after the current shuffle is done
-    global running
-    running = False
-
-    if waitVar.get():
-        play(pauseButton)
 
 def pause(pauseButton):
     global waitVar
@@ -331,8 +298,8 @@ def enableButtons():
 def makeButtons():
     insertRearButton = Button(operationsLeft, text="Insert At Rear", width=16, command= lambda: onClick(clickInsertRear))
     insertRearButton.grid(row=2, column=0)
-    insertFrontButton = Button(operationsLeft, text="Insert At Front", width=16, command= lambda: onClick(clickInsertFront))
-    insertFrontButton.grid(row=1, column=0)
+    insertFrontButton = Button(operationsRight, text="Insert At Front", width=16, command= lambda: onClick(clickInsertFront))
+    insertFrontButton.grid(row=3, column=0)
     deleteRightmostButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(queue.removeRear))
     deleteRightmostButton.grid(row=1, column=0)
     deleteValueButton = Button(operationsLeft, text="Delete From Front", width=16, command= lambda: onClick(queue.removeFront))
@@ -360,7 +327,7 @@ canvas.pack()
 
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
-operationsUpper = LabelFrame(bottomframe, text="Operations", padx=4, pady=4)
+operationsUpper = LabelFrame(bottomframe, text="Queue", padx=4, pady=4)
 operationsUpper.pack(side=TOP)
 operationsLeft = Frame(operationsUpper, bd=5)
 operationsLeft.pack(side=LEFT)
@@ -373,12 +340,14 @@ vcmd = (window.register(validate),
         '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
 textBox = Entry(operationsLeft, width=20, bg="white", validate='key', validatecommand=vcmd)
 textBox.grid(row=2, column=2, padx=5, sticky=E)
-scaleDefault = 100
-scale = Scale(operationsLower, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
-scale.grid(row=0, column=1, sticky=W)
-scale.set(scaleDefault)
-scaleLabel = Label(operationsLower, text="Speed:", font="none 10")
-scaleLabel.grid(row=0, column=0, sticky=W)
+
+# Speed commented out for now, unless needed later if add certain animations
+#scaleDefault = 100
+#scale = Scale(operationsLower, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
+#scale.grid(row=0, column=1, sticky=W)
+#scale.set(scaleDefault)
+#scaleLabel = Label(operationsLower, text="Speed:", font="none 10")
+#scaleLabel.grid(row=0, column=0, sticky=W)
 
 outputText = StringVar()
 outputText.set('')
@@ -386,9 +355,9 @@ output = Label(operationsLower, textvariable=outputText, font="none 10 italic", 
 output.grid(row=0, column=3, sticky=(E, W))
 operationsLower.grid_columnconfigure(3, minsize=160)
 
-# exit button
-Button(operationsLower, text="EXIT", width=0, command=close_window)\
-    .grid(row=0, column=4, sticky=E)
+## exit button
+#Button(operationsLower, text="EXIT", width=0, command=close_window)\
+    #.grid(row=0, column=4, sticky=E)
 
 cleanup = []
 queue = Queue()
@@ -396,6 +365,6 @@ buttons = makeButtons()
 queue.display()
 
 #for i in range(4):
- #   queue.insertRear(i)
+#    queue.insertRear(i)
 
 window.mainloop()    
