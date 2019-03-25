@@ -1,6 +1,6 @@
 # TO DO
 # - Toggle switch between deque and queue functionality
-#    - when on queue, the the left buttons are not enabled
+#    - Add sunked / more noticeable that it's a toggle?
 # - Disable delete buttons when empty
 # - Discuss animation preferences
 
@@ -282,7 +282,13 @@ def clickInsertFront():
         else:
             outputText.set("Input value must be an integer from 0 to 99.")
         textBox.delete(0, END )
-            
+        
+def clickEnableQueue():
+    insertFrontButton.config(state = DISABLED) 
+    deleteRearButton.config(state = DISABLED)
+    insertRearButton.config(state = NORMAL)
+    deleteFrontButton.config(state = NORMAL)
+                
 def close_window():
     window.destroy()
     exit()
@@ -300,11 +306,15 @@ def makeButtons():
     insertRearButton.grid(row=2, column=0)
     insertFrontButton = Button(operationsRight, text="Insert At Front", width=16, command= lambda: onClick(clickInsertFront))
     insertFrontButton.grid(row=3, column=0)
-    deleteRightmostButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(queue.removeRear))
-    deleteRightmostButton.grid(row=1, column=0)
-    deleteValueButton = Button(operationsLeft, text="Delete From Front", width=16, command= lambda: onClick(queue.removeFront))
-    deleteValueButton.grid(row=3, column=0)
-    buttons = [insertRearButton, insertFrontButton, deleteRightmostButton, deleteValueButton]
+    deleteRearButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(queue.removeRear))
+    deleteRearButton.grid(row=1, column=0)
+    deleteFrontButton = Button(operationsLeft, text="Delete From Front", width=16, command= lambda: onClick(queue.removeFront))
+    deleteFrontButton.grid(row=3, column=0)
+    enableQueue = Button(operationsLeft, text="Queue", width=20, command= lambda: onClick(clickEnableQueue))
+    enableQueue.grid(row=0, column=0)
+    enableDeque = Button(operationsRight, text="Deque", width=20, command= lambda: onClick(enableButtons))
+    enableDeque.grid(row=0, column=0)    
+    buttons = [insertRearButton, insertFrontButton, deleteRearButton, deleteFrontButton]
     return buttons
 
 # validate text entry
@@ -322,12 +332,12 @@ frame.pack()
 waitVar = BooleanVar()
 
 canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
-window.title("Queue")
+window.title("Queue and Deque")
 canvas.pack()
 
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
-operationsUpper = LabelFrame(bottomframe, text="Queue", padx=4, pady=4)
+operationsUpper = LabelFrame(bottomframe, text="Queue and Deque", padx=4, pady=4)
 operationsUpper.pack(side=TOP)
 operationsLeft = Frame(operationsUpper, bd=5)
 operationsLeft.pack(side=LEFT)
