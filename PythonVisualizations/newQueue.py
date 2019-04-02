@@ -1,9 +1,10 @@
 # TO DO
-# - Toggle switch between deque and queue functionality
-#    - Add sunked / more noticeable that it's a toggle?
-#    - Enable queue not working, needs work
+# - create an onDequeClick function for the button
+    # - will look similar to enable buttons, but will add the sunken effect
+    # (and take it away as needed)
 # - Disable delete buttons when empty
-# - Discuss animation preferences
+    # - off by one when trying to delete on element in a QUEUE
+    # - problems deleting from front after inserting at rear
 
 import time
 from tkinter import *
@@ -246,13 +247,13 @@ def play(pauseButton):
 
 def onClick(command, parameter = None):
     cleanUp()
-    disableButtons()
+    #disableButtons()
     if parameter:
         command(parameter)
     else:
         command()
-    if command not in [pause, play]:
-        enableButtons()
+    #if command not in [pause, play]:
+     #   enableButtons()
 
 def cleanUp():
     global cleanup
@@ -288,6 +289,7 @@ def clickEnableQueue():
     #THIS IS HARDWIRED (THE ORDER OF THE BUTTONS) - FIX
     buttons[1].config(state = DISABLED) 
     buttons[2].config(state = DISABLED)
+    buttons[4].config(relief = SUNKEN)
                 
 def close_window():
     window.destroy()
@@ -314,7 +316,7 @@ def makeButtons():
     enableQueue.grid(row=0, column=0)
     enableDeque = Button(operationsRight, text="Deque", width=20, command= lambda: onClick(enableButtons))
     enableDeque.grid(row=0, column=0)    
-    buttons = [insertRearButton, insertFrontButton, deleteRearButton, deleteFrontButton]
+    buttons = [insertRearButton, insertFrontButton, deleteRearButton, deleteFrontButton, enableQueue, enableDeque]
     return buttons
 
 # validate text entry
@@ -373,6 +375,7 @@ cleanup = []
 queue = Queue()
 buttons = makeButtons()
 queue.display()
+clickEnableQueue()
 
 #for i in range(4):
 #    queue.insertRear(i)
