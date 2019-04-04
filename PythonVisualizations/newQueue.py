@@ -1,10 +1,7 @@
 # TO DO
-# - create an onDequeClick function for the button
-    # - will look similar to enable buttons, but will add the sunken effect
-    # (and take it away as needed)
+# - center queue and deque
 # - Disable delete buttons when empty
-    # - off by one when trying to delete on element in a QUEUE
-    # - problems deleting from front after inserting at rear
+
 
 import time
 from tkinter import *
@@ -60,7 +57,7 @@ class Queue(object):
         # Fix to self.rear starting at 1
         if self.nItems == 0:
             self.rear = 0
-            self.front = self.size # circular
+            self.front = self.rear # circular
             
             # create new cell and cell value display objects
             # Start drawing new one at rear
