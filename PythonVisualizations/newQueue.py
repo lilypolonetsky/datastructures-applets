@@ -289,7 +289,18 @@ def clickEnableQueue():
     #THIS IS HARDWIRED (THE ORDER OF THE BUTTONS) - FIX
     buttons[1].config(state = DISABLED) 
     buttons[2].config(state = DISABLED)
+    
+    # Toggling between deque and queue
     buttons[4].config(relief = SUNKEN)
+    buttons[5].config(relief = RAISED)
+    
+def clickEnableDeque():
+    for button in buttons:
+        button.config(state = NORMAL)
+    
+    # Toggeling between deque and queue
+    buttons[4].config(relief = RAISED)
+    buttons[5].config(relief = SUNKEN)
                 
 def close_window():
     window.destroy()
@@ -314,7 +325,7 @@ def makeButtons():
     deleteFrontButton.grid(row=3, column=0)
     enableQueue = Button(operationsLeft, text="Queue", width=20, command= lambda: onClick(clickEnableQueue))
     enableQueue.grid(row=0, column=0)
-    enableDeque = Button(operationsRight, text="Deque", width=20, command= lambda: onClick(enableButtons))
+    enableDeque = Button(operationsRight, text="Deque", width=20, command= lambda: onClick(clickEnableDeque))
     enableDeque.grid(row=0, column=0)    
     buttons = [insertRearButton, insertFrontButton, deleteRearButton, deleteFrontButton, enableQueue, enableDeque]
     return buttons
