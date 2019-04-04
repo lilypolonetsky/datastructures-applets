@@ -1,6 +1,7 @@
 # TO DO
 # - center queue and deque
-# - Disable delete buttons when empty
+# - fix enablebuttons of onoffbuttons 
+#   so it doesn't interfere with deque/queue toggling
 
 
 import time
@@ -76,6 +77,8 @@ class Queue(object):
             # increment nextColor
             Queue.nextColor = (Queue.nextColor + 1) % len(Queue.colors)
         
+            self.onOffButtons()
+            
             # update window
             window.update()
             
@@ -107,6 +110,8 @@ class Queue(object):
             # increment nextColor
             Queue.nextColor = (Queue.nextColor + 1) % len(Queue.colors)
         
+            self.onOffButtons()
+            
             # update window
             window.update()
             
@@ -139,7 +144,9 @@ class Queue(object):
             
             # increment nextColor
             Queue.nextColor = (Queue.nextColor + 1) % len(Queue.colors)
-        
+            
+            self.onOffButtons()
+            
             # update window
             window.update()
 
@@ -169,6 +176,8 @@ class Queue(object):
         canvas.delete(n.display_shape)
         canvas.delete(n.display_val)
         
+        self.onOffButtons()
+        
         # update window
         window.update()
     
@@ -194,6 +203,8 @@ class Queue(object):
         # delete the associated display objects
         canvas.delete(n.display_shape)
         canvas.delete(n.display_val)
+        
+        self.onOffButtons()
         
         # update window
         window.update()
@@ -224,7 +235,15 @@ class Queue(object):
                 xpos += CELL_SIZE
 
         window.update()
-        
+
+    def onOffButtons(self):
+        enableButtons()
+        if self.nItems == self.size:
+            buttons[0].config(state = DISABLED)
+            buttons[1].config(state = DISABLED)
+        if self.nItems == 0:
+            buttons[2].config(state = DISABLED)
+            buttons[3].config(state = DISABLED)
 
 def pause(pauseButton):
     global waitVar
