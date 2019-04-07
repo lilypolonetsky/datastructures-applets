@@ -1,8 +1,5 @@
 # TO DO
 # - center queue and deque
-# - fix enablebuttons of onoffbuttons 
-#   so it doesn't interfere with deque/queue toggling
-#   UPDATE:now it works except that DeleteFromRear once disabled stays that way
 # - Is it a problem that the order of the buttons is hardwired?
 
 
@@ -238,18 +235,23 @@ class Queue(object):
 
         window.update()
 
+    #disable insert if queue if full, disable delete if empty
+    #enable everything else without overriding queue/deque functionality
     def onOffButtons(self):
         #if it's a deque
-        if buttons[5]['state'] == "disabled":
+        if buttons[5]['relief'] == 'sunken':
             enableButtons()
+            
         #if it's a queue
         else:
             buttons[0].config(state = NORMAL)
             buttons[3].config(state = NORMAL)
         
+        #in all cases: disable buttons as necessary
         if self.nItems == self.size:
             buttons[0].config(state = DISABLED)
             buttons[1].config(state = DISABLED)
+            
         if self.nItems == 0:
             buttons[2].config(state = DISABLED)
             buttons[3].config(state = DISABLED)
@@ -319,6 +321,8 @@ def clickEnableQueue():
     buttons[4].config(relief = SUNKEN)
     buttons[5].config(relief = RAISED)
     
+    queue.onOffButtons()
+    
 def clickEnableDeque():
     for button in buttons:
         button.config(state = NORMAL)
@@ -326,6 +330,8 @@ def clickEnableDeque():
     # Toggling between deque and queue
     buttons[4].config(relief = RAISED)
     buttons[5].config(relief = SUNKEN)
+    
+    queue.onOffButtons()
                 
 def close_window():
     window.destroy()
@@ -412,7 +418,6 @@ queue = Queue()
 buttons = makeButtons()
 queue.display()
 clickEnableQueue()
-queue.onOffButtons()
 
 #for i in range(4):
 #    queue.insertRear(i)
