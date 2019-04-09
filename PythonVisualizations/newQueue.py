@@ -1,8 +1,3 @@
-# TO DO
-# - center queue and deque
-# - Is it a problem that the order of the buttons is hardwired?
-
-
 import time
 from tkinter import *
 from recordclass import recordclass
@@ -347,17 +342,17 @@ def enableButtons():
 
 def makeButtons():
     insertRearButton = Button(operationsLeft, text="Insert At Rear", width=16, command= lambda: onClick(clickInsertRear))
-    insertRearButton.grid(row=2, column=0)
+    insertRearButton.grid(row=3, column=0)
     insertFrontButton = Button(operationsRight, text="Insert At Front", width=16, command= lambda: onClick(clickInsertFront))
-    insertFrontButton.grid(row=3, column=0)
+    insertFrontButton.grid(row=4, column=0)
     deleteRearButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(queue.removeRear))
-    deleteRearButton.grid(row=1, column=0)
+    deleteRearButton.grid(row=3, column=0)
     deleteFrontButton = Button(operationsLeft, text="Delete From Front", width=16, command= lambda: onClick(queue.removeFront))
-    deleteFrontButton.grid(row=3, column=0)
-    enableQueue = Button(operationsLeft, text="Queue", width=20, command= lambda: onClick(clickEnableQueue))
-    enableQueue.grid(row=0, column=0)
-    enableDeque = Button(operationsRight, text="Deque", width=20, command= lambda: onClick(clickEnableDeque))
-    enableDeque.grid(row=0, column=0)    
+    deleteFrontButton.grid(row=4, column=0)
+    enableQueue = Button(controlButtons, text="Queue", width=20, command= lambda: onClick(clickEnableQueue))
+    enableQueue.grid(row=0, column=1)
+    enableDeque = Button(controlButtons, text="Deque", width=20, command= lambda: onClick(clickEnableDeque))
+    enableDeque.grid(row=0, column=3)    
     buttons = [insertRearButton, insertFrontButton, deleteRearButton, deleteFrontButton, enableQueue, enableDeque]
     return buttons
 
@@ -381,27 +376,35 @@ canvas.pack()
 
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
+
+# Frame for operations
 operationsUpper = LabelFrame(bottomframe, text="Queue and Deque", padx=4, pady=4)
 operationsUpper.pack(side=TOP)
+
+# Frame for buttons to enable and disable queue and deque
+controlButtons = Frame(operationsUpper, bd=5)
+controlButtons.pack(side=TOP)
+
+# Text frame
+textFrame = Frame(operationsUpper, bd=5)
+textFrame.pack(side=TOP)
+
+# Frame for Queue operations
 operationsLeft = Frame(operationsUpper, bd=5)
 operationsLeft.pack(side=LEFT)
+
+# Frame for Deque operations
 operationsRight = Frame(operationsUpper, bd=5)
 operationsRight.pack(side=RIGHT)
+
 operationsLower = Frame(bottomframe)
 operationsLower.pack(side=BOTTOM)
 
 vcmd = (window.register(validate),
         '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-textBox = Entry(operationsLeft, width=20, bg="white", validate='key', validatecommand=vcmd)
-textBox.grid(row=2, column=2, padx=5, sticky=E)
+textBox = Entry(textFrame, width=20, bg="white", validate='key', validatecommand=vcmd)
+textBox.grid(row=1, column=2, padx=5, sticky=E)
 
-# Speed commented out for now, unless needed later if add certain animations
-#scaleDefault = 100
-#scale = Scale(operationsLower, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
-#scale.grid(row=0, column=1, sticky=W)
-#scale.set(scaleDefault)
-#scaleLabel = Label(operationsLower, text="Speed:", font="none 10")
-#scaleLabel.grid(row=0, column=0, sticky=W)
 
 outputText = StringVar()
 outputText.set('')
