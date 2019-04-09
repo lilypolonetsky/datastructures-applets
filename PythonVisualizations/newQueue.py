@@ -17,7 +17,7 @@ class Queue(object):
               'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
     nextColor = 0
 
-    def __init__(self, size=10):
+    def __init__(self, size=12):
         self.list = [None]*size
         self.size = size
         self.front = 1  # when Queue is empty, front 
