@@ -310,7 +310,9 @@ def clickInsert():
     entered_text = textBox.get()
     if entered_text:
         val = int(entered_text)
-        if val < 100:
+        if len(array.list) >= array.size:
+            outputText.set("Error! Array is already full.")
+        elif val < 100:
             array.append(int(entered_text))
         else:
             outputText.set("Input value must be an integer from 0 to 99.")
