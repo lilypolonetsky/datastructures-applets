@@ -1,19 +1,291 @@
 import time
 from tkinter import *
 import math
-from PIL import ImageTk
-from PIL import Image
-
 
 WIDTH = 800
 HEIGHT = 400
+
+CELL_SIZE = 50
+CELL_BORDER = 2
+OPERATIONS_BG = 'beige'
+OPERATIONS_BORDER = 'black'
+FONT_SIZE = '20'
+VALUE_FONT = ('Helvetica', FONT_SIZE)
+VALUE_COLOR = 'black'
+FOUND_FONT = ('Helvetica', FONT_SIZE)
+FOUND_COLOR = 'green2'
+CONTROLS_FONT = ('none', '14')
+FONT_SIZE = '20'
 
 CELL_WIDTH = 70
 CELL_HEIGHT = 50
 CELL_GAP = 20
 DOT_SIZE = 10
 LL_X0 = 100
-LL_Y0 = 100
+LL_Y0 = 70
+MAX_SIZE=20
+LEN_ROW = 5
+ROW_GAP = 40
+
+class Node(object):
+    # create a linked list node
+    #id is used to link the different parts of each node visualization
+    def __init__(self, k, n=None, id=None):
+        self.key = k
+        self.id = id
+        self.next = n  # reference to next item in list
+
+    def __str__(self):
+        return "{" + str(self.key) + "}"
+
+class LinkedList(object):
+    def __init__(self):
+        self.first = None
+        self.prev_id = -1
+
+    def __len__(self):
+        cur = self.first
+        ans = 0
+
+        while cur:
+            ans += 1
+            cur = cur.next
+
+        return ans
+
+    def isEmpty(self):
+        return not self.first
+
+    # attempt to insert a new Node containing newKey
+    # into the linked list immediately after the first node
+    # containing key. Return True on success, False otherwise.
+    def insertAfter(self, key, newKey):
+        # find the first Node that contains key
+        cur = self.first
+        while cur and cur.key != key: cur = cur.next
+
+        # if such a node is there, patch in a new Node
+        if cur:
+            newNode = Node(newKey, cur.next)
+            cur.next = newNode
+            if not newNode.next: self.__last = newNode
+
+        return cur != None  # return True on success
+
+    # return a tuple containing the key/data pair
+    # associated with key. return None if key
+    # couldn't be found in the list.
+    def find(self, key):
+        # loop until we hit the end, or find the key
+        cur = self.first
+        while cur and cur.key != key: cur = cur.next
+
+        # return the key/data pair if found
+        return (cur.key, cur.data) if cur else None
+
+    # delete a node from the linked list, returning the key
+    # pair of the deleted node. If key == None, then just delete
+    # the first node. Otherwise, attempt to find and delete
+    # the first node containing key
+    def delete(self, key=None):
+        # delete the first node?
+        if (not key) or (self.first and key == self.first.key):
+            ans = self.first
+            if not ans: return None
+            self.first = ans.next
+            return ans.key, ans.data
+
+        # loop until we hit end, or find key,
+        # keeping track of previously visited node
+        cur = prev = self.first
+        while cur and cur.key != key:
+            prev = cur
+            cur = cur.next
+
+        # A node with this key isn't on list
+        if not cur: return None
+
+        # otherwise remove the node from the list and
+        # return the key/data pair of the found node
+        prev.next = cur.next
+
+        return cur.key
+
+    # insert a key/data pair at the start of the list
+    def insert(self, key):
+        newNode = Node(key, self.first)
+        self.first = newNode
+
+    def generateId(self):
+        return "item" + str(self.prev_id + 1)
+
+    # ANIMATION METHODS
+    def speed(self, sleepTime):
+        return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
+
+    #id is used to link the different parts of each node visualization
+    def insertElem(self, newNode,pos=0, id=-1):
+        # create new cell and cell value display objects
+        val = newNode.key
+        x_offset = pos%LEN_ROW * (CELL_WIDTH + CELL_GAP)
+        y_offset = pos//LEN_ROW*(CELL_HEIGHT+ROW_GAP)
+        if pos == -1:
+            x_offset= -LL_X0+10
+            y_offset=0
+        if id==-1:
+            id = self.generateId()
+            newNode.id = id
+        canvas.create_rectangle(LL_X0 + x_offset,
+                                       LL_Y0+y_offset,
+                                       LL_X0 + CELL_WIDTH + x_offset,
+                                       LL_Y0 + CELL_HEIGHT+y_offset, fill="WHITE", tag=id)
+        canvas.create_text(LL_X0 + CELL_HEIGHT // 2 + x_offset,
+                                      LL_Y0 + CELL_HEIGHT // 2+y_offset,
+                                      text=val, font=('Helvetica', '20'),tag = id)
+        canvas.create_oval(LL_X0 + CELL_HEIGHT - DOT_SIZE // 2 + x_offset,
+                           LL_Y0 + CELL_HEIGHT // 2 - DOT_SIZE // 2 + y_offset,
+                           LL_X0 + CELL_HEIGHT + DOT_SIZE // 2 + x_offset,
+                           LL_Y0 + CELL_HEIGHT // 2 + DOT_SIZE // 2+ y_offset,
+                           fill="RED", outline="RED", tag = id)
+        if pos%LEN_ROW == LEN_ROW-1 and pos!=-1:
+            canvas.create_line(LL_X0 + CELL_HEIGHT + x_offset,
+                               LL_Y0 + CELL_HEIGHT // 2 + y_offset,
+                               LL_X0 + CELL_HEIGHT + x_offset,
+                               LL_Y0 + CELL_HEIGHT // 2 + y_offset+ROW_GAP/2 + CELL_HEIGHT/2,
+                                tag=id)
+            canvas.create_line(LL_X0 + CELL_HEIGHT + x_offset,
+                               LL_Y0 + CELL_HEIGHT // 2 + y_offset + ROW_GAP / 2 + CELL_HEIGHT / 2,
+                               LL_X0 + CELL_HEIGHT,
+                               LL_Y0 + CELL_HEIGHT // 2 + y_offset+ROW_GAP/2 + CELL_HEIGHT/2,
+                               tag=id)
+            canvas.create_line(LL_X0 + CELL_HEIGHT,
+                               LL_Y0 + CELL_HEIGHT // 2 + y_offset + ROW_GAP / 2 + CELL_HEIGHT / 2,
+                               LL_X0 + CELL_HEIGHT,
+                               LL_Y0 + CELL_HEIGHT // 2 + y_offset + ROW_GAP + CELL_HEIGHT/2,
+                               arrow=LAST, tag=id)
+        else:
+            canvas.create_line(LL_X0 + CELL_HEIGHT + x_offset,
+                                    LL_Y0 + CELL_HEIGHT // 2 + y_offset,
+                                    LL_X0 + x_offset + CELL_WIDTH + CELL_GAP,
+                                    LL_Y0 + CELL_HEIGHT // 2 + y_offset,
+                                     arrow = LAST,tag = id)
+        # update window
+        window.update()
+
+    def display_neatly(self):
+        canvas.delete("all")
+        n = self.first
+        pos=0
+        while n:
+            ll.insertElem(n, pos)
+            n= n.next
+            pos+=1
+
+
+def stop(pauseButton): # will stop after the current shuffle is done
+    global running
+    running = False
+
+    if waitVar.get():
+        play(pauseButton)
+
+def pause(pauseButton):
+    global waitVar
+    waitVar.set(True)
+
+    pauseButton['text'] = "Play"
+    pauseButton['command'] = lambda: onClick(play, pauseButton)
+
+    canvas.wait_variable(waitVar)
+
+def play(pauseButton):
+    global waitVar
+    waitVar.set(False)
+
+    pauseButton['text'] = 'Pause'
+    pauseButton['command'] = lambda: onClick(pause, pauseButton)
+
+def onClick(command, parameter = None):
+    cleanUp()
+    disableButtons()
+    if parameter:
+        command(parameter)
+    else:
+        command()
+    if command not in [pause, play]:
+        enableButtons()
+
+def cleanUp():
+    global cleanup
+    if len(cleanup) > 0:
+        for o in cleanup:
+            canvas.delete(o)
+    outputText.set('')
+    window.update()
+
+# Button functions
+def clickFind():
+    pass
+
+def clickInsert():
+    if window.insert_button_counter == 0:
+        outputText.set("Enter item of key to insert and click insert")
+        window.insert_button_counter+=1
+    elif window.insert_button_counter == 1:
+        entered_text = textBox.get()
+        if entered_text:
+            val = int(entered_text)
+            if len(ll) >= MAX_SIZE:
+                outputText.set("Error! Linked List is already full.")
+                window.insert_button_counter=0
+            elif val < 100:
+                ll.insert(int(entered_text))
+                ll.insertElem(ll.first, pos =-1)
+                outputText.set("Click insert again to redraw list neatly")
+                window.insert_button_counter +=1
+            else:
+                outputText.set("Input value must be an integer from 0 to 99.")
+                window.insert_button_counter=0
+        textBox.delete(0, END)
+    else:
+        ll.display_neatly()
+        window.insert_button_counter=0
+
+
+def clickDelete():
+    pass
+
+def close_window():
+    window.destroy()
+    exit()
+
+def disableButtons():
+    for button in buttons:
+        button.config(state = DISABLED)
+
+def enableButtons():
+    for button in buttons:
+        button.config(state = NORMAL)
+
+def makeButtons():
+    findButton = Button(operations, text="Find", command= lambda: onClick(clickFind))
+    findButton.grid(row=1, column=0, padx=8, sticky=(E, W))
+    insertButton = Button(operations, text="Insert", command= lambda: onClick(clickInsert))
+    insertButton.grid(row=2, column=0, padx=8, sticky=(E, W))
+    deleteValueButton = Button(operations, text="Delete", command= lambda: onClick(clickDelete))
+    deleteValueButton.grid(row=3, column=0, padx=8, sticky=(E, W))
+    separator = Frame(operations, width=2, bg=OPERATIONS_BORDER)
+    separator.grid(row=1, column=3, rowspan=3, sticky=(N, E, W, S))
+    buttons = [findButton, insertButton, deleteValueButton]
+    return buttons
+
+# validate text entry
+def validate(action, index, value_if_allowed,
+             prior_value, text, validation_type, trigger_type, widget_name):
+    if text in '0123456789':
+        return True
+    else:
+        return False
 
 window = Tk()
 frame = Frame(window)
@@ -27,269 +299,46 @@ canvas.pack()
 
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
-ll = [i for i in range(7)]
+operationsUpper = LabelFrame(bottomframe, text="Operations")
+operationsUpper.pack(side=TOP)
+operationsBorder = Frame(operationsUpper, padx=2, pady=2, bg=OPERATIONS_BORDER)
+operationsBorder.pack(side=TOP)
+operations = Frame(operationsBorder, bg=OPERATIONS_BG)
+operations.pack(side=LEFT)
+operationsLower = Frame(bottomframe)
+operationsLower.pack(side=BOTTOM)
 
-for i in range(len(ll)):
-    offset = i*(CELL_WIDTH + CELL_GAP)
-    canvas.create_rectangle(LL_X0 + offset,
-                            LL_Y0,
-                            LL_X0 + CELL_WIDTH + offset,
-                            LL_Y0 + CELL_HEIGHT, fill = "WHITE")
-    canvas.create_text(LL_X0 + CELL_HEIGHT//2 + offset,
-                       LL_Y0 + CELL_HEIGHT//2,
-                       text=str(ll[i]), font=('Helvetica', '20'))
-    canvas.create_oval(LL_X0 + CELL_HEIGHT - DOT_SIZE//2 + offset,
-                       LL_Y0 + CELL_HEIGHT//2 - DOT_SIZE//2,
-                       LL_X0 + CELL_HEIGHT + DOT_SIZE//2 + offset,
-                       LL_Y0 + CELL_HEIGHT // 2 + DOT_SIZE//2,
-                       fill = "RED", outline = "RED")
-    verticalRadius = 0
-    horizontalRadius = CELL_GAP + CELL_WIDTH - CELL_HEIGHT
-    tailX = LL_X0 + offset + CELL_WIDTH + CELL_GAP - 1
-    tailY = verticalRadius * math.sqrt(math.fabs(horizontalRadius*2 - tailX*2)) / horizontalRadius
-    arc = canvas.create_arc(LL_X0 + CELL_HEIGHT + offset,
-                            LL_Y0 + CELL_HEIGHT // 2 - verticalRadius,
-                            LL_X0 + offset + CELL_WIDTH + CELL_GAP,
-                            LL_Y0 + CELL_HEIGHT // 2 + verticalRadius,
-                            start=0, extent=180, style=ARC
-                            )
-    coords = canvas.coords(arc)
-    arrowSlope = -verticalRadius*2 *(tailX) / horizontalRadius*2 *(tailY)
-    #dy/dx = y1 - y0 / x1 - x0
-    #(x1 - x0) * dy/dx = y1-y0
-    #y0 = y1 - dy/dx * (x0-y0)
-    '''canvas.create_line(LL_X0 + offset + CELL_WIDTH + CELL_GAP - verticalRadius,
-                       LL_Y0 + CELL_HEIGHT // 2 - verticalRadius,
-                       LL_X0 + offset + CELL_WIDTH + CELL_GAP,
-                      LL_Y0 + CELL_HEIGHT // 2 + verticalRadius,
-                      arrow="last")'''
+#Label(bottomframe, text="Find:", font=CONTROLS_FONT + ('bold',)).grid(row=0, column=0, sticky=W)
+vcmd = (window.register(validate),
+        '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+textBox = Entry(operations, width=20, bg="white", validate='key', validatecommand=vcmd)
+textBox.grid(row=2, column=2, padx=8, sticky=E)
+scaleDefault = 100
+scale = Scale(operationsLower, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
+scale.grid(row=0, column=1, sticky=W)
+scale.set(scaleDefault)
+scaleLabel = Label(operationsLower, text="Speed:", font=CONTROLS_FONT)
+scaleLabel.grid(row=0, column=0, sticky=W)
 
+outputText = StringVar()
+outputText.set('')
+output = Label(operationsLower, textvariable=outputText, font=CONTROLS_FONT + ('italic',), fg="blue")
+output.grid(row=0, column=3, sticky=(E, W))
+operationsLower.grid_columnconfigure(3, minsize=160)
 
-    points = [LL_X0 + offset + CELL_WIDTH + CELL_GAP - 5, LL_Y0 + CELL_HEIGHT // 2 - 5,
-              LL_X0 + offset + CELL_WIDTH + CELL_GAP - 5, LL_Y0 + CELL_HEIGHT // 2 + 5,
-              LL_X0 + offset + CELL_WIDTH + CELL_GAP, LL_Y0 + CELL_HEIGHT // 2]
-    canvas.create_polygon(points, fill="BLACK")
+# exit button
+Button(operationsLower, text="EXIT", width=0, command=close_window)\
+    .grid(row=0, column=4, sticky=E)
 
+window.insert_button_counter = 0
 
+cleanup = []
+ll = LinkedList()
+buttons = makeButtons()
+for i in range(13,0,-1):
+    ll.insert(i)
+ll.display_neatly()
 window.mainloop()
-
-import random
-
-
-class Node(object):
-    # create a linked list node consisting of a key/data pair
-    def __init__(self, k, d, n=None):
-        self.key = k
-        self.data = d
-        self.next = n  # reference to next item in list
-
-    def __str__(self):
-        return "{" + str(self.key) + ", " + str(self.data) + "}"
-
-
-class LinkedList(object):
-    def __init__(self):
-        self.__first = None
-        self.__last = None
-
-    def __len__(self):
-        cur = self.__first
-        ans = 0
-
-        while cur:
-            ans += 1
-            cur = cur.next
-
-        return ans
-
-    def isEmpty(self):
-        return not self.__first
-
-    # insert a key/data pair at the start of the list
-    def insert(self, key, data):
-        newNode = Node(key, data, self.__first)
-        if self.__first == None: self.__last = newNode
-        self.__first = newNode
-
-    # return a tuple containing the key/data pair
-    # associated with key. return None if key
-    # couldn't be found in the list.
-    def find(self, key):
-        # loop until we hit the end, or find the key
-        cur = self.__first
-        while cur and cur.key != key: cur = cur.next
-
-        # return the key/data pair if found
-        return (cur.key, cur.data) if cur else None
-
-    # attempt to insert a new Node containing newKey/NewData
-    # into the linked list immediately after the first node
-    # containing key. Return True on success, False otherwise.
-    def insertAfter(self, key, newKey, newData):
-        # find the first Node that contains key
-        cur = self.__first
-        while cur and cur.key != key: cur = cur.next
-
-        # if such a node is there, patch in a new Node
-        if cur:
-            newNode = Node(newKey, newData, cur.next)
-            cur.next = newNode
-            if not newNode.next: self.__last = newNode
-
-        return cur != None  # return True on success
-
-    def insertLast(self, key, data):
-        if not self.__first: return self.insert(key, data)
-
-        newNode = Node(key, data)
-        self.__last.next = newNode
-        self.__last = newNode
-
-    def reverse(self):
-        ans = None
-        newLast = cur = self.__first
-        while cur:
-            next = cur.next
-            cur.next = ans
-            ans = cur
-            cur = next
-
-        self.__first = ans
-        self.__last = newLast
-
-    def recursiveReverse(self, l=None):
-        # on initialization, first becomes last
-        if not l: self.__last = l = self.__first
-
-        # base case: upon reaching last element,
-        # remember it as the first in the reversed list
-        if not l or not l.next:
-            self.__first = l
-
-        else:
-            # recursively reverse everything but the first
-            self.recursiveReverse(l.next)
-
-            # upon return, what was at l.next is now
-            # at the end of the reversed list
-            l.next.next = l
-            l.next = None
-
-    # delete a node from the linked list, returning the key/data
-    # pair of the deleted node. If key == None, then just delete
-    # the first node. Otherwise, attempt to find and delete
-    # the first node containing key
-    def delete(self, key=None):
-        # delete the first node?
-        if (not key) or (self.__first and key == self.__first.key):
-            ans = self.__first
-            if not ans: return None
-            self.__first = ans.next
-            return ans.key, ans.data
-
-        # loop until we hit end, or find key,
-        # keeping track of previously visited node
-        cur = prev = self.__first
-        while cur and cur.key != key:
-            prev = cur
-            cur = cur.next
-
-        # A node with this key isn't on list
-        if not cur: return None
-
-        # otherwise remove the node from the list and
-        # return the key/data pair of the found node
-        prev.next = cur.next
-        if not prev.next: self.__last = prev
-
-        return cur.key, cur.data
-
-    # Splits the list into two approximately equal length parts
-    # Self keeps the first half of the list, and the return value
-    # is a new LinkedList object that has the second half.
-    def split(self):
-        ans = LinkedList()
-
-        # Only bother if list has at least 2 elements
-        if self.__first and self.__first.next:
-            # Use slow/fast pointers to find midpoint
-            slow = fast = self.__first
-            pred = None
-            while fast:
-                pred = slow
-                slow = slow.next
-                fast = fast.next
-                if fast: fast = fast.next
-
-            # pred points to predecessor of midpoint Node
-
-            # split off the second half of the list
-            ans.__first = pred.next
-            ans.__last = self.__last
-
-            # terminate the first part of the list
-            self.__last = pred
-            pred.next = None
-
-        return ans
-
-        # This is a mutator, and doesn't actually return anything.
-
-    # merge's job is to merge the two LinkedList objects, keeping
-    # the keys in ascending order. The "surviving" object is self,
-    # and when done, all of other's Nodes will have been merged into
-    # the linked list of Nodes referenced by self.
-    def merge(self, other):
-        pass  # replace this line with your code
-
-    def sort(self):
-        # only bother if LinkedList has > 1 nodes
-        if self.__first != self.__last:
-            # split into two halves
-            rightPart = self.split()
-
-            # sort the left and right parts
-            self.sort()
-            rightPart.sort()
-
-            # merge the results
-            self.merge(rightPart)
-
-    def __str__(self):
-        ans = "("
-
-        # if the list isn't empty, start the fencepost
-        cur = self.__first
-        if cur:
-            ans += str(cur)
-            cur = cur.next
-
-        # each subsequent element of the list follows an arrow
-        while cur:
-            ans += " ==> " + str(cur)
-            cur = cur.next
-
-        return ans + ")"
-
-
-def __main():
-    ll = LinkedList()
-    print("Empty linked list:", ll)
-
-    # insert a bunch of nodes
-    for i in range(40):
-        ll.insert(random.randint(1, 100000), "foo")
-
-    print("List before sorting:", ll)
-    print("List has", len(ll), "elements")
-
-    ll.sort()
-    print("Sorted list now: ", ll)
-
-
-if __name__ == '__main__':
-    __main()
-
 
 '''
 Useful Links:
