@@ -172,6 +172,55 @@ class LinkedList(object):
         # update window
         window.update()
 
+    def clickFind(self, key):
+        global cleanup, running
+        running = True
+        findDisplayObjects = []
+
+        cur = self.first
+        pos = 0
+        x = pos % LEN_ROW * (CELL_WIDTH + CELL_GAP) + LL_X0 + CELL_WIDTH / 2
+        y = pos // LEN_ROW * (CELL_HEIGHT + ROW_GAP) + LL_Y0
+        arrow = canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
+        findDisplayObjects.append(arrow)
+
+        # go through each Element in the linked list
+        while cur:
+            window.update()
+
+            # if the value is found
+            if cur.key == key:
+                # get the position of the text of the elements
+                posVal = (x-10, y+CELL_HEIGHT // 2)
+
+                # cover the current display value with the updated value in green
+                cell_val = canvas.create_text(*posVal, text=str(cur.key), font=FOUND_FONT, fill=FOUND_COLOR)
+
+                # add the green value to findDisplayObjects for cleanup later
+                findDisplayObjects.append(cell_val)
+
+                # update the display
+                window.update()
+
+                cleanup += findDisplayObjects
+                return pos
+
+            # if the value hasn't been found, wait 1 second, and then move the arrow over one cell
+            time.sleep(self.speed(1))
+            cur=cur.next
+            pos+=1
+            x = pos % LEN_ROW * (CELL_WIDTH + CELL_GAP) + LL_X0 + CELL_WIDTH / 2
+            y = pos // LEN_ROW * (CELL_HEIGHT + ROW_GAP) + LL_Y0
+            canvas.delete(arrow)
+            arrow = canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
+            findDisplayObjects.append(arrow)
+
+            if not running:
+                break
+
+        cleanup += findDisplayObjects
+        return None
+
     def display_neatly(self):
         canvas.delete("all")
         n = self.first
@@ -225,7 +274,15 @@ def cleanUp():
 
 # Button functions
 def clickFind():
-    pass
+    entered_text = textBox.get()
+    if entered_text:
+        val = int(entered_text)
+        result = ll.clickFind(val)
+        if result != None:
+            txt = "Found!"
+        else:
+            txt = "Value not found"
+        outputText.set(txt)
 
 def clickInsert():
     if window.insert_button_counter == 0:
