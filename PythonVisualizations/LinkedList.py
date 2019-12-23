@@ -402,3 +402,6 @@ Useful Links:
 http://effbot.org/zone/tkinter-complex-canvas.htm
 https://mail.python.org/pipermail/python-list/2000-December/022013.html
 '''
+
+# TODO:
+# Find is working, insert and delete are not
