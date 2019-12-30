@@ -1,37 +1,47 @@
 from tkinter import *
-from AnimationMethods import *
-WIDTH = 800
+import time
+
+WIDTH = 1000
 HEIGHT = 400
 
-CELL_SIZE = 50
-CELL_BORDER = 2
-ARRAY_X0 = 100
-ARRAY_Y0 = 100
+CIRCLE_SIZE = 15
+ROOT_X0 = WIDTH/2
+NODE_X_GAP = 400
+NODE_Y_GAP = 75
+ROOT_Y0 = 40
 OPERATIONS_BG = 'beige'
 OPERATIONS_BORDER = 'black'
-FONT_SIZE = '20'
+FONT_SIZE = '16'
 VALUE_FONT = ('Helvetica', FONT_SIZE)
 VALUE_COLOR = 'black'
 FOUND_FONT = ('Helvetica', FONT_SIZE)
 FOUND_COLOR = 'green2'
 CONTROLS_FONT = ('none', '14')
+MAX_LEVEL = 5
+ARROW_HEIGHT = 30
+from enum import Enum
+
+class Child(Enum):
+    LEFT = 0
+    RIGHT = 1
 
 class Node(object):
     # create a tree node consisting of a key/data pair
-    def __init__(self, k, d):
+    def __init__(self, k, coords, id = None):
         self.key = k
-        self.data = d
         self.leftChild = None
         self.rightChild = None
+        self.id = id
+        self.coords = coords
 
     def __str__(self):
-        return "{" + self.key + " , " + self.data + "}"
+        return "{" + str(self.key) + "}"
 
 
 class Tree(object):
     def __init__(self, size=0):
         self.__root = None
-        self.__nElems = 0
+        self.nElems = 0
         self.size = size
 
     #Fill the tree with n nodes
@@ -55,33 +65,84 @@ class Tree(object):
 
         return current.data if current else None
 
+    def insertElem(self, k, animation = True):
+        global cleanup, running
+        running = True
+        findDisplayObjects = []
+        inserted = False
 
-    def insert(self, k, d):
         # if tree is empty, then initialize root to the new node
         if not self.__root:
-            self.__root = Node(k, d)
+            self.__root = self.insertChildNode(k, None, 0, None)
+            self.nElems+=1
             return True
 
-        cur = self.__root  # start at the root
+        # start at the root
+        cur = self.__root
+        if animation:
+            arrow = canvas.create_line(ROOT_X0, ROOT_Y0 -CIRCLE_SIZE-ARROW_HEIGHT,
+                                       ROOT_X0, ROOT_Y0-CIRCLE_SIZE, arrow=LAST, fill='red', tag=id)
+            findDisplayObjects.append(arrow)
+            time.sleep(self.speed(1))
 
-        while k != cur.key:
+        level = 1
+
+        while not inserted:
+            window.update()
             # if the key is to the left of current node, follow to the left
             if k < cur.key:
                 # if no left child, insert on left
                 if not cur.leftChild:
-                    cur.leftChild = Node(k, d)
-                    self.__nElems += 1
-                    return True
+                    cur.leftChild = self.insertChildNode(k, cur, level, Child.LEFT)
+                    inserted = True
                 cur = cur.leftChild
 
             else:  # otherwise, key must be to right of current node
                 if not cur.rightChild:
-                    cur.rightChild = Node(k, d)
-                    self.__nElems += 1
-                    return True
+                    cur.rightChild = self.insertChildNode(k, cur, level, Child.RIGHT)
+                    inserted = True
                 cur = cur.rightChild
 
-        return False  # the key is already there, so fail
+            if animation:
+                canvas.delete(arrow)
+                arrow = canvas.create_line(cur.coords[0], cur.coords[1]-CIRCLE_SIZE-ARROW_HEIGHT,
+                                           cur.coords[0], cur.coords[1]-CIRCLE_SIZE, arrow="last", fill='red')
+                findDisplayObjects.append(arrow)
+                time.sleep(self.speed(1))
+
+            level+=1
+
+            if level >= MAX_LEVEL and not inserted:
+                outputText.set("Error! Can't go down another level. Maximum depth of tree is " + str(MAX_LEVEL)) if animation else None
+                return False
+
+            if not running:
+                break
+
+        self.nElems += 1
+        cleanup += findDisplayObjects
+        outputText.set("Inserted") if animation else None
+        return True
+
+    def insertChildNode(self, k, parent, level, childDirection):
+        x,y = self.calculateCoordinates(parent, level, childDirection)
+        canvas.create_circle(x, y, CIRCLE_SIZE)
+        canvas.create_text(x,y, text=k, font=VALUE_FONT)
+        if level !=0:
+            x1 = parent.coords[0]
+            y1 = parent.coords[1] +CIRCLE_SIZE
+            x2 = x
+            y2 = y-CIRCLE_SIZE
+            canvas.create_line(x1, y1, x2, y2)
+        return Node(k, coords=(x,y))
+
+    def calculateCoordinates(self, parent, level, childDirection):
+        if level == 0:
+            return ROOT_X0, ROOT_Y0
+        elif childDirection == Child.LEFT:
+            return parent.coords[0] - 1/2**level* (NODE_X_GAP-CIRCLE_SIZE), ROOT_Y0+level* NODE_Y_GAP
+        else:
+            return parent.coords[0] + 1/2**level* (NODE_X_GAP-CIRCLE_SIZE), ROOT_Y0+level* NODE_Y_GAP
 
     def inOrderTraversal(self, cur):
         if cur:
@@ -91,6 +152,10 @@ class Tree(object):
 
     def delete(self, key):
         pass
+
+    # ANIMATION METHODS
+    def speed(self, sleepTime):
+        return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
 
     ######For testing purposes
     def printTree(self):
@@ -106,19 +171,41 @@ class Tree(object):
             if n.rightChild:
                 self.pTree(n.rightChild, "RIGHT:  ", indent + "    ")
 
+def clickInsert():
+    entered_text = textBox.get()
+    if entered_text:
+        val = int(entered_text)
+        if val < 100:
+            tree.insertElem(int(entered_text))
+        else:
+            outputText.set("Input value must be an integer from 0 to 99.")
+        textBox.delete(0, END)
 
-#What can be inserted in the textbox
-def validate():
+def clickFind():
     pass
 
+def clickFill():
+    pass
+
+def clickDelete():
+    pass
+
+#What can be inserted in the textbox
+def validate(action, index, value_if_allowed,
+             prior_value, text, validation_type, trigger_type, widget_name):
+    if text in '0123456789':
+        return True
+    else:
+        return False
+
 def makeButtons():
-    fillButton = Button(bottomframe, text="Fill", command= lambda: onClick(Tree.fill))
+    fillButton = Button(bottomframe, text="Fill", command= lambda: onClick(clickFill))
     fillButton.grid(row=1, column=0, padx=8, sticky=(E, W))
-    findButton = Button(bottomframe, text="Find", command= lambda: onClick(Tree.find))
+    findButton = Button(bottomframe, text="Find", command= lambda: onClick(clickFind))
     findButton.grid(row=1, column=1, padx=8, sticky=(E, W))
-    insertButton = Button(bottomframe, text="Insert", command= lambda: onClick(Tree.insert))
+    insertButton = Button(bottomframe, text="Insert", command= lambda: onClick(clickInsert))
     insertButton.grid(row=1, column=2, padx=8, sticky=(E, W))
-    deleteValueButton = Button(bottomframe, text="Delete", command= lambda: onClick(Tree.delete))
+    deleteValueButton = Button(bottomframe, text="Delete", command= lambda: onClick(clickDelete))
     deleteValueButton.grid(row=1, column=3, padx=8, sticky=(E, W))
 
     buttons = [findButton, insertButton, deleteValueButton]
@@ -178,6 +265,10 @@ def enableButtons():
     for button in buttons:
         button.config(state = NORMAL)
 
+def _create_circle(self, x, y, r, **kwargs):
+    return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
+Canvas.create_circle = _create_circle
+
 window = Tk()
 frame = Frame(window)
 frame.pack()
@@ -216,5 +307,9 @@ cleanup = []
 buttons = makeButtons()
 
 tree = Tree()
-
+import random
+nums = list(range(1, 99))
+random.shuffle(nums)
+while tree.nElems < 20 and nums:
+    tree.insertElem(nums.pop(), False)
 window.mainloop()
