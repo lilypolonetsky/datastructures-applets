@@ -43,6 +43,7 @@ class Tree(object):
         self.__root = None
         self.nElems = 0
         self.size = size
+        self.prevId = -1
 
     #Fill the tree with n nodes
     def fill(self, n):
@@ -51,19 +52,44 @@ class Tree(object):
     # find node with given key k
     # return the associated data or None
     def find(self, k):
+        global cleanup, running
+        running = True
+        findDisplayObjects = []
+
         # start at the root
-        current = self.__root
+        cur = self.__root
+        arrow = canvas.create_line(cur.coords[0], cur.coords[1] - CIRCLE_SIZE - ARROW_HEIGHT,
+                                   cur.coords[0], cur.coords[1] - CIRCLE_SIZE, arrow="last", fill='red')
+        findDisplayObjects.append(arrow)
+        canvas.update()
 
         # while we haven't found the key
-        while current and k != current.key:
+        while cur:
+            canvas.delete(arrow)
+            arrow = canvas.create_line(cur.coords[0], cur.coords[1] - CIRCLE_SIZE - ARROW_HEIGHT,
+                                       cur.coords[0], cur.coords[1] - CIRCLE_SIZE, arrow="last", fill='red')
+            findDisplayObjects.append(arrow)
+            canvas.update()
+            time.sleep(self.speed(1))
+
+            if cur.key == k:
+                foundText = canvas.create_text(cur.coords[0], cur.coords[1], text=cur.key, font=VALUE_FONT,
+                                               fill="green")
+                findDisplayObjects.append(foundText)
+
+                canvas.update()
+                cleanup += findDisplayObjects
+                return cur
+
             # go left ?
-            if k < current.key:
-                current = current.leftChild
+            if k < cur.key:
+                cur = cur.leftChild
             # go right
             else:
-                current = current.rightChild
+                cur = cur.rightChild
 
-        return current.data if current else None
+        cleanup+=findDisplayObjects
+        return None
 
     def insertElem(self, k, animation = True):
         global cleanup, running
@@ -81,7 +107,7 @@ class Tree(object):
         cur = self.__root
         if animation:
             arrow = canvas.create_line(ROOT_X0, ROOT_Y0 -CIRCLE_SIZE-ARROW_HEIGHT,
-                                       ROOT_X0, ROOT_Y0-CIRCLE_SIZE, arrow=LAST, fill='red', tag=id)
+                                       ROOT_X0, ROOT_Y0-CIRCLE_SIZE, arrow=LAST, fill='red')
             findDisplayObjects.append(arrow)
             time.sleep(self.speed(1))
 
@@ -114,6 +140,7 @@ class Tree(object):
 
             if level >= MAX_LEVEL and not inserted:
                 outputText.set("Error! Can't go down another level. Maximum depth of tree is " + str(MAX_LEVEL)) if animation else None
+                cleanup+=findDisplayObjects
                 return False
 
             if not running:
@@ -126,15 +153,17 @@ class Tree(object):
 
     def insertChildNode(self, k, parent, level, childDirection):
         x,y = self.calculateCoordinates(parent, level, childDirection)
-        canvas.create_circle(x, y, CIRCLE_SIZE)
-        canvas.create_text(x,y, text=k, font=VALUE_FONT)
+        id  = self.generate_id()
+
+        canvas.create_circle(x, y, CIRCLE_SIZE, tag = id)
+        canvas.create_text(x,y, text=k, font=VALUE_FONT, tag = id)
         if level !=0:
             x1 = parent.coords[0]
             y1 = parent.coords[1] +CIRCLE_SIZE
             x2 = x
             y2 = y-CIRCLE_SIZE
-            canvas.create_line(x1, y1, x2, y2)
-        return Node(k, coords=(x,y))
+            canvas.create_line(x1, y1, x2, y2, tag = id)
+        return Node(k, coords=(x,y), id = id)
 
     def calculateCoordinates(self, parent, level, childDirection):
         if level == 0:
@@ -143,6 +172,11 @@ class Tree(object):
             return parent.coords[0] - 1/2**level* (NODE_X_GAP-CIRCLE_SIZE), ROOT_Y0+level* NODE_Y_GAP
         else:
             return parent.coords[0] + 1/2**level* (NODE_X_GAP-CIRCLE_SIZE), ROOT_Y0+level* NODE_Y_GAP
+
+    # generate id for nodes
+    def generate_id(self):
+        self.prevId+=1
+        return "item" + str(self.prevId)
 
     def inOrderTraversal(self, cur):
         if cur:
@@ -179,10 +213,18 @@ def clickInsert():
             tree.insertElem(int(entered_text))
         else:
             outputText.set("Input value must be an integer from 0 to 99.")
-        textBox.delete(0, END)
+    textBox.delete(0, END)
 
 def clickFind():
-    pass
+    entered_text = textBox.get()
+    if entered_text:
+        val = int(entered_text)
+        if val < 100:
+            found = tree.find(int(entered_text))
+            outputText.set("Found!" if found else "Value not found")
+        else:
+            outputText.set("Input value must be an integer from 0 to 99.")
+    textBox.delete(0, END)
 
 def clickFill():
     pass

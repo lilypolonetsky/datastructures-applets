@@ -32,7 +32,6 @@ class Node(object):
     #id is used to link the different parts of each node visualization
     def __init__(self, k, n=None, id=None):
         self.key = k
-        self.id = id
         self.next = n  # reference to next item in list
 
     def __str__(self):
@@ -117,7 +116,8 @@ class LinkedList(object):
         self.first = newNode
 
     def generateId(self):
-        return "item" + str(self.prev_id + 1)
+        self.prev_id+=1
+        return "item" + str(self.prev_id)
 
     # ANIMATION METHODS
     def speed(self, sleepTime):
