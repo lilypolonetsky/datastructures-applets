@@ -32,6 +32,7 @@ class Node(object):
     #id is used to link the different parts of each node visualization
     def __init__(self, k, n=None, id=None):
         self.key = k
+        self.id = id
         self.next = n  # reference to next item in list
 
     def __str__(self):
