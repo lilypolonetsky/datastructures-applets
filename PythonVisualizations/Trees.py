@@ -62,7 +62,7 @@ class Tree(object):
 
     # find node with given key k
     # return the associated data or None
-    def find(self, k, flag="normal"):
+    def find(self, k):
         global cleanup, running
         running = True
         findDisplayObjects = []
@@ -91,8 +91,7 @@ class Tree(object):
 
                 canvas.update()
                 cleanup += findDisplayObjects
-                if flag == "normal": return cur
-                else: return cur,level
+                return cur
 
             # go left ?
             if k < cur.key:
@@ -300,9 +299,21 @@ class Tree(object):
         if cur == None: return
 
         # if the level of cur is unknown, find the level
-        if level == "begin": node, level = self.find(cur.key, flag="level")
-        #clean up the find arrow
-        cleanUp()
+        if level == "begin": 
+            level = 0
+            node = self.__root
+
+            # while we haven't found the key
+            while node:
+                if node.key == cur.key:
+                    break
+                # go left ?
+                if cur.key < node.key:
+                    node = node.leftChild
+                # go right
+                elif cur.key > node.key:
+                    node = node.rightChild
+                level += 1
 
         #remove the current node's representation from the canvas
         canvas.delete(cur.id)
@@ -328,34 +339,16 @@ class Tree(object):
     #             the node we want to "promote" is the key that is after the deleted key when all the keys are arranged in ascending order- this is the deleted node's right child's most left child
     #parameters: parent is the parent of the node to be deleted, node is the node being deleted, direction indicates if node is the right or left child of its parent
     def __promoteSuccessor(self, parent, node, direction):
-        global cleanup
-        findDisplayObjects = []
-
         successor = node.rightChild
         newParent = node
-
-        arrow = canvas.create_line(successor.coords[0], successor.coords[1] - CIRCLE_SIZE - ARROW_HEIGHT,
-                                       successor.coords[0], successor.coords[1] - CIRCLE_SIZE, arrow="last", fill='red')
-        findDisplayObjects.append(arrow)
-        canvas.update()
-        time.sleep(self.speed(1))
                 
         #hunt for the right child's most left child
         while successor.leftChild:
             newParent = successor
             successor = successor.leftChild
 
-            canvas.delete(arrow)
-            arrow = canvas.create_line(successor.coords[0], successor.coords[1] - CIRCLE_SIZE - ARROW_HEIGHT,
-                                       successor.coords[0], successor.coords[1] - CIRCLE_SIZE, arrow="last", fill='red')
-            findDisplayObjects.append(arrow)
-            canvas.update()
-            time.sleep(self.speed(1))
-
         #move the correct key to the deleted node's slot
         node.key = successor.key
-
-        cleanup += findDisplayObjects
 
         self.__reDraw(node, parent, direction)
         self.__delete(newParent, successor, direction)
