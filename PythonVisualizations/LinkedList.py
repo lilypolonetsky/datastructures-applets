@@ -88,12 +88,30 @@ class LinkedList(object):
     # the first node. Otherwise, attempt to find and delete
     # the first node containing key
     def delete(self, key=None):
+        global cleanup
+        findDisplayObjects = []
+
+        pos = 0
+        x = pos % LEN_ROW * (CELL_WIDTH + CELL_GAP) + LL_X0 + CELL_WIDTH / 2
+        y = pos // LEN_ROW * (CELL_HEIGHT + ROW_GAP) + LL_Y0
+        arrow = canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
+        findDisplayObjects.append(arrow)
+        window.update()
+
         # delete the first node?
         if (not key) or (self.first and key == self.first.key):
             ans = self.first
             if not ans: return None
             self.first = ans.next
-            return ans.key, ans.data
+
+            time.sleep(self.speed(1))
+            canvas.delete(ans.id)
+            canvas.delete(arrow)
+            canvas.update()
+            time.sleep(self.speed(1))
+            self.display_neatly()
+
+            return ans.key
 
         # loop until we hit end, or find key,
         # keeping track of previously visited node
@@ -102,13 +120,30 @@ class LinkedList(object):
             prev = cur
             cur = cur.next
 
+            time.sleep(self.speed(1))
+            pos+=1
+            x = pos % LEN_ROW * (CELL_WIDTH + CELL_GAP) + LL_X0 + CELL_WIDTH / 2
+            y = pos // LEN_ROW * (CELL_HEIGHT + ROW_GAP) + LL_Y0
+            canvas.delete(arrow)
+            arrow = canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
+            findDisplayObjects.append(arrow)
+            window.update()
+
         # A node with this key isn't on list
         if not cur: return None
 
         # otherwise remove the node from the list and
         # return the key/data pair of the found node
         prev.next = cur.next
+        
+        time.sleep(self.speed(1))
+        canvas.delete(arrow)
+        canvas.delete(cur.id)
+        canvas.update()
+        time.sleep(self.speed(1))
+        self.display_neatly()
 
+        cleanup += findDisplayObjects
         return cur.key
 
     # insert a key/data pair at the start of the list
@@ -311,7 +346,16 @@ def clickInsert():
 
 
 def clickDelete():
-    pass
+    entered_text = textBox.get()
+    if entered_text: val = int(entered_text)
+    else: val = None
+
+    result = ll.delete(val)
+    if result != None:
+        txt = "Deleted!"
+    else:
+        txt = "Value not found"
+    outputText.set(txt)
 
 def close_window():
     window.destroy()
