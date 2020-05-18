@@ -30,5 +30,5 @@ class drawable(object):      # A record describing a drawable Tk object
         raise ValueError
     
     palette = ['indianRed2', 'PaleGreen2', 'SkyBlue2', 'orange2',
-               'yellow2', 'cyan2', 'magenta2', 'DodgerBlue2',
-               'turquoise2', 'slate gray', 'gold', 'pink']
+               'yellow2', 'magenta2', 'cyan2', 'DodgerBlue2',
+               'turquoise3', 'slate gray', 'gold', 'pink']
