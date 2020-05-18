@@ -1,9 +1,9 @@
 class drawable(object):      # A record describing a drawable Tk object
     def __init__(            # Constructor
-            self, val=None,  # Internal value
-            color=None,      # Background color to display
-            display_shape=None, # Shape to display
-            display_val=None): # Value to display
+            self, val=None,  # Value in data structure to be displayed
+            color=None,      # Background color to use
+            display_shape=None, # Tk display object for background
+            display_val=None): # Tk display object for value
         self.val = val       # Store initial arguments
         self.color = color
         self.display_shape = display_shape
