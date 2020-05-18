@@ -1,7 +1,7 @@
 import random
 import time
 from tkinter import *
-from recordclass import recordclass
+from drawable import *
 
 WIDTH = 800
 HEIGHT = 400
@@ -23,11 +23,6 @@ def add_vector(v1, v2):
     return tuple(map(lambda x, y: x + y, v1, v2))
 
 class Array(object):
-    Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
-    Element.__new__.__defaults__ = (None,) * len(Element.__fields__)
-
-    colors = ['red', 'green', 'blue', 'orange', 'yellow', 'cyan', 'magenta',
-              'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
     nextColor = 0
 
     def __init__(self, size=10):
@@ -50,13 +45,13 @@ class Array(object):
 
     def get(self, index):
         try:
-            return self.list[index][0]
+            return self.list[index].val
         except:
             print("Invalid list index")
             return -1
 
     def set(self, index, val):
-        # reset the value of the Element at that index to val
+        # reset the value of the Drawable at that index to val
         self.list[index].val = val
 
         # get the position of the displayed value
@@ -64,27 +59,33 @@ class Array(object):
 
         # delete the displayed value and replace it with the updated value
         canvas.delete(self.list[index].display_val)
-        self.list[index].display_val = canvas.create_text(pos[0], pos[1], text=str(val), font=VALUE_FONT, fill=VALUE_COLOR)
+        self.list[index].display_val = canvas.create_text(
+            pos[0], pos[1], text=str(val), font=VALUE_FONT, fill=VALUE_COLOR)
 
         # update window
         window.update()
 
     def append(self, val):
         # create new cell and cell value display objects
-        cell = canvas.create_rectangle(*self.cellCoords(len(self.list)), fill=Array.colors[Array.nextColor], outline='')
-        cell_val = canvas.create_text(*self.cellCenter(len(self.list)), text=val, font=VALUE_FONT, fill=VALUE_COLOR)
+        cell = canvas.create_rectangle(
+            *self.cellCoords(len(self.list)), 
+            fill=drawable.palette[Array.nextColor], outline='')
+        cell_val = canvas.create_text(
+            *self.cellCenter(len(self.list)), text=val,
+            font=VALUE_FONT, fill=VALUE_COLOR)
 
-        # add a new Element to the list with the new value, color, and display objects
-        self.list.append(Array.Element(val, Array.colors[Array.nextColor], cell, cell_val))
+        # add a new Drawable to the list with the new value, color, and display objects
+        self.list.append(drawable(val, drawable.palette[Array.nextColor], 
+                                  cell, cell_val))
 
         # increment nextColor
-        Array.nextColor = (Array.nextColor + 1) % len(Array.colors)
+        Array.nextColor = (Array.nextColor + 1) % len(drawable.palette)
 
         # update window
         window.update()
 
     def removeFromEnd(self):
-        # pop an Element from the list
+        # pop a Drawable from the list
         n = self.list.pop()
 
         # delete the associated display objects
@@ -104,9 +105,11 @@ class Array(object):
         posFromCellVal = canvas.coords(self.list[fromIndex].display_val)
 
         # create new display objects that are copies of the "from" cell and value
-        newCellShape = canvas.create_rectangle(*posFromCell, fill=self.list[fromIndex][1], outline='')
-        newCellVal = canvas.create_text(*posFromCellVal, text=self.list[fromIndex][0],
-                                        font=VALUE_FONT, fill=VALUE_COLOR)
+        newCellShape = canvas.create_rectangle(
+            *posFromCell, fill=self.list[fromIndex].color, outline='')
+        newCellVal = canvas.create_text(
+            *posFromCellVal, text=self.list[fromIndex].val,
+            font=VALUE_FONT, fill=VALUE_COLOR)
 
         # set xspeed to move in the correct direction
         xspeed = 1
@@ -154,14 +157,17 @@ class Array(object):
                                                  CELL_BORDER - half_border, CELL_BORDER - half_border)),
                                     fill='white', outline='black', width=CELL_BORDER)
 
-        # go through each Element in the list
+        # go through each Drawable in the list
         for i, n in enumerate(self.list):
             # print(n)
-            # create display objects for the associated Elements
-            cell = canvas.create_rectangle(*self.cellCoords(i), fill=n[1], outline='', width=0)
-            cell_val = canvas.create_text(*self.cellCenter(i), text=n[0], font=VALUE_FONT, fill=VALUE_COLOR)
+            # create display objects for the associated Drawables
+            cell = canvas.create_rectangle(
+                *self.cellCoords(i), fill=n.color, outline='', width=0)
+            cell_val = canvas.create_text(
+                *self.cellCenter(i), text=n.val, font=VALUE_FONT,
+                fill=VALUE_COLOR)
 
-            # save the display objects to the appropriate attributes of the Element object
+            # save the display objects to the appropriate attributes of the Drawable object
             n.display_shape = cell
             n.display_val = cell_val
 
@@ -183,7 +189,7 @@ class Array(object):
         arrow = canvas.create_line(x, y0, x, y1, arrow="last", fill='red')
         findDisplayObjects.append(arrow)
 
-        # go through each Element in the list
+        # go through each Drawable in the list
         for i in range(len(self.list)):
             window.update()
 
@@ -196,8 +202,10 @@ class Array(object):
                 posVal = canvas.coords(n.display_val)
 
                 # cover the current display value with the updated value in green
-                #cell_shape = canvas.create_rectangle(posCell[0], posCell[1], posCell[2], posCell[3], fill=n[1])
-                cell_val = canvas.create_text(*posVal, text=str(val), font=FOUND_FONT, fill=FOUND_COLOR)
+                #cell_shape = canvas.create_rectangle(
+                #  posCell[0], posCell[1], posCell[2], posCell[3], fill=n[1])
+                cell_val = canvas.create_text(
+                    *posVal, text=str(val), font=FOUND_FONT, fill=FOUND_COLOR)
 
                 # add the green value to findDisplayObjects for cleanup later
                 #findDisplayObjects.append(cell_shape)
