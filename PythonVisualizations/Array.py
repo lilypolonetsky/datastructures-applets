@@ -1,8 +1,12 @@
 import random
 import time
 from tkinter import *
-from drawable import *
-from VisualizationApp import *
+try:
+    from drawable import *
+    from VisualizationApp import *
+except ModuleNotFoundError:
+    from .drawable import *
+    from .VisualizationApp import *
 
 CELL_SIZE = 50
 CELL_BORDER = 2
@@ -20,10 +24,8 @@ def add_vector(v1, v2):
 class Array(VisualizationApp):
     nextColor = 0
 
-    def __init__(self, size=10, title="Array Visualization",
-                 canvasWidth=800, canvasHeight=400):
-        super().__init__(
-            title=title, canvasWidth=canvasWidth, canvasHeight=canvasHeight)
+    def __init__(self, size=10, **kwargs):
+        super().__init__(**kwargs)
         self.list = []
         self.size = size
         self.foundCellValue = None
@@ -292,7 +294,7 @@ class Array(VisualizationApp):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            result = array.find(val)
+            result = self.find(val)
             if result != None:
                 msg = "Found {}!".format(val)
             else:
