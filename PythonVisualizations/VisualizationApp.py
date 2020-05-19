@@ -26,7 +26,7 @@ def gridDict(frame):
              for s in slaves],
             slaves))
 
-class base(object):          # Base class for Python visualizations
+class VisualizationApp(object): # Base class for Python visualizations
     def __init__(            # Constructor
             self, 
             window=None,     # Run visualization within given window

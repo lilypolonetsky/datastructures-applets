@@ -2,7 +2,7 @@ import random
 import time
 from tkinter import *
 from drawable import *
-from base import *
+from VisualizationApp import *
 
 CELL_SIZE = 50
 CELL_BORDER = 2
@@ -17,7 +17,7 @@ FOUND_COLOR = 'green2'
 def add_vector(v1, v2):
     return tuple(map(lambda x, y: x + y, v1, v2))
 
-class Array(base):
+class Array(VisualizationApp):
     nextColor = 0
 
     def __init__(self, size=10, title="Array Visualization",
@@ -28,6 +28,11 @@ class Array(base):
         self.size = size
         self.foundCellValue = None
         self.indexArrow = None
+        self.buttons = self.makeButtons()
+        
+        for i in range(9):
+            self.insert(random.randrange(90))
+        self.display()
 
     def __str__(self):
         return str(self.list)
@@ -328,12 +333,8 @@ def numericValidate(action, index, value_if_allowed,
         return False
 
 if __name__ == '__main__':
+    random.seed(3.14159)    # Use fixed seed for testing consistency
     array = Array()
-    array.makeButtons()
-
-    for i in range(9):
-        array.insert(i)
-    array.display()
 
     array.runVisualization()
 
