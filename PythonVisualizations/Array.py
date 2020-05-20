@@ -18,12 +18,7 @@ VALUE_COLOR = 'black'
 FOUND_FONT = ('Helvetica', FONT_SIZE)
 FOUND_COLOR = 'green2'
 
-def add_vector(v1, v2):
-    return tuple(map(lambda x, y: x + y, v1, v2))
-
 class Array(VisualizationApp):
-    nextColor = 0
-
     def __init__(self, size=10, **kwargs):
         super().__init__(**kwargs)
         self.list = []
@@ -33,19 +28,15 @@ class Array(VisualizationApp):
         self.buttons = self.makeButtons()
         
         for i in range(9):
-            self.insert(random.randrange(90))
+            self.insert(random.randrange(90), animate=False)
         self.display()
+
+    nextColor = 0
 
     def __str__(self):
         return str(self.list)
 
     # ARRAY FUNCTIONALITY
-    def isSorted(self):
-        for i in range(1, len(self.list)):
-            if self.list[i] < self.list[i-1]:
-                return False
-        return True
-
     def get(self, index):
         try:
             return self.list[index].val
@@ -77,19 +68,35 @@ class Array(VisualizationApp):
         self.indexArrow = self.canvas.create_line(
             x, y0, x, y1, arrow="last", fill='red')
         
-    def insert(self, val):
+    def insert(self, val, animate=True):
         self.clearPastOperations()
         self.createIndexArrow(len(self.list))
 
         # create new cell and cell value display objects
-        cell = self.canvas.create_rectangle(
-            *self.cellCoords(len(self.list)), 
-            fill=drawable.palette[Array.nextColor], outline='')
-        cell_val = self.canvas.create_text(
-            *self.cellCenter(len(self.list)), text=val,
-            font=VALUE_FONT, fill=VALUE_COLOR)
+        toPositions = (self.cellCoords(len(self.list)), 
+                       self.cellCenter(len(self.list)))
 
-        # add a new Drawable to the list with the new value, color, and display objects
+        # Animate arrival of new value from operations panel area
+        if animate:
+            startPosition = [
+                int(self.canvas.config('width')[-1]) // 2,
+                int(self.canvas.config('height')[-1])]
+            cell = self.canvas.create_rectangle(
+                *startPosition, *add_vector(startPosition, [CELL_SIZE] * 2),
+                fill=drawable.palette[Array.nextColor], outline='')
+            cell_val = self.canvas.create_text(
+                *add_vector(startPosition, [CELL_SIZE // 2] * 2), text=val,
+                font=VALUE_FONT, fill=VALUE_COLOR)
+            self.moveItems((cell, cell_val), toPositions, steps=CELL_SIZE,
+                           sleepTime=0.01)
+        else:
+            cell = self.canvas.create_rectangle(
+                *toPositions[0], fill=drawable.palette[Array.nextColor], 
+                outline='')
+            cell_val = self.canvas.create_text(
+                *toPositions[1], text=val, font=VALUE_FONT, fill=VALUE_COLOR)
+
+        # add a new Drawable with the new value, color, and display objects
         self.list.append(drawable(val, drawable.palette[Array.nextColor], 
                                   cell, cell_val))
 
@@ -115,33 +122,19 @@ class Array(VisualizationApp):
         self.window.update()
 
     def assignElement(self, fromIndex, toIndex):
+        fromItem = self.list[fromIndex]
+        toItem = self.list[toIndex]
+        
+        # get positions of "to" cell in array
+        toPositions = (self.cellCoords(toIndex), self.cellCenter(toIndex))
 
-        # get position of "to" cell
-        posToCell = self.canvas.coords(self.list[toIndex].display_shape)
+        # create new display objects as copies of the "from" cell and value
+        newCell = self.copyCanvasItem(fromItem.display_shape)
+        newCellVal = self.copyCanvasItem(fromItem.display_val)
 
-        # get position of "from" cell and value
-        posFromCell = self.canvas.coords(self.list[fromIndex].display_shape)
-        posFromCellVal = self.canvas.coords(self.list[fromIndex].display_val)
-
-        # create new display objects that are copies of the "from" cell and value
-        newCellShape = self.canvas.create_rectangle(
-            *posFromCell, fill=self.list[fromIndex].color, outline='')
-        newCellVal = self.canvas.create_text(
-            *posFromCellVal, text=self.list[fromIndex].val,
-            font=VALUE_FONT, fill=VALUE_COLOR)
-
-        # set xspeed to move in the correct direction
-        xspeed = 1
-        if fromIndex > toIndex:
-            xspeed = -xspeed
-        distance = abs(int(posToCell[0] - posFromCell[0]))
-
-        # move the new display objects until they are in the position of the "to" cell
-        for i in range(distance):
-            self.canvas.move(newCellShape, xspeed, 0)
-            self.canvas.move(newCellVal, xspeed, 0)
-            self.window.update()
-            time.sleep(self.speed(0.01))
+        # Move copies to the desired location
+        self.moveItems((newCell, newCellVal), toPositions, steps=CELL_SIZE,
+                       sleepTime=0.01)
 
         # delete the original "to" display value and the new display shape
         self.canvas.delete(self.list[toIndex].display_val)
@@ -150,7 +143,7 @@ class Array(VisualizationApp):
         # update value and display value in "to" position in the list
         self.list[toIndex].display_val = newCellVal
         self.list[toIndex].val = self.list[fromIndex].val
-        self.list[toIndex].display_shape = newCellShape
+        self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
 
         # update the window
@@ -161,23 +154,24 @@ class Array(VisualizationApp):
                 ARRAY_X0 + CELL_SIZE * (cell_index + 1) - CELL_BORDER,
                 ARRAY_Y0 + CELL_SIZE - CELL_BORDER)
 
-    def cellCenter(self, cell_index): # Center point for array cell at index
+    def cellCenter(self, index): # Center point for array cell at index
         half_cell = (CELL_SIZE - CELL_BORDER) // 2
-        return add_vector(self.cellCoords(cell_index), (half_cell, half_cell))
+        return add_vector(self.cellCoords(index), (half_cell, half_cell))
 
+    def createArrayCell(self, index): # Create a box representing an array cell
+        cell_coords = self.cellCoords(index)
+        half_border = CELL_BORDER // 2
+        self.canvas.create_rectangle(
+            *add_vector(cell_coords, 
+                        (-half_border, -half_border,
+                         CELL_BORDER - half_border, CELL_BORDER - half_border)),
+            fill='white', outline='black', width=CELL_BORDER)
+        
     def display(self):
         self.canvas.delete("all")
 
-        # print(self.size)
         for i in range(self.size):  # Draw grid of cells
-            cell_coords = self.cellCoords(i)
-            half_border = CELL_BORDER // 2
-            self.canvas.create_rectangle(
-                *add_vector(cell_coords, 
-                            (-half_border, -half_border,
-                             CELL_BORDER - half_border,
-                             CELL_BORDER - half_border)),
-                fill='white', outline='black', width=CELL_BORDER)
+            self.createArrayCell(i)
 
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
@@ -248,13 +242,12 @@ class Array(VisualizationApp):
             n = self.list[index]
 
             # Slide value rectangle up and off screen
-            while self.canvas.coords(n.display_shape)[3] > 0:
-                self.canvas.move(n.display_shape, 0, -1)
-                self.canvas.move(n.display_val, 0, -1)
-                self.window.update()
-                time.sleep(self.speed(0.01))
-
-            self.window.update()
+            items = (n.display_shape, n.display_val)
+            toPositions = [self.canvas.coords(i) for i in items]
+            toPositions[0][1] = - CELL_SIZE
+            toPositions[0][3] = 0
+            toPositions[1][1] = - (CELL_SIZE // 2)
+            self.moveItems(items, toPositions, sleepTime=0.01)
 
             # Slide values from right to left to fill gap
             for i in range(index+1, len(self.list)):
