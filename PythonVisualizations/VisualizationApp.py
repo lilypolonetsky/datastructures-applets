@@ -9,14 +9,37 @@ The control panel has containers for
  * A text message area for providing messages
 """
 
+import time
 from collections import *
 from tkinter import *
 
+# Default styles for display of values and operational controls
+FONT_SIZE = '20'
+VALUE_FONT = ('Helvetica', FONT_SIZE)
+VALUE_COLOR = 'black'
+FOUND_FONT = ('Helvetica', FONT_SIZE)
+FOUND_COLOR = 'green2'
 OPERATIONS_BG = 'beige'
 OPERATIONS_BORDER = 'black'
 CONTROLS_FONT = ('none', '14')
 
 scaleDefault = 100
+
+def add_vector(v1, v2):
+    return tuple(map(lambda x, y: x + y, v1, v2))
+
+def subtract_vector(v1, v2):
+    return tuple(map(lambda x, y: x - y, v1, v2))
+
+def divide_vector(v1, v2):  # v2 can be scalar
+    if not isinstance(v2, (list, tuple)):
+        v2 = [v2] * len(v1) # Copy scalar value for vector dimension
+    return tuple(map(lambda x, y: x / y, v1, v2))
+
+def multipy_vector(v1, v2):  # v2 can be scalar
+    if not isinstance(v2, (list, tuple)):
+        v2 = [v2] * len(v1) # Copy scalar value for vector dimension
+    return tuple(map(lambda x, y: x * y, v1, v2))
 
 def gridDict(frame):
     slaves = frame.grid_slaves()
@@ -141,7 +164,50 @@ class VisualizationApp(object): # Base class for Python visualizations
 
     def setMessage(self, val=''):
         self.outputText.set(val)
+
+    # CANVAS ITEM METHODS
+    def canvas_itemconfigure( # Get a dictionary with the canvas item's
+            self, canvasitem): # configuration
+        config = self.canvas.itemconfigure(canvasitem)
+        for key in config:   # Replace tuple values with the last item
+            if isinstance(config[key], tuple): # in tuple
+                config[key] = config[key][-1]
+        return config
+
+    def copyCanvasItem(      # Make a copy of an item in the canvas
+            self, canvasitem):
+        creator = getattr(self.canvas, # Get canvas creation function for type
+                          'create_{}'.format(self.canvas.type(canvasitem)))
+        return creator(*self.canvas.coords(canvasitem),
+                       **self.canvas_itemconfigure(canvasitem))
+
+    def moveItems(           # Animate canvas items moving from their current
+            self, items,     # location to destination locations along a line
+            toPositions,     # Can be a single item or list of items
+            steps=10,        # Number of intermediate steps along line
+            sleepTime=0.1):  # Base time between steps (adjusted by user)
+        if not isinstance(items, (list, tuple)):
+            items = tuple(items)
+        if not isinstance(toPositions, (list, tuple)):
+            raise ValueError('toPositions must be a list or tuple of positions')
+        if not isinstance(toPositions[0], (list, tuple)):
+            toPositions = tuple(toPositions)
+        moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
+                  for toPos, fromPos in zip(
+                          toPositions,
+                          map(lambda c: self.canvas.coords(c)[:2], items))]
+
+        # move the new items until they reach the toPositions
+        for step in range(steps):
+            for i, item in enumerate(items):
+                self.canvas.move(item, *moveBy[i])
+            self.window.update()
+            time.sleep(self.speed(sleepTime))
             
+        # Force position of new objects to their exact destinations
+        for pos, item in zip(toPositions, items):
+            self.canvas.coords(item, *pos)
+        
     # ANIMATION METHODS
     def speed(self, sleepTime):
         return (sleepTime * (scaleDefault + 50)) / (self.speedScale.get() + 50)
