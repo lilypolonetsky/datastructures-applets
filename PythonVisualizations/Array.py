@@ -15,16 +15,13 @@ ARRAY_Y0 = 100
 FONT_SIZE = '20'
 VALUE_FONT = ('Helvetica', FONT_SIZE)
 VALUE_COLOR = 'black'
-FOUND_FONT = ('Helvetica', FONT_SIZE)
-FOUND_COLOR = 'green2'
+FOUND_COLOR = 'brown4'
 
 class Array(VisualizationApp):
     def __init__(self, size=10, **kwargs):
         super().__init__(**kwargs)
         self.list = []
         self.size = size
-        self.foundCellValue = None
-        self.indexArrow = None
         self.buttons = self.makeButtons()
         
         for i in range(9):
@@ -59,18 +56,27 @@ class Array(VisualizationApp):
         # update window
         self.window.update()
 
-    def createIndexArrow(self, index):  # Create an arrow to point at an array
-        cell_coords = self.cellCoords(index) # cell at the given index
+    def createIndex(         # Create an index arrow to point at an indexed
+            self, index, name=None): # cell with an optional name label
+        cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
         x = cell_center[0]
         y0 = cell_coords[1] - CELL_SIZE * 4 // 5
         y1 = cell_coords[1] - CELL_SIZE * 3 // 10
-        self.indexArrow = self.canvas.create_line(
-            x, y0, x, y1, arrow="last", fill='red')
+        arrow = self.canvas.create_line(
+            x, y0, x, y1, arrow="last", fill=VARIABLE_COLOR)
+        if name:
+            label = self.canvas.create_text(
+                x + 2, y0, text=name, anchor=SW,
+                font=VARIABLE_FONT, fill=VARIABLE_COLOR)
+        return (arrow, label) if name else (arrow, )
         
     def insert(self, val, animate=True):
-        self.clearPastOperations()
-        self.createIndexArrow(len(self.list))
+        self.cleanUp()
+        # draw an index pointing to the last cell
+        if animate:
+            indexDisplay = self.createIndex(len(self.list))
+            self.cleanup.extend(indexDisplay)
 
         # create new cell and cell value display objects
         toPositions = (self.cellCoords(len(self.list)), 
@@ -87,7 +93,7 @@ class Array(VisualizationApp):
             cell_val = self.canvas.create_text(
                 *add_vector(startPosition, [CELL_SIZE // 2] * 2), text=val,
                 font=VALUE_FONT, fill=VALUE_COLOR)
-            self.moveItems((cell, cell_val), toPositions, steps=CELL_SIZE,
+            self.moveItemsTo((cell, cell_val), toPositions, steps=CELL_SIZE,
                            sleepTime=0.01)
         else:
             cell = self.canvas.create_rectangle(
@@ -106,8 +112,12 @@ class Array(VisualizationApp):
         # update window
         self.window.update()
 
+        # advance index for next insert
+        if animate:
+            self.moveItemsBy(indexDisplay, (CELL_SIZE, 0))
+
     def removeFromEnd(self):
-        self.clearPastOperations()
+        self.cleanUp()
         # pop a Drawable from the list
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
@@ -133,7 +143,7 @@ class Array(VisualizationApp):
         newCellVal = self.copyCanvasItem(fromItem.display_val)
 
         # Move copies to the desired location
-        self.moveItems((newCell, newCellVal), toPositions, steps=CELL_SIZE,
+        self.moveItemsTo((newCell, newCellVal), toPositions, steps=CELL_SIZE,
                        sleepTime=0.01)
 
         # delete the original "to" display value and the new display shape
@@ -189,18 +199,14 @@ class Array(VisualizationApp):
 
         self.window.update()
 
-    def clearPastOperations(self):  # Remove highlighting from past operations
-        for item in (self.indexArrow, self.foundCellValue):
-            self.canvas.delete(item)
-        self.setMessage()
-        
     def find(self, val):
         global running
         running = True
-        self.clearPastOperations()
+        self.cleanUp()
 
-        # draw an arrow over the first cell
-        self.createIndexArrow(0)
+        # draw an index for variable j pointing to the first cell
+        indexDisplay = self.createIndex(0, 'j')
+        self.cleanup.extend(indexDisplay)
 
         # go through each Drawable in the list
         for i in range(len(self.list)):
@@ -210,14 +216,15 @@ class Array(VisualizationApp):
 
             # if the value is found
             if n.val == val:
-                # get the position of the displayed cell and val
-                posVal = self.canvas.coords(n.display_val)
-
-                # cover the current display value with the updated value in green
-                #cell_shape = canvas.create_rectangle(
-                #  posCell[0], posCell[1], posCell[2], posCell[3], fill=n[1])
-                self.foundCellValue = self.canvas.create_text(
-                    *posVal, text=str(val), font=FOUND_FONT, fill=FOUND_COLOR)
+                # get the position of the displayed cell 
+                posVal = self.canvas.coords(n.display_shape)
+                
+                # Highlight the found element with a circle
+                self.cleanup.append(self.canvas.create_oval(
+                    *add_vector(
+                        posVal,
+                        (CELL_BORDER, CELL_BORDER, -CELL_BORDER, -CELL_BORDER)),
+                    outline=FOUND_COLOR))
 
                 # update the display
                 self.window.update()
@@ -226,7 +233,8 @@ class Array(VisualizationApp):
 
             # if the value hasn't been found, wait 1 second, and then move the arrow over one cell
             time.sleep(self.speed(1))
-            self.canvas.move(self.indexArrow, CELL_SIZE, 0)
+            for item in indexDisplay:
+                self.canvas.move(item, CELL_SIZE, 0)
 
             if not running:
                 break
@@ -237,7 +245,7 @@ class Array(VisualizationApp):
         index = self.find(val)
         if index != None:
             time.sleep(1)
-            self.clearPastOperations()
+            self.cleanUp()
 
             n = self.list[index]
 
@@ -247,11 +255,16 @@ class Array(VisualizationApp):
             toPositions[0][1] = - CELL_SIZE
             toPositions[0][3] = 0
             toPositions[1][1] = - (CELL_SIZE // 2)
-            self.moveItems(items, toPositions, sleepTime=0.01)
+            self.moveItemsTo(items, toPositions, sleepTime=0.02)
 
+            # Create an index for shifting the cells
+            kIndex = self.createIndex(index, 'k')
+            self.cleanup.extend(kIndex)
+            
             # Slide values from right to left to fill gap
             for i in range(index+1, len(self.list)):
                 self.assignElement(i, i-1)
+                self.moveItemsBy(kIndex, (CELL_SIZE, 0), sleepTime=0.01)
 
             self.removeFromEnd()
             return True
@@ -304,6 +317,7 @@ class Array(VisualizationApp):
                 self.setMessage("Error! Array is already full.")
             else:
                 array.insert(val)
+                self.setMessage("Value {} inserted".format(val))
         self.clearArgument()
 
     def clickDelete(self):
@@ -318,14 +332,6 @@ class Array(VisualizationApp):
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)
         self.clearArgument()
-
-# validate text entry
-def numericValidate(action, index, value_if_allowed,
-             prior_value, text, validation_type, trigger_type, widget_name):
-    if text in '0123456789':
-        return True
-    else:
-        return False
 
 if __name__ == '__main__':
     random.seed(3.14159)    # Use fixed seed for testing consistency
