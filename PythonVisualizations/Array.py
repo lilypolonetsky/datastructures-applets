@@ -132,15 +132,14 @@ class Array(VisualizationApp):
         self.window.update()
 
     def assignElement(self, fromIndex, toIndex):
-        fromItem = self.list[fromIndex]
-        toItem = self.list[toIndex]
+        fromDrawable = self.list[fromIndex]
         
         # get positions of "to" cell in array
         toPositions = (self.cellCoords(toIndex), self.cellCenter(toIndex))
 
         # create new display objects as copies of the "from" cell and value
-        newCell = self.copyCanvasItem(fromItem.display_shape)
-        newCellVal = self.copyCanvasItem(fromItem.display_val)
+        newCell = self.copyCanvasItem(fromDrawable.display_shape)
+        newCellVal = self.copyCanvasItem(fromDrawable.display_val)
 
         # Move copies to the desired location
         self.moveItemsTo((newCell, newCellVal), toPositions, steps=CELL_SIZE,
