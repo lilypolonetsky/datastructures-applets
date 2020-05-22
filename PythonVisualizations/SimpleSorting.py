@@ -122,31 +122,35 @@ class SimpleArraySort(VisualizationApp):
         upDelta = delta + delta
         downDelta = multiply_vector(upDelta, -1)
         if a == b:         # Swapping with self - just move up & down
-            self.moveItemsBy(itemsA, upDelta, sleepTime=0.01)
-            self.moveItemsBy(itemsA, downDelta, sleepTime=0.01)
+            self.moveItemsBy(itemsA, upDelta, sleepTime=0.02)
+            self.moveItemsBy(itemsA, downDelta, sleepTime=0.02)
             return
 
         # make a and b cells plus their associated items switch places
         self.moveItemsOnCurve(
             itemsA + itemsB, [self.canvas.coords(i) for i in itemsB + itemsA],
-            sleepTime=0.01)
+            sleepTime=0.05)
 
         # perform the actual cell swap operation in the list
         self.list[a], self.list[b] = self.list[b], self.list[a]
 
     def createIndex(         # Create an index arrow to point at an indexed
-            self, index, name=None): # cell with an optional name label
+            self, index,     # cell
+            name=None,       # with an optional name label
+            level=1,         # at a particular level away from the cells
+            color=VARIABLE_COLOR): # with a particular color
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
+        level_spacing = VARIABLE_FONT[1] 
         x = cell_center[0]
-        y0 = cell_coords[1] - CELL_SIZE * 4 // 5
+        y0 = cell_coords[1] - CELL_SIZE * 3 // 5 - level * level_spacing
         y1 = cell_coords[1] - CELL_SIZE * 3 // 10
         arrow = self.canvas.create_line(
-            x, y0, x, y1, arrow="last", fill=VARIABLE_COLOR)
+            x, y0, x, y1, arrow="last", fill=color)
         if name:
             label = self.canvas.create_text(
                 x + 2, y0, text=name, anchor=SW,
-                font=VARIABLE_FONT, fill=VARIABLE_COLOR)
+                font=VARIABLE_FONT, fill=color)
         return (arrow, label) if name else (arrow, )
 
     def insert(self, val, animate=True):
@@ -393,49 +397,42 @@ class SimpleArraySort(VisualizationApp):
 
     def bubbleSort(self):
         self.running = True
+        self.cleanUp()
         n = len(self.list)
 
-        # make a done arrow that points to 0'th element
-        x = ARRAY_X0 + (CELL_SIZE / 2)
-        y0 = ARRAY_Y0 + CELL_SIZE + 15
-        y1 = ARRAY_Y0 + CELL_SIZE + 40
-        outerArrow = self.canvas.create_line(x, y0, x, y1, arrow="first", fill='red')
+        # make an index arrow that points to last unsorted element
+        last = n - 1
+        lastIndex = self.createIndex(last, "last", level=2)
+        self.cleanup.extend(lastIndex)
 
-
-        # Traverse through all array elements
-        for i in range(n):
-
-            innerArrow = self.canvas.create_line(x, y0, x, y1, arrow="first", fill='blue')
-
-            # Last i elements are already in place
-            for j in range(0, n - i - 1):
-
-                time.sleep(self.speed(0.5))
-
-                # traverse the array from 0 to n-i-1
-                # Swap if the element found is greater
-                # than the next element
-                if self.list[j].val > self.list[j+1].val:
-                    #arr[j], arr[j + 1] = arr[j + 1], arr[j]
-                    self.swap(j, j+1)
-
-                self.canvas.move(innerArrow, CELL_SIZE, 0)
+        # make an index arrow that points to the next cell to check
+        innerIndex = self.createIndex(0, "inner", level=1)
+        self.cleanup.extend(innerIndex)
+        
+        # While unsorted cells remain
+        while last > 0:
+            for inner in range(last):
+                # Move inner index arrow to cell to check
+                centerX0 = self.cellCenter(inner)[0]
+                deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+                if deltaX != 0:
+                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
+                    
+                # Compare cell value at inner index with the next value
+                if self.list[inner].val > self.list[inner+1].val:
+                    self.swap(inner, inner+1)
+                else:
+                    time.sleep(self.speed(0.4))
 
                 if not self.running:
-                    self.canvas.delete(innerArrow)
                     break
-
-            time.sleep(self.speed(0.5))
-            self.canvas.delete(innerArrow)
 
             if not self.running:
                 break
 
-            # move done arrow to next element
-            self.canvas.move(outerArrow, CELL_SIZE, 0)
-
-        self.canvas.delete(outerArrow)
-        self.fixGaps()
+            # move last index one lower
+            last -= 1
+            self.moveItemsBy(lastIndex, (-CELL_SIZE, 0), sleepTime=0.05)
 
         # Animation stops
         self.running = False
