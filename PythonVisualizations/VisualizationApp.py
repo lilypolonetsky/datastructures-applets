@@ -197,7 +197,9 @@ class VisualizationApp(object): # Base class for Python visualizations
 
     def cleanUp(self):     # Remove Tk items from past operations
         while len(self.cleanup):
-            self.canvas.delete(self.cleanup.pop())
+            thing = self.cleanup.pop()
+            if isinstance(thing, (str, int)):
+                self.canvas.delete(thing)
         self.setMessage()  # Clear any messages
         
     # CANVAS ITEM METHODS

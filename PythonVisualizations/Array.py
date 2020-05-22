@@ -10,6 +10,7 @@ except ModuleNotFoundError:
 
 CELL_SIZE = 50
 CELL_BORDER = 2
+CELL_BORDER_COLOR = 'black'
 ARRAY_X0 = 100
 ARRAY_Y0 = 100
 FONT_SIZE = '20'
@@ -34,27 +35,6 @@ class Array(VisualizationApp):
         return str(self.list)
 
     # ARRAY FUNCTIONALITY
-    def get(self, index):
-        try:
-            return self.list[index].val
-        except:
-            print("Invalid list index")
-            return -1
-
-    def set(self, index, val):
-        # reset the value of the Drawable at that index to val
-        self.list[index].val = val
-
-        # get the position of the displayed value
-        pos = self.canvas.coords(self.list[index].display_val)
-
-        # delete the displayed value and replace it with the updated value
-        self.canvas.delete(self.list[index].display_val)
-        self.list[index].display_val = self.canvas.create_text(
-            pos[0], pos[1], text=str(val), font=VALUE_FONT, fill=VALUE_COLOR)
-
-        # update window
-        self.window.update()
 
     def createIndex(         # Create an index arrow to point at an indexed
             self, index, name=None): # cell with an optional name label
@@ -174,7 +154,8 @@ class Array(VisualizationApp):
             *add_vector(cell_coords, 
                         (-half_border, -half_border,
                          CELL_BORDER - half_border, CELL_BORDER - half_border)),
-            fill='white', outline='black', width=CELL_BORDER)
+            fill='white', outline=CELL_BORDER_COLOR, width=CELL_BORDER)
+
         
     def display(self):
         self.canvas.delete("all")
@@ -184,7 +165,6 @@ class Array(VisualizationApp):
 
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
-            # print(n)
             # create display objects for the associated Drawables
             cell = self.canvas.create_rectangle(
                 *self.cellCoords(i), fill=n.color, outline='', width=0)
@@ -230,7 +210,7 @@ class Array(VisualizationApp):
 
                 return i
 
-            # if the value hasn't been found, wait 1 second, and then move the arrow over one cell
+            # if not found, wait 1 second, and then move the index over one cell
             time.sleep(self.speed(1))
             for item in indexDisplay:
                 self.canvas.move(item, CELL_SIZE, 0)
@@ -292,7 +272,7 @@ class Array(VisualizationApp):
             val = int(entered_text)
             if val < 100:
                 return val
-        
+    
     # Button functions
     def clickFind(self):
         val = self.validArgument()
