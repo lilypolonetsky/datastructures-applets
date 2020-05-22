@@ -57,7 +57,7 @@ def showVisualizations(classes, start=None, verbose=0):
         notebook.add(pane, text=name)
         if start and start.lower() in (app.__name__.lower(), name.lower()):
             notebook.select(pane)
-    notebook.pack()
+    notebook.pack(expand=True, fill=BOTH)
     top.mainloop()
 
 if __name__ == '__main__':

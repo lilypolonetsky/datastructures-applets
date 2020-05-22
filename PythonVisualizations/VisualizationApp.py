@@ -77,10 +77,8 @@ class VisualizationApp(object): # Base class for Python visualizations
             self.window = Tk()
             if title:
                 self.window.title(title)
-        self._frame = Frame(self.window)
-        self._frame.pack()
         self.canvas = Canvas(
-            self._frame, width=canvasWidth, height=canvasHeight)
+            self.window, width=canvasWidth, height=canvasHeight)            
         self.canvas.pack(expand=True, fill=BOTH)
         self.setUpControlPanel()
 
@@ -98,32 +96,34 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.operations = Frame(self.operationsBorder, bg=OPERATIONS_BG)
         self.opSeparator = None
         self.operations.pack(side=LEFT)
-        self.operationsLower = Frame(self.controlPanel, padx=2, pady=5)
+        self.operationsLower = Frame(self.controlPanel)
         self.operationsLower.pack(side=TOP, fill=X)
+        self.operationsLowerCenter = Frame(self.operationsLower, padx=2, pady=5)
+        self.operationsLowerCenter.pack(side=TOP)
         
         self.speedControl = None
         self.speedScale = Scale(
-            self.operationsLower, from_=1, to=200, orient=HORIZONTAL,
+            self.operationsLowerCenter, from_=1, to=200, orient=HORIZONTAL,
             showvalue=False, sliderlength=20)
         self.speedScale.grid(row=0, column=1, sticky=W)
         self.speedScale.set(scaleDefault)
         self.slowLabel = Label(
-            self.operationsLower, text="Animation speed:  slow", 
+            self.operationsLowerCenter, text="Animation speed:  slow", 
             font=CONTROLS_FONT)
         self.slowLabel.grid(row=0, column=0, sticky=W)
         self.fastLabel = Label(
-            self.operationsLower, text="fast", font=CONTROLS_FONT)
+            self.operationsLowerCenter, text="fast", font=CONTROLS_FONT)
         self.fastLabel.grid(row=0, column=2, sticky=W)
         self.waitVar = BooleanVar()
         self.pauseButton = None
         self.outputText = StringVar()
         self.outputText.set('')
         self.message = Label(
-            self.operationsLower, textvariable=self.outputText,
+            self.operationsLowerCenter, textvariable=self.outputText,
             font=CONTROLS_FONT + ('italic',), fg="blue")
         self.message.grid(row=0, column=4, sticky=(E, W))
-        self.operationsLower.grid_columnconfigure(4, minsize=200)
-        self.operationsLower.grid_columnconfigure(3, minsize=10)
+        self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
+        self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
 
     def addOperation(        # Add a button to the operations control panel
             self,            # The button can be depedent on an argument
