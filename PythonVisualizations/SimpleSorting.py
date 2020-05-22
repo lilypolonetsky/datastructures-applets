@@ -16,14 +16,14 @@ CELL_BORDER = 2
 CELL_BORDER_COLOR = 'black'
 ARRAY_X0 = 100
 ARRAY_Y0 = 100
-FONT_SIZE = '20'
+FONT_SIZE = 20
 VALUE_FONT = ('Helvetica', FONT_SIZE)
 VALUE_COLOR = 'black'
 FOUND_COLOR = 'brown4'
 
 class SimpleArraySort(VisualizationApp):
     def __init__(self, size=10, title="Simple Sorting", **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(title=title, **kwargs)
         self.size = size
         self.title = title
         self.list = []
@@ -226,11 +226,13 @@ class SimpleArraySort(VisualizationApp):
     def createArrayCell(self, index): # Create a box representing an array cell
         cell_coords = self.cellCoords(index)
         half_border = CELL_BORDER // 2
-        self.canvas.create_rectangle(
+        rect = self.canvas.create_rectangle(
             *add_vector(cell_coords, 
                         (-half_border, -half_border,
                          CELL_BORDER - half_border, CELL_BORDER - half_border)),
             fill=None, outline=CELL_BORDER_COLOR, width=CELL_BORDER)
+        self.canvas.lower(rect)
+        return rect
 
     def display(self):
         self.canvas.delete("all")
