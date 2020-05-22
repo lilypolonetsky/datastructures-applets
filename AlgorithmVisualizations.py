@@ -55,10 +55,9 @@ def showVisualizations(classes, start=None, verbose=0):
         vizApp = app(window=pane)
         name = getattr(vizApp, 'title', app.__name__)
         notebook.add(pane, text=name)
-        if start and start in (app.__name__, name):
+        if start and start.lower() in (app.__name__.lower(), name.lower()):
             notebook.select(pane)
     notebook.pack()
-    print('Notebook tabs:', notebook.tabs())
     top.mainloop()
 
 if __name__ == '__main__':
