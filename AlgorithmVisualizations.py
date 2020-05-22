@@ -29,6 +29,9 @@ def findVisualizations(module, verbose=0):
                 module.__name__, name, type(this)), file=sys.stderr)
     return classes
 
+TAB_FONT = ('Calibri', 16)
+INTRO_FONT = ('Helvetica', 16)
+
 intro_msg = """
 Welcome to the algorithm visualizations for the book:
 Data Structures and Algorithms in Python
@@ -38,14 +41,24 @@ book to improve your understanding of how computers
 organize and manipulate data efficiently.
 
 Select tabs at the top to see the different data structures.
+
+
+The students of the Computer Science Department of
+Stern College at Yeshiva University
+developed these visualizations.
+https://www.yu.edu/stern/ug/computer-science
 """
 
-def showVisualizations(classes, start=None, verbose=0):
+def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
+        classes, start=None, title="Algorithm Visualizations", verbose=0):
     top = Tk()
+    top.title(title)
+    ttk.Style().configure("TNotebook.Tab", font=TAB_FONT,
+                          padding=[12, TAB_FONT[1] * 5 // 8, 12, 2])
     notebook = ttk.Notebook(top)
     intro = ttk.Frame(notebook)
     for line in intro_msg.split('\n'):
-        ttk.Label(intro, text=line).pack()
+        ttk.Label(intro, text=line, font=INTRO_FONT).pack()
     notebook.add(intro, state=NORMAL, text='Introduction', padding=8)
     for app in classes:
         if verbose > 1:
@@ -67,11 +80,14 @@ if __name__ == '__main__':
     parser.add_argument(
         '-s', '--start', 
         help='Starting tab.  '
-        'Should match one of the visualation module titles.')
+        'Should match one of the visualization module titles or class name.')
+    parser.add_argument(
+        '-t', '--title',  default='Algorithm Visualizations',
+        help='Title for top level window')
     parser.add_argument(
         '-v', '--verbose', action='count', default=0,
         help='Add verbose comments')
     args = parser.parse_args()
 
     showVisualizations(findVisualizations(PythonVisualizations, args.verbose),
-                       args.start)
+                       start=args.start, title=args.title)
