@@ -22,9 +22,10 @@ VALUE_COLOR = 'black'
 FOUND_COLOR = 'brown4'
 
 class SimpleArraySort(VisualizationApp):
-    def __init__(self, size=10, **kwargs):
-        super().__init__(title="Simple Sorting", **kwargs)
+    def __init__(self, size=10, title="Simple Sorting", **kwargs):
+        super().__init__(**kwargs)
         self.size = size
+        self.title = title
         self.list = []
 
         self.waitVar = BooleanVar()
@@ -153,7 +154,7 @@ class SimpleArraySort(VisualizationApp):
         # If array needs to grow, add cells:
         while self.size < len(self.list) + 1:
             self.size += 1
-            self.createArrayCell(self.size)
+            self.createArrayCell(len(self.list))
 
         # draw an index pointing to the last cell
         if animate:
@@ -229,7 +230,7 @@ class SimpleArraySort(VisualizationApp):
             *add_vector(cell_coords, 
                         (-half_border, -half_border,
                          CELL_BORDER - half_border, CELL_BORDER - half_border)),
-            fill='white', outline=CELL_BORDER_COLOR, width=CELL_BORDER)
+            fill=None, outline=CELL_BORDER_COLOR, width=CELL_BORDER)
 
     def display(self):
         self.canvas.delete("all")
@@ -577,11 +578,8 @@ class SimpleArraySort(VisualizationApp):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            if len(array.list) >= array.size:
-                self.setMessage("Error! Array is already full.")
-            else:
-                array.insert(val)
-                self.setMessage("Value {} inserted".format(val))
+            self.insert(val)
+            self.setMessage("Value {} inserted".format(val))
         self.clearArgument()
 
     def stop(self, pauseButton): # will stop after the current shuffle is done

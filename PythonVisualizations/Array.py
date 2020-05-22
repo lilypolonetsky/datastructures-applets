@@ -19,10 +19,11 @@ VALUE_COLOR = 'black'
 FOUND_COLOR = 'brown4'
 
 class Array(VisualizationApp):
-    def __init__(self, size=10, **kwargs):
+    def __init__(self, size=10, title="Array", **kwargs):
         super().__init__(**kwargs)
-        self.list = []
         self.size = size
+        self.title = title
+        self.list = []
         self.buttons = self.makeButtons()
         
         for i in range(9):
@@ -154,7 +155,7 @@ class Array(VisualizationApp):
             *add_vector(cell_coords, 
                         (-half_border, -half_border,
                          CELL_BORDER - half_border, CELL_BORDER - half_border)),
-            fill='white', outline=CELL_BORDER_COLOR, width=CELL_BORDER)
+            fill=None, outline=CELL_BORDER_COLOR, width=CELL_BORDER)
 
     def display(self):
         self.canvas.delete("all")
@@ -291,10 +292,10 @@ class Array(VisualizationApp):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            if len(array.list) >= array.size:
+            if len(self.list) >= self.size:
                 self.setMessage("Error! Array is already full.")
             else:
-                array.insert(val)
+                self.insert(val)
                 self.setMessage("Value {} inserted".format(val))
         self.clearArgument()
 
@@ -303,7 +304,7 @@ class Array(VisualizationApp):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            result = array.remove(val)
+            result = self.remove(val)
             if result:
                 msg = "Value {} deleted!".format(val)
             else:
