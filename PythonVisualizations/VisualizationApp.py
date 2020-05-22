@@ -14,16 +14,16 @@ from collections import *
 from tkinter import *
 
 # Default styles for display of values and operational controls
-FONT_SIZE = '20'
+FONT_SIZE = 20
 VALUE_FONT = ('Helvetica', FONT_SIZE)
 VALUE_COLOR = 'black'
-VARIABLE_FONT = ('Courier', str(int(FONT_SIZE) * 8 // 10))
+VARIABLE_FONT = ('Courier', FONT_SIZE * 8 // 10)
 VARIABLE_COLOR = 'brown3'
 FOUND_FONT = ('Helvetica', FONT_SIZE)
 FOUND_COLOR = 'green2'
 OPERATIONS_BG = 'beige'
 OPERATIONS_BORDER = 'black'
-CONTROLS_FONT = ('none', '14')
+CONTROLS_FONT = ('none', 14)
 
 scaleDefault = 100
 
