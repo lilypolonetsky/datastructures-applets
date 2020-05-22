@@ -156,7 +156,6 @@ class Array(VisualizationApp):
                          CELL_BORDER - half_border, CELL_BORDER - half_border)),
             fill='white', outline=CELL_BORDER_COLOR, width=CELL_BORDER)
 
-        
     def display(self):
         self.canvas.delete("all")
 

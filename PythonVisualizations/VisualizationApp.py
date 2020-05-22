@@ -159,7 +159,7 @@ class VisualizationApp(object): # Base class for Python visualizations
         else:
             buttonRow = len(withoutArgument) % maxRows + 1
             button.grid(column=4 + len(withoutArgument) // maxRows,
-                        row=buttonRow, padx = 8)
+                        row=buttonRow, padx = 8, sticky=(E, W))
         if ((len(withoutArgument) if hasArgument else len(withArgument)) > 0 and
             not self.opSeparator): # If both kinds of buttons are present
             self.opSeparator = Frame( # but not a separator line, create one

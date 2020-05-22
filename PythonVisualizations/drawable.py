@@ -1,3 +1,6 @@
+import functools
+
+@functools.total_ordering
 class drawable(object):      # A record describing a drawable Tk object
     def __init__(            # Constructor
             self, val=None,  # Value in data structure to be displayed
@@ -28,6 +31,19 @@ class drawable(object):      # A record describing a drawable Tk object
         elif isinstance(key, str):
             return setattr(self, key, val)
         raise ValueError
+
+    def __eq__(self, other):  # Equality test between drawables
+        if self._is_valid_operand(other): # Only test value to preserve
+            return self.val == other.val  # sort stability
+        return NotImplemented
+
+    def __lt__(self, other):  # Less than test between drawables
+        if self._is_valid_operand(other): # Only test value to preserve
+            return self.val < other.val   # sort stability
+        return NotImplemented
+        
+    def _is_valid_operand(self, other): # Check that other is drawable
+        return isinstance(other, drawable)
     
     palette = ['indianRed2', 'PaleGreen2', 'SkyBlue2', 'orange2',
                'yellow2', 'magenta2', 'cyan2', 'DodgerBlue2',
