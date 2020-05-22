@@ -81,7 +81,7 @@ class VisualizationApp(object): # Base class for Python visualizations
         self._frame.pack()
         self.canvas = Canvas(
             self._frame, width=canvasWidth, height=canvasHeight)
-        self.canvas.pack()
+        self.canvas.pack(expand=True, fill=BOTH)
         self.setUpControlPanel()
 
         # Set up instance variables for managing animations and operations
@@ -89,7 +89,7 @@ class VisualizationApp(object): # Base class for Python visualizations
         
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window)
-        self.controlPanel.pack(side=BOTTOM)
+        self.controlPanel.pack(side=BOTTOM, fill=X)
         self.operationsUpper = LabelFrame(self.controlPanel, text="Operations")
         self.operationsUpper.pack(side=TOP)
         self.operationsBorder = Frame(
@@ -99,7 +99,7 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.opSeparator = None
         self.operations.pack(side=LEFT)
         self.operationsLower = Frame(self.controlPanel, padx=2, pady=5)
-        self.operationsLower.pack(side=BOTTOM)
+        self.operationsLower.pack(side=TOP, fill=X)
         
         self.speedControl = None
         self.speedScale = Scale(
