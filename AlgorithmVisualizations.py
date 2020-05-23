@@ -8,7 +8,7 @@ and instantiates each one in a separate tab.  When the user clicks on a
 tab, it calls the class's runVisualization method.
 """
 
-import argparse, sys
+import argparse, sys, re, webbrowser
 from tkinter import *
 from tkinter import ttk
 from PythonVisualizations import VisualizationApp
@@ -29,6 +29,8 @@ def findVisualizations(module, verbose=0):
                 module.__name__, name, type(this)), file=sys.stderr)
     return classes
 
+URL_pattern = re.compile(r'(https*|ftp)://[\w-]+\.[\w/.,?&=#%-]+')
+
 TAB_FONT = ('Calibri', 16)
 INTRO_FONT = ('Helvetica', 16)
 
@@ -43,11 +45,13 @@ organize and manipulate data efficiently.
 Select tabs at the top to see the different data structures.
 
 
-The students of the Computer Science Department of
-Stern College at Yeshiva University
-developed these visualizations.
+Exceptional students in the Computer Science Department of
+Stern College at Yeshiva University developed these visualizations.
 https://www.yu.edu/stern/ug/computer-science
 """
+
+def openURL(URL):         # Make a callback function to open an URL
+    return lambda e: webbrowser.open(URL)
 
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", verbose=0):
@@ -58,7 +62,26 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     notebook = ttk.Notebook(top)
     intro = ttk.Frame(notebook)
     for line in intro_msg.split('\n'):
-        ttk.Label(intro, text=line, font=INTRO_FONT).pack()
+        URLs = [m for m in URL_pattern.finditer(line)]
+        if URLs:
+            frame = ttk.Frame(intro)
+            last = 0
+            for match in URLs:
+                if match.start() > last:
+                    ttk.Label(frame, text=line[last:match.start()],
+                              font=INTRO_FONT).pack(side=LEFT)
+                link = ttk.Label(
+                    frame, text=match.group(), font=INTRO_FONT + ('underline',),
+                    foreground="blue")
+                link.pack(side=LEFT)
+                link.bind('<Button-1>', openURL(match.group()))
+                last = match.end()
+            if last < len(line):
+                ttk.Label(frame, text=line[last:], 
+                          font=INTRO_FONT).pack(side=LEFT)
+            frame.pack()
+        else:
+            ttk.Label(intro, text=line, font=INTRO_FONT).pack()
     notebook.add(intro, state=NORMAL, text='Introduction', padding=8)
     for app in classes:
         if verbose > 1:
