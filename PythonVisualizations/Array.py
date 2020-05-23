@@ -111,7 +111,8 @@ class Array(VisualizationApp):
         # update window
         self.window.update()
 
-    def assignElement(self, fromIndex, toIndex):
+    def assignElement(
+            self, fromIndex, toIndex, steps=CELL_SIZE // 2, sleepTime=0.01):
         fromDrawable = self.list[fromIndex]
         
         # get positions of "to" cell in array
@@ -122,8 +123,8 @@ class Array(VisualizationApp):
         newCellVal = self.copyCanvasItem(fromDrawable.display_val)
 
         # Move copies to the desired location
-        self.moveItemsTo((newCell, newCellVal), toPositions, steps=CELL_SIZE,
-                       sleepTime=0.01)
+        self.moveItemsTo((newCell, newCellVal), toPositions, steps=steps,
+                         sleepTime=sleepTime)
 
         # delete the original "to" display value and the new display shape
         self.canvas.delete(self.list[toIndex].display_val)
