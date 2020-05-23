@@ -9,7 +9,7 @@ The control panel has containers for
  * A text message area for providing messages
 """
 
-import time, math, operator
+import time, math, operator, re
 from collections import *
 from tkinter import *
 
@@ -61,6 +61,8 @@ def gridDict(frame):
 def numericValidate(action, index, value_if_allowed,
              prior_value, text, validation_type, trigger_type, widget_name):
     return len(value_if_allowed) == 0 or value_if_allowed.isdigit()
+
+geom_delims = re.compile(r'[\sXx+-]')
 
 class VisualizationApp(object): # Base class for Python visualizations
     def __init__(            # Constructor
@@ -143,7 +145,8 @@ class VisualizationApp(object): # Base class for Python visualizations
             gridItems[col, row]
             for row in range(nRows) for col in range(4, nColumns)
             if isinstance(gridItems[col, row], Button)]
-        button = Button(self.operations, text=label, command=callback)
+        button = Button(self.operations, text=label, command=callback,
+                        bg=OPERATIONS_BG)
         if hasArgument:
             if len(withArgument) == 0: # For first command with argument,
                 self.textEntry = Entry( # create entry box for argument
@@ -201,6 +204,13 @@ class VisualizationApp(object): # Base class for Python visualizations
             if isinstance(thing, (str, int)):
                 self.canvas.delete(thing)
         self.setMessage()  # Clear any messages
+
+    # Tk widget methods
+    def widgetDimensions(self, widget): # Get widget's (width, height)
+        geom = geom_delims.split(widget.winfo_geometry())
+        if geom[0] == '1' and geom[1] == '1': # If not yet managed, use config
+            geom = (widget.config('width')[-1], widget.config('height')[-1])
+        return int(geom[0]), int(geom[1])
         
     # CANVAS ITEM METHODS
     def canvas_itemconfigure( # Get a dictionary with the canvas item's
@@ -218,6 +228,38 @@ class VisualizationApp(object): # Base class for Python visualizations
         return creator(*self.canvas.coords(canvasitem),
                        **self.canvas_itemconfigure(canvasitem))
 
+    def moveItemsOffCanvas(  # Animate the removal of canvas items by sliding
+            self, items,     # them off one of the canvas edges
+            edge=N,          # One of the 4 tkinter edges: N, E, S, or W
+            steps=10,        # Number of intermediate steps along line
+            sleepTime=0.1):  # Base time between steps (adjusted by user)
+        if not isinstance(items, (list, tuple)):
+            items = tuple(items)
+        curPositions = [self.canvas.coords(i) for i in items]
+        bboxes = [self.canvas.bbox(i) for i in items]
+        bbox = bboxes[0]     # Get bounding box of all items
+        for bb in bboxes[1:]:
+            bbox = [min(bbox[0], bb[0]), min(bbox[1], bb[1]),
+                    max(bbox[2], bb[2]), max(bbox[3], bb[3])]
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        # Compute delta vector that moves them on a line away from the
+        # center of the canvas
+        delta = ((bbox[0] + bbox[2] - canvasDimensions[0]) / 2 ,
+                 0 - bbox[3])
+        if edge == S:
+            delta = (delta[0], canvasDimensions[1] - bbox[1])
+        elif edge in (W, E):
+            delta = (0 - bbox[2],
+                     (bbox[1] + bbox[3] - canvasDimensions[1]) / 2)
+            if edge == E:
+                delta = (canvasDimensions[0] - bbox[0], delta[1])
+        # Ensure no more that 45 degree angle to departure boundary
+        if abs(delta[0]) > abs(delta[1]) and edge not in (E, W):
+            delta = (delta[1] * (-1 if delta[0] < 0 else 1), delta[1])
+        elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
+            delta = (delta[0], delta[0] * (-1 if delta[1] < 0 else 1))
+        self.moveItemsBy(items, delta, steps=steps, sleepTime=sleepTime)
+    
     def moveItemsBy(         # Animate canvas items moving from their current
             self, items,     # location along a line indicated by a delta vector
             delta,           # Can be a single item or list/tuple of items

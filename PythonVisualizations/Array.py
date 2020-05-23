@@ -65,9 +65,8 @@ class Array(VisualizationApp):
 
         # Animate arrival of new value from operations panel area
         if animate:
-            startPosition = [
-                int(self.canvas.config('width')[-1]) // 2,
-                int(self.canvas.config('height')[-1])]
+            canvasDimensions = self.widgetDimensions(self.cavnas)
+            startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]]
             cell = self.canvas.create_rectangle(
                 *startPosition, *add_vector(startPosition, [CELL_SIZE] * 2),
                 fill=drawable.palette[Array.nextColor], outline='')
@@ -232,11 +231,7 @@ class Array(VisualizationApp):
 
             # Slide value rectangle up and off screen
             items = (n.display_shape, n.display_val)
-            toPositions = [self.canvas.coords(i) for i in items]
-            toPositions[0][1] = - CELL_SIZE
-            toPositions[0][3] = 0
-            toPositions[1][1] = - (CELL_SIZE // 2)
-            self.moveItemsTo(items, toPositions, sleepTime=0.02)
+            self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
             # Create an index for shifting the cells
             kIndex = self.createIndex(index, 'k')
