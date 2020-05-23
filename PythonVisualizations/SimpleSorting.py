@@ -43,7 +43,7 @@ class SimpleArraySort(VisualizationApp):
         return str(self.list)
 
     # ANIMATION METHODS
-    def assignElement(self, fromIndex, toIndex):
+    def assignElement(self, fromIndex, toIndex, steps=10, sleepTime=0.01):
         fromItem = self.list[fromIndex]
         toItem = self.list[toIndex]
         
@@ -55,8 +55,8 @@ class SimpleArraySort(VisualizationApp):
         newCellVal = self.copyCanvasItem(fromItem.display_val)
 
         # Move copies to the desired location
-        self.moveItemsTo((newCell, newCellVal), toPositions, steps=CELL_SIZE,
-                       sleepTime=0.01)
+        self.moveItemsTo((newCell, newCellVal), toPositions, steps=steps,
+                         sleepTime=sleepTime)
         
         # delete the original "to" display value and the new display shape
         self.canvas.delete(self.list[toIndex].display_val)
@@ -71,35 +71,35 @@ class SimpleArraySort(VisualizationApp):
         # update the window
         self.window.update()
 
-    def assignToTemp(self, index, varName="temp", existing=(None,)):
+    def assignToTemp(self, index, varName="temp", existing=None):
         """Assign indexed cell to a temporary variable named varName.
         Animate value moving to the temporary variable above the array.
         Return a drawable for the new temporary value and a text item for
-        its name.  Those can be passed in the existing parameter to place
-        new values in the same temporary variable.
+        its name.  The existing name item can be passed to avoid creating
+        a new one and for moving the value to that location
         """
-        fromDrawable = self.list[index]
-        fromCell = fromDrawable.display_shape
-        fromCellVal = fromDrawable.display_val
+        fromDraw = self.list[index]
+        fromCell = fromDraw.display_shape
+        fromCellVal = fromDraw.display_val
         posCell = self.canvas.coords(fromCell)
         posCellVal = self.canvas.coords(fromCellVal)
 
         shape = self.copyCanvasItem(fromCell)
         val = self.copyCanvasItem(fromCellVal)
-        posLabel = subtract_vector(posCellVal, (0, CELL_SIZE * 9 / 5))
-        if existing[1] is None:
+        if existing:
+            tempPos = self.canvas.coords(existing)
+            templabel = existing
+        else:
+            posLabel = subtract_vector(posCellVal, (0, CELL_SIZE * 2))
             templabel = self.canvas.create_text(
                 *posLabel, text=varName, font=VARIABLE_FONT, 
                 fill=VARIABLE_COLOR)
-        else:
-            tempPos = self.canvas.coords(existing[0])
-            templabel = existing[1]
 
-        delta = (0 if existing[0] is None else tempPos[0] - posCell[0],
+        delta = (tempPos[0] - posCellVal[0] if existing else 0, 
                  - CELL_SIZE * 4 // 3)
-        self.moveItemsBy((shape, val), delta, sleepTime=0.01)
+        self.moveItemsBy((shape, val), delta, sleepTime=0.02)
 
-        return drawable(fromDrawable.val, fromDrawable.color, shape, val), templabel
+        return drawable(fromDraw.val, fromDraw.color, shape, val), templabel
 
     def assignFromTemp(self, index, temp, templabel):
 
@@ -113,7 +113,8 @@ class SimpleArraySort(VisualizationApp):
             (temp.display_shape, temp.display_val),
             (toCellCoords, toCellCenter), sleepTime=0.04, startAngle=startAngle)
         
-        self.canvas.delete(templabel)
+        if templabel:
+            self.canvas.delete(templabel)
         self.canvas.delete(self.list[index].display_shape)
         self.canvas.delete(self.list[index].display_val)
         self.list[index] = temp
@@ -142,18 +143,22 @@ class SimpleArraySort(VisualizationApp):
             self, index,     # cell
             name=None,       # with an optional name label
             level=1,         # at a particular level away from the cells
-            color=VARIABLE_COLOR): # with a particular color
+            color=VARIABLE_COLOR): # (negative are below)
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
         level_spacing = VARIABLE_FONT[1] 
         x = cell_center[0]
-        y0 = cell_coords[1] - CELL_SIZE * 3 // 5 - level * level_spacing
-        y1 = cell_coords[1] - CELL_SIZE * 3 // 10
+        if level > 0:
+            y0 = cell_coords[1] - CELL_SIZE * 3 // 5 - level * level_spacing
+            y1 = cell_coords[1] - CELL_SIZE * 3 // 10
+        else:
+            y0 = cell_coords[3] + CELL_SIZE * 3 // 5 - level * level_spacing
+            y1 = cell_coords[3] + CELL_SIZE * 3 // 10
         arrow = self.canvas.create_line(
             x, y0, x, y1, arrow="last", fill=color)
         if name:
             label = self.canvas.create_text(
-                x + 2, y0, text=name, anchor=SW,
+                x + 2, y0, text=name, anchor=SW if level > 0 else NW,
                 font=VARIABLE_FONT, fill=color)
         return (arrow, label) if name else (arrow, )
 
@@ -348,52 +353,66 @@ class SimpleArraySort(VisualizationApp):
     def insertionSort(self):
         self.running = True
         self.cleanUp()
-        
-        # make a done arrow that points to 0'th element
-        x = self.canvas.coords(self.list[0].display_shape)[0] + (CELL_SIZE / 2)
-        y0 = self.canvas.coords(self.list[0].display_shape)[1] + CELL_SIZE + 15
-        y1 = self.canvas.coords(self.list[0].display_shape)[1] + CELL_SIZE + 40
-        outerArrow = self.canvas.create_line(x+CELL_SIZE, y0, x+CELL_SIZE, y1, arrow="first", fill='red')
+        n = len(self.list)
 
-        # Traverse through 1 to len(arr)
-        for i in range(1, len(self.list)):
+        # make an index arrow for the outer loop
+        outer = 1
+        outerIndex = self.createIndex(outer, "outer", level=-2)
+        self.cleanup.extend(outerIndex)
 
-            cur, text = self.assignToTemp(i, "cur")
-            self.cleanup.extend([cur, text])
+        # make an index arrow that points to the next cell to check
+        innerIndex = self.createIndex(outer, "inner", level=-1)
+        self.cleanup.extend(innerIndex)
+        tempVal, label = None, None
 
-            # Move elements of self.list[0..i-1], that are
-            # greater than key, to one position ahead
-            # of their current position
-            j = i - 1
+        # All items beyond the outer index have not been sorted
+        while outer < len(self.list):
 
-            innerArrow = self.canvas.create_line(x+CELL_SIZE*i, y0, x+CELL_SIZE*i, y1, arrow="first", fill='blue')
+            # Store item at outer index in temporary mark variable
+            temp = self.list[outer].val
+            if tempVal:
+                tempVal, _ = self.assignToTemp(
+                    outer, varName="temp", existing=label)
+            else:
+                tempVal, label = self.assignToTemp(outer, varName="temp")
+                self.cleanup.append(label)
 
-            while j >= 0 and cur.val < self.list[j].val:
-                #self.list[j + 1] = self.list[j]
-                time.sleep(self.speed(0.1))
-                self.assignElement(j, j+1)
-                j -= 1
+            # Inner loop starts at marked temporary item
+            inner = outer 
+            # Move inner index arrow to point at cell to check
+            centerX0 = self.cellCenter(inner)[0]
+            deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+            if deltaX != 0:
+                self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
+                
+            # Loop down until we find an item less than or equal to the mark
+            while inner > 0 and temp < self.list[inner - 1].val:
 
-                self.canvas.move(innerArrow, -CELL_SIZE, 0)
+                # Shift cells right that are greater than mark
+                self.assignElement(inner - 1, inner)
 
+                # Move inner index arrow to point at next cell to check
+                inner -= 1
+                centerX0 = self.cellCenter(inner)[0]
+                deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+                if deltaX != 0:
+                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
+                
                 if not self.running:
-                    self.canvas.delete(innerArrow)
                     break
 
-            #self.list[j + 1] = cur
+            # Delay to show discovery of insertion point for mark
             time.sleep(self.speed(0.1))
-            self.assignFromTemp(j+1, cur, text)
+            
+            # Copy marked temporary value to insetion point
+            self.assignFromTemp(inner, tempVal, None)
 
-            self.canvas.delete(innerArrow)
-
+            # Advance outer loop
+            outer += 1
+            self.moveItemsBy(outerIndex, (CELL_SIZE, 0), sleepTime=0.02)
             if not self.running:
                 break
 
-            # move done arrow to next element
-            self.canvas.move(outerArrow, CELL_SIZE, 0)
-
-
-        self.canvas.delete(outerArrow)
         self.fixGaps()
 
         # Animation stops
