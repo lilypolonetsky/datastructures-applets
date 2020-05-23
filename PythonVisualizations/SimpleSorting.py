@@ -71,7 +71,13 @@ class SimpleArraySort(VisualizationApp):
         # update the window
         self.window.update()
 
-    def assignToTemp(self, index, varName="temp"):
+    def assignToTemp(self, index, varName="temp", existing=(None,)):
+        """Assign indexed cell to a temporary variable named varName.
+        Animate value moving to the temporary variable above the array.
+        Return a drawable for the new temporary value and a text item for
+        its name.  Those can be passed in the existing parameter to place
+        new values in the same temporary variable.
+        """
         fromDrawable = self.list[index]
         fromCell = fromDrawable.display_shape
         fromCellVal = fromDrawable.display_val
@@ -80,33 +86,32 @@ class SimpleArraySort(VisualizationApp):
 
         shape = self.copyCanvasItem(fromCell)
         val = self.copyCanvasItem(fromCellVal)
-        posLabel = subtract_vector(posCellVal, (0, CELL_SIZE * 3 / 5))
-        templabel = self.canvas.create_text(
-            *posLabel, font=VALUE_FONT, fill=VALUE_COLOR)
+        posLabel = subtract_vector(posCellVal, (0, CELL_SIZE * 9 / 5))
+        if existing[1] is None:
+            templabel = self.canvas.create_text(
+                *posLabel, text=varName, font=VARIABLE_FONT, 
+                fill=VARIABLE_COLOR)
+        else:
+            tempPos = self.canvas.coords(existing[0])
+            templabel = existing[1]
 
-        delta = (0, - CELL_SIZE * 4 // 3)
-        self.moveItemsBy((shape, val, templabel), delta, sleepTime=0.01)
+        delta = (0 if existing[0] is None else tempPos[0] - posCell[0],
+                 - CELL_SIZE * 4 // 3)
+        self.moveItemsBy((shape, val), delta, sleepTime=0.01)
 
-        return drawable(fromCell.val, fromCell.color, shape, val), templabel
+        return drawable(fromDrawable.val, fromDrawable.color, shape, val), templabel
 
     def assignFromTemp(self, index, temp, templabel):
 
         toCellCoords = self.cellCoords(index)
         toCellCenter = self.cellCenter(index)
         tempCellCoords = self.canvas.coords(temp.display_shape)
-        # posWaypoint = (toCellCoords[0],) + tempCellCoords[1:]
-        # delta = subtract_vector(posWaypoint, tempCellCoords)
-        # wpDelta = delta + delta
-        # if waypointDelta[0] != 0:
-        #     items = (temp.display_shape, temp.display_val, templabel)
-        #     self.moveItems(items, [add_vector(self.canvas.coords(i), wpDelta)
-        #                            for i in items],
-        #                    sleepTime=0.01)
+        deltaX = toCellCoords[0] - tempCellCoords[0]
+        startAngle = 90 * 500 / (500 + abs(deltaX)) * (-1 if deltaX < 0 else 1)
                            
         self.moveItemsOnCurve(
             (temp.display_shape, temp.display_val),
-            (toCellCoords, toCellCenter), sleepTime=0.01,
-            startAngle= 90 if tempCellCoords < toCellCoords else -90)
+            (toCellCoords, toCellCenter), sleepTime=0.04, startAngle=startAngle)
         
         self.canvas.delete(templabel)
         self.canvas.delete(self.list[index].display_shape)
@@ -118,8 +123,7 @@ class SimpleArraySort(VisualizationApp):
                   self.list[a].display_val] + aCellObjects
         itemsB = [self.list[b].display_shape, 
                   self.list[b].display_val] + bCellObjects
-        delta = (0, - CELL_SIZE * 4 // 3)
-        upDelta = delta + delta
+        upDelta = (0, - CELL_SIZE * 4 // 3)
         downDelta = multiply_vector(upDelta, -1)
         if a == b:         # Swapping with self - just move up & down
             self.moveItemsBy(itemsA, upDelta, sleepTime=0.02)
@@ -129,7 +133,7 @@ class SimpleArraySort(VisualizationApp):
         # make a and b cells plus their associated items switch places
         self.moveItemsOnCurve(
             itemsA + itemsB, [self.canvas.coords(i) for i in itemsB + itemsA],
-            sleepTime=0.05)
+            sleepTime=0.05, startAngle=90 * 11/(10 + abs(a - b)))
 
         # perform the actual cell swap operation in the list
         self.list[a], self.list[b] = self.list[b], self.list[a]
@@ -439,44 +443,64 @@ class SimpleArraySort(VisualizationApp):
         
     def selectionSort(self):
         self.running = True
+        self.cleanUp()
+        n = len(self.list)
 
-        x = ARRAY_X0 + (CELL_SIZE / 2)
-        y0 = ARRAY_Y0 + CELL_SIZE + 15
-        y1 = ARRAY_Y0 + CELL_SIZE + 40
-        outerArrow = self.canvas.create_line(x, y0, x, y1, arrow="first", fill='red')
+        # make an index arrow for the outer loop
+        outer = 0
+        outerIndex = self.createIndex(outer, "outer", level=3)
+        self.cleanup.extend(outerIndex)
 
-        for i in range(len(self.list)):
+        # make an index arrow that points to the next cell to check
+        innerIndex = self.createIndex(outer+1, "inner", level=1)
+        self.cleanup.extend(innerIndex)
+        minIndex = None
 
+        # All items beyond the outer index have not been sorted
+        while outer < len(self.list) - 1:
+
+            min_idx = outer
+            if minIndex:
+                self.moveItemsBy(
+                    minIndex,
+                    (self.cellCenter(outer)[0] - 
+                     self.canvas.coords(minIndex[0])[0], 0), sleepTime=0.02)
+            else:
+                minIndex = self.createIndex(outer, "min", level=2)
+                self.cleanup.extend(minIndex)
+            
             # Find the minimum element in remaining
             # unsorted array
-            innerArrow = self.canvas.create_line(x + CELL_SIZE*i, y0, x + CELL_SIZE*i, y1, arrow="first", fill='blue')
+            for inner in range(outer + 1, len(self.list)):
+                
+                # Move inner index arrow to point at cell to check
+                centerX0 = self.cellCenter(inner)[0]
+                deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+                if deltaX != 0:
+                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
 
-            min_idx = i
-            for j in range(i + 1, len(self.list)):
-
-                self.canvas.move(innerArrow, CELL_SIZE, 0)
-
-                if self.list[min_idx].val > self.list[j].val:
-                    min_idx = j
+                if self.list[inner].val < self.list[min_idx].val:
+                    min_idx = inner
+                    self.moveItemsBy(
+                        minIndex,
+                        (self.canvas.coords(innerIndex[0])[0] -
+                         self.canvas.coords(minIndex[0])[0], 0), sleepTime=0.02)
+                else:
+                    time.sleep(self.speed(0.4))
 
                 if not self.running:
-                    self.canvas.delete(innerArrow)
                     break
-
-            self.canvas.delete(innerArrow)
 
             if not self.running:
                 break
 
+            # Swap the found minimum element with the one indexed by outer
+            self.swap(outer, min_idx)
+            
+            # move outer index one higher
+            outer += 1
+            self.moveItemsBy(outerIndex, (CELL_SIZE, 0), sleepTime=0.05)
 
-            # Swap the found minimum element with
-            # the first element
-            #A[i], A[min_idx] = A[min_idx], A[i]
-
-            self.swap(i, min_idx)
-            self.canvas.move(outerArrow, CELL_SIZE, 0)
-
-        self.canvas.delete(outerArrow)
         self.fixGaps()
 
         # Animation stops
