@@ -300,7 +300,8 @@ class VisualizationApp(object): # Base class for Python visualizations
             for item in items:
                 self.canvas.move(item, *moveBy)
             self.window.update()
-            time.sleep(self.speed(sleepTime))
+            if sleepTime > 0:
+                time.sleep(self.speed(sleepTime))
 
     def moveItemsTo(         # Animate canvas items moving from their current
             self, items,     # location to destination locations along a line
