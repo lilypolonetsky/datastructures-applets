@@ -198,12 +198,12 @@ class Array(VisualizationApp):
             # if the value is found
             if n.val == val:
                 # get the position of the displayed cell 
-                posVal = self.canvas.coords(n.display_shape)
+                posShape = self.canvas.coords(n.display_shape)
                 
                 # Highlight the found element with a circle
                 self.cleanup.append(self.canvas.create_oval(
                     *add_vector(
-                        posVal,
+                        posShape,
                         (CELL_BORDER, CELL_BORDER, -CELL_BORDER, -CELL_BORDER)),
                     outline=FOUND_COLOR))
 
@@ -251,13 +251,13 @@ class Array(VisualizationApp):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         findButton = self.addOperation(
-            "Find", lambda: self.clickFind(), hasArgument=True,
+            "Find", lambda: self.clickFind(), numArguments=1,
             validationCmd=vcmd)
         insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), hasArgument=True,
+            "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)
         deleteValueButton = self.addOperation(
-            "Delete", lambda: self.clickDelete(), hasArgument=True,
+            "Delete", lambda: self.clickDelete(), numArguments=1,
             validationCmd=vcmd)
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.removeFromEnd())

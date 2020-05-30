@@ -71,6 +71,7 @@ class VisualizationApp(object): # Base class for Python visualizations
             title=None,
             canvasWidth=800, # Canvas size
             canvasHeight=400,
+            maxArgWidth=3,   # Maximum length/width of text arguments
             ):
         # Set up Tk windows for canvas and operational controls
         if window:
@@ -83,6 +84,7 @@ class VisualizationApp(object): # Base class for Python visualizations
             self.window, width=canvasWidth, height=canvasHeight)            
         self.canvas.pack(expand=True, fill=BOTH)
         self.setUpControlPanel()
+        self.maxArgWidth = maxArgWidth
 
         # Set up instance variables for managing animations and operations
         self.cleanup = []    # Tk items to remove before next operation
@@ -118,6 +120,7 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.fastLabel.grid(row=0, column=2, sticky=W)
         self.waitVar = BooleanVar()
         self.pauseButton = None
+        self.textEntries = []
         self.outputText = StringVar()
         self.outputText.set('')
         self.message = Label(
@@ -131,7 +134,7 @@ class VisualizationApp(object): # Base class for Python visualizations
             self,            # The button can be depedent on an argument
             label,           # provided in the text entry widget. Button label
             callback,        # Function to call when button pressed
-            hasArgument=False, # Flag indicating whether argument required
+            numArguments=0,  # Count of required user entered arguments
             validationCmd=None, # Tk validation command tuple for argument
             helpText=None,   # Help text for argument (erased on first keypress)
             maxRows=4,       # Operations w/o args beyond maxRows -> new columns
@@ -147,24 +150,31 @@ class VisualizationApp(object): # Base class for Python visualizations
             if isinstance(gridItems[col, row], Button)]
         button = Button(self.operations, text=label, command=callback,
                         bg=OPERATIONS_BG)
-        if hasArgument:
-            if len(withArgument) == 0: # For first command with argument,
-                self.textEntry = Entry( # create entry box for argument
-                    self.operations, width=20, bg='white', validate='key',
-                    validatecommand=validationCmd)
-                self.textEntry.grid(column=2, row=1, padx=8, sticky=E)
-                self.textEntry.bind(
+        setattr(button, 'required_args', numArguments)
+        if numArguments:
+            while len(self.textEntries) < numArguments: # Build argument entry
+                textEntry = Entry( # widgets if not already present
+                    self.operations, width=self.maxArgWidth, bg='white',
+                    validate='key', validatecommand=validationCmd)
+                textEntry.grid(column=2, row=len(self.textEntries) + 1,
+                                    padx=8, sticky=E)
+                textEntry.bind(
                     '<KeyRelease>', lambda ev: self.argumentChanged(), '+')
+                self.textEntries.append(textEntry)
             buttonRow = len(withArgument) + 1
             button.grid(column=0, row=buttonRow, padx = 8, sticky=(E, W))
             button.config(state=DISABLED)
-            self.textEntry.grid_configure(rowspan=len(withArgument) + 1)
+            rowSpan = len(withArgument) + 1 // len(self.textEntries) 
+            for textEntry in self.textEntries: # Spread text entries across
+                textEntry.grid_configure(  # all rows of buttons with arguments
+                    rowspan=rowSpan if textEntry != self.textEntries[-1] else
+                    len(withArgument)+1 - (len(self.textEntries) - 1) * rowSpan)
         else:
             buttonRow = len(withoutArgument) % maxRows + 1
             button.grid(column=4 + len(withoutArgument) // maxRows,
                         row=buttonRow, padx = 8, sticky=(E, W))
-        if ((len(withoutArgument) if hasArgument else len(withArgument)) > 0 and
-            not self.opSeparator): # If both kinds of buttons are present
+        if ((len(withoutArgument) if numArguments else len(withArgument)) > 0
+            and not self.opSeparator): # If both kinds of buttons are present
             self.opSeparator = Frame( # but not a separator line, create one
                 self.operations, width=2, bg=OPERATIONS_BORDER)
             self.opSeparator.grid(column=3, row=1, sticky=(N, E, W, S))
@@ -173,26 +183,36 @@ class VisualizationApp(object): # Base class for Python visualizations
         return button
 
     def argumentChanged(self):
-        arg = self.getArgument()
+        args = self.getArguments()
         gridItems = gridDict(self.operations) # All operations 
         nColumns, nRows = self.operations.grid_size()
         for button in [gridItems[0, row] for row in range(nRows)
                        if isinstance(gridItems[0, row], Button)]:
-            button.config(state = DISABLED if arg == '' else NORMAL)
+            nArgs = getattr(button, 'required_args')
+            button.config(
+                state = DISABLED if any(arg == '' for arg in args[:nArgs])
+                else NORMAL)
         
-    def getArgument(self, clear=False):
-        if hasattr(self, 'textEntry'):
-            return self.textEntry.get()
+    def getArguments(self, clear=False):
+        return [self.getArgument(i, clear=clear)
+                for i in range(len(self.textEntries))]
+    
+    def getArgument(self, index=0, clear=False):
+        if 0 <= index and index < len(self.textEntries):
+            val = self.textEntries[index].get()
+            if clear:
+                self.clearArgument(index)
+            return val
 
-    def clearArgument(self):
-        if hasattr(self, 'textEntry'):
-            self.textEntry.delete(0, END)
+    def clearArgument(self, index=0):
+        if 0 <= index and index < len(self.textEntries):
+            self.textEntries[index].delete(0, END)
             self.argumentChanged()
 
-    def setArgument(self, val=''):
-        if hasattr(self, 'textEntry'):
-            self.textEntry.delete(0, END)
-            self.textEntry.insert(0, str(val))
+    def setArgument(self, val='', index=0):
+        if 0 <= index and index < len(self.textEntries):
+            self.textEntries[index].delete(0, END)
+            self.textEntries[index].insert(0, str(val))
             self.argumentChanged()
 
     def setMessage(self, val=''):

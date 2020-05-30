@@ -285,12 +285,12 @@ class SimpleArraySort(VisualizationApp):
             # if the value is found
             if n.val == val:
                 # get the position of the displayed cell and val
-                posVal = self.canvas.coords(n.display_val)
+                posShape = self.canvas.coords(n.display_shape)
                 
                 # Highlight the found element with a circle
                 self.cleanup.append(self.canvas.create_oval(
                     *add_vector(
-                        posVal,
+                        posShape,
                         (CELL_BORDER, CELL_BORDER, -CELL_BORDER, -CELL_BORDER)),
                     outline=FOUND_COLOR))
 
@@ -585,10 +585,10 @@ class SimpleArraySort(VisualizationApp):
         self.stopButton = self.addOperation(
             "Stop", lambda: self.onClick(self.stop, self.pauseButton()))
         findButton = self.addOperation(
-            "Find", lambda: self.clickFind(), hasArgument=True,
+            "Find", lambda: self.clickFind(), numArguments=1,
             validationCmd=vcmd)
         insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), hasArgument=True,
+            "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)
         buttons = [bubbleSortButton, selectionSortButton, insertionSortButton,
                    findButton, insertButton, deleteButton]
