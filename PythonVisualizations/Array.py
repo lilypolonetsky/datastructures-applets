@@ -19,18 +19,23 @@ VALUE_COLOR = 'black'
 FOUND_COLOR = 'brown4'
 
 class Array(VisualizationApp):
+    nextColor = 0
+
     def __init__(self, size=10, title="Array", **kwargs):
         super().__init__(title=title, **kwargs)
         self.size = size
         self.title = title
         self.list = []
         self.buttons = self.makeButtons()
-        
-        for i in range(9):
-            self.insert(random.randrange(90), animate=False)
-        self.display()
 
-    nextColor = 0
+        # Fill in initial array values with random integers
+        # The display items representing these array cells are created later
+        for i in range(size - 1):
+            self.list.append(drawable(
+                random.randrange(90),
+                drawable.palette[i % len(drawable.palette)]))
+        Array.nextColor = len(self.list) % len(drawable.palette)
+        self.display()
 
     def __str__(self):
         return str(self.list)
@@ -52,49 +57,32 @@ class Array(VisualizationApp):
                 font=VARIABLE_FONT, fill=VARIABLE_COLOR)
         return (arrow, label) if name else (arrow, )
         
-    def insert(self, val, animate=True):
+    def insert(self, val):
         self.cleanUp()
         # draw an index pointing to the last cell
-        if animate:
-            indexDisplay = self.createIndex(len(self.list))
-            self.cleanup.extend(indexDisplay)
+        indexDisplay = self.createIndex(len(self.list))
+        self.cleanup.extend(indexDisplay)
 
         # create new cell and cell value display objects
         toPositions = (self.cellCoords(len(self.list)), 
                        self.cellCenter(len(self.list)))
 
         # Animate arrival of new value from operations panel area
-        if animate:
-            canvasDimensions = self.widgetDimensions(self.cavnas)
-            startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]]
-            cell = self.canvas.create_rectangle(
-                *startPosition, *add_vector(startPosition, [CELL_SIZE] * 2),
-                fill=drawable.palette[Array.nextColor], outline='')
-            cell_val = self.canvas.create_text(
-                *add_vector(startPosition, [CELL_SIZE // 2] * 2), text=val,
-                font=VALUE_FONT, fill=VALUE_COLOR)
-            self.moveItemsTo((cell, cell_val), toPositions, steps=CELL_SIZE,
-                           sleepTime=0.01)
-        else:
-            cell = self.canvas.create_rectangle(
-                *toPositions[0], fill=drawable.palette[Array.nextColor], 
-                outline='')
-            cell_val = self.canvas.create_text(
-                *toPositions[1], text=val, font=VALUE_FONT, fill=VALUE_COLOR)
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
+        startPosition = add_vector(startPosition, (0, 0, CELL_SIZE, CELL_SIZE))
+        cellPair = self.createCellValue(startPosition, val)
+        self.moveItemsTo(cellPair, toPositions, steps=CELL_SIZE, sleepTime=0.01)
 
         # add a new Drawable with the new value, color, and display objects
-        self.list.append(drawable(val, drawable.palette[Array.nextColor], 
-                                  cell, cell_val))
-
-        # increment nextColor
-        Array.nextColor = (Array.nextColor + 1) % len(drawable.palette)
+        self.list.append(drawable(
+            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
 
         # update window
         self.window.update()
 
         # advance index for next insert
-        if animate:
-            self.moveItemsBy(indexDisplay, (CELL_SIZE, 0))
+        self.moveItemsBy(indexDisplay, (CELL_SIZE, 0))
 
     def removeFromEnd(self):
         self.cleanUp()
@@ -159,6 +147,39 @@ class Array(VisualizationApp):
         self.canvas.lower(rect)
         return rect
 
+    def createCellValue(self, indexOrCoords, key, color=None):
+        """Create new canvas items to represent a cell value.  A square
+        is created filled with a particular color with an text key centered
+        inside.  The position of the cell can either be an integer index in
+        the Array or the bounding box coordinates of the square.  If color
+        is not supplied, the next color in the palette is used.
+        An event handler is set up to update the VisualizationApp argument
+        with the cell's value if clicked with any button.
+        Returns the tuple, (square, text), of canvas items
+        """
+        # Determine position and color of cell
+        if isinstance(indexOrCoords, int):
+            rectPos = self.cellCoords(indexOrCoords)
+            valPos = self.cellCenter(indexOrCoords)
+        else:
+            rectPos = indexOrCoords
+            valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
+        if color is None:
+            # Take the next color from the palette
+            color = drawable.palette[Array.nextColor]
+            Array.nextColor = (Array.nextColor + 1) % len(drawable.palette)
+
+        cell_rect = self.canvas.create_rectangle(
+            *rectPos, fill=color, outline='', width=0)
+        cell_val = self.canvas.create_text(
+            *valPos, text=str(key), font=VALUE_FONT, fill=VALUE_COLOR)
+        handler = lambda e: self.setArgument(str(key))
+        for item in (cell_rect, cell_val):
+            self.canvas.tag_bind(item, '<Button>', handler)
+
+        return cell_rect, cell_val
+
+
     def display(self):
         self.canvas.delete("all")
 
@@ -168,15 +189,8 @@ class Array(VisualizationApp):
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
             # create display objects for the associated Drawables
-            cell = self.canvas.create_rectangle(
-                *self.cellCoords(i), fill=n.color, outline='', width=0)
-            cell_val = self.canvas.create_text(
-                *self.cellCenter(i), text=n.val, font=VALUE_FONT,
-                fill=VALUE_COLOR)
-
-            # save the display objects in the Drawable object fields
-            n.display_shape = cell
-            n.display_val = cell_val
+            n.display_shape, n.display_val = self.createCellValue(
+                i, n.val, n.color)
 
         self.window.update()
 

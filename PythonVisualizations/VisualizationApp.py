@@ -245,8 +245,12 @@ class VisualizationApp(object): # Base class for Python visualizations
             self, canvasitem):
         creator = getattr(self.canvas, # Get canvas creation function for type
                           'create_{}'.format(self.canvas.type(canvasitem)))
-        return creator(*self.canvas.coords(canvasitem),
+        newItem = creator(*self.canvas.coords(canvasitem),
                        **self.canvas_itemconfigure(canvasitem))
+        for eventType in self.canvas.tag_bind(canvasitem): # Copy event handlers
+            self.canvas.tag_bind(newItem, eventType,
+                                 self.canvas.tag_bind(canvasitem, eventType))
+        return newItem
 
     def moveItemsOffCanvas(  # Animate the removal of canvas items by sliding
             self, items,     # them off one of the canvas edges
