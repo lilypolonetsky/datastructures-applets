@@ -31,10 +31,7 @@ class Array(VisualizationApp):
         # Fill in initial array values with random integers
         # The display items representing these array cells are created later
         for i in range(size - 1):
-            self.list.append(drawable(
-                random.randrange(90),
-                drawable.palette[i % len(drawable.palette)]))
-        Array.nextColor = len(self.list) % len(drawable.palette)
+            self.list.append(drawable(random.randrange(90)))
         self.display()
 
     def __str__(self):
@@ -179,7 +176,6 @@ class Array(VisualizationApp):
 
         return cell_rect, cell_val
 
-
     def display(self):
         self.canvas.delete("all")
 
@@ -191,6 +187,7 @@ class Array(VisualizationApp):
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
                 i, n.val, n.color)
+            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
 
         self.window.update()
 
