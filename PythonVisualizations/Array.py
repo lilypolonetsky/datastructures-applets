@@ -58,7 +58,7 @@ class Array(VisualizationApp):
         self.cleanUp()
         # draw an index pointing to the last cell
         indexDisplay = self.createIndex(len(self.list))
-        self.cleanup.extend(indexDisplay)
+        self.cleanup |= set(indexDisplay)
 
         # create new cell and cell value display objects
         toPositions = (self.cellCoords(len(self.list)), 
@@ -198,7 +198,7 @@ class Array(VisualizationApp):
 
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
-        self.cleanup.extend(indexDisplay)
+        self.cleanup |= set(indexDisplay)
 
         # go through each Drawable in the list
         for i in range(len(self.list)):
@@ -212,7 +212,7 @@ class Array(VisualizationApp):
                 posShape = self.canvas.coords(n.display_shape)
                 
                 # Highlight the found element with a circle
-                self.cleanup.append(self.canvas.create_oval(
+                self.cleanup.add(self.canvas.create_oval(
                     *add_vector(
                         posShape,
                         (CELL_BORDER, CELL_BORDER, -CELL_BORDER, -CELL_BORDER)),
@@ -247,7 +247,7 @@ class Array(VisualizationApp):
 
             # Create an index for shifting the cells
             kIndex = self.createIndex(index, 'k')
-            self.cleanup.extend(kIndex)
+            self.cleanup |= set(kIndex)
             
             # Slide values from right to left to fill gap
             for i in range(index+1, len(self.list)):

@@ -33,7 +33,6 @@ class SimpleArraySort(VisualizationApp):
         self.waitVar = BooleanVar()
         self.running = False
 
-        self.cleanup = []
         self.buttons = self.makeButtons()
         for i in range(size):
             self.list.append(drawable(random.randrange(30)))
@@ -171,7 +170,7 @@ class SimpleArraySort(VisualizationApp):
 
         # draw an index pointing to the last cell
         indexDisplay = self.createIndex(len(self.list))
-        self.cleanup.extend(indexDisplay)
+        self.cleanup |= set(indexDisplay)
 
         # create new cell and cell value display objects
         toPositions = (self.cellCoords(len(self.list)), 
@@ -281,7 +280,7 @@ class SimpleArraySort(VisualizationApp):
 
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
-        self.cleanup.extend(indexDisplay)
+        self.cleanup |= set(indexDisplay)
 
         # go through each Drawable in the list
         for i in range(len(self.list)):
@@ -295,7 +294,7 @@ class SimpleArraySort(VisualizationApp):
                 posShape = self.canvas.coords(n.display_shape)
                 
                 # Highlight the found element with a circle
-                self.cleanup.append(self.canvas.create_oval(
+                self.cleanup.add(self.canvas.create_oval(
                     *add_vector(
                         posShape,
                         (CELL_BORDER, CELL_BORDER, -CELL_BORDER, -CELL_BORDER)),
@@ -357,37 +356,66 @@ class SimpleArraySort(VisualizationApp):
         self.running = False
         self.stopMergeSort()
 
+    insertionSortCode = """
+def insertionSort(self):
+   for outer in range(1, self.__nItems):
+      temp = self.__a[outer]
+      inner = outer
+      while inner > 0 and temp < self.__a[inner-1]:
+         self.__a[inner] = self.__a[inner-1]
+         inner -= 1
+      self.__a[inner] = temp
+"""
+    insertionSortCodeSnippets = {
+        'outer_loop_increment': ('2.7', '2.39'),
+        'temp_assignment': ('3.6', '3.end'),
+        'inner_assignment': ('4.6', '4.end'),
+        'inner_loop_test': ('5.12', '5.50'),
+        'inner_loop_assignment': ('6.9', '6.end'),
+        'inner_loop_decrement': ('7.9', '7.end'),
+        'outer_loop_assignment': ('8.6', '8.end'),
+        }
+    
     # SORTING METHODS
     def insertionSort(self):
         self.running = True
         self.cleanUp()
+        self.showCode(SimpleArraySort.insertionSortCode.strip())
+        self.createCodeTags(self.insertionSortCodeSnippets)
         n = len(self.list)
 
         # make an index arrow for the outer loop
         outer = 1
         outerIndex = self.createIndex(outer, "outer", level=-2)
-        self.cleanup.extend(outerIndex)
+        self.cleanup |= set(outerIndex)
+        self.highlightCodeTags('outer_loop_increment')
 
         # make an index arrow that points to the next cell to check
         innerIndex = self.createIndex(outer, "inner", level=-1)
-        self.cleanup.extend(innerIndex)
+        self.cleanup |= set(innerIndex)
         tempVal, label = None, None
 
         # All items beyond the outer index have not been sorted
         while outer < len(self.list):
+            self.highlightCodeTags('outer_loop_increment')
 
             # Store item at outer index in temporary mark variable
             temp = self.list[outer].val
+            self.highlightCodeTags('temp_assignment')
             if tempVal:
                 tempVal, _ = self.assignToTemp(
                     outer, varName="temp", existing=label)
             else:
                 tempVal, label = self.assignToTemp(outer, varName="temp")
-                self.cleanup.append(label)
+                self.cleanup.add(label)
+            self.cleanup.add(tempVal.display_shape)
+            self.cleanup.add(tempVal.display_val)
 
             # Inner loop starts at marked temporary item
             inner = outer 
+
             # Move inner index arrow to point at cell to check
+            self.highlightCodeTags('inner_assignment')
             centerX0 = self.cellCenter(inner)[0]
             deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
             if deltaX != 0:
@@ -395,12 +423,16 @@ class SimpleArraySort(VisualizationApp):
                 
             # Loop down until we find an item less than or equal to the mark
             while inner > 0 and temp < self.list[inner - 1].val:
+                self.highlightCodeTags('inner_loop_test')
+                time.sleep(self.speed(0.05))
 
                 # Shift cells right that are greater than mark
+                self.highlightCodeTags('inner_loop_assignment')
                 self.assignElement(inner - 1, inner)
 
                 # Move inner index arrow to point at next cell to check
                 inner -= 1
+                self.highlightCodeTags('inner_loop_decrement')
                 centerX0 = self.cellCenter(inner)[0]
                 deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
                 if deltaX != 0:
@@ -413,32 +445,49 @@ class SimpleArraySort(VisualizationApp):
             time.sleep(self.speed(0.1))
             
             # Copy marked temporary value to insetion point
+            self.highlightCodeTags('outer_loop_assignment')
             self.assignFromTemp(inner, tempVal, None)
+
+            # Take it out of the cleanup set since it should persist
+            for item in (tempVal.display_shape, tempVal.display_val):
+                if item in self.cleanup:
+                    self.cleanup.remove(item)
 
             # Advance outer loop
             outer += 1
+            self.highlightCodeTags('outer_loop_increment')
             self.moveItemsBy(outerIndex, (CELL_SIZE, 0), sleepTime=0.02)
             if not self.running:
                 break
 
-        self.fixGaps()
+        self.highlightCodeTags([])
+        self.fixCells()
 
         # Animation stops
         self.running = False
 
+    bubbleSortCode = """
+def bubbleSort(self):
+   for last in range(self.__nItems-1, 0, -1):
+      for inner in range(last):
+         if self.__a[inner] > self.__a[inner+1]:
+            self.swap(inner, inner+1)
+"""
+    
     def bubbleSort(self):
         self.running = True
         self.cleanUp()
+        self.showCode(SimpleArraySort.bubbleSortCode.strip())
         n = len(self.list)
 
         # make an index arrow that points to last unsorted element
         last = n - 1
         lastIndex = self.createIndex(last, "last", level=2)
-        self.cleanup.extend(lastIndex)
+        self.cleanup |= set(lastIndex)
 
         # make an index arrow that points to the next cell to check
         innerIndex = self.createIndex(0, "inner", level=1)
-        self.cleanup.extend(innerIndex)
+        self.cleanup |= set(innerIndex)
         
         # While unsorted cells remain
         while last > 0:
@@ -467,20 +516,31 @@ class SimpleArraySort(VisualizationApp):
 
         # Animation stops
         self.running = False
-        
+
+    selectionSortCode = """
+def selectionSort(self):
+   for outer in range(self.__nItems-1):
+      min = outer
+      for inner in range(outer+1, self.__nItems):
+         if self.__a[inner] < self.__a[min]:
+            min = inner
+      self.swap(outer, min)
+"""
+    
     def selectionSort(self):
         self.running = True
         self.cleanUp()
+        self.showCode(SimpleArraySort.selectionSortCode.strip())
         n = len(self.list)
 
         # make an index arrow for the outer loop
         outer = 0
         outerIndex = self.createIndex(outer, "outer", level=3)
-        self.cleanup.extend(outerIndex)
+        self.cleanup |= set(outerIndex)
 
         # make an index arrow that points to the next cell to check
         innerIndex = self.createIndex(outer+1, "inner", level=1)
-        self.cleanup.extend(innerIndex)
+        self.cleanup |= set(innerIndex)
         minIndex = None
 
         # All items beyond the outer index have not been sorted
@@ -494,7 +554,7 @@ class SimpleArraySort(VisualizationApp):
                      self.canvas.coords(minIndex[0])[0], 0), sleepTime=0.02)
             else:
                 minIndex = self.createIndex(outer, "min", level=2)
-                self.cleanup.extend(minIndex)
+                self.cleanup |= set(minIndex)
             
             # Find the minimum element in remaining
             # unsorted array
@@ -528,7 +588,7 @@ class SimpleArraySort(VisualizationApp):
             outer += 1
             self.moveItemsBy(outerIndex, (CELL_SIZE, 0), sleepTime=0.05)
 
-        self.fixGaps()
+        self.fixCells()
 
         # Animation stops
         self.running = False
@@ -567,14 +627,18 @@ class SimpleArraySort(VisualizationApp):
             self.window.update()
             time.sleep(self.speed(0.01))
 
-        self.fixGaps()
+        self.fixCells()
         
-    def fixGaps(self):        # Move canvas display items to exact cell coords
+    def fixCells(self):       # Move canvas display items to exact cell coords
         for i, drawItem in enumerate(self.list):
             self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
             self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
         self.window.update()
 
+    def cleanUp(self):        # Customize clean up for sorting
+        super().cleanUp()     # Do the VisualizationApp clean up
+        self.fixCells()       # Restore cells to their coordinates in array
+        
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')

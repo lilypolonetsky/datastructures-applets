@@ -23,6 +23,8 @@ FOUND_FONT = ('Helvetica', FONT_SIZE)
 FOUND_COLOR = 'green2'
 OPERATIONS_BG = 'beige'
 OPERATIONS_BORDER = 'black'
+CODE_FONT = ('Courier', 12)
+CODE_HIGHLIGHT = 'yellow'
 CONTROLS_FONT = ('none', 14)
 
 scaleDefault = 100
@@ -87,13 +89,13 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.maxArgWidth = maxArgWidth
 
         # Set up instance variables for managing animations and operations
-        self.cleanup = []    # Tk items to remove before next operation
+        self.cleanup = set()    # Tk items to remove before next operation
         
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window)
         self.controlPanel.pack(side=BOTTOM, fill=X)
         self.operationsUpper = LabelFrame(self.controlPanel, text="Operations")
-        self.operationsUpper.pack(side=TOP)
+        self.operationsUpper.grid(row=0, column=0)
         self.operationsBorder = Frame(
             self.operationsUpper, padx=2, pady=2, bg=OPERATIONS_BORDER)
         self.operationsBorder.pack(side=TOP)
@@ -101,9 +103,13 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.opSeparator = None
         self.operations.pack(side=LEFT)
         self.operationsLower = Frame(self.controlPanel)
-        self.operationsLower.pack(side=TOP, fill=X)
+        self.operationsLower.grid(row=1, column=0)
         self.operationsLowerCenter = Frame(self.operationsLower, padx=2, pady=5)
         self.operationsLowerCenter.pack(side=TOP)
+        self.codeFrame = Frame(self.controlPanel)
+        self.codeFrame.grid(row=0, column=1, rowspan=2, sticky=(N, E, S, W))
+        # self.controlPanel.grid_columnconfigure(1, maxsize=200)
+        self.codeText = None
         
         self.speedControl = None
         self.speedScale = Scale(
@@ -218,12 +224,56 @@ class VisualizationApp(object): # Base class for Python visualizations
     def setMessage(self, val=''):
         self.outputText.set(val)
 
+    def showCode(self, code): # Show algorithm code in a scrollable text box
+        if self.codeText is None:
+            self.codeText = Text(
+                self.codeFrame, wrap=NONE, background=OPERATIONS_BG, 
+                font=CODE_FONT, width=40, height=12, padx=10, pady=10,
+                takefocus=False)
+            self.codeText.grid(row=0, column=0, sticky=(N, E, S, W))
+            self.codeVScroll = Scrollbar(
+                self.codeFrame, orient=VERTICAL, command=self.codeText.yview)
+            self.codeVScroll.grid(row=0, column=1, rowspan=2, sticky=(N, S))
+            self.codeHScroll = Scrollbar(
+                self.codeFrame, orient=HORIZONTAL, command=self.codeText.xview)
+            self.codeHScroll.grid(row=1, column=0, sticky=(E, W))
+            self.codeText['xscrollcommand'] = self.codeHScroll.set
+            self.codeText['yscrollcommand'] = self.codeVScroll.set
+        else:
+            self.codeText.configure(state=NORMAL)
+            self.codeText.delete("1.0", END)
+        self.codeText.insert("1.0", code)
+        self.codeText.configure(state=DISABLED)
+
+    def createCodeTags(self, snippets):
+        self.codeText.tag_delete(*self.codeText.tag_names())
+        for tagName in snippets:
+            self.codeText.tag_add(tagName, *snippets[tagName])
+
+    def highlightCodeTags(self, tags):
+        if not isinstance(tags, (list, tuple)):
+            tags = [tags]
+        for tagName in self.codeText.tag_names():
+            highlight = tagName in tags
+            self.codeText.tag_config(
+                tagName, 
+                background=CODE_HIGHLIGHT if highlight else OPERATIONS_BG,
+                underline=1 if highlight else 0)
+            if highlight:
+                ranges = self.codeText.tag_ranges(tagName)
+                if len(ranges) > 0:
+                    self.codeText.see(ranges[0])
+            
     def cleanUp(self):     # Remove Tk items from past operations
         while len(self.cleanup):
             thing = self.cleanup.pop()
-            if isinstance(thing, (str, int)):
+            if isinstance(thing, (str, int)):  # Canvas item IDs
                 self.canvas.delete(thing)
         self.setMessage()  # Clear any messages
+        while len(self.codeFrame.children) > 0: # Remove any code being shown
+            tkItem = self.codeFrame.children.popitem()
+            tkItem[1].destroy()
+        self.codeText = None
 
     # Tk widget methods
     def widgetDimensions(self, widget): # Get widget's (width, height)
