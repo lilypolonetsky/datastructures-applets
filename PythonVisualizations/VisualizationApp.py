@@ -27,7 +27,15 @@ CODE_FONT = ('Courier', 12)
 CODE_HIGHLIGHT = 'yellow'
 CONTROLS_FONT = ('none', 14)
 
-scaleDefault = 100
+# Speed control slider
+SPEED_SCALE_MIN = 10
+SPEED_SCALE_MAX = 500
+SPEED_SCALE_DEFAULT = (SPEED_SCALE_MIN + SPEED_SCALE_MAX) // 2
+
+# Animation states
+STOPPED = 0
+RUNNING = 1
+PAUSED = 2
 
 # Utilities for vector math; used for canvas item coordinates
 def add_vector(v1, v2):
@@ -90,6 +98,7 @@ class VisualizationApp(object): # Base class for Python visualizations
 
         # Set up instance variables for managing animations and operations
         self.cleanup = set()    # Tk items to remove before next operation
+        self.animationState = STOPPED
         
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window)
@@ -113,10 +122,11 @@ class VisualizationApp(object): # Base class for Python visualizations
         
         self.speedControl = None
         self.speedScale = Scale(
-            self.operationsLowerCenter, from_=1, to=200, orient=HORIZONTAL,
+            self.operationsLowerCenter, orient=HORIZONTAL,
+            from_=SPEED_SCALE_MIN, to=SPEED_SCALE_MAX, 
             showvalue=False, sliderlength=20)
         self.speedScale.grid(row=0, column=1, sticky=W)
-        self.speedScale.set(scaleDefault)
+        self.speedScale.set(SPEED_SCALE_DEFAULT)
         self.slowLabel = Label(
             self.operationsLowerCenter, text="Animation speed:  slow", 
             font=CONTROLS_FONT)
@@ -124,7 +134,6 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.fastLabel = Label(
             self.operationsLowerCenter, text="fast", font=CONTROLS_FONT)
         self.fastLabel.grid(row=0, column=2, sticky=W)
-        self.waitVar = BooleanVar()
         self.pauseButton = None
         self.textEntries = []
         self.outputText = StringVar()
@@ -188,6 +197,14 @@ class VisualizationApp(object): # Base class for Python visualizations
             self.opSeparator.grid_configure(rowspan=max(nRows, buttonRow))
         return button
 
+    def addAnimationButtons(self):
+        self.pauseButton = self.addOperation(
+            "Pause", lambda: self.onClick(self.pause, self.pauseButton))
+        self.pauseButton['state'] = DISABLED
+        self.stopButton = self.addOperation(
+            "Stop", lambda: self.onClick(self.stop, self.pauseButton))
+        self.stopButton['state'] = DISABLED
+        
     def argumentChanged(self):
         args = self.getArguments()
         gridItems = gridDict(self.operations) # All operations 
@@ -195,9 +212,8 @@ class VisualizationApp(object): # Base class for Python visualizations
         for button in [gridItems[0, row] for row in range(nRows)
                        if isinstance(gridItems[0, row], Button)]:
             nArgs = getattr(button, 'required_args')
-            button.config(
-                state = DISABLED if any(arg == '' for arg in args[:nArgs])
-                else NORMAL)
+            button['state'] = (
+                DISABLED if any(arg == '' for arg in args[:nArgs]) else NORMAL)
         
     def getArguments(self, clear=False):
         return [self.getArgument(i, clear=clear)
@@ -414,27 +430,52 @@ class VisualizationApp(object): # Base class for Python visualizations
         
     # ANIMATION METHODS
     def speed(self, sleepTime):
-        return (sleepTime * (scaleDefault + 50)) / (self.speedScale.get() + 50)
+        return sleepTime * 50 * SPEED_SCALE_MIN / self.speedScale.get()
 
-    def stop(pauseButton):
-        self.running = False
+    def wait(self, sleepTime):    # Sleep for a user-adjusted period and return
+        if self.animationState == STOPPED: # a flag indicating if the user
+            return True           # has stopped the animation
+        if sleepTime > 0:
+            time.sleep(self.speed(sleepTime))
+        return self.animationState == STOPPED
 
-        if self.waitVar.get():
-            play(self.pauseButton)
-
-    def pause(pauseButton):
-        self.waitVar.set(True)
-
+    def onClick(self, command, *parameters):
+        self.enableButtons(False)
+        command(*parameters)
+        if command not in [self.pause, self.play]:
+            self.enableButtons()
+        
+    def stop(self, pauseButton):
+        self.stopAnimations()
         pauseButton['text'] = "Play"
-        pauseButton['command'] = lambda: onClick(play, pauseButton)
+        pauseButton['command'] = lambda: self.onClick(self.play, pauseButton)
 
-        self.canvas.wait_variable(waitVar)
+    def pause(self, pauseButton):
+        self.pauseAnimations()
+        pauseButton['text'] = "Play"
+        pauseButton['command'] = lambda: self.onClick(self.play, pauseButton)
+        while self.animationState == PAUSED:
+            time.sleep(0.05)
+            self.window.update()
 
-    def play(pauseButton):
-        self.waitVar.set(False)
+    def play(self, pauseButton):
+        self.startAnimations()
+        
+    def startAnimations(self):
+        self.animationState = RUNNING
+        self.pauseButton['text'] = 'Pause'
+        self.pauseButton['command'] = lambda: self.onClick(
+            self.pause, self.pauseButton)
+        self.pauseButton['state'] = NORMAL
+        self.stopButton['state'] = NORMAL
 
-        pauseButton['text'] = 'Pause'
-        pauseButton['command'] = lambda: onClick(pause, pauseButton)
+    def stopAnimations(self):
+        self.animationState = STOPPED
+        self.pauseButton['state'] = DISABLED
+        self.stopButton['state'] = DISABLED
+
+    def pauseAnimations(self):
+        self.animationState = PAUSED
 
     def runVisualization(self):
         self.window.mainloop()

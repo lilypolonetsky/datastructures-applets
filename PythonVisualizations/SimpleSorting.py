@@ -8,9 +8,6 @@ except ModuleNotFoundError:
     from .drawable import *
     from .VisualizationApp import *
 
-WIDTH = 800
-HEIGHT = 400
-
 CELL_SIZE = 50
 CELL_BORDER = 2
 CELL_BORDER_COLOR = 'black'
@@ -28,10 +25,7 @@ class SimpleArraySort(VisualizationApp):
         super().__init__(title=title, **kwargs)
         self.size = size
         self.title = title
-        self.list = []
-
-        self.waitVar = BooleanVar()
-        self.running = False
+        self.list = []           # Internal array of drawable cell values
 
         self.buttons = self.makeButtons()
         for i in range(size):
@@ -161,15 +155,30 @@ class SimpleArraySort(VisualizationApp):
                 font=VARIABLE_FONT, fill=color)
         return (arrow, label) if name else (arrow, )
 
+    insertCode = """
+def insert(self, item):
+   self.__a[self.__nItems] = item
+   self.__nItems += 1
+"""
+    insertCodeSnippets = {
+        'item_assignment': ('2.3', '2.end'),
+        'nitem_increment': ('3.3', '3.end'),
+    }
+    
     def insert(self, val):
+        self.startAnimations()
         self.cleanUp()
+        self.showCode(self.insertCode.strip())
+        self.createCodeTags(self.insertCodeSnippets)
+        
         # If array needs to grow, add cells:
         while self.size < len(self.list) + 1:
             self.size += 1
             self.createArrayCell(len(self.list))
 
         # draw an index pointing to the last cell
-        indexDisplay = self.createIndex(len(self.list))
+        self.highlightCodeTags('item_assignment')
+        indexDisplay = self.createIndex(len(self.list), 'nItems')
         self.cleanup |= set(indexDisplay)
 
         # create new cell and cell value display objects
@@ -178,8 +187,9 @@ class SimpleArraySort(VisualizationApp):
 
         # Animate arrival of new value from operations panel area
         canvasDimensions = self.widgetDimensions(self.canvas)
-        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
-        startPosition = add_vector(startPosition, (0, 0, CELL_SIZE, CELL_SIZE))
+        startPosition = add_vector(
+            [canvasDimensions[0] // 2 - CELL_SIZE, canvasDimensions[1]] * 2,
+            (0, 0) + (CELL_SIZE - CELL_BORDER,) * 2)
         cellPair = self.createCellValue(startPosition, val)
         self.moveItemsTo(cellPair, toPositions, steps=CELL_SIZE, sleepTime=0.01)
 
@@ -187,13 +197,16 @@ class SimpleArraySort(VisualizationApp):
         self.list.append(drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
 
-        # update window
-        self.window.update()
-
         # advance index for next insert
-        self.moveItemsBy(indexDisplay, (CELL_SIZE, 0))
+        self.highlightCodeTags('nitem_increment')
+        self.moveItemsBy(indexDisplay, (CELL_SIZE, 0), sleepTime=0.01)
+
+        self.highlightCodeTags([])
+        self.stopAnimations()
 
     def removeFromEnd(self):
+        self.cleanUp()
+        
         # pop an Element from the list
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
@@ -274,9 +287,25 @@ class SimpleArraySort(VisualizationApp):
 
         self.window.update()
 
+    findCode = """
+def find(self, item):
+   for j in range(self.__nItems):
+      if self.__a[j] == item:
+         return j
+   return -1
+"""
+    findCodeSnippets = {
+        'outer_loop_increment': ('2.7', '2.32'),
+        'key_comparison': ('3.9', '3.28'),
+        'key_found': ('4.9', '4.end'),
+        'key_not_found': ('5.3', '5.end'),
+    }
+    
     def find(self, val):
-        self.running = True
+        self.startAnimations()
         self.cleanUp()
+        self.showCode(self.findCode.strip())
+        self.createCodeTags(self.findCodeSnippets)
 
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
@@ -284,13 +313,16 @@ class SimpleArraySort(VisualizationApp):
 
         # go through each Drawable in the list
         for i in range(len(self.list)):
-            self.window.update()
-
             n = self.list[i]
 
             # if the value is found
+            self.highlightCodeTags('key_comparison')
+            self.window.update()
+            if self.wait(0.1):
+                break
             if n.val == val:
                 # get the position of the displayed cell and val
+                self.highlightCodeTags('key_found')
                 posShape = self.canvas.coords(n.display_shape)
                 
                 # Highlight the found element with a circle
@@ -302,25 +334,31 @@ class SimpleArraySort(VisualizationApp):
 
                 # update the display
                 self.window.update()
+                self.wait(0.1)
                 
                 # Animation stops
-                self.running = False
+                self.highlightCodeTags([])
+                self.stopAnimations()
                 return i
 
-            # if not found, wait 1 second, and then move the index over one cell
-            time.sleep(self.speed(1))
-            for item in indexDisplay:
-                self.canvas.move(item, CELL_SIZE, 0)
-
-            if not self.running:
+            # if not found, then move the index over one cell
+            self.highlightCodeTags('outer_loop_increment')
+            self.moveItemsBy(indexDisplay, (CELL_SIZE, 0), sleepTime=0.01)
+            if self.wait(0.01):
                 break
 
+        # Key not found
+        self.highlightCodeTags('key_not_found')
+        self.window.update()
+        self.wait(0.1)
+        
         # Animation stops
-        self.running = False
+        self.highlightCodeTags([])
+        self.stopAnimations()
         return None
 
     def shuffle(self):
-        self.running = True
+        self.startAnimations()
         self.cleanUp()
 
         y = ARRAY_Y0
@@ -334,10 +372,11 @@ class SimpleArraySort(VisualizationApp):
         canvasDimensions = self.widgetDimensions(self.canvas)
         DX = CELL_SIZE * 3 / 5
         DY = DX
-        while times < len(self.list)*2 and self.running:
+        while times < len(self.list)*2:
             down = max(0, 5 - times) * CELL_SIZE // 5
             for i in range(len(self.list)):
-                time.sleep(self.speed(0.01))
+                if self.wait(0.01):
+                    break
                 bBox = self.canvas.coords(self.list[i].display_shape)
                 shuffleY = random.randint(
                     max(down - DY, -bBox[1]), 
@@ -349,12 +388,15 @@ class SimpleArraySort(VisualizationApp):
                     (shuffleX, shuffleY),
                     steps=1, sleepTime=0)
             times += 1
-            time.sleep(self.speed(0.01))
+            if self.wait(0.01):
+                break
             self.window.update()
 
-        # Animation stops
-        self.running = False
+        # Animate return of values to their array cells
         self.stopMergeSort()
+
+        # Animation stops
+        self.stopAnimations()
 
     insertionSortCode = """
 def insertionSort(self):
@@ -374,11 +416,11 @@ def insertionSort(self):
         'inner_loop_assignment': ('6.9', '6.end'),
         'inner_loop_decrement': ('7.9', '7.end'),
         'outer_loop_assignment': ('8.6', '8.end'),
-        }
+    }
     
     # SORTING METHODS
     def insertionSort(self):
-        self.running = True
+        self.startAnimations()
         self.cleanUp()
         self.showCode(SimpleArraySort.insertionSortCode.strip())
         self.createCodeTags(self.insertionSortCodeSnippets)
@@ -424,7 +466,8 @@ def insertionSort(self):
             # Loop down until we find an item less than or equal to the mark
             while inner > 0 and temp < self.list[inner - 1].val:
                 self.highlightCodeTags('inner_loop_test')
-                time.sleep(self.speed(0.05))
+                if self.wait(0.05):
+                    break
 
                 # Shift cells right that are greater than mark
                 self.highlightCodeTags('inner_loop_assignment')
@@ -437,12 +480,10 @@ def insertionSort(self):
                 deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
                 if deltaX != 0:
                     self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
-                
-                if not self.running:
-                    break
 
             # Delay to show discovery of insertion point for mark
-            time.sleep(self.speed(0.1))
+            if self.wait(0.1):
+                break
             
             # Copy marked temporary value to insetion point
             self.highlightCodeTags('outer_loop_assignment')
@@ -457,14 +498,14 @@ def insertionSort(self):
             outer += 1
             self.highlightCodeTags('outer_loop_increment')
             self.moveItemsBy(outerIndex, (CELL_SIZE, 0), sleepTime=0.02)
-            if not self.running:
+            if self.wait(0.01):
                 break
 
         self.highlightCodeTags([])
         self.fixCells()
 
         # Animation stops
-        self.running = False
+        self.stopAnimations()
 
     bubbleSortCode = """
 def bubbleSort(self):
@@ -473,17 +514,25 @@ def bubbleSort(self):
          if self.__a[inner] > self.__a[inner+1]:
             self.swap(inner, inner+1)
 """
+    bubbleSortCodeSnippets = {
+        'outer_loop_increment': ('2.7', '2.44'),
+        'inner_loop_increment': ('3.10', '3.30'),
+        'inner_loop_comparison': ('4.12', '4.47'),
+        'inner_loop_swap': ('5.12', '5.end'),
+    }
     
     def bubbleSort(self):
-        self.running = True
+        self.startAnimations()
         self.cleanUp()
         self.showCode(SimpleArraySort.bubbleSortCode.strip())
+        self.createCodeTags(self.bubbleSortCodeSnippets)
         n = len(self.list)
 
         # make an index arrow that points to last unsorted element
         last = n - 1
         lastIndex = self.createIndex(last, "last", level=2)
         self.cleanup |= set(lastIndex)
+        self.highlightCodeTags('outer_loop_increment')
 
         # make an index arrow that points to the next cell to check
         innerIndex = self.createIndex(0, "inner", level=1)
@@ -493,29 +542,32 @@ def bubbleSort(self):
         while last > 0:
             for inner in range(last):
                 # Move inner index arrow to cell to check
+                self.highlightCodeTags('inner_loop_increment')
                 centerX0 = self.cellCenter(inner)[0]
                 deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
                 if deltaX != 0:
                     self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
                     
                 # Compare cell value at inner index with the next value
-                if self.list[inner].val > self.list[inner+1].val:
-                    self.swap(inner, inner+1)
-                else:
-                    time.sleep(self.speed(0.4))
-
-                if not self.running:
+                self.highlightCodeTags('inner_loop_comparison')
+                self.window.update()
+                if self.wait(0.2):
                     break
+                if self.list[inner].val > self.list[inner+1].val:
+                    self.highlightCodeTags('inner_loop_swap')
+                    self.swap(inner, inner+1)
 
-            if not self.running:
+            if self.wait(0.01):
                 break
 
             # move last index one lower
             last -= 1
+            self.highlightCodeTags('outer_loop_increment')
             self.moveItemsBy(lastIndex, (-CELL_SIZE, 0), sleepTime=0.05)
 
         # Animation stops
-        self.running = False
+        self.highlightCodeTags([])
+        self.stopAnimations()
 
     selectionSortCode = """
 def selectionSort(self):
@@ -526,17 +578,27 @@ def selectionSort(self):
             min = inner
       self.swap(outer, min)
 """
+    selectionSortCodeSnippets = {
+        'outer_loop_increment': ('2.7', '2.44'),
+        'outer_min_assignment': ('3.6', '3.end'),
+        'inner_loop_increment': ('4.10', '4.48'),
+        'inner_loop_comparison': ('5.12', '5.43'),
+        'inner_min_assignment': ('6.12', '6.end'),
+        'outer_loop_swap': ('7.6', '7.end'),
+    }
     
     def selectionSort(self):
-        self.running = True
+        self.startAnimations()
         self.cleanUp()
         self.showCode(SimpleArraySort.selectionSortCode.strip())
+        self.createCodeTags(self.selectionSortCodeSnippets)
         n = len(self.list)
 
         # make an index arrow for the outer loop
         outer = 0
         outerIndex = self.createIndex(outer, "outer", level=3)
         self.cleanup |= set(outerIndex)
+        self.highlightCodeTags('outer_loop_increment')
 
         # make an index arrow that points to the next cell to check
         innerIndex = self.createIndex(outer+1, "inner", level=1)
@@ -547,6 +609,7 @@ def selectionSort(self):
         while outer < len(self.list) - 1:
 
             min_idx = outer
+            self.highlightCodeTags('outer_min_assignment')
             if minIndex:
                 self.moveItemsBy(
                     minIndex,
@@ -554,6 +617,8 @@ def selectionSort(self):
                      self.canvas.coords(minIndex[0])[0], 0), sleepTime=0.02)
             else:
                 minIndex = self.createIndex(outer, "min", level=2)
+                if self.wait(0.1):
+                    break
                 self.cleanup |= set(minIndex)
             
             # Find the minimum element in remaining
@@ -561,37 +626,41 @@ def selectionSort(self):
             for inner in range(outer + 1, len(self.list)):
                 
                 # Move inner index arrow to point at cell to check
+                self.highlightCodeTags('inner_loop_increment')
                 centerX0 = self.cellCenter(inner)[0]
                 deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
                 if deltaX != 0:
                     self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
 
+                self.highlightCodeTags('inner_loop_comparison')
+                self.window.update()
+                if self.wait(0.2):
+                    break
                 if self.list[inner].val < self.list[min_idx].val:
                     min_idx = inner
+                    self.highlightCodeTags('inner_min_assignment')
                     self.moveItemsBy(
                         minIndex,
                         (self.canvas.coords(innerIndex[0])[0] -
                          self.canvas.coords(minIndex[0])[0], 0), sleepTime=0.02)
-                else:
-                    time.sleep(self.speed(0.4))
 
-                if not self.running:
-                    break
-
-            if not self.running:
+            if self.wait(0.01):
                 break
 
             # Swap the found minimum element with the one indexed by outer
+            self.highlightCodeTags('outer_loop_swap')
             self.swap(outer, min_idx)
             
             # move outer index one higher
             outer += 1
+            self.highlightCodeTags('outer_loop_increment')
             self.moveItemsBy(outerIndex, (CELL_SIZE, 0), sleepTime=0.05)
 
         self.fixCells()
 
         # Animation stops
-        self.running = False
+        self.highlightCodeTags([])
+        self.stopAnimations()
         
     def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
         # bring all cells up to original position
@@ -625,7 +694,8 @@ def selectionSort(self):
                         done[i] = True
 
             self.window.update()
-            time.sleep(self.speed(0.01))
+            if self.wait(0.01):
+                break
 
         self.fixCells()
         
@@ -652,10 +722,7 @@ def selectionSort(self):
             "Delete Rightmost", lambda: self.removeFromEnd())
         shuffleButton = self.addOperation(
             "Shuffle", lambda: self.shuffle())
-        self.pauseButton = self.addOperation(
-            "Pause", lambda: self.onClick(self.pause, self.pauseButton()))
-        self.stopButton = self.addOperation(
-            "Stop", lambda: self.onClick(self.stop, self.pauseButton()))
+        self.addAnimationButtons()
         findButton = self.addOperation(
             "Find", lambda: self.clickFind(), numArguments=1,
             validationCmd=vcmd)
@@ -663,7 +730,7 @@ def selectionSort(self):
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)
         buttons = [bubbleSortButton, selectionSortButton, insertionSortButton,
-                   findButton, insertButton, deleteButton]
+                   shuffleButton, findButton, insertButton, deleteButton]
         return buttons # Buttons managed by play/pause/stop controls
 
     def validArgument(self):
@@ -696,41 +763,19 @@ def selectionSort(self):
             self.setMessage("Value {} inserted".format(val))
         self.clearArgument()
 
-    def stop(self, pauseButton): # will stop after the current shuffle is done
-        self.running = False
-
-        if self.waitVar.get():
-            self.play(pauseButton)
-
-    def pause(self, pauseButton):
-        self.waitVar.set(True)
-
-        pauseButton['text'] = "Play"
-        pauseButton['command'] = lambda: self.onClick(self.play, pauseButton)
-
-        self.canvas.wait_variable(self.waitVar)
-
-    def play(self, pauseButton):
-        self.waitVar.set(False)
-
-        pauseButton['text'] = 'Pause'
-        pauseButton['command'] = lambda: self.onClick(self.pause, pauseButton)
-
-    def onClick(self, command, parameter = None):
-        self.cleanUp()
-        self.enableButtons(False)
-        if parameter:
-            command(self, parameter)
-        else:
-            command(self)
-        if command not in [self.pause, self.play]:
-            self.enableButtons()
-            
     def enableButtons(self, enable=True):
         for btn in self.buttons:
             btn.config(state=NORMAL if enable else DISABLED)
-
-
+            
+    def startAnimations(self):
+        self.enableButtons(enable=False)
+        super().startAnimations()
+            
+    def stopAnimations(self):
+        super().stopAnimations()
+        self.enableButtons(enable=True)
+        self.argumentChanged()
+                    
 if __name__ == '__main__':
     random.seed(3.14159)    # Use fixed seed for testing consistency
     array = SimpleArraySort()
