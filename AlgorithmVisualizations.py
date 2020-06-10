@@ -2,7 +2,7 @@
 __doc__ = """
 Program to show algorithm visualizations in a tabbed Tk notebook presentation
 form.
-This progam loads all the visualization modules in a give set of directories.
+This program loads all the visualization modules in a Python package.
 It searches the modules for classes that are subclasses of VisualizationApp 
 and instantiates each one in a separate tab.  When the user clicks on a
 tab, it calls the class's runVisualization method.
