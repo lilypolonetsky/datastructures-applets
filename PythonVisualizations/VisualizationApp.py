@@ -7,6 +7,7 @@ The control panel has containers for
  * Functions that take no argument
  * A speed control for slow to fast animation or single step increments
  * A text message area for providing messages
+ * A text window for showing and highlighting code snippets
 """
 
 import time, math, operator, re
@@ -146,14 +147,14 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
 
     def addOperation(        # Add a button to the operations control panel
-            self,            # The button can be depedent on an argument
-            label,           # provided in the text entry widget. Button label
+            self,            # The button can depend on N arguments
+            label,           # provided by text entry widgets. Button label
             callback,        # Function to call when button pressed
             numArguments=0,  # Count of required user entered arguments
             validationCmd=None, # Tk validation command tuple for argument
             helpText=None,   # Help text for argument (erased on first keypress)
             maxRows=4,       # Operations w/o args beyond maxRows -> new columns
-            **kwargs):       # Tk button keywoard args
+            **kwargs):       # Tk button keyword args
         gridItems = gridDict(self.operations) # Operations inserted in grid
         nColumns, nRows = self.operations.grid_size()
         withArgument = [
@@ -179,11 +180,13 @@ class VisualizationApp(object): # Base class for Python visualizations
             buttonRow = len(withArgument) + 1
             button.grid(column=0, row=buttonRow, padx = 8, sticky=(E, W))
             button.config(state=DISABLED)
-            rowSpan = len(withArgument) + 1 // len(self.textEntries) 
-            for textEntry in self.textEntries: # Spread text entries across
-                textEntry.grid_configure(  # all rows of buttons with arguments
+            rowSpan = max(1, (len(withArgument) + 1) // len(self.textEntries))
+            for i, textEntry in enumerate(self.textEntries): # Spread text
+                textEntry.grid_configure(  # entries across all rows of buttons
+                    row = rowSpan * i + 1, # with arguments
                     rowspan=rowSpan if textEntry != self.textEntries[-1] else
-                    len(withArgument)+1 - (len(self.textEntries) - 1) * rowSpan)
+                    max(1, len(withArgument)+1 -
+                        (len(self.textEntries) - 1) * rowSpan))
         else:
             buttonRow = len(withoutArgument) % maxRows + 1
             button.grid(column=4 + len(withoutArgument) // maxRows,
@@ -205,20 +208,6 @@ class VisualizationApp(object): # Base class for Python visualizations
             "Stop", lambda: self.onClick(self.stop, self.pauseButton))
         self.stopButton['state'] = DISABLED
         
-    def argumentChanged(self):
-        args = self.getArguments()
-        gridItems = gridDict(self.operations) # All operations 
-        nColumns, nRows = self.operations.grid_size()
-        for button in [gridItems[0, row] for row in range(nRows)
-                       if isinstance(gridItems[0, row], Button)]:
-            nArgs = getattr(button, 'required_args')
-            button['state'] = (
-                DISABLED if any(arg == '' for arg in args[:nArgs]) else NORMAL)
-        
-    def getArguments(self, clear=False):
-        return [self.getArgument(i, clear=clear)
-                for i in range(len(self.textEntries))]
-    
     def getArgument(self, index=0, clear=False):
         if 0 <= index and index < len(self.textEntries):
             val = self.textEntries[index].get()
@@ -226,6 +215,10 @@ class VisualizationApp(object): # Base class for Python visualizations
                 self.clearArgument(index)
             return val
 
+    def getArguments(self, clear=False):
+        return [self.getArgument(i, clear=clear)
+                for i in range(len(self.textEntries))]
+    
     def clearArgument(self, index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
@@ -236,6 +229,22 @@ class VisualizationApp(object): # Base class for Python visualizations
             self.textEntries[index].delete(0, END)
             self.textEntries[index].insert(0, str(val))
             self.argumentChanged()
+            
+    def setArguments(self, *values):
+        for index in range(min(len(values), len(self.textEntries))):
+            self.textEntries[index].delete(0, END)
+            self.textEntries[index].insert(0, str(values[index]))
+        self.argumentChanged()
+        
+    def argumentChanged(self):
+        args = self.getArguments()
+        gridItems = gridDict(self.operations) # All operations 
+        nColumns, nRows = self.operations.grid_size()
+        for button in [gridItems[0, row] for row in range(nRows)
+                       if isinstance(gridItems[0, row], Button)]:
+            nArgs = getattr(button, 'required_args')
+            button['state'] = (
+                DISABLED if any(arg == '' for arg in args[:nArgs]) else NORMAL)
 
     def setMessage(self, val=''):
         self.outputText.set(val)
