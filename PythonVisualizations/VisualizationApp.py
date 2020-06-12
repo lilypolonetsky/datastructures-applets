@@ -278,7 +278,7 @@ class VisualizationApp(object): # Base class for Python visualizations
     def highlightCodeTags(self, tags):
         if not isinstance(tags, (list, tuple)):
             tags = [tags]
-        for tagName in self.codeText.tag_names():
+        for tagName in self.codeText.tag_names() if self.codeText else []:
             highlight = tagName in tags
             self.codeText.tag_config(
                 tagName, 
