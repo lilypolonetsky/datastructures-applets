@@ -89,9 +89,9 @@ class Array(VisualizationApp):
             return
         n = self.list.pop()
 
-        # delete the associated display objects
-        self.canvas.delete(n.display_shape)
-        self.canvas.delete(n.display_val)
+        # Slide value rectangle up and off screen
+        items = (n.display_shape, n.display_val)
+        self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
         # update window
         self.window.update()
