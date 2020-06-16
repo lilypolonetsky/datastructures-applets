@@ -45,15 +45,15 @@ window.  The current block being executed would always be on top.
 
 The call to highlight a snippet would need to uniquely identify the
 callStack so that recursive calls could be handled separately.  That
-will require unique tags for each call.  The `createCodeTags()` would
-create a unique prefix for all the snippets it receives and provide a
-dictionary that translates the provided identifiers to their unique
-equivalents.  That dictionary would be stored in the callStack and
-used by `highlightCodeTags()` to find the corresponding unique tag to
-be highlighted.  The `showCode()` and `createCodeTags()` should be
-merged into a single method that creates a structure for the code
-associated with the animation method that calls it.  Let's call that
-structure a `CodeHighlightBlock` and store it in the call stack set.
+will require unique tags for each call.  The code text structure on
+top of the stack would provide a unique prefix for all the snippets it
+highlights.  When a call to an animation begins it would create the
+local environment on top of the stack along with information about the
+code and the snippets to be highlighted.  The `showCode()` and
+`createCodeTags()` should be merged into a single method that creates
+the local environment associated with the animation method that calls
+it.  Let's call the code text structure a `CodeHighlightBlock` and
+store it inside the call stack set.
 
 Presumably,
 the highlighted tags in calls below the topmost of the call stack
@@ -76,11 +76,10 @@ worrying about yet.  The background color and maybe other display
 aspects can be managed with a tag that gets added by `showCode()`.
 
 The `CodeHighlightBlock` needs to keep the line count
-of the code that was inserted for the call.  That count should include the
-boundary line so it can be cleaned up properly.  The first code block
+of the code that was inserted for the call.  The first code block
 inserted into the code window probably should not get a boundary line
 since that will be an unnecessary distraction.  Code that gets inserted
-must terminate with a newline.
+must terminate with a newline if a boundary line follows.
 
 ## API
 
