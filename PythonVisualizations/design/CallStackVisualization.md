@@ -43,18 +43,17 @@ Each call to an animation method could show code and highlight it
 during "execution".  The code would go in a block of lines in the text
 window.  The current block being executed would always be on top.
 
-The call
-to highlight a snippet would need to uniquely identify the callStack
-so that recursive calls could be handled separately.  That will require
-unique tags for each call.  The `createCodeTags()` would create a
-unique prefix for all the snippets it receives and provide a dictionary
-that translates the provided identifiers to their unique equivalents.
-That dictionary would be stored in the callStack and used by `highlightCodeTags()`
-to find the corresponding unique tag to be highlighted.
-The `showCode()` and `createCodeTags()` should be merged into a single method
-that creates a structure for the code associated with the animation method
-that calls it.  Let's call that structure a `CodeHighlightBlock` and store
-it in the call stack set.
+The call to highlight a snippet would need to uniquely identify the
+callStack so that recursive calls could be handled separately.  That
+will require unique tags for each call.  The `createCodeTags()` would
+create a unique prefix for all the snippets it receives and provide a
+dictionary that translates the provided identifiers to their unique
+equivalents.  That dictionary would be stored in the callStack and
+used by `highlightCodeTags()` to find the corresponding unique tag to
+be highlighted.  The `showCode()` and `createCodeTags()` should be
+merged into a single method that creates a structure for the code
+associated with the animation method that calls it.  Let's call that
+structure a `CodeHighlightBlock` and store it in the call stack set.
 
 Presumably,
 the highlighted tags in calls below the topmost of the call stack
@@ -69,12 +68,12 @@ the text at the top.  Tk will then take care of keeping the tag with the
 corresponding characters in the text widget as lines are added or removed
 (only at the top of the stack).
 
-We can use some kind of boundary line of text between calls on the call stack,
-probably with a different background color.  They can span the entire width of
-of the text widget.  If the text widget shrinks in width, the boundary lines will
-wrap, but that's not an issue worth worrying about yet.  The background color
-and maybe other display aspects can be managed with a tag that gets added by
-`showCode()`.
+We can use some kind of boundary line of text between calls on the
+call stack, probably with a different background color.  They can span
+the entire width of of the text widget.  If the text widget shrinks in
+width, the boundary lines will wrap, but that's not an issue worth
+worrying about yet.  The background color and maybe other display
+aspects can be managed with a tag that gets added by `showCode()`.
 
 The `CodeHighlightBlock` needs to keep the line count
 of the code that was inserted for the call.  That count should include the
@@ -82,3 +81,50 @@ boundary line so it can be cleaned up properly.  The first code block
 inserted into the code window probably should not get a boundary line
 since that will be an unnecessary distraction.  Code that gets inserted
 must terminate with a newline.
+
+## API
+
+A new animation should have to only make one or two method calls at
+the beginning to create the new local environment on the callStack.
+The call(s) should produce a `set` to which animation items can be
+added for later clean up.  For example:
+
+```
+    def bubbleSort(self):
+        callEnv = self.createCallEnvironment(code, codeSnippets)
+	...
+	callEnv.add(self.canvas.create_text(*coords, text="myVar"))
+        ...
+        self.highlightCodeTags(callEnv, 'key_comparison')
+        ...
+	self.cleanUp(callEnv)
+	return
+```
+
+The `createCallEnvironment()` builds the set that gets pushed on the
+`callStack` and is the value returned.  If the animation method has
+code to show and snippets to highlight, they are passed in here.
+The `cleanUp()` at the end takes the callEnv set and removes its display
+items.
+
+What about a recursive procedure that shows multiple copies of the
+same variables as canvas items for the different invocations?  It
+would be nice if we could dim, gray out, or hide the canvas items from
+lower calls on the stack, then restore them once the recursive call
+returns.  Hiding them could be achieved by moving them fully off the
+canvas and then back again by the reverse move.  If left on the
+canvas, they will cause confusion.  The caller could wrap recursive
+calls with something like:
+
+```
+   def Fibonacci(self, N):
+        callEnv = self.createCallEnvironment()
+	callEnv.add(self.canvas.create_text(*coords, text="N"))
+	...
+	if N > 1:
+            self.hideCallEnv(callEnv)
+            f_of_N_1 = self.Fibonacci(N-1)
+            self.showCallEnv(callEnv)
+	...
+	self.cleanUp(callEnv)
+```
