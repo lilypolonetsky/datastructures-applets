@@ -202,7 +202,6 @@ def insert(self, item):
         self.moveItemsBy(indexDisplay, (CELL_SIZE, 0), sleepTime=0.01)
 
         self.highlightCodeTags([], callEnviron)
-        self.stopAnimations()
         self.cleanUp(callEnviron)
 
     def removeFromEnd(self):
@@ -336,7 +335,6 @@ def find(self, item):
                 
                 # Animation stops
                 self.highlightCodeTags([], callEnviron)
-                self.stopAnimations()
                 self.cleanUp(callEnviron)
                 return i
 
@@ -353,7 +351,6 @@ def find(self, item):
         
         # Animation stops
         self.highlightCodeTags([], callEnviron)
-        self.stopAnimations()
         self.cleanUp(callEnviron)
         return None
 
@@ -396,7 +393,6 @@ def find(self, item):
         self.stopMergeSort()
 
         # Animation stops
-        self.stopAnimations()
         self.cleanUp(callEnviron)
 
     insertionSortCode = """
@@ -506,7 +502,6 @@ def insertionSort(self):
         self.fixCells()
 
         # Animation stops
-        self.stopAnimations()
         self.cleanUp(callEnviron)
 
     bubbleSortCode = """
@@ -569,7 +564,6 @@ def bubbleSort(self):
 
         # Animation stops
         self.highlightCodeTags([], callEnviron)
-        self.stopAnimations()
         self.cleanUp(callEnviron)
 
     selectionSortCode = """
@@ -663,7 +657,6 @@ def selectionSort(self):
 
         # Animation stops
         self.highlightCodeTags([], callEnviron)
-        self.stopAnimations()
         self.cleanUp(callEnviron)
         
     def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
@@ -709,8 +702,8 @@ def selectionSort(self):
             self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
         self.window.update()
 
-    def cleanUp(self, *args): # Customize clean up for sorting
-        super().cleanUp(*args) # Do the VisualizationApp clean up
+    def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
+        super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
         self.fixCells()       # Restore cells to their coordinates in array
         
     def makeButtons(self):

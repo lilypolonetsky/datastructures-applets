@@ -81,7 +81,6 @@ class Array(VisualizationApp):
 
         # advance index for next insert
         self.moveItemsBy(indexDisplay, (CELL_SIZE, 0))
-        self.stopAnimations()
         self.cleanUp(callEnviron)
 
     def removeFromEnd(self):
@@ -100,10 +99,10 @@ class Array(VisualizationApp):
         # update window
         self.window.update()
         self.cleanUp(callEnviron)
-        self.stopAnimations()
 
     def assignElement(
-            self, fromIndex, toIndex, steps=CELL_SIZE // 2, sleepTime=0.01):
+            self, fromIndex, toIndex, callEnviron,
+            steps=CELL_SIZE // 2, sleepTime=0.01):
         fromDrawable = self.list[fromIndex]
         
         # get positions of "to" cell in array
@@ -112,6 +111,7 @@ class Array(VisualizationApp):
         # create new display objects as copies of the "from" cell and value
         newCell = self.copyCanvasItem(fromDrawable.display_shape)
         newCellVal = self.copyCanvasItem(fromDrawable.display_val)
+        callEnviron |= set([newCell, newCellVal])
 
         # Move copies to the desired location
         self.moveItemsTo((newCell, newCellVal), toPositions, steps=steps,
@@ -126,6 +126,7 @@ class Array(VisualizationApp):
         self.list[toIndex].val = self.list[fromIndex].val
         self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
+        callEnviron ^= set([newCell, newCellVal])
 
         # update the window
         self.window.update()
@@ -228,14 +229,12 @@ class Array(VisualizationApp):
                 self.wait(0.2)
                 
                 self.cleanUp(callEnviron)
-                self.stopAnimations()
                 return i
 
             # if not found, then move the index over one cell
             self.moveItemsBy(indexDisplay, (CELL_SIZE, 0), sleepTime=0.01)
 
         self.cleanUp(callEnviron)
-        self.stopAnimations()
         return None
 
     def remove(self, val):
@@ -258,14 +257,23 @@ class Array(VisualizationApp):
             
             # Slide values from right to left to fill gap
             for i in range(index+1, len(self.list)):
-                self.assignElement(i, i-1)
+                self.assignElement(i, i-1, callEnviron)
                 self.moveItemsBy(kIndex, (CELL_SIZE, 0), sleepTime=0.01)
 
             self.removeFromEnd()
         
         self.cleanUp(callEnviron)
-        self.stopAnimations()
         return found
+        
+    def fixCells(self):       # Move canvas display items to exact cell coords
+        for i, drawItem in enumerate(self.list):
+            self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
+            self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
+        self.window.update()
+
+    def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
+        super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
+        self.fixCells()       # Restore cells to their coordinates in array
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),

@@ -341,7 +341,10 @@ class VisualizationApp(object): # Base class for Python visualizations
                 return item
             
     def cleanUp(self,         # Remove Tk items from past animations either
-                callEnviron=None): # for a particular call or all calls
+                callEnviron=None,  # for a particular call or all calls
+                stopAnimations=True): # and stop animations
+        if stopAnimations:
+            self.stopAnimations()
         minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
         while len(self.callStack) > minStack: # 1st call unless cleaning all
             top = self.callStack.pop()
