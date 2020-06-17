@@ -27,6 +27,7 @@ OPERATIONS_BORDER = 'black'
 CODE_FONT = ('Courier', 12)
 CODE_HIGHLIGHT = 'yellow'
 CONTROLS_FONT = ('none', 14)
+CALL_STACK_BOUNDARY = 'brown3'
 
 # Speed control slider
 SPEED_SCALE_MIN = 10
@@ -98,8 +99,9 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.maxArgWidth = maxArgWidth
 
         # Set up instance variables for managing animations and operations
-        self.cleanup = set()    # Tk items to remove before next operation
+        self.callStack = []    # Stack of local environments for visualziation
         self.animationState = STOPPED
+        self.pauseButton, self.stopButton = None, None
         
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window)
@@ -135,7 +137,6 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.fastLabel = Label(
             self.operationsLowerCenter, text="fast", font=CONTROLS_FONT)
         self.fastLabel.grid(row=0, column=2, sticky=W)
-        self.pauseButton = None
         self.textEntries = []
         self.outputText = StringVar()
         self.outputText.set('')
@@ -154,6 +155,8 @@ class VisualizationApp(object): # Base class for Python visualizations
             validationCmd=None, # Tk validation command tuple for argument
             helpText=None,   # Help text for argument (erased on first keypress)
             maxRows=4,       # Operations w/o args beyond maxRows -> new columns
+            buttonType=Button, # Type can be Button or Checkbutton
+            cleanUpBefore=True, # Clean up all previous animations before Op
             **kwargs):       # Tk button keyword args
         gridItems = gridDict(self.operations) # Operations inserted in grid
         nColumns, nRows = self.operations.grid_size()
@@ -164,8 +167,10 @@ class VisualizationApp(object): # Base class for Python visualizations
             gridItems[col, row]
             for row in range(nRows) for col in range(4, nColumns)
             if isinstance(gridItems[col, row], Button)]
-        button = Button(self.operations, text=label, command=callback,
-                        bg=OPERATIONS_BG)
+        button = buttonType( # Create button based on type
+            self.operations, text=label, 
+            command=lambda : (cleanUpBefore and self.cleanUp()) or callback(),
+            bg=OPERATIONS_BG)
         setattr(button, 'required_args', numArguments)
         if numArguments:
             while len(self.textEntries) < numArguments: # Build argument entry
@@ -202,10 +207,12 @@ class VisualizationApp(object): # Base class for Python visualizations
 
     def addAnimationButtons(self):
         self.pauseButton = self.addOperation(
-            "Pause", lambda: self.onClick(self.pause, self.pauseButton))
+            "Pause", lambda: self.onClick(self.pause, self.pauseButton),
+            cleanUpBefore=False)
         self.pauseButton['state'] = DISABLED
         self.stopButton = self.addOperation(
-            "Stop", lambda: self.onClick(self.stop, self.pauseButton))
+            "Stop", lambda: self.onClick(self.stop, self.pauseButton),
+            cleanUpBefore=False)
         self.stopButton['state'] = DISABLED
         
     def getArgument(self, index=0, clear=False):
@@ -249,7 +256,14 @@ class VisualizationApp(object): # Base class for Python visualizations
     def setMessage(self, val=''):
         self.outputText.set(val)
 
-    def showCode(self, code): # Show algorithm code in a scrollable text box
+    def showCode(self,     # Show algorithm code in a scrollable text box
+                 code,     # Code to display, plus optional boundary line
+                 addBoundary=False, # to separate calls on the stack
+                 prefix='',    # Prefix to apply to snippet labels
+                 snippets={}): # Dict of snippet label -> text indices
+        code = code.strip()
+        if len(code) == 0:  # Empty code string?
+            return          # then nothing to show
         if self.codeText is None:
             self.codeText = Text(
                 self.codeFrame, wrap=NONE, background=OPERATIONS_BG, 
@@ -264,22 +278,37 @@ class VisualizationApp(object): # Base class for Python visualizations
             self.codeHScroll.grid(row=1, column=0, sticky=(E, W))
             self.codeText['xscrollcommand'] = self.codeHScroll.set
             self.codeText['yscrollcommand'] = self.codeVScroll.set
-        else:
-            self.codeText.configure(state=NORMAL)
-            self.codeText.delete("1.0", END)
-        self.codeText.insert("1.0", code)
+            self.codeText.tag_config('call_stack_boundary',
+                                     background=CALL_STACK_BOUNDARY)
+            
+        self.codeText.configure(state=NORMAL)
+        
+        # Add a call stack boundary line if requested and other code exists
+        currentCode = self.codeText.get('1.0', END)
+        if addBoundary and currentCode and not currentCode.isspace():
+            self.codeText.insert('1.0',
+                                 self.codeText.config('width')[-1] * '-' + '\n')
+            self.codeText.tag_add('call_stack_boundary', '1.0', '1.end')
+            
+        # Add code at top of text widget (above stack boundary, if any)
+        self.codeText.insert('1.0', code + '\n')
+        self.codeText.see('1.0')
+        
+        # Tag the snippets with unique tag name
+        for tagName in snippets:
+            self.codeText.tag_add(prefix + tagName, *snippets[tagName])
         self.codeText.configure(state=DISABLED)
 
-    def createCodeTags(self, snippets):
-        self.codeText.tag_delete(*self.codeText.tag_names())
-        for tagName in snippets:
-            self.codeText.tag_add(tagName, *snippets[tagName])
-
-    def highlightCodeTags(self, tags):
+    def highlightCodeTags(self, tags, callEnviron):
+        codeHighlightBlock = self.getCodeHighlightBlock(callEnviron)
+        if codeHighlightBlock is None:  # This shouldn't happen, but...
+            return
         if not isinstance(tags, (list, tuple)):
             tags = [tags]
         for tagName in self.codeText.tag_names() if self.codeText else []:
-            highlight = tagName in tags
+            if not tagName.startswith(codeHighlightBlock.prefix):
+                continue  # Only change tags for this call environment
+            highlight = tagName[len(codeHighlightBlock.prefix):] in tags
             self.codeText.tag_config(
                 tagName, 
                 background=CODE_HIGHLIGHT if highlight else OPERATIONS_BG,
@@ -288,18 +317,60 @@ class VisualizationApp(object): # Base class for Python visualizations
                 ranges = self.codeText.tag_ranges(tagName)
                 if len(ranges) > 0:
                     self.codeText.see(ranges[0])
+
+    # Return the CodeHighlightBlock from the set object from the call stack
+    # NOTE: this could be more efficient if the objects on the call stacks
+    # were dictionaries but Python doesn't allow mutable objects like a
+    # CodeHighlightBlock as keys so we'd need a special key that couldn't
+    # be confused with a canvas item (string or integer) to index it
+    # Instead, we do a linear search and find it by its type
+    def getCodeHighlightBlock(self, callEnvironment):
+        for item in callEnvironment:
+            if isinstance(item, CodeHighlightBlock):
+                return item
             
-    def cleanUp(self):     # Remove Tk items from past operations
-        while len(self.cleanup):
-            thing = self.cleanup.pop()
+    def cleanUp(self,         # Remove Tk items from past animations either
+                callEnviron=None): # for a particular call or all calls
+        minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
+        while len(self.callStack) > minStack: # 1st call unless cleaning all
+            top = self.callStack.pop()
+            self.cleanUpCallEnviron(top)
+            if callEnviron and callEnviron == top: # Stop popping stack if a
+                break         # a particular call was being cleaned up
+                
+        if callEnviron is None:  # Clear any messages if cleaning up everything
+            self.setMessage()
+        if len(self.callStack) == 0: # When call stack is empty
+            while len(self.codeFrame.children) > 0: # Remove code window
+                tkItem = self.codeFrame.children.popitem()
+                tkItem[1].destroy()
+            self.codeText = None
+
+    def cleanUpCallEnviron(self, callEnviron): # Clean up a call on the stack
+        while len(callEnviron):
+            thing = callEnviron.pop()
             if isinstance(thing, (str, int)):  # Canvas item IDs
                 self.canvas.delete(thing)
-        self.setMessage()  # Clear any messages
-        while len(self.codeFrame.children) > 0: # Remove any code being shown
-            tkItem = self.codeFrame.children.popitem()
-            tkItem[1].destroy()
-        self.codeText = None
+            elif isinstance(thing, CodeHighlightBlock) and self.codeText:
+                self.codeText.configure(state=NORMAL)
+                last_index = self.codeText.index(END)
+                self.codeText.delete(
+                    '1.0', min(last_index, '{}.0'.format(thing.lines + 2)))
+                self.codeText.configure(state=DISABLED)
 
+    def createCallEnvironment( # Create a call environment on the call stack
+            self,              # for animating a particular call
+            code='',           # code for this call, if any
+            snippets={}):      # code snippet dictionary, if any
+        # The call environment is a set for local variables represented by
+        # canvas items plus a codeHighlightBlock that controls code highlights
+        codeHighlightBlock = CodeHighlightBlock(code, snippets)
+        callEnviron = set([codeHighlightBlock])
+        self.callStack.append(callEnviron) # Push environment on stack
+        self.showCode(code, addBoundary=True, prefix=codeHighlightBlock.prefix,
+                      snippets=snippets)
+        return callEnviron
+        
     # Tk widget methods
     def widgetDimensions(self, widget): # Get widget's (width, height)
         geom = geom_delims.split(widget.winfo_geometry())
@@ -472,19 +543,40 @@ class VisualizationApp(object): # Base class for Python visualizations
         
     def startAnimations(self):
         self.animationState = RUNNING
-        self.pauseButton['text'] = 'Pause'
-        self.pauseButton['command'] = lambda: self.onClick(
-            self.pause, self.pauseButton)
-        self.pauseButton['state'] = NORMAL
-        self.stopButton['state'] = NORMAL
+        if self.pauseButton:
+            self.pauseButton['text'] = 'Pause'
+            self.pauseButton['command'] = lambda: self.onClick(
+                self.pause, self.pauseButton)
+            self.pauseButton['state'] = NORMAL
+        if self.stopButton:
+            self.stopButton['state'] = NORMAL
 
     def stopAnimations(self):
-        self.animationState = STOPPED
-        self.pauseButton['state'] = DISABLED
-        self.stopButton['state'] = DISABLED
+        # Stop the animation when called from the first level of the call stack
+        if len(self.callStack) <= 1:
+            self.animationState = STOPPED
+            if self.pauseButton:
+                self.pauseButton['state'] = DISABLED
+            if self.stopButton:
+                self.stopButton['state'] = DISABLED
+        # Otherwise, let animation be stopped by a lower call
 
     def pauseAnimations(self):
         self.animationState = PAUSED
 
     def runVisualization(self):
         self.window.mainloop()
+
+# Class to hold information about visualizing the code during animation
+# of a particular call on the call stack
+class CodeHighlightBlock(object):
+    counter = 1
+    
+    def __init__(self,       # Constructor takes code block and snippets
+                 code,       # and makes a unique prefix for snippet keys
+                 snippets):  # to translate them into a unique tag name
+        self.code = code.strip()
+        self.lines = len(self.code.split('\n')) + 1 if len(code) > 0 else 0
+        self.snippets = snippets
+        self.prefix = '{:04d}-'.format(self.counter)
+        CodeHighlightBlock.counter += 1
