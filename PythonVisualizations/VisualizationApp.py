@@ -534,13 +534,16 @@ class VisualizationApp(object): # Base class for Python visualizations
         
     def stop(self, pauseButton):
         self.stopAnimations()
+        self.animationState = STOPPED  # Always stop animation on user request
         pauseButton['text'] = "Play"
-        pauseButton['command'] = lambda: self.onClick(self.play, pauseButton)
+        pauseButton['command'] = self.runOperation(
+            lambda: self.onClick(self.play, pauseButton), False)
 
     def pause(self, pauseButton):
         self.pauseAnimations()
         pauseButton['text'] = "Play"
-        pauseButton['command'] = lambda: self.onClick(self.play, pauseButton)
+        pauseButton['command'] = self.runOperation(
+            lambda: self.onClick(self.play, pauseButton), False)
         while self.animationState == PAUSED:
             self.wait(0.05)
 
@@ -551,14 +554,15 @@ class VisualizationApp(object): # Base class for Python visualizations
         self.animationState = RUNNING
         if self.pauseButton:
             self.pauseButton['text'] = 'Pause'
-            self.pauseButton['command'] = lambda: self.onClick(
-                self.pause, self.pauseButton)
+            self.pauseButton['command'] = self.runOperation(
+                lambda: self.onClick(self.pause, self.pauseButton), False)
             self.pauseButton['state'] = NORMAL
         if self.stopButton:
             self.stopButton['state'] = NORMAL
 
-    def stopAnimations(self):
-        # Stop the animation when called from the first level of the call stack
+    def stopAnimations(self):  # Stop animation of a call on the call stack
+        # Calls from stack level 2+ only stop animation for their level
+        # At lowest level, animation stops and play & stop buttons are disabled
         if len(self.callStack) <= 1:
             self.animationState = STOPPED
             if self.pauseButton:

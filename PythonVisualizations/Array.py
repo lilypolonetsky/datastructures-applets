@@ -1,5 +1,4 @@
 import random
-import time
 from tkinter import *
 try:
     from drawable import *
@@ -68,22 +67,22 @@ class Array(VisualizationApp):
 
         # Animate arrival of new value from operations panel area
         canvasDimensions = self.widgetDimensions(self.canvas)
-        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
-        startPosition = add_vector(startPosition, (0, 0, CELL_SIZE, CELL_SIZE))
+        startPosition = add_vector(
+            [canvasDimensions[0] // 2 - CELL_SIZE, canvasDimensions[1]] * 2,
+            (0, 0) + (CELL_SIZE - CELL_BORDER,) * 2)
         cellPair = self.createCellValue(startPosition, val)
+        callEnviron |= set(cellPair)
         self.moveItemsTo(cellPair, toPositions, steps=CELL_SIZE, sleepTime=0.01)
 
         # add a new Drawable with the new value, color, and display objects
         self.list.append(drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
-
-        # update window
-        self.window.update()
+        callEnviron ^= set(cellPair) # Remove new cell from temp call environ
 
         # advance index for next insert
         self.moveItemsBy(indexDisplay, (CELL_SIZE, 0))
-        self.cleanUp(callEnviron)
         self.stopAnimations()
+        self.cleanUp(callEnviron)
 
     def removeFromEnd(self):
         callEnviron = self.createCallEnvironment()
@@ -226,13 +225,13 @@ class Array(VisualizationApp):
                         posShape,
                         (CELL_BORDER, CELL_BORDER, -CELL_BORDER, -CELL_BORDER)),
                     outline=FOUND_COLOR))
-                self.window.update()
                 self.wait(0.2)
                 
                 self.cleanUp(callEnviron)
+                self.stopAnimations()
                 return i
 
-            # if not found, and then move the index over one cell
+            # if not found, then move the index over one cell
             self.moveItemsBy(indexDisplay, (CELL_SIZE, 0), sleepTime=0.01)
 
         self.cleanUp(callEnviron)
@@ -243,7 +242,8 @@ class Array(VisualizationApp):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         index = self.find(val)
-        if index != None:
+        found = index != None    # Record if value was found
+        if found:
             self.wait(0.3)
 
             n = self.list[index]
@@ -262,12 +262,10 @@ class Array(VisualizationApp):
                 self.moveItemsBy(kIndex, (CELL_SIZE, 0), sleepTime=0.01)
 
             self.removeFromEnd()
-            self.cleanUp(callEnviron)
-            return True
         
         self.cleanUp(callEnviron)
         self.stopAnimations()
-        return False
+        return found
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
@@ -283,6 +281,8 @@ class Array(VisualizationApp):
             validationCmd=vcmd)
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.removeFromEnd())
+        #this makes the pause, play and stop buttons 
+        self.addAnimationButtons()
         return [findButton, insertButton, deleteValueButton,
                 deleteRightmostButton]
 
@@ -331,6 +331,19 @@ class Array(VisualizationApp):
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)
         self.clearArgument()
+    
+    def enableButtons(self, enable=True):
+        for btn in self.buttons:
+            btn.config(state=NORMAL if enable else DISABLED)    
+    
+    def startAnimations(self):
+        self.enableButtons(enable=False)
+        super().startAnimations()
+            
+    def stopAnimations(self):
+        super().stopAnimations()
+        self.enableButtons(enable=True)
+        self.argumentChanged()    
 
 if __name__ == '__main__':
     random.seed(3.14159)    # Use fixed seed for testing consistency
