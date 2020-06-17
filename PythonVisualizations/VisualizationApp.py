@@ -169,7 +169,7 @@ class VisualizationApp(object): # Base class for Python visualizations
             if isinstance(gridItems[col, row], Button)]
         button = buttonType( # Create button based on type
             self.operations, text=label, 
-            command=lambda : (cleanUpBefore and self.cleanUp()) or callback(),
+            command=self.runOperation(callback, cleanUpBefore),
             bg=OPERATIONS_BG)
         setattr(button, 'required_args', numArguments)
         if numArguments:
@@ -215,6 +215,17 @@ class VisualizationApp(object): # Base class for Python visualizations
             cleanUpBefore=False)
         self.stopButton['state'] = DISABLED
         
+    def runOperation(self, command, cleanUpBefore):
+        def animatedOperation():
+            try:
+                if cleanUpBefore:
+                    self.cleanUp()
+                command()
+            except UserStop as e:
+                while len(self.callStack) > 1:
+                    self.cleanUp(self.callStack[-1])
+        return animatedOperation
+                
     def getArgument(self, index=0, clear=False):
         if 0 <= index and index < len(self.textEntries):
             val = self.textEntries[index].get()
@@ -445,9 +456,7 @@ class VisualizationApp(object): # Base class for Python visualizations
         for step in range(steps):
             for item in items:
                 self.canvas.move(item, *moveBy)
-            self.window.update()
-            if sleepTime > 0:
-                time.sleep(self.speed(sleepTime))
+            self.wait(sleepTime)
 
     def moveItemsTo(         # Animate canvas items moving from their current
             self, items,     # location to destination locations along a line
@@ -469,8 +478,7 @@ class VisualizationApp(object): # Base class for Python visualizations
         for step in range(steps):
             for i, item in enumerate(items):
                 self.canvas.move(item, *moveBy[i])
-            self.window.update()
-            time.sleep(self.speed(sleepTime))
+            self.wait(sleepTime)
             
         # Force position of new objects to their exact destinations
         for pos, item in zip(toPositions, items):
@@ -501,8 +509,7 @@ class VisualizationApp(object): # Base class for Python visualizations
                                   (toGo + 1) / scale),
                     ang)
                 self.canvas.move(item, *moveBy)
-            self.window.update()
-            time.sleep(self.speed(sleepTime))
+            self.wait(sleepTime)
             
         # Force position of new objects to their exact destinations
         for pos, item in zip(toPositions, items):
@@ -512,12 +519,12 @@ class VisualizationApp(object): # Base class for Python visualizations
     def speed(self, sleepTime):
         return sleepTime * 50 * SPEED_SCALE_MIN / self.speedScale.get()
 
-    def wait(self, sleepTime):    # Sleep for a user-adjusted period and return
-        if self.animationState == STOPPED: # a flag indicating if the user
-            return True           # has stopped the animation
+    def wait(self, sleepTime):    # Sleep for a user-adjusted period
         if sleepTime > 0:
+            self.window.update()
             time.sleep(self.speed(sleepTime))
-        return self.animationState == STOPPED
+        if self.animationState == STOPPED: # If user requested to stop
+            raise UserStop()      # animation while waiting then raise exception
 
     def onClick(self, command, *parameters):
         self.enableButtons(False)
@@ -535,8 +542,7 @@ class VisualizationApp(object): # Base class for Python visualizations
         pauseButton['text'] = "Play"
         pauseButton['command'] = lambda: self.onClick(self.play, pauseButton)
         while self.animationState == PAUSED:
-            time.sleep(0.05)
-            self.window.update()
+            self.wait(0.05)
 
     def play(self, pauseButton):
         self.startAnimations()
@@ -580,3 +586,6 @@ class CodeHighlightBlock(object):
         self.snippets = snippets
         self.prefix = '{:04d}-'.format(self.counter)
         CodeHighlightBlock.counter += 1
+
+class UserStop(Exception):   # Exception thrown when user stops animation
+    pass

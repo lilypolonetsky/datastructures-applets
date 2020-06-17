@@ -1,5 +1,4 @@
 import random
-import time
 from tkinter import *
 try:
     from drawable import *
@@ -190,11 +189,13 @@ def insert(self, item):
             [canvasDimensions[0] // 2 - CELL_SIZE, canvasDimensions[1]] * 2,
             (0, 0) + (CELL_SIZE - CELL_BORDER,) * 2)
         cellPair = self.createCellValue(startPosition, val)
+        callEnviron |= set(cellPair)
         self.moveItemsTo(cellPair, toPositions, steps=CELL_SIZE, sleepTime=0.01)
 
         # add a new Drawable with the new value, color, and display objects
         self.list.append(drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
+        callEnviron ^= set(cellPair) # Remove new cell from temp call environ
 
         # advance index for next insert
         self.highlightCodeTags('nitem_increment', callEnviron)
