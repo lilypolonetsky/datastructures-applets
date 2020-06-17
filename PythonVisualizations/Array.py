@@ -55,6 +55,7 @@ class Array(VisualizationApp):
         return (arrow, label) if name else (arrow, )
         
     def insert(self, val):
+        self.startAnimations()
         self.cleanUp()
         # draw an index pointing to the last cell
         indexDisplay = self.createIndex(len(self.list))
@@ -75,11 +76,10 @@ class Array(VisualizationApp):
         self.list.append(drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
 
-        # update window
-        self.window.update()
-
         # advance index for next insert
         self.moveItemsBy(indexDisplay, (CELL_SIZE, 0))
+        
+        self.stopAnimations()
 
     def removeFromEnd(self):
         self.cleanUp()
@@ -192,10 +192,9 @@ class Array(VisualizationApp):
         self.window.update()
 
     def find(self, val):
-        global running
-        running = True
+        self.startAnimations()
         self.cleanUp()
-
+        
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
         self.cleanup |= set(indexDisplay)
@@ -220,7 +219,10 @@ class Array(VisualizationApp):
 
                 # update the display
                 self.window.update()
-
+                self.wait(0.1)
+                
+                #Animation stops 
+                self.stopAnimations()
                 return i
 
             # if not found, wait 1 second, and then move the index over one cell
@@ -228,12 +230,14 @@ class Array(VisualizationApp):
             for item in indexDisplay:
                 self.canvas.move(item, CELL_SIZE, 0)
 
-            if not running:
+            if self.wait(0.01):
                 break
-
+        
+        self.stopAnimations()
         return None
 
     def remove(self, val):
+        self.startAnimations()
         index = self.find(val)
         if index != None:
             time.sleep(1)
@@ -253,9 +257,11 @@ class Array(VisualizationApp):
             for i in range(index+1, len(self.list)):
                 self.assignElement(i, i-1)
                 self.moveItemsBy(kIndex, (CELL_SIZE, 0), sleepTime=0.01)
-
+            
+            self.stopAnimations()
             self.removeFromEnd()
             return True
+    
         return False
 
     def makeButtons(self):
@@ -272,6 +278,8 @@ class Array(VisualizationApp):
             validationCmd=vcmd)
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.removeFromEnd())
+        #this makes the pause, play and stop buttons 
+        self.addAnimationButtons()
         return [findButton, insertButton, deleteValueButton,
                 deleteRightmostButton]
 
@@ -320,6 +328,19 @@ class Array(VisualizationApp):
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)
         self.clearArgument()
+    
+    def enableButtons(self, enable=True):
+        for btn in self.buttons:
+            btn.config(state=NORMAL if enable else DISABLED)    
+    
+    def startAnimations(self):
+        self.enableButtons(enable=False)
+        super().startAnimations()
+            
+    def stopAnimations(self):
+        super().stopAnimations()
+        self.enableButtons(enable=True)
+        self.argumentChanged()    
 
 if __name__ == '__main__':
     random.seed(3.14159)    # Use fixed seed for testing consistency
@@ -331,4 +352,29 @@ if __name__ == '__main__':
 To Do:
 - make it look pretty
 - animate insert
+'''
+
+''''
+Tested:                             Expected Result:                 Result: 
+- Insert number in range            - Inserted into array            - Inserted into array
+- Insert number out of range        - Error message                  - Error message
+- Insert non-int *                  - Unable to type character       - Unable to type character
+- Insert when full                  - Error message                  - Error message
+- Find number in Array              - Number found                   - Number found
+- Find non-int *                    - Unable to type character       - Unable to type character
+- Find number in Array              - Number found                   - Number found
+  with 0 before (07 = 7)
+- Find number not in Array          - Number searched for            - Number searched for        
+                                      and declared not in array        and declared not in array
+- Find first of duplicate numbers   - Number searched for and found  - Number searched for and found
+- Delete a number in Array          - Number deleted from array      - Number deleted from array
+- Delete a number not in Array      - Error message                  - Error message
+- Delete first of duplicate numbers - First duplicate deleted        - First duplicate deleted
+- Delete from empty Array           - Error message                  - Error message
+- Delete non-int *                  - Unable to type character       - Unable to type character
+- Delete right-most                 - Right most number deleted      - Right most number deleted
+- Delete right-most (Array empty)   - Error message                  - Error message
+- Speed switch works                - Animation is smooth and in     - Animation is smooth and in
+                                      tune with set speed              tune with set speed
+*(symbols and letters)
 '''
