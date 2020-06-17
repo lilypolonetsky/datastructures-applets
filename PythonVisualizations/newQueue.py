@@ -11,7 +11,7 @@ ARRAY_Y0 = 100
 
 class Queue(object):
     Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
-    Element.__new__.__defaults__ = (None,) * len(Element._fields)
+   # Element.__new__.__defaults__ = (None,) * len(Element._fields)
 
     colors = ['red', 'green', 'blue', 'orange', 'yellow', 'cyan', 'magenta',
               'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
