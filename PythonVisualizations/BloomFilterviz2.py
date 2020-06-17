@@ -12,7 +12,7 @@ BF_Y0 = 100
 
 class BloomFilter(object):
     Element = recordclass('Element', ['val','display_shape', 'display_val'])
-    Element.__new__.__defaults__ = (None,) * len(Element._fields)
+    Element.__new__.__defaults__ = (None,) * len(Element.__fields__)
 
     # See Slide 12 for the math needed to do this.
     def __bitsNeeded(self, numKeys, numHashes, maxFalsePositive):
