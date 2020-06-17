@@ -1,7 +1,8 @@
 from tkinter import *
 from BitHash import BitHash
 from BitVector import BitVector
-from recordclass import recordclass
+from drawable import *
+from VisualizationApp import *
 
 WIDTH = 850
 HEIGHT = 250
@@ -11,8 +12,6 @@ BF_X0 = 100
 BF_Y0 = 100
 
 class BloomFilter(object):
-    Element = recordclass('Element', ['val','display_shape', 'display_val'])
-    Element.__new__.__defaults__ = (None,) * len(Element.__fields__)
 
     # See Slide 12 for the math needed to do this.
     def __bitsNeeded(self, numKeys, numHashes, maxFalsePositive):
@@ -126,12 +125,12 @@ class BloomFilter(object):
 
         for n in range(len(self.__displayList)):
 
-            # create display objects for the associated Elements
+            # create display objects for the associated drawables
             cell = canvas.create_rectangle(xpos, ypos, xpos + CELL_SIZE, ypos + CELL_SIZE)
             cell_val = canvas.create_text(xpos + (CELL_SIZE / 2), ypos + (CELL_SIZE / 2), text=self.__bv[n],
                                           font=('Helvetica', '20'))
 
-            self.__displayList[n] = BloomFilter.Element(self.__bv[n], cell, cell_val)
+            self.__displayList[n] = drawable(self.__bv[n], None, cell, cell_val)
 
             # increment xpos
             xpos += CELL_SIZE
