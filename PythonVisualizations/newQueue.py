@@ -1,6 +1,7 @@
 import time
 from tkinter import *
-from recordclass import recordclass
+from drawable import *
+from VisualizationApp import *
 
 WIDTH = 800
 HEIGHT = 400
@@ -10,8 +11,6 @@ ARRAY_X0 = 100
 ARRAY_Y0 = 100
 
 class Queue(object):
-    Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
-   # Element.__new__.__defaults__ = (None,) * len(Element._fields)
 
     colors = ['red', 'green', 'blue', 'orange', 'yellow', 'cyan', 'magenta',
               'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
@@ -64,7 +63,7 @@ class Queue(object):
             
             
             #insert the item
-            self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
+            self.list[self.rear] = drawable(val, Queue.colors[Queue.nextColor], cell, cell_val)
             
             self.nItems += 1
             
@@ -97,7 +96,7 @@ class Queue(object):
             
             
             #insert the item
-            self.list[self.rear] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
+            self.list[self.rear] = drawable(val, Queue.colors[Queue.nextColor], cell, cell_val)
             
             self.nItems += 1
             
@@ -132,7 +131,7 @@ class Queue(object):
                                           ARRAY_Y0 + (CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
             
             #insert the item
-            self.list[self.front] = (Queue.Element(val, Queue.colors[Queue.nextColor], cell, cell_val))
+            self.list[self.front] = drawable(val, Queue.colors[Queue.nextColor], cell, cell_val)
             
             self.nItems += 1
             
