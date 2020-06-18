@@ -11,6 +11,12 @@ except ModuleNotFoundError:
 
 
 class SimpleArraySort(VisualizationApp):
+    CELL_SIZE = 50
+    CELL_BORDER = 2
+    CELL_BORDER_COLOR = 'black'
+    ARRAY_X0 = 100
+    ARRAY_Y0 = 100
+    FOUND_COLOR = 'brown4'
     nextColor = 0
 
     def __init__(self, size=10, title="Simple Sorting", **kwargs):
@@ -656,10 +662,8 @@ def selectionSort(self):
         self.highlightCodeTags([])
         self.stopAnimations()
 
-    def stopMergeSort(self, toX=None, toY=None):
+    def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
         # bring all cells up to original position
-        if not toX: toX = self.ARRAY_X0
-        if not toY: toY = self.ARRAY_Y0
 
         dy = -2
         dx = [0] * len(self.list)

@@ -75,12 +75,6 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_FONT = ('Courier', 12)
     CODE_HIGHLIGHT = 'yellow'
     CONTROLS_FONT = ('none', 14)
-    CELL_SIZE = 50
-    CELL_BORDER = 2
-    CELL_BORDER_COLOR = 'black'
-    ARRAY_X0 = 100
-    ARRAY_Y0 = 100
-    FOUND_COLOR = 'brown4'
 
     # Speed control slider
     SPEED_SCALE_MIN = 10
