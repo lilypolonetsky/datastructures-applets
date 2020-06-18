@@ -11,9 +11,6 @@ except ModuleNotFoundError:
 
 
 class SimpleArraySort(VisualizationApp):
-    ARRAY_X0 = 100
-    ARRAY_Y0 = 100
-    VARIABLE_COLOR = 'brown3'
     nextColor = 0
 
     def __init__(self, size=10, title="Simple Sorting", **kwargs):
@@ -131,7 +128,9 @@ class SimpleArraySort(VisualizationApp):
             self, index,  # cell
             name=None,  # with an optional name label
             level=1,  # at a particular level away from the cells
-            color=VARIABLE_COLOR):  # (negative are below)
+            color=None):  # (negative are below)
+        if not color: color = self.VARIABLE_COLOR
+
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
         level_spacing = self.VARIABLE_FONT[1]
@@ -657,8 +656,10 @@ def selectionSort(self):
         self.highlightCodeTags([])
         self.stopAnimations()
 
-    def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
+    def stopMergeSort(self, toX=None, toY=None):
         # bring all cells up to original position
+        if not toX: toX = self.ARRAY_X0
+        if not toY: toY = self.ARRAY_Y0
 
         dy = -2
         dx = [0] * len(self.list)

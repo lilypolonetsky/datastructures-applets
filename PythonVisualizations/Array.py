@@ -11,7 +11,6 @@ except ModuleNotFoundError:
 
 
 class Array(VisualizationApp):
-    CELL_SIZE = 50
     nextColor = 0
 
     def __init__(self, size=10, title="Array", **kwargs):
@@ -90,7 +89,8 @@ class Array(VisualizationApp):
         self.window.update()
 
     def assignElement(
-            self, fromIndex, toIndex, steps=CELL_SIZE // 2, sleepTime=0.01):
+            self, fromIndex, toIndex, steps=None, sleepTime=0.01):
+        if not steps: steps = self.CELL_SIZE // 2
         fromDrawable = self.list[fromIndex]
 
         # get positions of "to" cell in array
