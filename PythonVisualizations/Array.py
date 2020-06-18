@@ -1,6 +1,7 @@
 import random
 import time
 from tkinter import *
+
 try:
     from drawable import *
     from VisualizationApp import *
@@ -8,17 +9,9 @@ except ModuleNotFoundError:
     from .drawable import *
     from .VisualizationApp import *
 
-CELL_SIZE = 50
-CELL_BORDER = 2
-CELL_BORDER_COLOR = 'black'
-ARRAY_X0 = 100
-ARRAY_Y0 = 100
-FONT_SIZE = 20
-VALUE_FONT = ('Helvetica', FONT_SIZE)
-VALUE_COLOR = 'black'
-FOUND_COLOR = 'brown4'
 
 class Array(VisualizationApp):
+    CELL_SIZE = 50
     nextColor = 0
 
     def __init__(self, size=10, title="Array", **kwargs):
@@ -39,21 +32,21 @@ class Array(VisualizationApp):
 
     # ARRAY FUNCTIONALITY
 
-    def createIndex(         # Create an index arrow to point at an indexed
-            self, index, name=None): # cell with an optional name label
+    def createIndex(  # Create an index arrow to point at an indexed
+            self, index, name=None):  # cell with an optional name label
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
         x = cell_center[0]
-        y0 = cell_coords[1] - CELL_SIZE * 4 // 5
-        y1 = cell_coords[1] - CELL_SIZE * 3 // 10
+        y0 = cell_coords[1] - self.CELL_SIZE * 4 // 5
+        y1 = cell_coords[1] - self.CELL_SIZE * 3 // 10
         arrow = self.canvas.create_line(
-            x, y0, x, y1, arrow="last", fill=VARIABLE_COLOR)
+            x, y0, x, y1, arrow="last", fill=self.VARIABLE_COLOR)
         if name:
             label = self.canvas.create_text(
                 x + 2, y0, text=name, anchor=SW,
-                font=VARIABLE_FONT, fill=VARIABLE_COLOR)
-        return (arrow, label) if name else (arrow, )
-        
+                font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        return (arrow, label) if name else (arrow,)
+
     def insert(self, val):
         self.cleanUp()
         # draw an index pointing to the last cell
@@ -61,15 +54,15 @@ class Array(VisualizationApp):
         self.cleanup |= set(indexDisplay)
 
         # create new cell and cell value display objects
-        toPositions = (self.cellCoords(len(self.list)), 
+        toPositions = (self.cellCoords(len(self.list)),
                        self.cellCenter(len(self.list)))
 
         # Animate arrival of new value from operations panel area
         canvasDimensions = self.widgetDimensions(self.canvas)
         startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
-        startPosition = add_vector(startPosition, (0, 0, CELL_SIZE, CELL_SIZE))
+        startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
         cellPair = self.createCellValue(startPosition, val)
-        self.moveItemsTo(cellPair, toPositions, steps=CELL_SIZE, sleepTime=0.01)
+        self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
 
         # add a new Drawable with the new value, color, and display objects
         self.list.append(drawable(
@@ -79,7 +72,7 @@ class Array(VisualizationApp):
         self.window.update()
 
         # advance index for next insert
-        self.moveItemsBy(indexDisplay, (CELL_SIZE, 0))
+        self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0))
 
     def removeFromEnd(self):
         self.cleanUp()
@@ -99,7 +92,7 @@ class Array(VisualizationApp):
     def assignElement(
             self, fromIndex, toIndex, steps=CELL_SIZE // 2, sleepTime=0.01):
         fromDrawable = self.list[fromIndex]
-        
+
         # get positions of "to" cell in array
         toPositions = (self.cellCoords(toIndex), self.cellCenter(toIndex))
 
@@ -124,23 +117,23 @@ class Array(VisualizationApp):
         # update the window
         self.window.update()
 
-    def cellCoords(self, cell_index): # Get bounding rectangle for array cell
-        return (ARRAY_X0 + CELL_SIZE * cell_index, ARRAY_Y0, # at index
-                ARRAY_X0 + CELL_SIZE * (cell_index + 1) - CELL_BORDER,
-                ARRAY_Y0 + CELL_SIZE - CELL_BORDER)
+    def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
+        return (self.ARRAY_X0 + self.CELL_SIZE * cell_index, self.ARRAY_Y0,  # at index
+                self.ARRAY_X0 + self.CELL_SIZE * (cell_index + 1) - self.CELL_BORDER,
+                self.ARRAY_Y0 + self.CELL_SIZE - self.CELL_BORDER)
 
-    def cellCenter(self, index): # Center point for array cell at index
-        half_cell = (CELL_SIZE - CELL_BORDER) // 2
+    def cellCenter(self, index):  # Center point for array cell at index
+        half_cell = (self.CELL_SIZE - self.CELL_BORDER) // 2
         return add_vector(self.cellCoords(index), (half_cell, half_cell))
 
-    def createArrayCell(self, index): # Create a box representing an array cell
+    def createArrayCell(self, index):  # Create a box representing an array cell
         cell_coords = self.cellCoords(index)
-        half_border = CELL_BORDER // 2
+        half_border = self.CELL_BORDER // 2
         rect = self.canvas.create_rectangle(
-            *add_vector(cell_coords, 
+            *add_vector(cell_coords,
                         (-half_border, -half_border,
-                         CELL_BORDER - half_border, CELL_BORDER - half_border)),
-            fill=None, outline=CELL_BORDER_COLOR, width=CELL_BORDER)
+                         self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)),
+            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER)
         self.canvas.lower(rect)
         return rect
 
@@ -169,7 +162,7 @@ class Array(VisualizationApp):
         cell_rect = self.canvas.create_rectangle(
             *rectPos, fill=color, outline='', width=0)
         cell_val = self.canvas.create_text(
-            *valPos, text=str(key), font=VALUE_FONT, fill=VALUE_COLOR)
+            *valPos, text=str(key), font=self.VALUE_FONT, fill=self.VALUE_COLOR)
         handler = lambda e: self.setArgument(str(key))
         for item in (cell_rect, cell_val):
             self.canvas.tag_bind(item, '<Button>', handler)
@@ -208,15 +201,15 @@ class Array(VisualizationApp):
 
             # if the value is found
             if n.val == val:
-                # get the position of the displayed cell 
+                # get the position of the displayed cell
                 posShape = self.canvas.coords(n.display_shape)
-                
+
                 # Highlight the found element with a circle
                 self.cleanup.add(self.canvas.create_oval(
                     *add_vector(
                         posShape,
-                        (CELL_BORDER, CELL_BORDER, -CELL_BORDER, -CELL_BORDER)),
-                    outline=FOUND_COLOR))
+                        (self.CELL_BORDER, self.CELL_BORDER, -self.CELL_BORDER, -self.CELL_BORDER)),
+                    outline=self.FOUND_COLOR))
 
                 # update the display
                 self.window.update()
@@ -226,7 +219,7 @@ class Array(VisualizationApp):
             # if not found, wait 1 second, and then move the index over one cell
             time.sleep(self.speed(1))
             for item in indexDisplay:
-                self.canvas.move(item, CELL_SIZE, 0)
+                self.canvas.move(item, self.CELL_SIZE, 0)
 
             if not running:
                 break
@@ -248,11 +241,11 @@ class Array(VisualizationApp):
             # Create an index for shifting the cells
             kIndex = self.createIndex(index, 'k')
             self.cleanup |= set(kIndex)
-            
+
             # Slide values from right to left to fill gap
-            for i in range(index+1, len(self.list)):
-                self.assignElement(i, i-1)
-                self.moveItemsBy(kIndex, (CELL_SIZE, 0), sleepTime=0.01)
+            for i in range(index + 1, len(self.list)):
+                self.assignElement(i, i - 1)
+                self.moveItemsBy(kIndex, (self.CELL_SIZE, 0), sleepTime=0.01)
 
             self.removeFromEnd()
             return True
@@ -281,7 +274,7 @@ class Array(VisualizationApp):
             val = int(entered_text)
             if val < 100:
                 return val
-    
+
     # Button functions
     def clickFind(self):
         val = self.validArgument()
@@ -321,8 +314,9 @@ class Array(VisualizationApp):
             self.setMessage(msg)
         self.clearArgument()
 
+
 if __name__ == '__main__':
-    random.seed(3.14159)    # Use fixed seed for testing consistency
+    random.seed(3.14159)  # Use fixed seed for testing consistency
     array = Array()
 
     array.runVisualization()
