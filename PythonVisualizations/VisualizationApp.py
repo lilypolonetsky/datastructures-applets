@@ -66,10 +66,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
     FONT_SIZE = 20
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     VALUE_COLOR = 'black'
-    _FONT = ('Courier', FONT_SIZE * 8 // 10)
+    VARIABLE_FONT = ('Courier', FONT_SIZE * 8 // 10)
     VARIABLE_COLOR = 'brown3'
     FOUND_FONT = ('Helvetica', FONT_SIZE)
-    FOUND_VARIABLECOLOR = 'green2'
+    FOUND_COLOR = 'green2'
     OPERATIONS_BG = 'beige'
     OPERATIONS_BORDER = 'black'
     CODE_FONT = ('Courier', 12)
