@@ -1,7 +1,12 @@
 import random
 import time
 from tkinter import *
-from recordclass import recordclass
+try:
+    from drawable import *
+    from VisualizationApp import *
+except ModuleNotFoundError:
+    from .drawable import *
+    from .VisualizationApp import *
 
 WIDTH = 800
 HEIGHT = 400
@@ -11,8 +16,6 @@ ARRAY_X0 = 100
 ARRAY_Y0 = 100
 
 class Array(object):
-    Element = recordclass('Element', ['val', 'color', 'display_shape', 'display_val'])
-    Element.__new__.__defaults__ = (None,) * len(Element._fields)
 
     colors = ['red', 'green', 'blue', 'orange', 'yellow', 'cyan', 'magenta',
               'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
@@ -89,7 +92,7 @@ class Array(object):
 
         text = canvas.create_text(posCell[0] + (CELL_SIZE / 2), y0 - CELL_SIZE - 30, text=varName,
                                   font=('Helvetica', '20'))
-        temp = Array.Element(self.list[index][0], self.list[index][1], shape, val)
+        temp = drawable(self.list[index][0], self.list[index][1], shape, val)
 
         window.update()
         return temp, text
@@ -277,7 +280,7 @@ class Array(object):
                                       font=('Helvetica', '20'))
 
         # add a new Element to the list with the new value, color, and display objects
-        self.list.append(Array.Element(val, Array.colors[Array.nextColor], cell, cell_val))
+        self.list.append(drawable(val, Array.colors[Array.nextColor], cell, cell_val))
 
         # increment nextColor
         Array.nextColor = (Array.nextColor + 1) % len(Array.colors)
