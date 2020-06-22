@@ -74,6 +74,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_FONT = ('Courier', 12)
     CODE_HIGHLIGHT = 'yellow'
     CONTROLS_FONT = ('none', 14)
+    CALL_STACK_BOUNDARY = 'brown3'
 
     # Speed control slider
     SPEED_SCALE_MIN = 10
@@ -298,7 +299,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText['xscrollcommand'] = self.codeHScroll.set
             self.codeText['yscrollcommand'] = self.codeVScroll.set
             self.codeText.tag_config('call_stack_boundary',
-                                     background=CALL_STACK_BOUNDARY)
+                                     background=self.CALL_STACK_BOUNDARY)
             
         self.codeText.configure(state=NORMAL)
         
