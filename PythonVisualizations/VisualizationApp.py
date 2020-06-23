@@ -14,7 +14,6 @@ import time, math, operator, re
 from collections import *
 from tkinter import *
 
-
 # Utilities for vector math; used for canvas item coordinates
 def add_vector(v1, v2):
     return tuple(map(operator.add, v1, v2))
@@ -75,6 +74,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_FONT = ('Courier', 12)
     CODE_HIGHLIGHT = 'yellow'
     CONTROLS_FONT = ('none', 14)
+    CALL_STACK_BOUNDARY = 'brown3'
 
     # Speed control slider
     SPEED_SCALE_MIN = 10
@@ -108,9 +108,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.maxArgWidth = maxArgWidth
 
         # Set up instance variables for managing animations and operations
-        self.cleanup = set()  # Tk items to remove before next operation
+        self.callStack = []    # Stack of local environments for visualziation
         self.animationState = self.STOPPED
-
+        self.pauseButton, self.stopButton = None, None
+        
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window)
         self.controlPanel.pack(side=BOTTOM, fill=X)
@@ -145,7 +146,6 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.fastLabel = Label(
             self.operationsLowerCenter, text="fast", font=self.CONTROLS_FONT)
         self.fastLabel.grid(row=0, column=2, sticky=W)
-        self.pauseButton = None
         self.textEntries = []
         self.outputText = StringVar()
         self.outputText.set('')
@@ -161,11 +161,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
             label,  # provided by text entry widgets. Button label
             callback,  # Function to call when button pressed
             numArguments=0,  # Count of required user entered arguments
-            validationCmd=None,  # Tk validation command tuple for argument
-            helpText=None,  # Help text for argument (erased on first keypress)
-            maxRows=4,  # Operations w/o args beyond maxRows -> new columns
-            **kwargs):  # Tk button keyword args
-        gridItems = gridDict(self.operations)  # Operations inserted in grid
+            validationCmd=None, # Tk validation command tuple for argument
+            helpText=None,   # Help text for argument (erased on first keypress)
+            maxRows=4,       # Operations w/o args beyond maxRows -> new columns
+            buttonType=Button, # Type can be Button or Checkbutton
+            cleanUpBefore=True, # Clean up all previous animations before Op
+            **kwargs):       # Tk button keyword args
+        gridItems = gridDict(self.operations) # Operations inserted in grid
         nColumns, nRows = self.operations.grid_size()
         withArgument = [
             gridItems[0, row] for row in range(nRows)
@@ -174,8 +176,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
             gridItems[col, row]
             for row in range(nRows) for col in range(4, nColumns)
             if isinstance(gridItems[col, row], Button)]
-        button = Button(self.operations, text=label, command=callback,
-                        bg=self.OPERATIONS_BG)
+        button = buttonType( # Create button based on type
+            self.operations, text=label, 
+            command=self.runOperation(callback, cleanUpBefore),
+            bg=self.OPERATIONS_BG)
         setattr(button, 'required_args', numArguments)
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
@@ -212,12 +216,25 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def addAnimationButtons(self):
         self.pauseButton = self.addOperation(
-            "Pause", lambda: self.onClick(self.pause, self.pauseButton))
+            "Pause", lambda: self.onClick(self.pause, self.pauseButton),
+            cleanUpBefore=False)
         self.pauseButton['state'] = DISABLED
         self.stopButton = self.addOperation(
-            "Stop", lambda: self.onClick(self.stop, self.pauseButton))
+            "Stop", lambda: self.onClick(self.stop, self.pauseButton),
+            cleanUpBefore=False)
         self.stopButton['state'] = DISABLED
-
+        
+    def runOperation(self, command, cleanUpBefore):
+        def animatedOperation():
+            try:
+                if cleanUpBefore:
+                    self.cleanUp()
+                command()
+            except UserStop as e:
+                while len(self.callStack) > 1:
+                    self.cleanUp(self.callStack[-1])
+        return animatedOperation
+                
     def getArgument(self, index=0, clear=False):
         if 0 <= index and index < len(self.textEntries):
             val = self.textEntries[index].get()
@@ -259,7 +276,14 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def setMessage(self, val=''):
         self.outputText.set(val)
 
-    def showCode(self, code):  # Show algorithm code in a scrollable text box
+    def showCode(self,     # Show algorithm code in a scrollable text box
+                 code,     # Code to display, plus optional boundary line
+                 addBoundary=False, # to separate calls on the stack
+                 prefix='',    # Prefix to apply to snippet labels
+                 snippets={}): # Dict of snippet label -> text indices
+        code = code.strip()
+        if len(code) == 0:  # Empty code string?
+            return          # then nothing to show
         if self.codeText is None:
             self.codeText = Text(
                 self.codeFrame, wrap=NONE, background=self.OPERATIONS_BG,
@@ -274,22 +298,37 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeHScroll.grid(row=1, column=0, sticky=(E, W))
             self.codeText['xscrollcommand'] = self.codeHScroll.set
             self.codeText['yscrollcommand'] = self.codeVScroll.set
-        else:
-            self.codeText.configure(state=NORMAL)
-            self.codeText.delete("1.0", END)
-        self.codeText.insert("1.0", code)
+            self.codeText.tag_config('call_stack_boundary',
+                                     background=self.CALL_STACK_BOUNDARY)
+            
+        self.codeText.configure(state=NORMAL)
+        
+        # Add a call stack boundary line if requested and other code exists
+        currentCode = self.codeText.get('1.0', END)
+        if addBoundary and currentCode and not currentCode.isspace():
+            self.codeText.insert('1.0',
+                                 self.codeText.config('width')[-1] * '-' + '\n')
+            self.codeText.tag_add('call_stack_boundary', '1.0', '1.end')
+            
+        # Add code at top of text widget (above stack boundary, if any)
+        self.codeText.insert('1.0', code + '\n')
+        self.codeText.see('1.0')
+        
+        # Tag the snippets with unique tag name
+        for tagName in snippets:
+            self.codeText.tag_add(prefix + tagName, *snippets[tagName])
         self.codeText.configure(state=DISABLED)
 
-    def createCodeTags(self, snippets):
-        self.codeText.tag_delete(*self.codeText.tag_names())
-        for tagName in snippets:
-            self.codeText.tag_add(tagName, *snippets[tagName])
-
-    def highlightCodeTags(self, tags):
+    def highlightCodeTags(self, tags, callEnviron):
+        codeHighlightBlock = self.getCodeHighlightBlock(callEnviron)
+        if codeHighlightBlock is None:  # This shouldn't happen, but...
+            return
         if not isinstance(tags, (list, tuple)):
             tags = [tags]
         for tagName in self.codeText.tag_names() if self.codeText else []:
-            highlight = tagName in tags
+            if not tagName.startswith(codeHighlightBlock.prefix):
+                continue  # Only change tags for this call environment
+            highlight = tagName[len(codeHighlightBlock.prefix):] in tags
             self.codeText.tag_config(
                 tagName,
                 background=self.CODE_HIGHLIGHT if highlight else self.OPERATIONS_BG,
@@ -299,17 +338,62 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 if len(ranges) > 0:
                     self.codeText.see(ranges[0])
 
-    def cleanUp(self):  # Remove Tk items from past operations
-        while len(self.cleanup):
-            thing = self.cleanup.pop()
+    # Return the CodeHighlightBlock from the set object from the call stack
+    # NOTE: this could be more efficient if the objects on the call stacks
+    # were dictionaries but Python doesn't allow mutable objects like a
+    # CodeHighlightBlock as keys so we'd need a special key that couldn't
+    # be confused with a canvas item (string or integer) to index it
+    # Instead, we do a linear search and find it by its type
+    def getCodeHighlightBlock(self, callEnvironment):
+        for item in callEnvironment:
+            if isinstance(item, CodeHighlightBlock):
+                return item
+            
+    def cleanUp(self,         # Remove Tk items from past animations either
+                callEnviron=None,  # for a particular call or all calls
+                stopAnimations=True): # and stop animations
+        if stopAnimations:
+            self.stopAnimations()
+        minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
+        while len(self.callStack) > minStack: # 1st call unless cleaning all
+            top = self.callStack.pop()
+            self.cleanUpCallEnviron(top)
+            if callEnviron and callEnviron == top: # Stop popping stack if a
+                break         # a particular call was being cleaned up
+                
+        if callEnviron is None:  # Clear any messages if cleaning up everything
+            self.setMessage()
+        if len(self.callStack) == 0: # When call stack is empty
+            while len(self.codeFrame.children) > 0: # Remove code window
+                tkItem = self.codeFrame.children.popitem()
+                tkItem[1].destroy()
+            self.codeText = None
+
+    def cleanUpCallEnviron(self, callEnviron): # Clean up a call on the stack
+        while len(callEnviron):
+            thing = callEnviron.pop()
             if isinstance(thing, (str, int)):  # Canvas item IDs
                 self.canvas.delete(thing)
-        self.setMessage()  # Clear any messages
-        while len(self.codeFrame.children) > 0:  # Remove any code being shown
-            tkItem = self.codeFrame.children.popitem()
-            tkItem[1].destroy()
-        self.codeText = None
+            elif isinstance(thing, CodeHighlightBlock) and self.codeText:
+                self.codeText.configure(state=NORMAL)
+                last_index = self.codeText.index(END)
+                self.codeText.delete(
+                    '1.0', min(last_index, '{}.0'.format(thing.lines + 2)))
+                self.codeText.configure(state=DISABLED)
 
+    def createCallEnvironment( # Create a call environment on the call stack
+            self,              # for animating a particular call
+            code='',           # code for this call, if any
+            snippets={}):      # code snippet dictionary, if any
+        # The call environment is a set for local variables represented by
+        # canvas items plus a codeHighlightBlock that controls code highlights
+        codeHighlightBlock = CodeHighlightBlock(code, snippets)
+        callEnviron = set([codeHighlightBlock])
+        self.callStack.append(callEnviron) # Push environment on stack
+        self.showCode(code, addBoundary=True, prefix=codeHighlightBlock.prefix,
+                      snippets=snippets)
+        return callEnviron
+        
     # Tk widget methods
     def widgetDimensions(self, widget):  # Get widget's (width, height)
         geom = geom_delims.split(widget.winfo_geometry())
@@ -384,9 +468,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for step in range(steps):
             for item in items:
                 self.canvas.move(item, *moveBy)
-            self.window.update()
-            if sleepTime > 0:
-                time.sleep(self.speed(sleepTime))
+            self.wait(sleepTime)
 
     def moveItemsTo(  # Animate canvas items moving from their current
             self, items,  # location to destination locations along a line
@@ -408,9 +490,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for step in range(steps):
             for i, item in enumerate(items):
                 self.canvas.move(item, *moveBy[i])
-            self.window.update()
-            time.sleep(self.speed(sleepTime))
-
+            self.wait(sleepTime)
+            
         # Force position of new objects to their exact destinations
         for pos, item in zip(toPositions, items):
             self.canvas.coords(item, *pos)
@@ -440,9 +521,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
                                   (toGo + 1) / scale),
                     ang)
                 self.canvas.move(item, *moveBy)
-            self.window.update()
-            time.sleep(self.speed(sleepTime))
-
+            self.wait(sleepTime)
+            
         # Force position of new objects to their exact destinations
         for pos, item in zip(toPositions, items):
             self.canvas.coords(item, *pos)
@@ -451,12 +531,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def speed(self, sleepTime):
         return sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get()
 
-    def wait(self, sleepTime):  # Sleep for a user-adjusted period and return
-        if self.animationState == self.STOPPED:  # a flag indicating if the user
-            return True  # has stopped the animation
+    def wait(self, sleepTime):    # Sleep for a user-adjusted period
         if sleepTime > 0:
+            self.window.update()
             time.sleep(self.speed(sleepTime))
-        return self.animationState == self.STOPPED
+        if self.animationState == self.STOPPED: # If user requested to stop
+            raise UserStop()      # animation while waiting then raise exception
 
     def onClick(self, command, *parameters):
         self.enableButtons(False)
@@ -466,35 +546,62 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def stop(self, pauseButton):
         self.stopAnimations()
+        self.animationState = self.STOPPED  # Always stop on user request
         pauseButton['text'] = "Play"
-        pauseButton['command'] = lambda: self.onClick(self.play, pauseButton)
+        pauseButton['command'] = self.runOperation(
+            lambda: self.onClick(self.play, pauseButton), False)
 
     def pause(self, pauseButton):
         self.pauseAnimations()
         pauseButton['text'] = "Play"
-        pauseButton['command'] = lambda: self.onClick(self.play, pauseButton)
+        pauseButton['command'] = self.runOperation(
+            lambda: self.onClick(self.play, pauseButton), False)
         while self.animationState == self.PAUSED:
-            time.sleep(0.05)
-            self.window.update()
+            self.wait(0.05)
 
     def play(self, pauseButton):
         self.startAnimations()
 
     def startAnimations(self):
         self.animationState = self.RUNNING
-        self.pauseButton['text'] = 'Pause'
-        self.pauseButton['command'] = lambda: self.onClick(
-            self.pause, self.pauseButton)
-        self.pauseButton['state'] = NORMAL
-        self.stopButton['state'] = NORMAL
+        if self.pauseButton:
+            self.pauseButton['text'] = 'Pause'
+            self.pauseButton['command'] = self.runOperation(
+                lambda: self.onClick(self.pause, self.pauseButton), False)
+            self.pauseButton['state'] = NORMAL
+        if self.stopButton:
+            self.stopButton['state'] = NORMAL
 
-    def stopAnimations(self):
-        self.animationState = self.STOPPED
-        self.pauseButton['state'] = DISABLED
-        self.stopButton['state'] = DISABLED
+    def stopAnimations(self):  # Stop animation of a call on the call stack
+        # Calls from stack level 2+ only stop animation for their level
+        # At lowest level, animation stops and play & stop buttons are disabled
+        if len(self.callStack) <= 1:
+            self.animationState = self.STOPPED
+            if self.pauseButton:
+                self.pauseButton['state'] = DISABLED
+            if self.stopButton:
+                self.stopButton['state'] = DISABLED
+        # Otherwise, let animation be stopped by a lower call
 
     def pauseAnimations(self):
         self.animationState = self.PAUSED
 
     def runVisualization(self):
         self.window.mainloop()
+
+# Class to hold information about visualizing the code during animation
+# of a particular call on the call stack
+class CodeHighlightBlock(object):
+    counter = 1
+    
+    def __init__(self,       # Constructor takes code block and snippets
+                 code,       # and makes a unique prefix for snippet keys
+                 snippets):  # to translate them into a unique tag name
+        self.code = code.strip()
+        self.lines = len(self.code.split('\n')) + 1 if len(code) > 0 else 0
+        self.snippets = snippets
+        self.prefix = '{:04d}-'.format(self.counter)
+        CodeHighlightBlock.counter += 1
+
+class UserStop(Exception):   # Exception thrown when user stops animation
+    pass

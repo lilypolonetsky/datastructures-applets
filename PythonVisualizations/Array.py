@@ -1,5 +1,4 @@
 import random
-import time
 from tkinter import *
 
 try:
@@ -53,10 +52,12 @@ class Array(VisualizationApp):
         return (arrow, label) if name else (arrow,)
 
     def insert(self, val):
-        self.cleanUp()
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
         # draw an index pointing to the last cell
-        indexDisplay = self.createIndex(len(self.list))
-        self.cleanup |= set(indexDisplay)
+        indexDisplay = self.createIndex(len(self.list), "nItems")
+        callEnviron |= set(indexDisplay)
 
         # create new cell and cell value display objects
         toPositions = (self.cellCoords(len(self.list)),
@@ -64,23 +65,25 @@ class Array(VisualizationApp):
 
         # Animate arrival of new value from operations panel area
         canvasDimensions = self.widgetDimensions(self.canvas)
-        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
-        startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
+        startPosition = add_vector(
+            [canvasDimensions[0]//2 - self.CELL_SIZE, canvasDimensions[1]] * 2,
+            (0, 0) + (self.CELL_SIZE - self.CELL_BORDER,) * 2)
         cellPair = self.createCellValue(startPosition, val)
+        callEnviron |= set(cellPair)
         self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
 
         # add a new Drawable with the new value, color, and display objects
         self.list.append(drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
-
-        # update window
-        self.window.update()
+        callEnviron ^= set(cellPair) # Remove new cell from temp call environ
 
         # advance index for next insert
         self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0))
+        self.cleanUp(callEnviron)
 
     def removeFromEnd(self):
-        self.cleanUp()
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
         # pop a Drawable from the list
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
@@ -93,9 +96,11 @@ class Array(VisualizationApp):
 
         # update window
         self.window.update()
+        self.cleanUp(callEnviron)
 
     def assignElement(
-            self, fromIndex, toIndex, steps=CELL_SIZE // 2, sleepTime=0.01):
+            self, fromIndex, toIndex, callEnviron,
+            steps=CELL_SIZE // 2, sleepTime=0.01):
         fromDrawable = self.list[fromIndex]
 
         # get positions of "to" cell in array
@@ -104,6 +109,7 @@ class Array(VisualizationApp):
         # create new display objects as copies of the "from" cell and value
         newCell = self.copyCanvasItem(fromDrawable.display_shape)
         newCellVal = self.copyCanvasItem(fromDrawable.display_val)
+        callEnviron |= set([newCell, newCellVal])
 
         # Move copies to the desired location
         self.moveItemsTo((newCell, newCellVal), toPositions, steps=steps,
@@ -118,6 +124,7 @@ class Array(VisualizationApp):
         self.list[toIndex].val = self.list[fromIndex].val
         self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
+        callEnviron ^= set([newCell, newCellVal])
 
         # update the window
         self.window.update()
@@ -190,13 +197,12 @@ class Array(VisualizationApp):
         self.window.update()
 
     def find(self, val):
-        global running
-        running = True
-        self.cleanUp()
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
 
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
-        self.cleanup |= set(indexDisplay)
+        callEnviron |= set(indexDisplay)
 
         # go through each Drawable in the list
         for i in range(len(self.list)):
@@ -204,38 +210,38 @@ class Array(VisualizationApp):
 
             n = self.list[i]
 
+            # Pause for comparison
+            self.wait(0.2)
+            
             # if the value is found
             if n.val == val:
                 # get the position of the displayed cell
                 posShape = self.canvas.coords(n.display_shape)
 
                 # Highlight the found element with a circle
-                self.cleanup.add(self.canvas.create_oval(
+                callEnviron.add(self.canvas.create_oval(
                     *add_vector(
                         posShape,
-                        (self.CELL_BORDER, self.CELL_BORDER, -self.CELL_BORDER, -self.CELL_BORDER)),
+                        multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
                     outline=self.FOUND_COLOR))
-
-                # update the display
-                self.window.update()
-
+                self.wait(0.2)
+                
+                self.cleanUp(callEnviron)
                 return i
 
-            # if not found, wait 1 second, and then move the index over one cell
-            time.sleep(self.speed(1))
-            for item in indexDisplay:
-                self.canvas.move(item, self.CELL_SIZE, 0)
+            # if not found, then move the index over one cell
+            self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.01)
 
-            if not running:
-                break
-
+        self.cleanUp(callEnviron)
         return None
 
     def remove(self, val):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
         index = self.find(val)
-        if index != None:
-            time.sleep(1)
-            self.cleanUp()
+        found = index != None    # Record if value was found
+        if found:
+            self.wait(0.3)
 
             n = self.list[index]
 
@@ -245,35 +251,47 @@ class Array(VisualizationApp):
 
             # Create an index for shifting the cells
             kIndex = self.createIndex(index, 'k')
-            self.cleanup |= set(kIndex)
-
+            callEnviron |= set(kIndex)
+            
             # Slide values from right to left to fill gap
-            for i in range(index + 1, len(self.list)):
-                self.assignElement(i, i - 1)
+            for i in range(index+1, len(self.list)):
+                self.assignElement(i, i - 1, callEnviron)
                 self.moveItemsBy(kIndex, (self.CELL_SIZE, 0), sleepTime=0.01)
 
             self.removeFromEnd()
-            return True
-        return False
+        
+        self.cleanUp(callEnviron)
+        return found
+        
+    def fixCells(self):       # Move canvas display items to exact cell coords
+        for i, drawItem in enumerate(self.list):
+            self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
+            self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
+        self.window.update()
+
+    def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
+        super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
+        self.fixCells()       # Restore cells to their coordinates in array
 
     def traverse(self):
-        self.cleanUp()
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
 
         # draw an index pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
-        self.cleanup |= set(indexDisplay)
+        callEnviron |= set(indexDisplay)
 
         # draw output box
         canvasDimensions = self.widgetDimensions(self.canvas)
-        spacing = CELL_SIZE * 3 // 4
+        spacing = self.CELL_SIZE * 3 // 4
         padding = 10
         outputBox = self.canvas.create_rectangle(
             (canvasDimensions[0] - len(self.list) * spacing - padding) // 2,
-            canvasDimensions[1] - CELL_SIZE - padding,
+            canvasDimensions[1] - self.CELL_SIZE - padding,
             (canvasDimensions[0] + len(self.list) * spacing + padding) // 2,
             canvasDimensions[1] - padding,
-            fill = OPERATIONS_BG)
-        self.cleanup.add(outputBox)
+            fill = self.OPERATIONS_BG)
+        callEnviron.add(outputBox)
 
         for j in range(len(self.list)):
             # calculate where the value will need to move to
@@ -283,21 +301,23 @@ class Array(VisualizationApp):
             # create the value to move to output box
             valueOutput = self.copyCanvasItem(self.list[j].display_val)
             valueList = (valueOutput,)
-            self.cleanup.add(valueOutput)
+            callEnviron.add(valueOutput)
 
             # move value to output box
-            toPositions = (outputBoxCoords[0] + padding/2 + (j+1/2)*spacing, midOutputBox)
+            toPositions = (outputBoxCoords[0] + padding/2 + (j + 1/2)*spacing, 
+                           midOutputBox)
             self.moveItemsTo(valueList, (toPositions,), sleepTime=.02)
 
             # make the value 25% smaller
-            newSize = (VALUE_FONT[0], int(VALUE_FONT[1]*.75))
+            newSize = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
             self.canvas.itemconfig(valueOutput, font=newSize)
             self.window.update()
 
             # wait and then move the index pointer over
             self.wait(0.2)
-            self.moveItemsBy(indexDisplay, (CELL_SIZE, 0), sleepTime=0.03)
-            
+            self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.03)
+
+        self.cleanUp(callEnviron)
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
@@ -315,6 +335,8 @@ class Array(VisualizationApp):
             validationCmd=vcmd)
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.removeFromEnd())
+        #this makes the pause, play and stop buttons 
+        self.addAnimationButtons()
         return [findButton, insertButton, deleteValueButton,
                 deleteRightmostButton, traverseButton]
 
@@ -363,6 +385,19 @@ class Array(VisualizationApp):
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)
         self.clearArgument()
+    
+    def enableButtons(self, enable=True):
+        for btn in self.buttons:
+            btn.config(state=NORMAL if enable else DISABLED)    
+    
+    def startAnimations(self):
+        self.enableButtons(enable=False)
+        super().startAnimations()
+            
+    def stopAnimations(self):
+        super().stopAnimations()
+        self.enableButtons(enable=True)
+        self.argumentChanged()    
 
 
 if __name__ == '__main__':
