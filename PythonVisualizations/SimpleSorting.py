@@ -205,20 +205,23 @@ def insert(self, item):
         self.cleanUp(callEnviron)
 
     def removeFromEnd(self):
-        # pop an Element from the list
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
             return
-        n = self.list.pop()
+
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
         
+        # pop an Element from the list
+        n = self.list.pop()
         
         # Slide value rectangle up and off screen
         items = (n.display_shape, n.display_val)
+        callEnviron |= set(items)
         self.moveItemsOffCanvas(items, N, sleepTime=0.02)
-        
 
-        # update window
-        self.window.update()
+        # Finish animation
+        self.cleanUp(callEnviron)
 
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
         return (self.ARRAY_X0 + self.CELL_SIZE * cell_index, self.ARRAY_Y0,  # at index
