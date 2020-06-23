@@ -1,7 +1,10 @@
-import time
 from tkinter import *
-from drawable import *
-from VisualizationApp import *
+try:
+    from drawable import *
+    from VisualizationApp import *
+except ModuleNotFoundError:
+    from .drawable import *
+    from .VisualizationApp import *
 
 WIDTH = 800
 HEIGHT = 400
