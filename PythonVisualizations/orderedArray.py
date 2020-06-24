@@ -44,20 +44,39 @@ class OrderedArray(VisualizationApp):
     # ARRAY FUNCTIONALITY
 
     def createIndex(         # Create an index arrow to point at an indexed
-            self, index, name=None): # cell with an optional name label
+            self, index,     # cell
+            name=None,       # with an optional name label
+            level=1,         # at a particular level away from the cells
+            color=VARIABLE_COLOR): # (negative are below)
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
+        level_spacing = VARIABLE_FONT[1] 
         x = cell_center[0]
-        y0 = cell_coords[1] - CELL_SIZE * 4 // 5
-        y1 = cell_coords[1] - CELL_SIZE * 3 // 10
+        if level > 0:
+            y0 = cell_coords[1] - CELL_SIZE * 3 // 5 - level * level_spacing
+            y1 = cell_coords[1] - CELL_SIZE * 3 // 10
+        else:
+            y0 = cell_coords[3] + CELL_SIZE * 3 // 5 - level * level_spacing
+            y1 = cell_coords[3] + CELL_SIZE * 3 // 10
         arrow = self.canvas.create_line(
-            x, y0, x, y1, arrow="last", fill=VARIABLE_COLOR)
+            x, y0, x, y1, arrow="last", fill=color)
         if name:
             label = self.canvas.create_text(
-                x + 2, y0, text=name, anchor=SW,
-                font=VARIABLE_FONT, fill=VARIABLE_COLOR)
+                x + 2, y0, text=name, anchor=SW if level > 0 else NW,
+                font=VARIABLE_FONT, fill=color)
         return (arrow, label) if name else (arrow, )
+
+    insertCode = """
+def insert(self, item):
+   self.__a[self.__nItems] = item
+   self.__nItems += 1
+"""
+    insertCodeSnippets = {
+        'item_assignment': ('2.3', '2.end'),
+        'nitem_increment': ('3.3', '3.end'),
+    }
     
+<<<<<<< Updated upstream:PythonVisualizations/orderedArray.py
     def insert(self,val):
         j = self.find(val)     # Find where item should go
         self.list.append(val)  # Append it to the list 
@@ -68,6 +87,30 @@ class OrderedArray(VisualizationApp):
          
         # Location of the new cell in the array   
         toPositions = (self.cellCoords(j), 
+=======
+    def insert(self, val):
+        self.cleanUp()
+        j = self.find(val)  # Find where item should go
+
+        self.list.append(drawable(None))
+        
+        
+        indexK = self.createIndex(len(self.list), 'k', level=-1) # create "k" arrow
+        self.cleanup |= set(indexK)  
+                
+        
+        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
+            
+            self.wait(1)
+            for item in indexK:
+                self.canvas.move(item, -CELL_SIZE, 0)  # Move "k" arrow  
+                
+            self.list[k].val = self.list[k - 1].val 
+            self.assignElement(k - 1, k)    
+                    
+        # Location of the new cell in the array
+        toPositions = (self.cellCoords(j),
+>>>>>>> Stashed changes:PythonVisualizations/OrderedArray.py
                        self.cellCenter(j))
 
         # Animate arrival of new value from operations panel area
@@ -75,6 +118,7 @@ class OrderedArray(VisualizationApp):
         startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
         startPosition = add_vector(startPosition, (0, 0, CELL_SIZE, CELL_SIZE))
         cellPair = self.createCellValue(startPosition, val)
+<<<<<<< Updated upstream:PythonVisualizations/orderedArray.py
         self.moveItemsTo(cellPair, toPositions, steps=CELL_SIZE, sleepTime=0.01)        
         self.list.append(drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
@@ -83,6 +127,16 @@ class OrderedArray(VisualizationApp):
         self.list.sort()    # Sort list to ensure that it is ordered and removeFromEnd removes the right thing 
         
     def remove(self,val):
+=======
+        self.moveItemsTo(cellPair, toPositions, steps=CELL_SIZE, sleepTime=0.01)
+        self.list[j]= (drawable(
+            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
+
+        self.window.update()       
+        
+    def remove(self,val):
+        
+>>>>>>> Stashed changes:PythonVisualizations/OrderedArray.py
         index = self.find(val)
         if index != None:
             time.sleep(1)
@@ -144,7 +198,8 @@ class OrderedArray(VisualizationApp):
         # delete the associated display objects
         self.canvas.delete(n.display_shape)
         self.canvas.delete(n.display_val)
-
+        
+        print(len(self.list))
         # update window
         self.window.update()
 
@@ -172,6 +227,10 @@ class OrderedArray(VisualizationApp):
         self.list[toIndex].val = self.list[fromIndex].val
         self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
+        
+        # delete the original "from" display value and the new display shape
+        self.canvas.delete(self.list[fromIndex].display_val)
+        self.canvas.delete(self.list[fromIndex].display_shape)        
 
         # update the window
         self.window.update()
@@ -246,6 +305,7 @@ class OrderedArray(VisualizationApp):
     def find(self, val): 
         self.cleanUp()
         lo = 0                             #Point to lo
+<<<<<<< Updated upstream:PythonVisualizations/orderedArray.py
         indexLo = self.createIndex(lo, 'lo')
         self.cleanup |= set(indexLo)
         hi = len(self.list)-1              # Point to hi
@@ -253,6 +313,15 @@ class OrderedArray(VisualizationApp):
         self.cleanup |= set(indexHi)
         mid = (lo + hi) // 2               # Point to the midpoint
         indexMid = self.createIndex(mid, 'mid')
+=======
+        indexLo = self.createIndex(lo, 'lo',level= 1)
+        self.cleanup |= set(indexLo)
+        hi = len(self.list)-1              # Point to hi
+        indexHi = self.createIndex(hi, 'hi', level = 3)
+        self.cleanup |= set(indexHi)
+        mid = (lo + hi) // 2               # Point to the midpoint
+        indexMid = self.createIndex(mid, 'mid', level = 2)
+>>>>>>> Stashed changes:PythonVisualizations/OrderedArray.py
         self.cleanup |= set(indexMid)            
         while lo <= hi:
             mid = (lo + hi) // 2           # Select the midpoint
