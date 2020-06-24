@@ -748,7 +748,7 @@ def selectionSort(self):
         # if the animation is happening:
         if self.animation:
             # error message appears and find will not take place
-            self.setMessage("Unable to find during a sort")
+            self.setMessage("Unable to find at the moment")
         else:             
             val = self.validArgument()
             if val is None:
@@ -766,7 +766,7 @@ def selectionSort(self):
         # if the animation is happening:
         if self.animation:
             # error message appears and insert will not take place
-            self.setMessage("Unable to insert during a sort")  
+            self.setMessage("Unable to insert at the moment")  
         else:
             val = self.validArgument()
             if val is None:
