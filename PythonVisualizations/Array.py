@@ -196,26 +196,45 @@ class Array(VisualizationApp):
 
         self.window.update()
 
+    findCode = """
+def search(self, item):
+    for j in range(self.nItems):
+        if self.__a[j] == item:
+            return self.__a[j]
+    return None
+    """
+
+    findCodeSnippets = {
+        'outer_loop_increment': ('2.8','2.31'),
+        'key_comparison': ('3.11','3.30'),
+        'key_found': ('4.12','4.end'),
+        'key_not_found': ('5.4', '5.end'),
+    }
+
     def find(self, val):
-        callEnviron = self.createCallEnvironment()
         self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            self.findCode.strip(), self.findCodeSnippets)
 
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
         callEnviron |= set(indexDisplay)
 
+        # show that we are starting the loop
+        self.highlightCodeTags('outer_loop_increment', callEnviron)
+
         # go through each Drawable in the list
         for i in range(len(self.list)):
-            self.window.update()
-
             n = self.list[i]
-
-            # Pause for comparison
-            self.wait(0.2)
             
             # if the value is found
+            self.highlightCodeTags('key_comparison', callEnviron)
+            self.window.update()
+            if self.wait(0.1):
+                break
             if n.val == val:
                 # get the position of the displayed cell
+                self.highlightCodeTags('key_found', callEnviron)
                 posShape = self.canvas.coords(n.display_shape)
 
                 # Highlight the found element with a circle
@@ -224,14 +243,29 @@ class Array(VisualizationApp):
                         posShape,
                         multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
                     outline=self.FOUND_COLOR))
-                self.wait(0.2)
-                
+
+                # update the display
+                self.window.update()
+                self.wait(0.1)
+
+                # Animation stops
+                self.highlightCodeTags([], callEnviron)
                 self.cleanUp(callEnviron)
                 return i
 
             # if not found, then move the index over one cell
+            self.highlightCodeTags('outer_loop_increment', callEnviron)
             self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.01)
+            if self.wait(0.1):
+                break
 
+        # key not found
+        self.highlightCodeTags('key_not_found', callEnviron)
+        self.window.update()
+        self.wait(0.1)
+
+        # Animation stops
+        self.highlightCodeTags([], callEnviron)
         self.cleanUp(callEnviron)
         return None
 
