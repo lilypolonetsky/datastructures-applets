@@ -758,8 +758,12 @@ def selectionSort(self):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            self.insert(val)
-            self.setMessage("Value {} inserted".format(val))
+            if self.window.winfo_width() <= ARRAY_X0 + ((len(self.list)+1) * CELL_SIZE):
+                self.setMessage("Error! No room to display")
+            else: 
+                self.insert(val)
+                self.setMessage("Value {} inserted".format(val))
+            
         self.clearArgument()
 
     def enableButtons(self, enable=True):
