@@ -18,12 +18,15 @@ class SimpleArraySort(VisualizationApp):
     ARRAY_Y0 = 100
     FOUND_COLOR = 'brown4'
     nextColor = 0
+    
+   
 
     def __init__(self, size=10, title="Simple Sorting", **kwargs):
         super().__init__(title=title, **kwargs)
         self.size = size
         self.title = title
         self.list = []  # Internal array of drawable cell values
+        self.animation = False # keeps track of whether or not animation is taking place
 
         self.buttons = self.makeButtons()
         for i in range(size):
@@ -740,30 +743,49 @@ def selectionSort(self):
             if val < 100:
                 return val
 
-    # Button functions
+    # Button functions   
     def clickFind(self):
-        val = self.validArgument()
-        if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
-        else:
-            result = self.find(val)
-            if result != None:
-                msg = "Found {}!".format(val)
+        # if the animation is happening:
+        if self.animation:
+            # error message appears and find will not take place
+            self.setMessage("Unable to find during a sort")
+        else:             
+            val = self.validArgument()
+            if val is None:
+                self.setMessage("Input value must be an integer from 0 to 99.")
             else:
-                msg = "Value {} not found".format(val)
-            self.setMessage(msg)
-        self.clearArgument()
+                result = self.find(val)
+                if result != None:
+                    msg = "Found {}!".format(val)
+                else:
+                    msg = "Value {} not found".format(val)
+                self.setMessage(msg)
+            self.clearArgument()
 
     def clickInsert(self):
-        val = self.validArgument()
-        if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
+        # if the animation is happening:
+        if self.animation:
+            # error message appears and insert will not take place
+            self.setMessage("Unable to insert during a sort")  
         else:
-            self.insert(val)
-            self.setMessage("Value {} inserted".format(val))
-        self.clearArgument()
+            val = self.validArgument()
+            if val is None:
+                self.setMessage("Input value must be an integer from 0 to 99.")
+            else:
+                self.insert(val)
+                self.setMessage("Value {} inserted".format(val))
+            self.clearArgument()
+        
+
 
     def enableButtons(self, enable=True):
+        # if buttons are disabled, animation is taking place
+        if not enable:
+            self.animation = True
+        # otherwise animation is not taking place
+        else:
+            self.animation = False
+        
         for btn in self.buttons:
             btn.config(state=NORMAL if enable else DISABLED)
 
