@@ -26,7 +26,6 @@ class SimpleArraySort(VisualizationApp):
         self.size = size
         self.title = title
         self.list = []  # Internal array of drawable cell values
-        self.animation = False # keeps track of whether or not animation is taking place
 
         self.buttons = self.makeButtons()
         for i in range(size):
@@ -745,8 +744,8 @@ def selectionSort(self):
 
     # Button functions   
     def clickFind(self):
-        # if the animation is happening:
-        if self.animation:
+        # if the animation is not stopped (it is running or paused):
+        if self.animationState != self.STOPPED:
             # error message appears and find will not take place
             self.setMessage("Unable to find at the moment")
         else:             
@@ -763,8 +762,8 @@ def selectionSort(self):
             self.clearArgument()
 
     def clickInsert(self):
-        # if the animation is happening:
-        if self.animation:
+        # if the animation is not stopped (it is running or paused):
+        if self.animationState != self.STOPPED:
             # error message appears and insert will not take place
             self.setMessage("Unable to insert at the moment")  
         else:
@@ -779,13 +778,6 @@ def selectionSort(self):
 
 
     def enableButtons(self, enable=True):
-        # if buttons are disabled, animation is taking place
-        if not enable:
-            self.animation = True
-        # otherwise animation is not taking place
-        else:
-            self.animation = False
-        
         for btn in self.buttons:
             btn.config(state=NORMAL if enable else DISABLED)
 
