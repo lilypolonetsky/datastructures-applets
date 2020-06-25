@@ -17,6 +17,8 @@ class SimpleArraySort(VisualizationApp):
     ARRAY_Y0 = 100
     FOUND_COLOR = 'brown4'
     nextColor = 0
+    
+   
 
     def __init__(self, size=10, title="Simple Sorting", **kwargs):
         super().__init__(title=title, **kwargs)
@@ -742,26 +744,35 @@ def selectionSort(self):
             if val < 100:
                 return val
 
-    # Button functions
+    # Button functions   
     def clickFind(self):
-        val = self.validArgument()
-        if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
-        else:
-            result = self.find(val)
-            if result != None:
-                msg = "Found {}!".format(val)
+        # if the animation is not stopped (it is running or paused):
+        if self.animationState != self.STOPPED:
+            # error message appears and find will not take place
+            self.setMessage("Unable to find at the moment")
+        else:             
+            val = self.validArgument()
+            if val is None:
+                self.setMessage("Input value must be an integer from 0 to 99.")
             else:
-                msg = "Value {} not found".format(val)
-            self.setMessage(msg)
-        self.clearArgument()
+                result = self.find(val)
+                if result != None:
+                    msg = "Found {}!".format(val)
+                else:
+                    msg = "Value {} not found".format(val)
+                self.setMessage(msg)
+            self.clearArgument()
 
     def clickInsert(self):
-        val = self.validArgument()
-        if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
+        # if the animation is not stopped (it is running or paused):
+        if self.animationState != self.STOPPED:
+            # error message appears and insert will not take place
+            self.setMessage("Unable to insert at the moment")  
         else:
-            if self.window.winfo_width() <= self.ARRAY_X0 + (
+            val = self.validArgument()
+            if val is None:
+                self.setMessage("Input value must be an integer from 0 to 99.")
+            elif self.window.winfo_width() <= self.ARRAY_X0 + (
                     (len(self.list)+1) * self.CELL_SIZE):
                 self.setMessage("Error! No room to display")
             else: 
