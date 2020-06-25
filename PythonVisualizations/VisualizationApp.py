@@ -18,27 +18,28 @@ from tkinter import *
 def add_vector(v1, v2):
     return tuple(map(operator.add, v1, v2))
 
-
 def subtract_vector(v1, v2):
     return tuple(map(operator.sub, v1, v2))
 
-
-def divide_vector(v1, v2):  # v2 can be scalar
+def divide_vector(v1, v2):   # v2 can be scalar
     if not isinstance(v2, (list, tuple)):
         v2 = [v2] * len(v1)  # Copy scalar value for vector dimension
     return tuple(map(operator.truediv, v1, v2))
 
-
-def multiply_vector(v1, v2):  # v2 can be scalar
+def multiply_vector(v1, v2): # v2 can be scalar
     if not isinstance(v2, (list, tuple)):
         v2 = [v2] * len(v1)  # Copy scalar value for vector dimension
     return tuple(map(operator.mul, v1, v2))
 
-
-def rotate_vector(v1, angle=0):  # Rotate vector by angle degrees
+def rotate_vector(v1, angle=0): # Rotate vector by angle degrees
     s, c = math.sin(math.radians(angle)), math.cos(math.radians(angle))
     return (sum(multiply_vector(v1, (c, s))), sum(multiply_vector(v1, (-s, c))))
 
+def vector_length2(vect):    # Get the vector's length squared
+    return sum(comp * comp for comp in vect)
+
+def vector_length(vect):     # Get the vector's length
+    return math.sqrt(vector_length2(vect))
 
 def gridDict(frame):
     slaves = frame.grid_slaves()
@@ -403,28 +404,28 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     # CANVAS ITEM METHODS
     def canvas_itemconfigure(  # Get a dictionary with the canvas item's
-            self, canvasitem):  # configuration
+            self, canvasitem): # configuration
         config = self.canvas.itemconfigure(canvasitem)
-        for key in config:  # Replace tuple values with the last item
+        for key in config:     # Replace tuple values with the last item
             if isinstance(config[key], tuple):  # in tuple
                 config[key] = config[key][-1]
         return config
 
-    def copyCanvasItem(  # Make a copy of an item in the canvas
+    def copyCanvasItem(      # Make a copy of an item in the canvas
             self, canvasitem):
         creator = getattr(self.canvas,  # Get canvas creation function for type
                           'create_{}'.format(self.canvas.type(canvasitem)))
         newItem = creator(*self.canvas.coords(canvasitem),
                           **self.canvas_itemconfigure(canvasitem))
-        for eventType in self.canvas.tag_bind(canvasitem):  # Copy event handlers
+        for eventType in self.canvas.tag_bind(canvasitem): # Copy event handlers
             self.canvas.tag_bind(newItem, eventType,
                                  self.canvas.tag_bind(canvasitem, eventType))
         return newItem
 
     def moveItemsOffCanvas(  # Animate the removal of canvas items by sliding
-            self, items,  # them off one of the canvas edges
-            edge=N,  # One of the 4 tkinter edges: N, E, S, or W
-            steps=10,  # Number of intermediate steps along line
+            self, items,     # them off one of the canvas edges
+            edge=N,          # One of the 4 tkinter edges: N, E, S, or W
+            steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
         if not isinstance(items, (list, tuple)):
             items = tuple(items)
@@ -448,20 +449,23 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 delta = (canvasDimensions[0] - bbox[0], delta[1])
         # Ensure no more that 45 degree angle to departure boundary
         if abs(delta[0]) > abs(delta[1]) and edge not in (E, W):
-            delta = (delta[1] * (-1 if delta[0] < 0 else 1), delta[1])
+            delta = (abs(delta[1]) * (-1 if delta[0] < 0 else 1), delta[1])
         elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
-            delta = (delta[0], delta[0] * (-1 if delta[1] < 0 else 1))
+            delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
         self.moveItemsBy(items, delta, steps=steps, sleepTime=sleepTime)
 
-    def moveItemsBy(  # Animate canvas items moving from their current
-            self, items,  # location along a line indicated by a delta vector
-            delta,  # Can be a single item or list/tuple of items
-            steps=10,  # Number of intermediate steps along line
+    def moveItemsBy(         # Animate canvas items moving from their current
+            self, items,     # location in a direction indicated by a single
+            delta,           # delta vector. items can be 1 item or a list/tuple
+            steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
         if not isinstance(items, (list, tuple)):
             items = tuple(items)
         if not isinstance(delta, (list, tuple)) or len(delta) != 2:
             raise ValueError('Delta must be a 2-dimensional vector')
+        if vector_length2(delta) < 0.001: # If delta is tiny
+            return           # then no movement is needed
+        steps = max(1, steps) # Must use at least 1 step
 
         # move the items in steps along vector
         moveBy = divide_vector(delta, steps)
@@ -470,10 +474,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.canvas.move(item, *moveBy)
             self.wait(sleepTime)
 
-    def moveItemsTo(  # Animate canvas items moving from their current
-            self, items,  # location to destination locations along a line
-            toPositions,  # Can be a single item or list of items
-            steps=10,  # Number of intermediate steps along line
+    def moveItemsTo(         # Animate canvas items moving from their current
+            self, items,     # location to destination locations along line(s)
+            toPositions,     # items can be a single item or list of items
+            steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
         if not isinstance(items, (list, tuple)):
             items = tuple(items)
@@ -481,10 +485,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
             raise ValueError('toPositions must be a list or tuple of positions')
         if not isinstance(toPositions[0], (list, tuple)):
             toPositions = tuple(toPositions)
+        steps = max(1, steps) # Must use at least 1 step
         moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
                   for toPos, fromPos in zip(
-                toPositions,
-                map(lambda c: self.canvas.coords(c)[:2], items))]
+                          toPositions,
+                          [self.canvas.coords(item)[:2] for item in items])]
 
         # move the items until they reach the toPositions
         for step in range(steps):
@@ -496,11 +501,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for pos, item in zip(toPositions, items):
             self.canvas.coords(item, *pos)
 
-    def moveItemsOnCurve(  # Animate canvas items moving from their current
-            self, items,  # location to destinations along a curve
-            toPositions,  # Can be a single item or list of items
-            startAngle=90,  # Starting angle away from destination
-            steps=10,  # Number of intermediate steps to reach destination
+    def moveItemsOnCurve(    # Animate canvas items moving from their current
+            self, items,     # location to destinations along a curve
+            toPositions,     # items can be a single item or list of items
+            startAngle=90,   # Starting angle away from destination
+            steps=10,        # Number of intermediate steps to reach destination
             sleepTime=0.1):  # Base time between steps (adjusted by user)
         if not isinstance(items, (list, tuple)):
             items = tuple(items)
@@ -508,6 +513,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             raise ValueError('toPositions must be a list or tuple of positions')
         if not isinstance(toPositions[0], (list, tuple)):
             toPositions = tuple(toPositions)
+        steps = max(1, steps) # Must use at least 1 step
 
         # move the items until they reach the toPositions
         for step in range(steps):  # Go through all steps of the annimation
