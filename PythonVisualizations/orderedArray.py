@@ -77,6 +77,7 @@ def insert(self, item):
     }
     
     def insert(self, val):
+<<<<<<< Updated upstream
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         j = self.find(val)  # Find where item should go
@@ -95,6 +96,18 @@ def insert(self, item):
             self.list[k].val = self.list[k - 1].val 
             self.assignElement(k - 1, k, callEnviron)    
                     
+=======
+        self.cleanUp()
+        j = self.find(val)  # Find where item should go
+
+        self.list.append(drawable(None))
+
+        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
+            self.wait(1)
+            self.list[k].val = self.list[k - 1].val
+            self.assignElement(k - 1, k)
+
+>>>>>>> Stashed changes
         # Location of the new cell in the array
         toPositions = (self.cellCoords(j),
                        self.cellCenter(j))
@@ -108,6 +121,7 @@ def insert(self, item):
         self.list[j]= (drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
 
+<<<<<<< Updated upstream
         self.window.update()  
         self.cleanUp(callEnviron)
         
@@ -118,6 +132,16 @@ def insert(self, item):
         found = index != None    # Record if value was found
         if found:
             self.wait(0.3)
+=======
+        self.window.update()       
+        
+    def remove(self,val):
+        self.startAnimations()
+        index = self.find(val)
+        if index != None:
+            self.wait(1)
+            self.cleanUp()
+>>>>>>> Stashed changes
 
             n = self.list[index]
 
@@ -135,9 +159,16 @@ def insert(self, item):
                 self.moveItemsBy(kIndex, (CELL_SIZE, 0), sleepTime=0.01)
 
             self.removeFromEnd()
+<<<<<<< Updated upstream
         
         self.cleanUp(callEnviron)
         return found
+=======
+            self.stopAnimations()
+            return True
+        self.stopAnimations()
+        return False 
+>>>>>>> Stashed changes
     
     def randomFill(self):
         # Clear the list so new values can be entered
@@ -178,6 +209,10 @@ def insert(self, item):
         self.canvas.delete(n.display_shape)
         self.canvas.delete(n.display_val)
         
+<<<<<<< Updated upstream
+=======
+        print(len(self.list))
+>>>>>>> Stashed changes
         # update window
         self.window.update()
         self.cleanUp(callEnviron)
@@ -209,12 +244,20 @@ def insert(self, item):
         self.list[toIndex].val = self.list[fromIndex].val
         self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
+<<<<<<< Updated upstream
         callEnviron ^= set([newCell, newCellVal])
         
         # delete the original "from" display value and the new display shape
         self.canvas.delete(self.list[fromIndex].display_val)
         self.canvas.delete(self.list[fromIndex].display_shape)           
         
+=======
+        
+        # delete the original "from" display value and the new display shape
+        self.canvas.delete(self.list[fromIndex].display_val)
+        self.canvas.delete(self.list[fromIndex].display_shape)        
+
+>>>>>>> Stashed changes
         # update the window
         self.window.update()
 
@@ -286,6 +329,7 @@ def insert(self, item):
         self.window.update()
 
     def find(self, val): 
+<<<<<<< Updated upstream
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         lo = 0                             #Point to lo
@@ -297,10 +341,24 @@ def insert(self, item):
         mid = (lo + hi) // 2               # Point to the midpoint
         indexMid = self.createIndex(mid, 'mid', level = 2)
         callEnviron |= set(indexMid)            
+=======
+        self.startAnimations()
+        self.cleanUp()
+        lo = 0                             #Point to lo
+        indexLo = self.createIndex(lo, 'lo',level= 1)
+        self.cleanup |= set(indexLo)
+        hi = len(self.list)-1              # Point to hi
+        indexHi = self.createIndex(hi, 'hi', level = 3)
+        self.cleanup |= set(indexHi)
+        mid = (lo + hi) // 2               # Point to the midpoint
+        indexMid = self.createIndex(mid, 'mid', level = 2)
+        self.cleanup |= set(indexMid)            
+>>>>>>> Stashed changes
         while lo <= hi:
             mid = (lo + hi) // 2           # Select the midpoint
-                 
-            if self.list[mid].val == val:  # Did we find it at midpoint?    
+            if self.list[mid].val == val:  # Did we find it at midpoint?  
+                self.stopAnimations()
+                self.window.update()
                 return mid                 # Return the value found 
         
             elif self.list[mid].val < val: # Is item in upper half?
@@ -309,14 +367,16 @@ def insert(self, item):
                 lo = mid + 1               # Yes, raise the lo boundary
                 deltaXMid = ((hi - lo) // 2) + 1
                 self.moveItemsBy(indexMid, (CELL_SIZE*deltaXMid, 0))
-                 
+               
             else:                         # Is item in lower half? 
                 deltaXHi = (mid -hi) - 1 
                 self.moveItemsBy(indexHi, (CELL_SIZE*deltaXHi, 0))
                 hi = mid - 1              # Yes, lower the hi boundary 
                 deltaXMid = ((lo- hi) //2) -1
                 self.moveItemsBy(indexMid, (CELL_SIZE* deltaXMid, 0))
-
+        
+        
+        self.stopAnimations()
         self.window.update()
         self.cleanUp(callEnviron)
         return lo                         #val not found 
@@ -340,8 +400,12 @@ def insert(self, item):
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.removeFromEnd())
         #this makes the pause, play and stop buttons 
+<<<<<<< Updated upstream
         self.addAnimationButtons()
         
+=======
+        self.addAnimationButtons()        
+>>>>>>> Stashed changes
         return [findButton, insertButton, deleteValueButton,
                 deleteRightmostButton, randomFillButton, newSizeArrayButton]
 
@@ -413,8 +477,12 @@ def insert(self, item):
     def stopAnimations(self):
         super().stopAnimations()
         self.enableButtons(enable=True)
+<<<<<<< Updated upstream
         self.argumentChanged()    
     
+=======
+        self.argumentChanged()        
+>>>>>>> Stashed changes
         
 if __name__ == '__main__':
     random.seed(3.14159)    # Use fixed seed for testing consistency
