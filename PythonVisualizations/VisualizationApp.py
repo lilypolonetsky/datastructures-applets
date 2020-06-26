@@ -232,8 +232,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     self.cleanUp()
                 command()
             except UserStop as e:
-                while len(self.callStack) > 1:
-                    self.cleanUp(self.callStack[-1])
+                self.cleanUp(self.callStack[0] if self.callStack else None)
         return animatedOperation
                 
     def getArgument(self, index=0, clear=False):
@@ -557,9 +556,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for col in range(nColumns):
             for btn in [gridItems[col, row] for row in range(nRows)]:
                 # Only change button types, not text entry or other widgets
-                # Stop button can only be enabled here
+                # Pause/Stop buttons can only be enabled here
                 if isinstance(btn, (Button, Checkbutton)) and (
-                        enable or btn != self.stopButton):
+                        enable or btn not in (self.stopButton, 
+                                              self.pauseButton)):
                     btn['state'] = NORMAL if enable else DISABLED
 
     def stop(self, pauseButton):
@@ -582,6 +582,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def startAnimations(self):
         self.animationState = self.RUNNING
+        self.enableButtons(enable=False)
         if self.pauseButton:
             self.pauseButton['text'] = 'Pause'
             self.pauseButton['command'] = self.runOperation(
@@ -595,10 +596,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
         # At lowest level, animation stops and play & stop buttons are disabled
         if len(self.callStack) <= 1:
             self.animationState = self.STOPPED
+            self.enableButtons(enable=True)
             if self.pauseButton:
                 self.pauseButton['state'] = DISABLED
             if self.stopButton:
                 self.stopButton['state'] = DISABLED
+            self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
     def pauseAnimations(self):

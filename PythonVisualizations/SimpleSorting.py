@@ -781,27 +781,9 @@ def selectionSort(self):
             
         self.clearArgument()
 
-    def startAnimations(self):
-        self.enableButtons(enable=False)
-        super().startAnimations()
-
-    def stopAnimations(self):
-        super().stopAnimations()
-        self.enableButtons(enable=True)
-        self.argumentChanged()
-
-
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
     array = SimpleArraySort()
 
     array.runVisualization()
 
-'''
-To Do:
-- make it look pretty
-- animate insert and delete
-- delete/insert at index?
-- label arrows for sorts (inner, outer, etc.)
-- implement shell sort, radix sort, quick sort
-'''
