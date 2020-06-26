@@ -781,10 +781,6 @@ def selectionSort(self):
             
         self.clearArgument()
 
-    def enableButtons(self, enable=True):
-        for btn in self.buttons:
-            btn.config(state=NORMAL if enable else DISABLED)
-
     def startAnimations(self):
         self.enableButtons(enable=False)
         super().startAnimations()

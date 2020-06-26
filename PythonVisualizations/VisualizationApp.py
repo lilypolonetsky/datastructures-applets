@@ -269,10 +269,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
         gridItems = gridDict(self.operations)  # All operations
         nColumns, nRows = self.operations.grid_size()
         for button in [gridItems[0, row] for row in range(nRows)
-                       if isinstance(gridItems[0, row], Button)]:
+                       if isinstance(gridItems[0, row], (Button, Checkbutton))]:
             nArgs = getattr(button, 'required_args')
             button['state'] = (
-                DISABLED if any(arg == '' for arg in args[:nArgs]) else NORMAL)
+                DISABLED if self.animationState != self.STOPPED or any(
+                    arg == '' for arg in args[:nArgs]) else NORMAL)
 
     def setMessage(self, val=''):
         self.outputText.set(val)
@@ -544,11 +545,22 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if self.animationState == self.STOPPED: # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
 
-    def onClick(self, command, *parameters):
-        self.enableButtons(False)
-        command(*parameters)
-        if command not in [self.pause, self.play]:
-            self.enableButtons()
+    def onClick(self, command, *parameters): # When user clicks an operations
+        self.enableButtons(False) # button, disable all buttons,
+        command(*parameters)      # run the command, and re-enable the buttons
+        if command not in [self.pause, self.play]: # if it was something
+            self.enableButtons()  # other than pause or play command
+            
+    def enableButtons(self, enable=True):
+        gridItems = gridDict(self.operations)  # All Tk items in operations 
+        nColumns, nRows = self.operations.grid_size() # by grid cell
+        for col in range(nColumns):
+            for btn in [gridItems[col, row] for row in range(nRows)]:
+                # Only change button types, not text entry or other widgets
+                # Stop button can only be enabled here
+                if isinstance(btn, (Button, Checkbutton)) and (
+                        enable or btn != self.stopButton):
+                    btn['state'] = NORMAL if enable else DISABLED
 
     def stop(self, pauseButton):
         self.stopAnimations()

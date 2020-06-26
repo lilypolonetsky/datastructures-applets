@@ -386,10 +386,6 @@ class Array(VisualizationApp):
             self.setMessage(msg)
         self.clearArgument()
     
-    def enableButtons(self, enable=True):
-        for btn in self.buttons:
-            btn.config(state=NORMAL if enable else DISABLED)    
-    
     def startAnimations(self):
         self.enableButtons(enable=False)
         super().startAnimations()
@@ -398,7 +394,6 @@ class Array(VisualizationApp):
         super().stopAnimations()
         self.enableButtons(enable=True)
         self.argumentChanged()    
-
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
