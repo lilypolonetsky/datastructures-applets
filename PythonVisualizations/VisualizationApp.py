@@ -93,7 +93,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             title=None,
             canvasWidth=800,  # Canvas size
             canvasHeight=400,
-            maxArgWidth=3,  # Maximum length/width of text arguments
+            maxArgWidth=6,  # Maximum length/width of text arguments
     ):
         # Set up Tk windows for canvas and operational controls
         if window:
@@ -167,6 +167,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             maxRows=4,       # Operations w/o args beyond maxRows -> new columns
             buttonType=Button, # Type can be Button or Checkbutton
             cleanUpBefore=True, # Clean up all previous animations before Op
+            instruction="Value", # initial hint in text entry
             **kwargs):       # Tk button keyword args
         gridItems = gridDict(self.operations) # Operations inserted in grid
         nColumns, nRows = self.operations.grid_size()
@@ -186,9 +187,21 @@ class VisualizationApp(object):  # Base class for Python visualizations
             while len(self.textEntries) < numArguments:  # Build argument entry
                 textEntry = Entry(  # widgets if not already present
                     self.operations, width=self.maxArgWidth, bg='white',
-                    validate='key', validatecommand=validationCmd)
+                    validate='key')
                 textEntry.grid(column=2, row=len(self.textEntries) + 1,
                                padx=8, sticky=E)
+                
+                # initial hint text
+                textEntry.insert(0,instruction)
+                textEntry.configure(state=DISABLED)
+                def on_click(event):
+                    textEntry.configure(state=NORMAL, validatecommand=validationCmd)
+                    textEntry.delete(0, END)
+
+                    # make the callback only work once
+                    textEntry.unbind('<Button-1>', on_click_id)
+                on_click_id = textEntry.bind('<Button-1>', on_click)
+                
                 textEntry.bind(
                     '<KeyRelease>', lambda ev: self.argumentChanged(), '+')
                 self.textEntries.append(textEntry)
