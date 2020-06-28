@@ -385,29 +385,9 @@ class Array(VisualizationApp):
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)
         self.clearArgument()
-    
-    def enableButtons(self, enable=True):
-        for btn in self.buttons:
-            btn.config(state=NORMAL if enable else DISABLED)    
-    
-    def startAnimations(self):
-        self.enableButtons(enable=False)
-        super().startAnimations()
-            
-    def stopAnimations(self):
-        super().stopAnimations()
-        self.enableButtons(enable=True)
-        self.argumentChanged()    
-
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
     array = Array()
 
     array.runVisualization()
-
-'''
-To Do:
-- make it look pretty
-- animate insert
-'''
