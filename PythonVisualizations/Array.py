@@ -289,21 +289,21 @@ def search(self, item):
 
     removeCode = """
 def delete(self, item):
-    for j in range(self.nItems):
+    for j in range(self.__nItems):
         if self.__a[j] == item:
-            for k in range(j, self.nItems):
-                self.__a[k] = self.__a[k+1]
-            self.nItems -= 1
+            self.__nItems -= 1
+            for k in range(j, self.__nItems):
+               self.__a[k] = self.__a[k+1]
             return True
-    return False
+      return False
 """
 
     removeCodeSnippets = {
-        'outer_loop_increment': ('2.8','2.31'),
+        'outer_loop_increment': ('2.8','2.33'),
         'key_comparison': ('3.11', '3.30'),
-        'shift_loop_increment': ('4.16','4.42'),
-        'shift_items': ('5.16','5.end'),
-        'decrement_count': ('6.12','6.end'),
+        'decrement_count': ('4.12','4.end'),
+        'shift_loop_increment': ('5.16','5.44'),
+        'shift_items': ('6.15','6.end'),
         'success': ('7.12','7.end'),
         'failure': ('8.4','8.end'),
     }
@@ -319,6 +319,7 @@ def delete(self, item):
 
         # show that we are starting the loop
         self.highlightCodeTags('outer_loop_increment', callEnviron)
+        self.window.update()
 
         # go through each Drawable in the list
         # look for val to be deleted
@@ -354,6 +355,11 @@ def delete(self, item):
                 items = (n.display_shape, n.display_val)
                 self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
+                # decrement nItems
+                self.highlightCodeTags('decrement_count', callEnviron)
+                self.window.update()
+                self.wait(0.3)
+
                 self.highlightCodeTags('shift_loop_increment', callEnviron)
                 self.wait(0.1)
 
@@ -370,12 +376,16 @@ def delete(self, item):
 
                     self.highlightCodeTags('shift_loop_increment', callEnviron)
                     self.wait(0.1)
-
-                self.highlightCodeTags('decrement_count', callEnviron)
-                self.wait(0.3)
                 
                 self.highlightCodeTags('success', callEnviron)
-                self.removeFromEnd()
+                # remove the last item in the list
+                n = self.list.pop()
+                # delete the associated display objects
+                self.canvas.delete(n.display_shape)
+                self.canvas.delete(n.display_val)
+                
+                # update window
+                self.window.update()
                 self.wait(0.3)
 
                 self.highlightCodeTags([], callEnviron)
