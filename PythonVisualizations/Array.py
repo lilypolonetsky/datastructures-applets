@@ -326,7 +326,7 @@ class Array(VisualizationApp):
             "Traverse", lambda: self.traverse())
         findButton = self.addOperation(
             "Find", lambda: self.clickFind(), numArguments=1,
-            validationCmd=vcmd)
+            validationCmd=vcmd, helpText="Enter number here")
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)

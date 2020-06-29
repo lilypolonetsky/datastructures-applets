@@ -75,6 +75,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_FONT = ('Courier', 12)
     CODE_HIGHLIGHT = 'yellow'
     CONTROLS_FONT = ('none', 14)
+    HINT_FONT = ('none', 16, 'italic')
+    HINT_FG = 'blue'
+    HINT_BG = 'beige'
     CALL_STACK_BOUNDARY = 'brown3'
 
     # Speed control slider
@@ -93,7 +96,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             title=None,
             canvasWidth=800,  # Canvas size
             canvasHeight=400,
-            maxArgWidth=6,  # Maximum length/width of text arguments
+            maxArgWidth=3,  # Maximum length/width of text arguments
     ):
         # Set up Tk windows for canvas and operational controls
         if window:
@@ -147,7 +150,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.fastLabel = Label(
             self.operationsLowerCenter, text="fast", font=self.CONTROLS_FONT)
         self.fastLabel.grid(row=0, column=2, sticky=W)
-        self.textEntries = []
+        self.textEntries, self.entryHints = [], []
         self.outputText = StringVar()
         self.outputText.set('')
         self.message = Label(
@@ -167,7 +170,6 @@ class VisualizationApp(object):  # Base class for Python visualizations
             maxRows=4,       # Operations w/o args beyond maxRows -> new columns
             buttonType=Button, # Type can be Button or Checkbutton
             cleanUpBefore=True, # Clean up all previous animations before Op
-            instruction="Value", # initial hint in text entry
             **kwargs):       # Tk button keyword args
         gridItems = gridDict(self.operations) # Operations inserted in grid
         nColumns, nRows = self.operations.grid_size()
@@ -181,40 +183,39 @@ class VisualizationApp(object):  # Base class for Python visualizations
         button = buttonType( # Create button based on type
             self.operations, text=label, 
             command=self.runOperation(callback, cleanUpBefore),
-            bg=self.OPERATIONS_BG)
+            bg=self.OPERATIONS_BG, **kwargs)
         setattr(button, 'required_args', numArguments)
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
                 textEntry = Entry(  # widgets if not already present
                     self.operations, width=self.maxArgWidth, bg='white',
-                    validate='key')
+                    validate='key', validatecommand=validationCmd)
                 textEntry.grid(column=2, row=len(self.textEntries) + 1,
                                padx=8, sticky=E)
-                
-                # initial hint text
-                textEntry.insert(0,instruction)
-                textEntry.configure(state=DISABLED)
-                def on_click(event):
-                    textEntry.configure(state=NORMAL, validatecommand=validationCmd)
-                    textEntry.delete(0, END)
-
-                    # make the callback only work once
-                    textEntry.unbind('<Button-1>', on_click_id)
-                on_click_id = textEntry.bind('<Button-1>', on_click)
-                
+                if helpText: # If there a hint on what to enter
+                    hint = Label(  # Make a label with the hint and cover the
+                        self.operations, text=helpText, font=self.HINT_FONT,
+                        fg=self.HINT_FG, bg=self.HINT_BG)
+                    hint.grid(column=2, row=len(self.textEntries) + 1, # text
+                              padx=8, sticky=E) # entry widget with it
+                    hint.bind('<Button>', # Remove the hint when first clicked
+                              lambda ev: hint.destroy())
+                    self.entryHints.append(hint)
                 textEntry.bind(
                     '<KeyRelease>', lambda ev: self.argumentChanged(), '+')
                 self.textEntries.append(textEntry)
             buttonRow = len(withArgument) + 1
             button.grid(column=0, row=buttonRow, padx=8, sticky=(E, W))
             button.config(state=DISABLED)
-            rowSpan = max(1, (len(withArgument) + 1) // len(self.textEntries))
+            nEntries = len(self.textEntries)
+            rowSpan = max(1, (len(withArgument) + 1) // nEntries)
             for i, textEntry in enumerate(self.textEntries):  # Spread text
-                textEntry.grid_configure(  # entries across all rows of buttons
-                    row=rowSpan * i + 1,  # with arguments
-                    rowspan=rowSpan if textEntry != self.textEntries[-1] else
-                    max(1, len(withArgument) + 1 -
-                        (len(self.textEntries) - 1) * rowSpan))
+                for widget in [textEntry] + ( # entries and any entry hints
+                        self.entryHints[i:i+1] if self.entryHints else []):
+                    widget.grid_configure(    # across all rows of buttons
+                        row=rowSpan * i + 1,  # with arguments
+                        rowspan=rowSpan if i < nEntries - 1 else max(
+                            1, len(withArgument) + 1 - (nEntries - 1) * rowSpan))
         else:
             buttonRow = len(withoutArgument) % maxRows + 1
             button.grid(column=4 + len(withoutArgument) // maxRows,
