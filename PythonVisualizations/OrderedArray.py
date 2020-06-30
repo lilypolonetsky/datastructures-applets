@@ -104,11 +104,12 @@ class OrderedArray(VisualizationApp):
 
     def removeFromEnd(self):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
+        
         # pop a Drawable from the list
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
             return
+        self.startAnimations()        
         n = self.list.pop()
 
         # delete the associated display objects
@@ -118,7 +119,8 @@ class OrderedArray(VisualizationApp):
         # update window
         self.window.update()
         self.cleanUp(callEnviron)
-
+        self.stopAnimations()
+        
     def assignElement(
             self, fromIndex, toIndex, callEnviron,
             steps=CELL_SIZE // 2, sleepTime=0.01):
@@ -222,6 +224,7 @@ class OrderedArray(VisualizationApp):
         self.window.update()
 
     def randomFill(self):
+        callEnviron = self.createCallEnvironment()        
         # Clear the list so new values can be entered
         self.list=[] 
         size = self.size
@@ -235,8 +238,10 @@ class OrderedArray(VisualizationApp):
             self.list.append(drawable(i))
         
         self.display()         
-            
+        self.cleanUp(callEnviron)
+        
     def newArraySize(self, val):
+        callEnviron = self.createCallEnvironment()                
         # Clear Array and reset size and list
         self.canvas.delete("all")
         self.size = val
@@ -246,6 +251,7 @@ class OrderedArray(VisualizationApp):
             self.createArrayCell(i) 
         
         self.window.update()
+        self.cleanUp(callEnviron)
         
     def find(self, val): 
         callEnviron = self.createCallEnvironment()
