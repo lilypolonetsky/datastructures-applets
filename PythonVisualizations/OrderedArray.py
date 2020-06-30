@@ -96,8 +96,11 @@ class OrderedArray(VisualizationApp):
         self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
         self.list[j]= (drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))        
+        
         self.window.update()  
-        self.cleanUp(callEnviron)        
+        self.cleanUp(callEnviron) 
+        self.stopAnimations()
+        
 
     def removeFromEnd(self):
         callEnviron = self.createCallEnvironment()
@@ -240,9 +243,10 @@ class OrderedArray(VisualizationApp):
         self.list = []        
         
         for i in range(val):  # Draw new grid of cells
-            self.createArrayCell(i)        
+            self.createArrayCell(i) 
         
         self.window.update()
+        
     def find(self, val): 
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
@@ -324,23 +328,20 @@ class OrderedArray(VisualizationApp):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         newSizeArrayButton = self.addOperation(
-            "New", lambda: self.clickNew(), numArguments=1)        
+            "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd)        
         findButton = self.addOperation(
-            "Find", lambda: self.clickFind(), numArguments=1,
-            validationCmd=vcmd)
+            "Find", lambda: self.clickFind(), numArguments=1, validationCmd=vcmd)
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill())        
         insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd)
+            "Insert", lambda: self.clickInsert(), numArguments=1, validationCmd=vcmd)
         deleteValueButton = self.addOperation(
-            "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd)
+            "Delete", lambda: self.clickDelete(), numArguments=1, validationCmd=vcmd)
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.removeFromEnd())
         #this makes the pause, play and stop buttons 
         self.addAnimationButtons()
-        return [findButton, insertButton, deleteValueButton,
+        return [findButton, insertButton, deleteValueButton, newSizeArrayButton, randomFillButton,
                 deleteRightmostButton]
 
     def validArgument(self):
