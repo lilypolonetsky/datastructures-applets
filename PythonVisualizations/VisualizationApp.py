@@ -336,8 +336,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 underline=1 if highlight else 0)
             if highlight:
                 ranges = self.codeText.tag_ranges(tagName)
-                if len(ranges) > 0:
-                    self.codeText.see(ranges[0])
+                #if len(ranges) > 0:
+                    #self.codeText.see(ranges[0])
+            
+            #self.codeText.xview(MOVETO, 0)
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
