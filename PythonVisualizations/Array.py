@@ -214,12 +214,62 @@ def insert(self, item):
 
         self.window.update()
 
-    findCode = """
+    getCode = """
+def get(self, n):
+    if 0 <= n and n < self.__nItems:
+        return self.__a[n]
+    """
+
+    getCodeSnippets = {
+        'check_bounds': ('2.7','2.35'),
+        'return': ('3.8', '3.end'),
+    }
+
+    def get(self, n):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            self.getCode.strip(), self.getCodeSnippets)
+        self.highlightCodeTags('check_bounds', callEnviron)
+        self.wait(0.2)
+        self.highlightCodeTags('return', callEnviron)
+        if 0 <= n and n < len(self.list):
+            result = self.list[n]
+        else:
+            result = None
+        self.wait(0.2)
+        self.cleanUp(callEnviron)
+        return result
+    
+    searchCode = """
 def search(self, item):
+    return self.get(self.find(item))
+    """
+
+    searchCodeSnippets = {
+        'call_find': ('2.20','2.35'),
+        'call_get': ('2.11','2.end'),
+        'return': ('2.4', '2.end'),
+    }
+
+    def search(self, item):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            self.searchCode.strip(), self.searchCodeSnippets)
+        self.highlightCodeTags('call_find', callEnviron)
+        n = self.find(item)
+        self.highlightCodeTags('call_get', callEnviron)
+        result = self.get(n)
+        self.highlightCodeTags('return', callEnviron)
+        self.wait(0.2)
+        self.cleanUp(callEnviron)
+        return result
+
+    findCode = """
+def find(self, item):
     for j in range(self.nItems):
         if self.__a[j] == item:
-            return self.__a[j]
-    return None
+            return j
+    return -1
     """
 
     findCodeSnippets = {
@@ -285,7 +335,7 @@ def search(self, item):
         # Animation stops
         self.highlightCodeTags([], callEnviron)
         self.cleanUp(callEnviron)
-        return None
+        return -1
 
     removeCode = """
 def delete(self, item):
@@ -295,7 +345,7 @@ def delete(self, item):
             for k in range(j, self.__nItems):
                self.__a[k] = self.__a[k+1]
             return True
-      return False
+    return False
 """
 
     removeCodeSnippets = {
@@ -485,8 +535,8 @@ def traverse(self, function=print):
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         traverseButton = self.addOperation(
             "Traverse", lambda: self.traverse())
-        findButton = self.addOperation(
-            "Find", lambda: self.clickFind(), numArguments=1,
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1,
             validationCmd=vcmd)
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
@@ -498,7 +548,7 @@ def traverse(self, function=print):
             "Delete Rightmost", lambda: self.removeFromEnd())
         #this makes the pause, play and stop buttons 
         self.addAnimationButtons()
-        return [findButton, insertButton, deleteValueButton,
+        return [searchButton, insertButton, deleteValueButton,
                 deleteRightmostButton, traverseButton]
 
     def validArgument(self):
@@ -509,14 +559,14 @@ def traverse(self, function=print):
                 return val
 
     # Button functions
-    def clickFind(self):
+    def clickSearch(self):
         val = self.validArgument()
         if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
+            self.setMessage("Input must be an integer from 0 to 99")
         else:
-            result = self.find(val)
+            result = self.search(val)
             if result != None:
-                msg = "Found {}!".format(val)
+                msg = "Found {}".format(val)
             else:
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)
@@ -525,7 +575,7 @@ def traverse(self, function=print):
     def clickInsert(self):
         val = self.validArgument()
         if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
+            self.setMessage("Input must be an integer from 0 to 99")
         else:
             if len(self.list) >= self.size:
                 self.setMessage("Error! Array is already full.")
@@ -537,11 +587,11 @@ def traverse(self, function=print):
     def clickDelete(self):
         val = self.validArgument()
         if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
+            self.setMessage("Input must be an integer from 0 to 99")
         else:
             result = self.remove(val)
             if result:
-                msg = "Value {} deleted!".format(val)
+                msg = "Value {} deleted".format(val)
             else:
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)

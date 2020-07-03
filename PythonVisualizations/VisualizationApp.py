@@ -332,7 +332,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             highlight = tagName[len(codeHighlightBlock.prefix):] in tags
             self.codeText.tag_config(
                 tagName,
-                background=self.CODE_HIGHLIGHT if highlight else self.OPERATIONS_BG,
+                background=self.CODE_HIGHLIGHT if highlight else '',
                 underline=1 if highlight else 0)
             if highlight:
                 ranges = self.codeText.tag_ranges(tagName)
@@ -373,13 +373,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def cleanUpCallEnviron(self, callEnviron): # Clean up a call on the stack
         while len(callEnviron):
             thing = callEnviron.pop()
-            if isinstance(thing, (str, int)):  # Canvas item IDs
+            if isinstance(thing, (str, int)) and self.canvas.type(thing):
                 self.canvas.delete(thing)
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
-                last_index = self.codeText.index(END)
+                last_line = int(float(self.codeText.index(END)))
                 self.codeText.delete(
-                    '1.0', min(last_index, '{}.0'.format(thing.lines + 2)))
+                    '1.0', '{}.0'.format(min(last_line, thing.lines + 2)))
                 self.codeText.configure(state=DISABLED)
 
     def createCallEnvironment( # Create a call environment on the call stack
@@ -604,7 +604,7 @@ class CodeHighlightBlock(object):
                  code,       # and makes a unique prefix for snippet keys
                  snippets):  # to translate them into a unique tag name
         self.code = code.strip()
-        self.lines = len(self.code.split('\n')) + 1 if len(code) > 0 else 0
+        self.lines = len(self.code.split('\n')) if len(code) > 0 else 0
         self.snippets = snippets
         self.prefix = '{:04d}-'.format(self.counter)
         CodeHighlightBlock.counter += 1
