@@ -608,9 +608,3 @@ if __name__ == '__main__':
     array = Array()
 
     array.runVisualization()
-
-'''
-To Do:
-- make it look pretty
-- animate insert
-'''

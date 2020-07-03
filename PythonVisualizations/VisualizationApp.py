@@ -232,8 +232,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     self.cleanUp()
                 command()
             except UserStop as e:
-                while len(self.callStack) > 1:
-                    self.cleanUp(self.callStack[-1])
+                self.cleanUp(self.callStack[0] if self.callStack else None)
         return animatedOperation
                 
     def getArgument(self, index=0, clear=False):
@@ -269,10 +268,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
         gridItems = gridDict(self.operations)  # All operations
         nColumns, nRows = self.operations.grid_size()
         for button in [gridItems[0, row] for row in range(nRows)
-                       if isinstance(gridItems[0, row], Button)]:
+                       if isinstance(gridItems[0, row], (Button, Checkbutton))]:
             nArgs = getattr(button, 'required_args')
             button['state'] = (
-                DISABLED if any(arg == '' for arg in args[:nArgs]) else NORMAL)
+                DISABLED if self.animationState != self.STOPPED or any(
+                    arg == '' for arg in args[:nArgs]) else NORMAL)
 
     def setMessage(self, val=''):
         self.outputText.set(val)
@@ -544,11 +544,23 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if self.animationState == self.STOPPED: # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
 
-    def onClick(self, command, *parameters):
-        self.enableButtons(False)
-        command(*parameters)
-        if command not in [self.pause, self.play]:
-            self.enableButtons()
+    def onClick(self, command, *parameters): # When user clicks an operations
+        self.enableButtons(False) # button, disable all buttons,
+        command(*parameters)      # run the command, and re-enable the buttons
+        if command not in [self.pause, self.play]: # if it was something
+            self.enableButtons()  # other than pause or play command
+            
+    def enableButtons(self, enable=True):
+        gridItems = gridDict(self.operations)  # All Tk items in operations 
+        nColumns, nRows = self.operations.grid_size() # by grid cell
+        for col in range(nColumns):
+            for btn in [gridItems[col, row] for row in range(nRows)]:
+                # Only change button types, not text entry or other widgets
+                # Pause/Stop buttons can only be enabled here
+                if isinstance(btn, (Button, Checkbutton)) and (
+                        enable or btn not in (self.stopButton, 
+                                              self.pauseButton)):
+                    btn['state'] = NORMAL if enable else DISABLED
 
     def stop(self, pauseButton):
         self.stopAnimations()
@@ -570,6 +582,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def startAnimations(self):
         self.animationState = self.RUNNING
+        self.enableButtons(enable=False)
         if self.pauseButton:
             self.pauseButton['text'] = 'Pause'
             self.pauseButton['command'] = self.runOperation(
@@ -583,10 +596,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
         # At lowest level, animation stops and play & stop buttons are disabled
         if len(self.callStack) <= 1:
             self.animationState = self.STOPPED
+            self.enableButtons(enable=True)
             if self.pauseButton:
                 self.pauseButton['state'] = DISABLED
             if self.stopButton:
                 self.stopButton['state'] = DISABLED
+            self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
     def pauseAnimations(self):
