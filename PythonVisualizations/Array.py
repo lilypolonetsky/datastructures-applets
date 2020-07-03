@@ -100,20 +100,24 @@ def insert(self, item):
         self.cleanUp(callEnviron)
 
     def removeFromEnd(self):
-        callEnviron = self.createCallEnvironment()
-        self.startAnimations()
-        # pop a Drawable from the list
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
             return
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+        # pop a Drawable from the list
         n = self.list.pop()
+        items = (n.display_shape, n.display_val)
+        callEnviron |= set(items)
 
+        # Animate removal of cell value
+        self.moveItemsOffCanvas(items, N, sleepTime=0.01)
+        
         # delete the associated display objects
         self.canvas.delete(n.display_shape)
         self.canvas.delete(n.display_val)
 
         # update window
-        self.window.update()
         self.cleanUp(callEnviron)
 
     def assignElement(
@@ -143,9 +147,6 @@ def insert(self, item):
         self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
         callEnviron ^= set([newCell, newCellVal])
-
-        # update the window
-        self.window.update()
 
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
         return (self.ARRAY_X0 + self.CELL_SIZE * cell_index, self.ARRAY_Y0,  # at index
@@ -297,9 +298,8 @@ def find(self, item):
             
             # if the value is found
             self.highlightCodeTags('key_comparison', callEnviron)
-            self.window.update()
-            if self.wait(0.1):
-                break
+            self.wait(0.1)
+            
             if n.val == val:
                 # get the position of the displayed cell
                 self.highlightCodeTags('key_found', callEnviron)
@@ -313,7 +313,6 @@ def find(self, item):
                     outline=self.FOUND_COLOR))
 
                 # update the display
-                self.window.update()
                 self.wait(0.1)
 
                 # Animation stops
@@ -324,12 +323,10 @@ def find(self, item):
             # if not found, then move the index over one cell
             self.highlightCodeTags('outer_loop_increment', callEnviron)
             self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.01)
-            if self.wait(0.1):
-                break
+            self.wait(0.1)
 
         # key not found
         self.highlightCodeTags('key_not_found', callEnviron)
-        self.window.update()
         self.wait(0.1)
 
         # Animation stops
@@ -369,8 +366,8 @@ def delete(self, item):
 
         # show that we are starting the loop
         self.highlightCodeTags('outer_loop_increment', callEnviron)
-        self.window.update()
-
+        self.wait(0.1)
+        
         # go through each Drawable in the list
         # look for val to be deleted
         for i in range(len(self.list)):
@@ -378,9 +375,8 @@ def delete(self, item):
 
             # if the value is found
             self.highlightCodeTags('key_comparison', callEnviron)
-            self.window.update()
-            if self.wait(0.1):
-                break
+            self.wait(0.1)
+
             if n.val == val:
                 # get the position of the displayed cell
                 posShape = self.canvas.coords(n.display_shape)
@@ -394,7 +390,6 @@ def delete(self, item):
                 callEnviron.add(foundCircle)
 
                 # update the display
-                self.window.update()
                 self.wait(0.3)
 
                 # remove the found circle
@@ -407,7 +402,6 @@ def delete(self, item):
 
                 # decrement nItems
                 self.highlightCodeTags('decrement_count', callEnviron)
-                self.window.update()
                 self.wait(0.3)
 
                 self.highlightCodeTags('shift_loop_increment', callEnviron)
@@ -435,12 +429,11 @@ def delete(self, item):
                 self.canvas.delete(n.display_val)
                 
                 # update window
-                self.window.update()
                 self.wait(0.3)
 
                 self.highlightCodeTags([], callEnviron)
                 self.cleanUp(callEnviron)
-                return i
+                return True
 
             # if not found, then move the index over one cell
             self.highlightCodeTags('outer_loop_increment', callEnviron)
@@ -519,7 +512,6 @@ def traverse(self, function=print):
             # make the value 25% smaller
             newSize = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
             self.canvas.itemconfig(valueOutput, font=newSize)
-            self.window.update()
 
             # wait and then move the index pointer over
             self.wait(0.2)
@@ -528,6 +520,7 @@ def traverse(self, function=print):
             self.highlightCodeTags('loop', callEnviron)
             self.wait(0.3)
 
+        self.highlightCodeTags([], callEnviron)
         self.cleanUp(callEnviron)
 
     def makeButtons(self):
@@ -609,7 +602,6 @@ def traverse(self, function=print):
         super().stopAnimations()
         self.enableButtons(enable=True)
         self.argumentChanged()    
-
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
