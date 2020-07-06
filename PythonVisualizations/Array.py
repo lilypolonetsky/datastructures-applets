@@ -82,13 +82,14 @@ class Array(VisualizationApp):
         self.cleanUp(callEnviron)
 
     def removeFromEnd(self):
-        callEnviron = self.createCallEnvironment()
-        self.startAnimations()
         # pop a Drawable from the list
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
             return
         n = self.list.pop()
+
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
 
         # Slide value rectangle up and off screen
         items = (n.display_shape, n.display_val)
