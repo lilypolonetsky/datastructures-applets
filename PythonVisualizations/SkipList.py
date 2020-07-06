@@ -569,7 +569,7 @@ class SkipList(VisualizationApp):
         self.stopAnimations()
         
     def isAnimated(self):
-        return self.animationState == self.RUNNING
+        return self.animationState == self.RUNNING or self.animationState == self.PAUSED
     
     def setAnimationState(self, animate):
         if animate: self.animationState = self.RUNNING
