@@ -24,9 +24,10 @@ class Stack(VisualizationApp):
         self.size = size
         self.title = title
         self.list = []
-        self.buttons = self.makeButtons()
         self.maxArgWidth = maxArgWidth
+        self.buttons = self.makeButtons()
         self.display()
+        self.indexDisplay = self.createIndex(len(self.list))
 
     def __str__(self):
         return str(self.list)
@@ -38,13 +39,17 @@ class Stack(VisualizationApp):
         x0 = self.STACK_X0 - self.CELL_WIDTH * 4 // 5
         x1 = self.STACK_X0 - self.CELL_WIDTH * 3 // 10
         y0 = y1 = cell_coords[1] + self.CELL_HEIGHT // 2
+        if not name:
+            label = "top" #labels the top of the stack "top" with the pointer arrow
+        else:
+            label = name
 
         return self.drawArrow(
-            x0, y0, x1, y1, self.VARIABLE_COLOR, self.VARIABLE_FONT, name=("item", index))
+            x0, y0, x1, y1, self.VARIABLE_COLOR, self.VARIABLE_FONT, name=label)
 
     # draw the actual arrow
     def drawArrow(
-            self, x0, y0, x1, y1, color, font, name=None):  #
+            self, x0, y0, x1, y1, color, font, name=None):
         arrow = self.canvas.create_line(
             x0, y0, x1, y1, arrow="last", fill=color)
         if name:
@@ -60,27 +65,30 @@ class Stack(VisualizationApp):
 
         self.startAnimations()
         callEnviron = self.createCallEnvironment()
-        # draw an index pointing to the last cell
-        indexDisplay = self.createIndex(len(self.list))
-        callEnviron |= set(indexDisplay)
+
+        #don't move arrow up if the first cell is being filled because it is already pointing there
+        if len(self.list) >= 1:
+            self.moveItemsBy(self.indexDisplay, (0, - (self.CELL_HEIGHT)))
 
         cellCoords = self.cellCoords(len(self.list))
         cellCenter = self.cellCenter(len(self.list))
 
         # create new cell and cell value display objects
-        cellCoords = add_vector(cellCoords, (0, 0, 0, 2))
+        cellCoords = add_vector(cellCoords, (0, 0, 0, self.CELL_BORDER))
         toPositions = (cellCoords, cellCenter)
 
         # determine the top left and bottom right positions
         startPosition = [self.STACK_X0, 0, self.STACK_X0, 0]
         startPosition = add_vector(startPosition, (0, 0, self.CELL_WIDTH, self.CELL_HEIGHT))
         cellPair = self.createCellValue(startPosition, val)
+        callEnviron.add(cellPair)
         self.moveItemsTo(cellPair, toPositions, steps=self.CELL_HEIGHT, sleepTime=0.01)
 
         # add a new Drawable with the new value, color, and display objects
         d = drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair)
+            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair)
         self.list.append(d)
+        callEnviron.discard(cellPair)
 
         # finish the animation
         self.cleanUp(callEnviron)
@@ -97,16 +105,14 @@ class Stack(VisualizationApp):
 
         # delete the associated display objects
         items = (n.display_shape, n.display_val)
+        callEnviron |= set(items)
 
         # self.moveItemsOffCanvas(items, N, sleepTime=0.02) ## alternative method to moveItemsBy
-        self.moveItemsBy(items, delta=(0, -400), steps=self.CELL_HEIGHT, sleepTime=.01)
-        self.canvas.delete(n.display_shape)
-        self.canvas.delete(n.display_val)
+        self.moveItemsBy(items, delta=(0, -max(400, self.canvas.coords(n.display_shape)[3])), steps=self.CELL_HEIGHT, sleepTime=.01)
 
         # draw an index pointing to the last cell
-        if len(self.list) > 0:
-            indexDisplay = self.createIndex(len(self.list) - 1)
-            callEnviron |= set(indexDisplay)
+        if len(self.list) >= 1:
+            self.moveItemsBy(self.indexDisplay, (0, (self.CELL_HEIGHT)))
 
         # Finish animation
         self.cleanUp(callEnviron)
@@ -117,10 +123,6 @@ class Stack(VisualizationApp):
     def peek(self):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-
-        # draw an index pointing to the last cell
-        indexDisplay = self.createIndex(len(self.list)-1)
-        callEnviron |= set(indexDisplay)
 
         # draw output box
         outputBox = self.canvas.create_rectangle(
@@ -156,9 +158,13 @@ class Stack(VisualizationApp):
 
     # lets user input an int argument that determines max size of the stack
     def newStack(self, size):
+        #gets rid of old elements in the list
         del self.list[:]
         self.size = size
         self.display()
+
+        #make a new arrow pointing to the top of the stack
+        self.indexDisplay = self.createIndex(len(self.list))
 
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
         return (self.STACK_X0 + self.CELL_BORDER,
@@ -174,12 +180,10 @@ class Stack(VisualizationApp):
 
     def createArrayCell(self, index):  # Create a box representing an array cell
         cell_coords = self.cellCoords(index)
-        #print("cell_Coords", cell_coords, flush=True)
         half_border = self.CELL_BORDER // 2
         arrayCoords = add_vector(cell_coords,
                                  (-half_border, -half_border,
                                   self.CELL_BORDER - half_border, self.CELL_BORDER - half_border + 2))
-        #print("array Coords", arrayCoords, flush=True)
         rect = self.canvas.create_rectangle(arrayCoords,
                                             fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER)
         self.canvas.lower(rect)
@@ -224,9 +228,9 @@ class Stack(VisualizationApp):
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
 
+
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
-            print("this is i and n", i, n)
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
                 i, n.val, n.color)
@@ -240,7 +244,7 @@ class Stack(VisualizationApp):
 
         # numArguments decides the side where the button appears in the operations grid
         pushButton = self.addOperation(
-            "Push", lambda: self.clickPush(), numArguments=1)  # validationCmd=vcmd)
+            "Push", lambda: self.clickPush(), numArguments=1)
         popButton = self.addOperation(
             "Pop", lambda: self.clickPop())
         peekButton = self.addOperation(
@@ -262,29 +266,23 @@ class Stack(VisualizationApp):
     def clickPush(self):
         val = self.validArgument()
         if val is None:
-            # self.setMessage("Input value must be an integer from 0 to 99.")
-            self.setMessage("Input value must be of a string of length less than", self.maxArgWidth, "characters.")
+            return
         else:
             if len(self.list) >= self.size:
                 self.setMessage("Error! Stack is already full.")
             else:
-                self.setButtonsStatus(DISABLED)
                 self.push(val)
-                self.setButtonsStatus(NORMAL)
                 self.setMessage("Value {} pushed!".format(val))
         self.clearArgument()
 
     def clickPop(self):
-        self.setButtonsStatus(DISABLED)
         val = self.pop()
         if val is None:
             self.setMessage("Error! Stack is empty.")
         else:
             self.setMessage("Value {} popped!".format(val))
-        self.setButtonsStatus(NORMAL)
 
     def clickPeek(self):
-        self.setButtonsStatus(DISABLED)
 
         if len(self.list) <= 0:
             self.setMessage("Error! Stack is empty.")
@@ -292,19 +290,21 @@ class Stack(VisualizationApp):
             val = self.list[-1].val
             self.peek()
             self.setMessage("Value {} is at the top of the stack!".format(val))
-        self.setButtonsStatus(NORMAL)
 
     def clickNewStack(self):
         val = self.validArgument()
+        if val is None:
+            return
+        if not val.isdigit():
+            self.setMessage("New stack size must be a number")
+            return
         val = int(val)
-        if val is None or 1 > val or val > self.MAX_SIZE:
+        if 1 > val or val > self.MAX_SIZE:
             self.setMessage("Error! Stack size must be an int between 1 and {}.".format(self.MAX_SIZE))
 
         else:
-            stack.setButtonsStatus(DISABLED)
             self.newStack(val)
             self.setMessage("New stack created of size {}. ".format(val))
-            stack.setButtonsStatus(NORMAL)
         self.clearArgument()
 
     def setButtonsStatus(self, state=NORMAL):
@@ -315,8 +315,4 @@ class Stack(VisualizationApp):
 if __name__ == '__main__':
     # random.seed(3.14159)    # Use fixed seed for testing consistency
     stack = Stack()
-    stack.setButtonsStatus(DISABLED)
-    # for i in range(2):
-    # stack.push(i+1)
-    stack.setButtonsStatus(NORMAL)
     stack.runVisualization()
