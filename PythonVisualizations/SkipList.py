@@ -41,6 +41,7 @@ class SkipList(VisualizationApp):
         self.arrowY1 = lambda n, i : n.y - self.CELL_HEIGHT*i - self.ARROW_Y1
         self.arrowX2 = lambda to: to.x
         self.arrowY2 = lambda to, i: to.y - self.CELL_HEIGHT*i - self.ARROW_Y1
+        self.MAX_INSERTS = 9
         
         # Skip List code
         self.__level = 0  
@@ -174,6 +175,8 @@ class SkipList(VisualizationApp):
         return found != False
         
     def fill(self, num):
+        
+        if num > self.MAX_INSERTS: num = self.MAX_INSERTS
         
         self.setAnimationState(False)
 
