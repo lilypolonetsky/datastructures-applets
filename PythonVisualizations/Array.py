@@ -93,6 +93,7 @@ class Array(VisualizationApp):
 
         # Slide value rectangle up and off screen
         items = (n.display_shape, n.display_val)
+        callEnviron |= set(items)
         self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
         # update window
