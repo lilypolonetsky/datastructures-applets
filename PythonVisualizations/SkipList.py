@@ -42,6 +42,7 @@ class SkipList(VisualizationApp):
         self.arrowX2 = lambda to: to.x
         self.arrowY2 = lambda to, i: to.y - self.CELL_HEIGHT*i - self.ARROW_Y1
         self.MAX_INSERTS = 9
+        self.__numLinks = 0
         
         # Skip List code
         self.__level = 0  
@@ -54,6 +55,8 @@ class SkipList(VisualizationApp):
         self.fill(5) 
 
     def insert(self, insertKey):
+        
+        if self.__numLinks == self.MAX_INSERTS: return False
         
         update = [None] * self.__maxLevel
         x = self.__header
@@ -103,7 +106,8 @@ class SkipList(VisualizationApp):
         
         # Complete draw of the Link onto canvas if animation 
         
-        self.completeDraw(x, update)        
+        self.completeDraw(x, update) 
+        self.__numLinks += 1
         return True
     
     def search(self, key):
@@ -171,12 +175,13 @@ class SkipList(VisualizationApp):
             
         self.unHighlightNode(x)
         if found: self.deleteVisualNode(found)
-        
+        if found: self.__numLinks -= 1
         return found != False
         
     def fill(self, num):
         
         if num > self.MAX_INSERTS: num = self.MAX_INSERTS
+        self.__numLinks = 0
         
         self.setAnimationState(False)
 
@@ -185,8 +190,12 @@ class SkipList(VisualizationApp):
         self.wipeCanvas()   
             
         for i in range(num):
-            r = random.randint(1, 99)
-            self.insert(r)
+            
+            # Ensure fills up to num,
+            # even if same random num 2x+
+            while True:
+                r = random.randint(1, 99)
+                if self.insert(r): break
             
     def __randomLevel(self):
         level = 1
