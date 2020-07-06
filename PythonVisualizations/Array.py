@@ -316,7 +316,6 @@ class Array(VisualizationApp):
             # wait and then move the index pointer over
             self.wait(0.2)
             self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.03)
-
         self.cleanUp(callEnviron)
 
     def makeButtons(self):
@@ -385,6 +384,19 @@ class Array(VisualizationApp):
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)
         self.clearArgument()
+    
+    def enableButtons(self, enable=True):
+        for btn in self.buttons:
+            btn.config(state=NORMAL if enable else DISABLED)    
+    
+    def startAnimations(self):
+        self.enableButtons(enable=False)
+        super().startAnimations()
+            
+    def stopAnimations(self):
+        super().stopAnimations()
+        self.enableButtons(enable=True)
+        self.argumentChanged()    
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
