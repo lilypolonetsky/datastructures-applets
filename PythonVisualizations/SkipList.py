@@ -50,9 +50,7 @@ class SkipList(VisualizationApp):
         self.__maxLevel = math.ceil(math.log2(maxKeys))
         self.__header = Link(self.__maxLevel, None) 
         self.__end = Link(self.__maxLevel, None)        
-        
-        # Animation code
-        # None is the arrow heads at the end
+
         self.fill(5)        
 
     def insert(self, insertKey):
@@ -105,9 +103,9 @@ class SkipList(VisualizationApp):
             update[i].forward[i] = x
             self.rePositionArrow(update[i], i, x, highlight="red")
         
-        # Complete draw of the Link onto canvas if animation 
+        # Complete draw of the Link onto canvas if animation
+        self.completeDraw(x, update)
         
-        self.completeDraw(x, update) 
         self.__numLinks += 1
         return True
     
@@ -583,7 +581,7 @@ class SkipList(VisualizationApp):
         
     def isAnimated(self):
         return self.animationState == self.RUNNING or self.animationState == self.PAUSED
-    
+
     def setAnimationState(self, animate):
         if animate: self.animationState = self.RUNNING
         else: self.animationState = self.STOPPED
@@ -598,7 +596,7 @@ class SkipList(VisualizationApp):
     # Adjusted so completes
     # task, but without animation
     def wait(self, sleepTime):    # Sleep for a user-adjusted period
-        if self.isAnimated() and sleepTime >= 0:
+        if self.animationState and sleepTime >= 0:
             self.canvas.update()
             sleep(self.speed(sleepTime))     
              
