@@ -113,10 +113,6 @@ def insert(self, item):
         # Animate removal of cell value
         self.moveItemsOffCanvas(items, N, sleepTime=0.01)
         
-        # delete the associated display objects
-        self.canvas.delete(n.display_shape)
-        self.canvas.delete(n.display_val)
-
         # update window
         self.cleanUp(callEnviron)
 
