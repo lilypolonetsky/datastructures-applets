@@ -513,7 +513,7 @@ class SkipList(VisualizationApp):
     
     # Option to highlight out-arrows
     # of node
-    def highlightNode(self, n, arrows=False, color="red", sleepTime=0.5):
+    def highlightNode(self, n, arrows=False, color="red", sleepTime=0.05):
         if not self.isAnimated(): return
         if not n.key: objects = n.rects  # header check
         else: objects = [n.rect] + n.rects
@@ -524,7 +524,7 @@ class SkipList(VisualizationApp):
                 self.canvas.itemconfig(arrow, fill=color)
         self.wait(sleepTime)        
         
-    def highlightArrow(self, n, i, color="red", sleepTime=0.5):
+    def highlightArrow(self, n, i, color="red", sleepTime=0.05):
         if self.isAnimated():
             self.canvas.itemconfig(n.arrows[i], fill=color)
             self.wait(sleepTime)
@@ -586,11 +586,6 @@ class SkipList(VisualizationApp):
         if animate: self.animationState = self.RUNNING
         else: self.animationState = self.STOPPED
     
-    # This is slightly more balanced than
-    # the super class speed()
-    def speed(self, sleepTime):
-        return sleepTime * ((self.SPEED_SCALE_MAX+self.SPEED_SCALE_MIN-self.speedScale.get())/self.SPEED_SCALE_DEFAULT)
-    
     # The super() method freezes
     # if STOP is pressed
     # Adjusted so completes
@@ -611,5 +606,6 @@ class SkipList(VisualizationApp):
     ## End Of SKIPLIST ##
     #####################
 
-s = SkipList(20)
-s.runVisualization()
+if __name__ == '__main__':
+    s = SkipList(20)
+    s.runVisualization()
