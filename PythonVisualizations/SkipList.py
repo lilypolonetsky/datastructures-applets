@@ -42,7 +42,7 @@ class SkipList(VisualizationApp):
         self.arrowX2 = lambda to: to.x
         self.arrowY2 = lambda to, i: to.y - self.CELL_HEIGHT*i - self.ARROW_Y1 
         # The - 2 takes into acount the header and end
-        self.maxInserts = lambda : ((self.getWindowWidth() // self.LINK_WIDTH) - 2)
+        self.maxInserts = lambda : ((self.widgetDimensions(self.canvas)[0] // self.LINK_WIDTH) - 2)
         self.__numLinks = 0
         
         # Skip List code
@@ -445,7 +445,7 @@ class SkipList(VisualizationApp):
             lower = self.CELL_HEIGHT*n.levels
             move_y = 1
         
-        self.wait(0.5)
+        self.wait(0.1)
         
         for dy in range(upper, lower, move_y):
      
@@ -478,7 +478,7 @@ class SkipList(VisualizationApp):
             self.canvas.delete(n.rects[i])
             self.canvas.delete(n.arrows[i])
         
-        self.wait(0.5)
+        self.wait(0.2)
         self.moveLinksAfter(n, update, direction="left")
         
         for i in range(n.levels):
@@ -513,7 +513,7 @@ class SkipList(VisualizationApp):
     
     # Option to highlight out-arrows
     # of node
-    def highlightNode(self, n, arrows=False, color="red", sleepTime=0.05):
+    def highlightNode(self, n, arrows=False, color="red", sleepTime=0.01):
         if not self.isAnimated(): return
         if not n.key: objects = n.rects  # header check
         else: objects = [n.rect] + n.rects
@@ -524,7 +524,7 @@ class SkipList(VisualizationApp):
                 self.canvas.itemconfig(arrow, fill=color)
         self.wait(sleepTime)        
         
-    def highlightArrow(self, n, i, color="red", sleepTime=0.05):
+    def highlightArrow(self, n, i, color="red", sleepTime=0.01):
         if self.isAnimated():
             self.canvas.itemconfig(n.arrows[i], fill=color)
             self.wait(sleepTime)
@@ -594,13 +594,6 @@ class SkipList(VisualizationApp):
         if self.animationState and sleepTime >= 0:
             self.canvas.update()
             sleep(self.speed(sleepTime))     
-             
-    def getWindowWidth(self):
-        w = self.window.winfo_width()
-        if w <= 1: 
-            self.window.update_idletasks()
-            return self.window.winfo_width()
-        return w
     
     #####################
     ## End Of SKIPLIST ##
