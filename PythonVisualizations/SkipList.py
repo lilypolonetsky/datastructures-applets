@@ -42,7 +42,7 @@ class SkipList(VisualizationApp):
         self.arrowX2 = lambda to: to.x
         self.arrowY2 = lambda to, i: to.y - self.CELL_HEIGHT*i - self.ARROW_Y1 
         # The - 2 takes into acount the header and end
-        self.maxInserts = lambda : (self.window.winfo_width() // self.LINK_WIDTH) - 2 
+        self.maxInserts = lambda : ((self.getWindowWidth() // self.LINK_WIDTH) - 2)
         self.__numLinks = 0
         
         # Skip List code
@@ -53,7 +53,7 @@ class SkipList(VisualizationApp):
         
         # Animation code
         # None is the arrow heads at the end
-        self.fill(5) 
+        self.fill(5)        
 
     def insert(self, insertKey):
         
@@ -600,8 +600,15 @@ class SkipList(VisualizationApp):
     def wait(self, sleepTime):    # Sleep for a user-adjusted period
         if self.isAnimated() and sleepTime >= 0:
             self.canvas.update()
-            sleep(self.speed(sleepTime))       
-        
+            sleep(self.speed(sleepTime))     
+             
+    def getWindowWidth(self):
+        w = self.window.winfo_width()
+        if w <= 1: 
+            self.window.update_idletasks()
+            return self.window.winfo_width()
+        return w
+    
     #####################
     ## End Of SKIPLIST ##
     #####################
