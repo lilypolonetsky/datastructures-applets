@@ -246,8 +246,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     self.cleanUp()
                 command()
             except UserStop as e:
-                while len(self.callStack) > 1:
-                    self.cleanUp(self.callStack[-1])
+                self.cleanUp(self.callStack[0] if self.callStack else None)
         return animatedOperation
                 
     def getArgument(self, index=0, clear=False):
@@ -283,10 +282,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
         gridItems = gridDict(self.operations)  # All operations
         nColumns, nRows = self.operations.grid_size()
         for button in [gridItems[0, row] for row in range(nRows)
-                       if isinstance(gridItems[0, row], Button)]:
+                       if isinstance(gridItems[0, row], (Button, Checkbutton))]:
             nArgs = getattr(button, 'required_args')
             button['state'] = (
-                DISABLED if any(arg == '' for arg in args[:nArgs]) else NORMAL)
+                DISABLED if self.animationState != self.STOPPED or any(
+                    arg == '' for arg in args[:nArgs]) else NORMAL)
 
     def setMessage(self, val=''):
         self.outputText.set(val)
@@ -346,7 +346,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             highlight = tagName[len(codeHighlightBlock.prefix):] in tags
             self.codeText.tag_config(
                 tagName,
-                background=self.CODE_HIGHLIGHT if highlight else self.OPERATIONS_BG,
+                background=self.CODE_HIGHLIGHT if highlight else '',
                 underline=1 if highlight else 0)
             if highlight:
                 ranges = self.codeText.tag_ranges(tagName)
@@ -387,13 +387,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def cleanUpCallEnviron(self, callEnviron): # Clean up a call on the stack
         while len(callEnviron):
             thing = callEnviron.pop()
-            if isinstance(thing, (str, int)):  # Canvas item IDs
+            if isinstance(thing, (str, int)) and self.canvas.type(thing):
                 self.canvas.delete(thing)
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
-                last_index = self.codeText.index(END)
+                last_line = int(float(self.codeText.index(END)))
                 self.codeText.delete(
-                    '1.0', min(last_index, '{}.0'.format(thing.lines + 2)))
+                    '1.0', '{}.0'.format(min(last_line, thing.lines + 2)))
                 self.codeText.configure(state=DISABLED)
 
     def createCallEnvironment( # Create a call environment on the call stack
@@ -558,11 +558,23 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if self.animationState == self.STOPPED: # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
 
-    def onClick(self, command, *parameters):
-        self.enableButtons(False)
-        command(*parameters)
-        if command not in [self.pause, self.play]:
-            self.enableButtons()
+    def onClick(self, command, *parameters): # When user clicks an operations
+        self.enableButtons(False) # button, disable all buttons,
+        command(*parameters)      # run the command, and re-enable the buttons
+        if command not in [self.pause, self.play]: # if it was something
+            self.enableButtons()  # other than pause or play command
+            
+    def enableButtons(self, enable=True):
+        gridItems = gridDict(self.operations)  # All Tk items in operations 
+        nColumns, nRows = self.operations.grid_size() # by grid cell
+        for col in range(nColumns):
+            for btn in [gridItems[col, row] for row in range(nRows)]:
+                # Only change button types, not text entry or other widgets
+                # Pause/Stop buttons can only be enabled here
+                if isinstance(btn, (Button, Checkbutton)) and (
+                        enable or btn not in (self.stopButton, 
+                                              self.pauseButton)):
+                    btn['state'] = NORMAL if enable else DISABLED
 
     def stop(self, pauseButton):
         self.stopAnimations()
@@ -584,6 +596,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def startAnimations(self):
         self.animationState = self.RUNNING
+        self.enableButtons(enable=False)
         if self.pauseButton:
             self.pauseButton['text'] = 'Pause'
             self.pauseButton['command'] = self.runOperation(
@@ -597,10 +610,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
         # At lowest level, animation stops and play & stop buttons are disabled
         if len(self.callStack) <= 1:
             self.animationState = self.STOPPED
+            self.enableButtons(enable=True)
             if self.pauseButton:
                 self.pauseButton['state'] = DISABLED
             if self.stopButton:
                 self.stopButton['state'] = DISABLED
+            self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
     def pauseAnimations(self):
@@ -618,7 +633,7 @@ class CodeHighlightBlock(object):
                  code,       # and makes a unique prefix for snippet keys
                  snippets):  # to translate them into a unique tag name
         self.code = code.strip()
-        self.lines = len(self.code.split('\n')) + 1 if len(code) > 0 else 0
+        self.lines = len(self.code.split('\n')) if len(code) > 0 else 0
         self.snippets = snippets
         self.prefix = '{:04d}-'.format(self.counter)
         CodeHighlightBlock.counter += 1
