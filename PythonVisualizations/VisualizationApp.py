@@ -79,7 +79,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                  'italic')
     HINT_FG = 'blue'
     HINT_BG = 'beige'
-    CALL_STACK_BOUNDARY = 'brown3'
+    CALL_STACK_BOUNDARY = 'gray60'
 
     # Speed control slider
     SPEED_SCALE_MIN = 10
@@ -182,7 +182,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             for row in range(nRows) for col in range(4, nColumns)
             if isinstance(gridItems[col, row], Button)]
         button = buttonType( # Create button based on type
-            self.operations, text=label, 
+            self.operations, text=label, font=self.CONTROLS_FONT,
             command=self.runOperation(callback, cleanUpBefore),
             bg=self.OPERATIONS_BG, **kwargs)
         setattr(button, 'required_args', numArguments)
@@ -326,6 +326,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText['xscrollcommand'] = self.codeHScroll.set
             self.codeText['yscrollcommand'] = self.codeVScroll.set
             self.codeText.tag_config('call_stack_boundary',
+                                     font=self.CODE_FONT + ('overstrike',),
                                      background=self.CALL_STACK_BOUNDARY)
             
         self.codeText.configure(state=NORMAL)
