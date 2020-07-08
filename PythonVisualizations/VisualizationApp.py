@@ -10,7 +10,7 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-import time, math, operator, re
+import time, math, operator, re, sys
 from collections import *
 from tkinter import *
 
@@ -72,8 +72,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
     OPERATIONS_BORDER = 'black'
     CODE_FONT = ('Courier', 12)
     CODE_HIGHLIGHT = 'yellow'
-    CONTROLS_FONT = ('none', 14)
-    HINT_FONT = ('none', 16, 'italic')
+    CONTROLS_FONT = ('Helvetica', 14)
+    HINT_FONT = ('Helvetica',
+                 int(CONTROLS_FONT[1] *
+                     (12/14 if sys.platform.startswith('win') else 1)),
+                 'italic')
     HINT_FG = 'blue'
     HINT_BG = 'beige'
     CALL_STACK_BOUNDARY = 'brown3'
