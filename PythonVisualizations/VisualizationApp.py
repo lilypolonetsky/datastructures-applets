@@ -72,11 +72,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
     OPERATIONS_BORDER = 'black'
     CODE_FONT = ('Courier', 12)
     CODE_HIGHLIGHT = 'yellow'
-    CONTROLS_FONT = ('Helvetica', 14)
-    HINT_FONT = ('Helvetica',
-                 int(CONTROLS_FONT[1] *
-                     (12/14 if sys.platform.startswith('win') else 1)),
-                 'italic')
+    CONTROLS_FONT = ('Helvetica', 12)
+    HINT_FONT = CONTROLS_FONT + ('italic',)
     HINT_FG = 'blue'
     HINT_BG = 'beige'
     CALL_STACK_BOUNDARY = 'gray60'
@@ -190,7 +187,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
             while len(self.textEntries) < numArguments:  # Build argument entry
                 textEntry = Entry(  # widgets if not already present
                     self.operations, width=self.maxArgWidth, bg='white',
-                    validate='key', validatecommand=validationCmd)
+                    validate='key', validatecommand=validationCmd,
+                    font=self.CONTROLS_FONT)
                 textEntry.grid(column=2, row=len(self.textEntries) + 1, padx=8)
                 textEntry.bind(
                     '<KeyRelease>', lambda ev: self.argumentChanged(), '+')
@@ -275,12 +273,16 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def clearArgument(self, index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
+            while self.entryHints:
+                self.entryHints.pop().destroy()
             self.argumentChanged()
 
     def setArgument(self, val='', index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
             self.textEntries[index].insert(0, str(val))
+            while self.entryHints:
+                self.entryHints.pop().destroy()
             self.argumentChanged()
 
     def setArguments(self, *values):
