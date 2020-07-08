@@ -326,7 +326,7 @@ class Array(VisualizationApp):
             "Traverse", lambda: self.traverse())
         findButton = self.addOperation(
             "Find", lambda: self.clickFind(), numArguments=1,
-            validationCmd=vcmd, helpText="Enter number here")
+            validationCmd=vcmd, helpText="Click to enter number")
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)
@@ -405,9 +405,3 @@ if __name__ == '__main__':
     array = Array()
 
     array.runVisualization()
-
-'''
-To Do:
-- make it look pretty
-- animate insert
-'''

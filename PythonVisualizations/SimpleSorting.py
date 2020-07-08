@@ -729,7 +729,7 @@ def selectionSort(self):
         self.addAnimationButtons()
         findButton = self.addOperation(
             "Find", lambda: self.clickFind(), numArguments=1,
-            validationCmd=vcmd, helpText="Enter number here")
+            validationCmd=vcmd, helpText="Click to enter number")
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)
@@ -800,12 +800,3 @@ if __name__ == '__main__':
     array = SimpleArraySort()
 
     array.runVisualization()
-
-'''
-To Do:
-- make it look pretty
-- animate insert and delete
-- delete/insert at index?
-- label arrows for sorts (inner, outer, etc.)
-- implement shell sort, radix sort, quick sort
-'''
