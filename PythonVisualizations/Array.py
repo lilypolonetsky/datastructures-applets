@@ -511,9 +511,9 @@ def traverse(self, function=print):
 
             # wait and then move the index pointer over
             self.wait(0.2)
+            self.highlightCodeTags('loop', callEnviron)
             self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.03)
 
-            self.highlightCodeTags('loop', callEnviron)
             self.wait(0.3)
 
         self.highlightCodeTags([], callEnviron)
