@@ -526,7 +526,7 @@ def traverse(self, function=print):
             "Traverse", lambda: self.traverse())
         searchButton = self.addOperation(
             "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd)
+            validationCmd=vcmd, helpText="Click to enter number")
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)

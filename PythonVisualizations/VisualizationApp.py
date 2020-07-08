@@ -49,13 +49,11 @@ def gridDict(frame):
              for s in slaves],
             slaves))
 
-
 # Utilities for validating characters typed in Tk entry widgets
 # These must be registered with the parent window before use
 def numericValidate(action, index, value_if_allowed,
                     prior_value, text, validation_type, trigger_type, widget_name):
     return len(value_if_allowed) == 0 or value_if_allowed.isdigit()
-
 
 geom_delims = re.compile(r'[\sXx+-]')
 
@@ -190,32 +188,41 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 textEntry = Entry(  # widgets if not already present
                     self.operations, width=self.maxArgWidth, bg='white',
                     validate='key', validatecommand=validationCmd)
-                textEntry.grid(column=2, row=len(self.textEntries) + 1,
-                               padx=8, sticky=E)
-                if helpText: # If there a hint on what to enter
-                    hint = Label(  # Make a label with the hint and cover the
-                        self.operations, text=helpText, font=self.HINT_FONT,
-                        fg=self.HINT_FG, bg=self.HINT_BG)
-                    hint.grid(column=2, row=len(self.textEntries) + 1, # text
-                              padx=8, sticky=E) # entry widget with it
-                    hint.bind('<Button>', # Remove the hint when first clicked
-                              lambda ev: hint.destroy())
-                    self.entryHints.append(hint)
+                textEntry.grid(column=2, row=len(self.textEntries) + 1, padx=8)
                 textEntry.bind(
                     '<KeyRelease>', lambda ev: self.argumentChanged(), '+')
                 self.textEntries.append(textEntry)
+            if helpText: # Make a label if there a hint on what to enter
+                while self.entryHints: # Remove past hints
+                    self.entryHints.pop().destroy()
+                hint = Label(
+                    self.operations, text=helpText, font=self.HINT_FONT,
+                    fg=self.HINT_FG, bg=self.HINT_BG)
+                hint.bind('<Button>', # Remove the hint when first clicked
+                          deleteHintHandler(hint, self.textEntries[0]))
+                for entry in self.textEntries: # and when entries get focus
+                    entry.bind('<FocusIn>', deleteHintHandler(hint, entry))
+                self.entryHints = [hint]
+
+            # Place button in grid of buttons
             buttonRow = len(withArgument) + 1
             button.grid(column=0, row=buttonRow, padx=8, sticky=(E, W))
             button.config(state=DISABLED)
             nEntries = len(self.textEntries)
             rowSpan = max(1, (len(withArgument) + 1) // nEntries)
-            for i, textEntry in enumerate(self.textEntries):  # Spread text
-                for widget in [textEntry] + ( # entries and any entry hints
-                        self.entryHints[i:i+1] if self.entryHints else []):
-                    widget.grid_configure(    # across all rows of buttons
-                        row=rowSpan * i + 1,  # with arguments
-                        rowspan=rowSpan if i < nEntries - 1 else max(
-                            1, len(withArgument) + 1 - (nEntries - 1) * rowSpan))
+            
+            # Spread text entries across all rows of buttons with arguments
+            # with the hint about what to enter below, if any
+            for i, entry in enumerate(self.textEntries):
+                entryRowSpan = rowSpan if i < nEntries - 1 else max(
+                    1, len(withArgument) + 1 - (nEntries - 1) * rowSpan)
+                entry.grid_configure(row=rowSpan * i + 1, rowspan=entryRowSpan)
+            if self.entryHints:
+                self.entryHintRow = max(nEntries, len(withArgument) + 1) + (
+                    0 if entryRowSpan > 2 else 1)
+                self.entryHints[0].grid_configure(
+                    column=2, row=self.entryHintRow)
+
         else:
             buttonRow = len(withoutArgument) % maxRows + 1
             button.grid(column=4 + len(withoutArgument) // maxRows,
@@ -226,7 +233,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.operations, width=2, bg=self.OPERATIONS_BORDER)
             self.opSeparator.grid(column=3, row=1, sticky=(N, E, W, S))
         if self.opSeparator:
-            self.opSeparator.grid_configure(rowspan=max(nRows, buttonRow))
+            self.opSeparator.grid_configure(
+                rowspan=max(nRows, buttonRow, 
+                            self.entryHintRow if self.entryHints else 1))
         return button
 
     def addAnimationButtons(self):
@@ -640,3 +649,22 @@ class CodeHighlightBlock(object):
 
 class UserStop(Exception):   # Exception thrown when user stops animation
     pass
+
+# Tk widget utilities
+
+# Tkinter returns a string with a large integer followed by <lambda>
+# as a handler ID.  The calls to .bind() without a handler function
+# return an executable Python string containing handler IDs.  This
+# regular expression extracts the identifier from the executable
+# Python string.  The re.sub function is used on the compiled regex to
+# run a function on each handler ID in the the binding string.
+bindingID = re.compile(r'\d+<lambda>', re.IGNORECASE)
+
+def deleteHintHandler(hint, textEntry):
+    "Remove a hint when clicked or when text is first entered in textEntry"
+    return lambda event: (
+        textEntry.focus_set() if event.widget == hint else 0) or (
+            hint.destroy() or
+            # Remove any bound handlers the textEntry has for <FocusIn> events
+            bindingID.sub(lambda ID: textEntry.unbind(ID),
+                          textEntry.bind('<FocusIn>')))
