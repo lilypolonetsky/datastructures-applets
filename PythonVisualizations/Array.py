@@ -511,9 +511,9 @@ def traverse(self, function=print):
 
             # wait and then move the index pointer over
             self.wait(0.2)
+            self.highlightCodeTags('loop', callEnviron)
             self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.03)
 
-            self.highlightCodeTags('loop', callEnviron)
             self.wait(0.3)
 
         self.highlightCodeTags([], callEnviron)
@@ -526,7 +526,7 @@ def traverse(self, function=print):
             "Traverse", lambda: self.traverse())
         searchButton = self.addOperation(
             "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd)
+            validationCmd=vcmd, helpText="Click to enter number")
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)
