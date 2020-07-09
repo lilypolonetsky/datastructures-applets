@@ -382,7 +382,7 @@ class BinaryTreeBase(VisualizationApp):
    def emptyTree(self):
       self.canvas.delete("all")
       self.size = 0
-      self.nodes = [None] * (2**MAX_LEVEL)
+      self.nodes = [None] * (2**self.MAX_LEVEL)
 
    # delete the node's drawing and remove it from the array represenation
    def removeNode(self, node):
