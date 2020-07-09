@@ -148,13 +148,14 @@ class PriorityQueue(object):
 
 
     
-    # remove the left element of the queue, or None if empty
-    def removeFront(self):
+    # remove the largest element of the queue, or None if empty
+    def removeMax(self):
         
         #if the queue is empty, exit
         if self.size == 0:
             return None
 
+        # TODO: Fix this
         #get the value at front, and then set it to None so it will be garbage collected
         n = self.list[self.front]
         self.list[self.front] = None
@@ -177,12 +178,14 @@ class PriorityQueue(object):
         # update window
         window.update()
     
-    def removeRear(self):
+    # remove the largest element of the queue, or None if empty
+    def removeMin(self):
         
         #if the queue is empty, exit
         if self.size == 0:
             return None
         
+        # TODO: Fix this
         #get the value at rear, and then set it to None so it will be garbage collected
         n = self.list[self.rear]
         self.list[self.rear] = None
@@ -348,9 +351,9 @@ def makeButtons():
     insertRearButton.grid(row=3, column=0)
     insertFrontButton = Button(operationsRight, text="Insert At Front", width=16, command= lambda: onClick(clickInsertFront))
     insertFrontButton.grid(row=4, column=0)
-    deleteRearButton = Button(operationsRight, text="Delete From End", width=16, command= lambda: onClick(queue.removeRear))
+    deleteRearButton = Button(operationsRight, text="Delete Min", width=16, command= lambda: onClick(queue.removeMin))
     deleteRearButton.grid(row=3, column=0)
-    deleteFrontButton = Button(operationsLeft, text="Delete From Front", width=16, command= lambda: onClick(queue.removeFront))
+    deleteFrontButton = Button(operationsLeft, text="Delete Max", width=16, command= lambda: onClick(queue.removeMax))
     deleteFrontButton.grid(row=4, column=0)
     enableQueue = Button(controlButtons, text="Queue", width=20, command= lambda: onClick(clickEnableQueue))
     enableQueue.grid(row=0, column=1)
@@ -358,6 +361,7 @@ def makeButtons():
     enableDeque.grid(row=0, column=3)    
     buttons = [insertRearButton, insertFrontButton, deleteRearButton, deleteFrontButton, enableQueue, enableDeque]
     return buttons
+
 
 # validate text entry
 def validate(action, index, value_if_allowed,
@@ -374,14 +378,14 @@ frame.pack()
 waitVar = BooleanVar()
 
 canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
-window.title("Queue and Deque")
+window.title("Priority Queue and Deque")
 canvas.pack()
 
 bottomframe = Frame(window)
 bottomframe.pack(side=BOTTOM)
 
 # Frame for operations
-operationsUpper = LabelFrame(bottomframe, text="Queue and Deque", padx=4, pady=4)
+operationsUpper = LabelFrame(bottomframe, text="Priority Queue and Deque", padx=4, pady=4)
 operationsUpper.pack(side=TOP)
 
 # Frame for buttons to enable and disable queue and deque
