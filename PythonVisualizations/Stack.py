@@ -17,7 +17,7 @@ class Stack(VisualizationApp):
     CELL_BORDER = 2
     CELL_BORDER_COLOR = 'black'
     STACK_X0 = 300
-    STACK_Y0 = 400
+    STACK_Y0 = 350
 
     def __init__(self, size=MAX_SIZE, maxArgWidth=MAX_ARG_WIDTH, title="Stack", **kwargs):
         super().__init__(title=title, maxArgWidth=maxArgWidth, **kwargs)
@@ -27,7 +27,7 @@ class Stack(VisualizationApp):
         self.maxArgWidth = maxArgWidth
         self.buttons = self.makeButtons()
         self.display()
-        self.indexDisplay = self.createIndex(len(self.list))
+        self.indexDisplay = self.createIndex(len(self.list)-1)
 
     def __str__(self):
         return str(self.list)
@@ -66,9 +66,8 @@ class Stack(VisualizationApp):
         self.startAnimations()
         callEnviron = self.createCallEnvironment()
 
-        #don't move arrow up if the first cell is being filled because it is already pointing there
-        if len(self.list) >= 1:
-            self.moveItemsBy(self.indexDisplay, (0, - (self.CELL_HEIGHT)))
+        #move arrow up when new cell is inserted
+        self.moveItemsBy(self.indexDisplay, (0, - (self.CELL_HEIGHT)))
 
         cellCoords = self.cellCoords(len(self.list))
         cellCenter = self.cellCenter(len(self.list))
@@ -111,8 +110,7 @@ class Stack(VisualizationApp):
         self.moveItemsBy(items, delta=(0, -max(400, self.canvas.coords(n.display_shape)[3])), steps=self.CELL_HEIGHT, sleepTime=.01)
 
         # draw an index pointing to the last cell
-        if len(self.list) >= 1:
-            self.moveItemsBy(self.indexDisplay, (0, (self.CELL_HEIGHT)))
+        self.moveItemsBy(self.indexDisplay, (0, (self.CELL_HEIGHT)))
 
         # Finish animation
         self.cleanUp(callEnviron)
@@ -164,7 +162,7 @@ class Stack(VisualizationApp):
         self.display()
 
         #make a new arrow pointing to the top of the stack
-        self.indexDisplay = self.createIndex(len(self.list))
+        self.indexDisplay = self.createIndex(len(self.list)-1)
 
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
         return (self.STACK_X0 + self.CELL_BORDER,
