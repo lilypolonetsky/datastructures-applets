@@ -51,9 +51,13 @@ def gridDict(frame):
 
 # Utilities for validating characters typed in Tk entry widgets
 # These must be registered with the parent window before use
-def numericValidate(action, index, value_if_allowed,
-                    prior_value, text, validation_type, trigger_type, widget_name):
+def numericValidate(action, index, value_if_allowed, prior_value, text,
+                    validation_type, trigger_type, widget_name):
     return len(value_if_allowed) == 0 or value_if_allowed.isdigit()
+
+def makeWidthValidate(maxWidth):
+    "Register this with one parameter: %P"
+    return lambda value_if_allowed: len(value_if_allowed) <= maxWidth
 
 geom_delims = re.compile(r'[\sXx+-]')
 
