@@ -55,7 +55,7 @@ class BloomFilter(VisualizationApp):
     # Create an arrow pointing to a cell in the bit vector starting
     # from an origin determined by the hash key
     def cellArrow(self, bit, hashKey, nHashes, color=PROBE_COLOR):
-        tip = add_vector(self.bitCellCenter(bit), (0, self.CELL_SIZE))
+        tip = add_vector(self.bitCellCenter(bit), (0, self.CELL_SIZE * 5 / 8))
         origin = ((hashKey + 1) / (nHashes + 1) * self.insertedBoxPos[0] / 5 +
                   self.insertedBoxPos[0] * 3 / 4,
                   self.insertedBoxPos[1] + self.CELL_SIZE)
