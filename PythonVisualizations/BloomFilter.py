@@ -272,6 +272,12 @@ class BloomFilter(VisualizationApp):
             self.setMessage(msg)
             return
         self.setMessage(self.newBloomFilter(nKeys, nHashes, probability))
+
+    def clickShowInserts(self):
+        self.canvas.itemconfigure(
+            self.insertedKeys, 
+            fill=self.INSERTED_COLOR if self.showInserts.get() else 
+            self.INSERTED_BG)
         
     def makeButtons(self):
         vcmd = (self.window.register(makeWidthValidate(self.maxArgWidth)), 
@@ -283,8 +289,13 @@ class BloomFilter(VisualizationApp):
         newButton = self.addOperation(
             "New", self.clickNew, numArguments=3, validationCmd=vcmd,
             helpText='Enter string or #keys, #hashes, & false positive%')
+        self.showInserts = IntVar()
+        self.showInserts.set(1)
+        showInsertsButton = self.addOperation(
+            "Show inserted", self.clickShowInserts, buttonType=Checkbutton,
+            variable=self.showInserts)
         self.addAnimationButtons()
-        return [findButton, insertButton]
+        return [findButton, insertButton, newButton, showInsertsButton]
 
 if __name__ == '__main__':
     bloomFilter = BloomFilter()
