@@ -68,23 +68,60 @@ class OrderedArray(VisualizationApp):
     def insert(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        j = self.find(val)  # Find where item should go
-
+       # j = self.find(val)  # Find where item should go
+        k=len(self.list)
         self.list.append(drawable(None))
         
         indexK = self.createIndex(len(self.list) -1, 'k', level=-1) # create "k" arrow
         callEnviron |= set(indexK)  
         
-        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
-            
+       # for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
+        while 0 < k and self.list[k-1].val > val: # over items
+
             self.wait(1)
             for item in indexK:
                 self.canvas.move(item, -self.CELL_SIZE, 0)  # Move "k" arrow  
-                
-            self.list[k].val = self.list[k - 1].val 
-            self.assignElement(k - 1, k, callEnviron)   
-            
+
+            self.list[k].val = self.list[k - 1].val # Move larger item to right
+            self.assignElement(k - 1, k, callEnviron)
+            k -= 1  # Advance left among items
         # Location of the new cell in the array
+        toPositions = (self.cellCoords(k),
+                       self.cellCenter(k))
+
+        # Animate arrival of new value from operations panel area
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
+        startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
+        cellPair = self.createCellValue(startPosition, val)
+        self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
+        self.list[k]= (drawable(
+            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))        
+        
+        self.window.update()  
+        self.cleanUp(callEnviron) 
+        self.stopAnimations()
+        
+    def insertBinaryFind(self,val):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+        j = self.binaryFind(val)  # Find where item should go
+
+        self.list.append(drawable(None))
+
+        indexK = self.createIndex(len(self.list) - 1, 'k', level=-1)  # create "k" arrow
+        callEnviron |= set(indexK)
+
+        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
+
+            self.wait(1)
+            for item in indexK:
+                self.canvas.move(item, -self.CELL_SIZE, 0)  # Move "k" arrow
+
+            self.list[k].val = self.list[k - 1].val
+            self.assignElement(k - 1, k, callEnviron)
+
+            # Location of the new cell in the array
         toPositions = (self.cellCoords(j),
                        self.cellCenter(j))
 
@@ -93,15 +130,13 @@ class OrderedArray(VisualizationApp):
         startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
         startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
         cellPair = self.createCellValue(startPosition, val)
-        self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
-        self.list[j]= (drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))        
-        
-        self.window.update()  
-        self.cleanUp(callEnviron) 
-        self.stopAnimations()
-        
+        self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
+        self.list[j] = (drawable(
+            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
 
+        self.window.update()
+        self.cleanUp(callEnviron)
+        self.stopAnimations()
     def removeFromEnd(self):
         callEnviron = self.createCallEnvironment()
         
@@ -252,8 +287,47 @@ class OrderedArray(VisualizationApp):
         
         self.window.update()
         self.cleanUp(callEnviron)
-        
-    def find(self, val): 
+  #create binary find and linear find
+
+    def find(self,val):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+        lo = 0  # Point to lo
+        indexLo = self.createIndex(lo, 'lo', level=1)
+        callEnviron |= set(indexLo)
+        hi = len(self.list) - 1  # Point to hi
+        indexHi = self.createIndex(hi, 'hi', level=3)
+        callEnviron |= set(indexHi)
+        mid = (lo + hi) // 2  # Point to the midpoint
+        indexMid = self.createIndex(mid, 'mid', level=2)
+        callEnviron |= set(indexMid)
+        while lo <= hi:
+            mid = (lo + hi) // 2  # Select the midpoint
+            if self.list[mid].val == val:  # Did we find it at midpoint?
+                self.stopAnimations()
+                self.window.update()
+                return mid  # Return the value found
+
+            elif self.list[mid].val < val:  # Is item in upper half?
+                deltaXLo = (mid - lo) + 1
+                self.moveItemsBy(indexLo, (self.CELL_SIZE * deltaXLo, 0))
+                lo = mid + 1  # Yes, raise the lo boundary
+                deltaXMid = ((hi - lo) // 2) + 1
+                self.moveItemsBy(indexMid, (self.CELL_SIZE * deltaXMid, 0))
+
+            else:  # Is item in lower half?
+                deltaXHi = (mid - hi) - 1
+                self.moveItemsBy(indexHi, (self.CELL_SIZE * deltaXHi, 0))
+                hi = mid - 1  # Yes, lower the hi boundary
+                deltaXMid = ((lo - hi) // 2) - 1
+                self.moveItemsBy(indexMid, (self.CELL_SIZE * deltaXMid, 0))
+
+        self.stopAnimations()
+        self.window.update()
+        self.cleanUp(callEnviron)
+        return lo  # val not found
+
+    def binaryFind(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         lo = 0                             #Point to lo
