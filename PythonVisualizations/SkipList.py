@@ -563,21 +563,83 @@ class SkipList(VisualizationApp):
         ########################
         
     def makeButtons(self):
-        vcmd = (self.window.register(numericValidate),\
-                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')        
-        self.addOperation("insert", lambda: self.click(self.insert), numArguments=1, validationCmd=vcmd)
-        self.addOperation("delete", lambda: self.click(self.delete), numArguments=1, validationCmd=vcmd)
-        self.addOperation("fill", lambda: self.click(self.fill), numArguments=1, validationCmd=vcmd)
-        self.addOperation("search", lambda: self.click(self.search), numArguments=1, validationCmd=vcmd)
-        self.addAnimationButtons()        
+        vcmd = (self.window.register(numericValidate),
+                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1,
+            validationCmd=vcmd, helpText="Click to enter number")
+        insertButton = self.addOperation(
+            "Insert", lambda: self.clickInsert(), numArguments=1,
+            validationCmd=vcmd)        
+        deleteButton = self.addOperation(
+            "Delete", lambda: self.clickDelete(), numArguments=1,
+            validationCmd=vcmd)
+        fillButton = self.addOperation(
+            "Fill", lambda: self.clickFill(), numArguments=1, 
+            validationCmd=vcmd)
+        # this makes the pause, play and stop buttons 
+        self.addAnimationButtons()
+        return [searchButton, insertButton, deleteButton, fillButton]
     
-    # already an onClick()    
-    def click(self, call):
-        val = int(self.getArgument())
-        self.setArgument()
-        self.startAnimations()
-        call(val)
-        self.stopAnimations()
+    def validArgument(self):
+        entered_text = self.getArgument()
+        if entered_text and entered_text.isdigit():
+            val = int(entered_text)
+            if val < 100:
+                return val
+            
+    # Button functions
+    def clickSearch(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input must be an integer from 0 to 99")
+        else:
+            result = self.search(val)
+            if result == True:
+                msg = "Found {}".format(val)
+            else:
+                msg = "Value {} not found".format(val)
+            self.setMessage(msg)
+        self.clearArgument()           
+        
+    def clickInsert(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input must be an integer from 0 to 99")
+        else:
+            result = self.insert(val)
+            if result == False:
+                msg = "Error! Unable to insert"
+            else:
+                msg = "Value {} inserted".format(val)
+            self.setMessage(msg)
+        self.clearArgument()
+     
+    def clickDelete(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input must be an integer from 0 to 99")
+        else:
+            result = self.delete(val)
+            if result:
+                msg = "Value {} deleted".format(val)
+            else:
+                msg = "Value {} not found".format(val)
+            self.setMessage(msg)
+        self.clearArgument()    
+        
+    def clickFill(self):
+        val = self.validArgument()
+        if val is None: 
+            self.setMessage("Input must be an integer from 0 to 99")
+        else:
+            if val > self.maxInserts():
+                msg = "Error! No room to display"
+            else:
+                self.fill(val)
+                msg = "Fill completed"
+            self.setMessage(msg)
+        self.clearArgument()
         
     def isAnimated(self):
         return self.animationState == self.RUNNING or self.animationState == self.PAUSED
