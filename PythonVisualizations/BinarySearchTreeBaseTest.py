@@ -17,7 +17,7 @@ class BinaryTree(BinaryTreeBase):
       self.buttons = self.makeButtons()
       
    def insert(self):
-      insertCallEnviron = self.createCallEnvironment()
+      callEnviron = self.createCallEnvironment()
       self.startAnimations()
 
       node1 = self.createNode(50, None)
@@ -46,16 +46,15 @@ class BinaryTree(BinaryTreeBase):
       self.wait(0.5)
       self.unHighlightCircle(node1)
       self.unHighlightValue(node1)
+      self.cleanUp(callEnviron)
       
    def makeButtons(self):
       vcmd = (self.window.register(numericValidate),
                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-      insertButton = self.addOperation(
-         "Insert", lambda: self.insert(), numArguments=1,
-         validationCmd= vcmd)
+      exampleButton = self.addOperation("Fill example", self.insert)
+      newButton = self.addOperation("New", self.emptyTree)
       self.addAnimationButtons()
-      return [ 
-               insertButton]
+      return [exampleButton, newButton]
    
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
