@@ -72,18 +72,6 @@ class BinaryTreeBase(VisualizationApp):
       
       return -1
 
-      # count = 0                           # track how many items we encountered
-      # i = 0                               # track what index we are at
-      # while count < self.size:
-      #    if self.nodes[i]:                # does a node exist in this position?
-      #       if self.nodes[i] is node:     # did we find the node?
-      #          index = i
-      #          break
-      #       count += 1                    # encountered a node
-      #    i += 1                           # move to the next index
-
-      # return index
-
    # return's the node's left child's index
    def getLeftChildIndex(self, node):
       nodeIndex = self.getIndex(node)
