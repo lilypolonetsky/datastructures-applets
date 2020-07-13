@@ -35,16 +35,20 @@ class SimpleArraySort(VisualizationApp):
         return str(self.list)
 
     # ANIMATION METHODS
-    def assignElement(self, fromIndex, toIndex, steps=10, sleepTime=0.01):
+    def assignElement(self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01):
+        
         fromItem = self.list[fromIndex]
         toItem = self.list[toIndex]
 
         # get positions of "to" cell in array
         toPositions = (self.cellCoords(toIndex), self.cellCenter(toIndex))
-
+            
+        
         # create new display objects as copies of the "from" cell and value
         newCell = self.copyCanvasItem(fromItem.display_shape)
         newCellVal = self.copyCanvasItem(fromItem.display_val)
+        
+        callEnviron |= set((newCell, newCellVal))
 
         # Move copies to the desired location
         self.moveItemsTo((newCell, newCellVal), toPositions, steps=steps,
@@ -59,11 +63,14 @@ class SimpleArraySort(VisualizationApp):
         self.list[toIndex].val = self.list[fromIndex].val
         self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
-
+        
+        callEnviron.remove(newCell)
+        callEnviron.remove(newCellVal)
+        
         # update the window
         self.window.update()
-
-    def assignToTemp(self, index, varName="temp", existing=None):
+        
+    def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
         """Assign indexed cell to a temporary variable named varName.
         Animate value moving to the temporary variable above the array.
         Return a drawable for the new temporary value and a text item for
@@ -78,6 +85,9 @@ class SimpleArraySort(VisualizationApp):
 
         shape = self.copyCanvasItem(fromCell)
         val = self.copyCanvasItem(fromCellVal)
+        
+        callEnviron |= set((shape, val))
+        
         if existing:
             tempPos = self.canvas.coords(existing)
             templabel = existing
@@ -90,6 +100,9 @@ class SimpleArraySort(VisualizationApp):
         delta = (tempPos[0] - posCellVal[0] if existing else 0,
                  - self.CELL_SIZE * 4 // 3)
         self.moveItemsBy((shape, val), delta, sleepTime=0.02)
+        
+        callEnviron.remove(shape)
+        callEnviron.remove(val)
 
         return drawable(fromDraw.val, fromDraw.color, shape, val), templabel
 
@@ -450,9 +463,9 @@ def insertionSort(self):
             self.highlightCodeTags('temp_assignment', callEnviron)
             if tempVal:
                 tempVal, _ = self.assignToTemp(
-                    outer, varName="temp", existing=label)
+                    outer, callEnviron, varName="temp", existing=label)
             else:
-                tempVal, label = self.assignToTemp(outer, varName="temp")
+                tempVal, label = self.assignToTemp(outer, callEnviron, varName="temp")
                 callEnviron.add(label)
             callEnviron.add(tempVal.display_shape)
             callEnviron.add(tempVal.display_val)
@@ -475,7 +488,7 @@ def insertionSort(self):
 
                 # Shift cells right that are greater than mark
                 self.highlightCodeTags('inner_loop_assignment', callEnviron)
-                self.assignElement(inner - 1, inner)
+                self.assignElement(inner - 1, inner, callEnviron)
 
                 # Move inner index arrow to point at next cell to check
                 inner -= 1
@@ -483,13 +496,13 @@ def insertionSort(self):
                 centerX0 = self.cellCenter(inner)[0]
                 deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
                 if deltaX != 0:
-                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
+                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02) 
 
             # Delay to show discovery of insertion point for mark
             if self.wait(0.1):
                 break
 
-            # Copy marked temporary value to insetion point
+            # Copy marked temporary value to insertion point
             self.highlightCodeTags('outer_loop_assignment', callEnviron)
             self.assignFromTemp(inner, tempVal, None)
 
@@ -504,9 +517,9 @@ def insertionSort(self):
             self.moveItemsBy(outerIndex, (self.CELL_SIZE, 0), sleepTime=0.02)
             if self.wait(0.01):
                 break
-
+                 
         self.highlightCodeTags([], callEnviron)
-        self.fixCells()
+        self.fixCells()     
 
         # Animation stops
         self.cleanUp(callEnviron)
