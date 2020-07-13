@@ -1,538 +1,405 @@
 from tkinter import *
 import time, random
 
-WIDTH = 1000
-HEIGHT = 400
+try:
+    from drawable import *
+    from VisualizationApp import *
+    from BinaryTreeBase import *
+except ModuleNotFoundError:
+    from .drawable import *
+    from .VisualizationApp import *
+    from .BinaryTreeBase import *
 
-CIRCLE_SIZE = 15
-ROOT_X0 = WIDTH/2
-NODE_X_GAP = 400
-NODE_Y_GAP = 75
-ROOT_Y0 = 40
-OPERATIONS_BG = 'beige'
-OPERATIONS_BORDER = 'black'
-FONT_SIZE = '16'
-VALUE_FONT = ('Helvetica', FONT_SIZE)
-VALUE_COLOR = 'black'
-FOUND_FONT = ('Helvetica', FONT_SIZE)
-FOUND_COLOR = 'green2'
-CONTROLS_FONT = ('none', '14')
-MAX_LEVEL = 5
-ARROW_HEIGHT = 30
-from enum import Enum
+class BinaryTree(BinaryTreeBase):
+    def __init__(self, title="Binary Search Tree", **kwargs):
+        super().__init__(title=title, **kwargs)
+        self.buttons = self.makeButtons()
+        self.title = title
 
-class Child(Enum):
-    LEFT = 0
-    RIGHT = 1
-
-class Node(object):
-    # create a tree node consisting of a key/data pair
-    def __init__(self, k, coords, id = None):
-        self.key = k
-        self.leftChild = None
-        self.rightChild = None
-        self.id = id
-        self.coords = coords
-
-    def __str__(self):
-        return "{" + str(self.key) + "}"
-
-
-class Tree(object):
-    def __init__(self, size=0):
-        self.__root = None
-        self.nElems = 0
-        self.size = size
-        self.prevId = -1
+        # populate the tree
+        self.fill(20)
 
     #Fill the tree with n nodes
     def fill(self, n):
-        #delete any existing nodes by looping through the tree
-        canvas.delete("all")
-        self.__root = None
-        self.nElems = 0
+        callEnviron = self.createCallEnvironment()
+
+        # empty the tree
+        self.emptyTree()
 
         #randomly generate a tree
         nums = list(range(1, 99))
         random.shuffle(nums)
-        while self.nElems < n and nums:
+        while self.size < n and nums:
             num = nums.pop()
-            self.insertElem(nums.pop(), False)
+            self.insertElem(nums.pop(), animation=False)
+
+        self.cleanUp(callEnviron)
 
 
     # find node with given key k
     # return the associated data or None
-    def find(self, k):
-        global cleanup, running
-        running = True
-        findDisplayObjects = []
+    def find(self, key):
+        if self.size == 0: return None, None
+
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
 
         # start at the root
         level = 0
-        cur = self.__root
-        arrow = canvas.create_line(cur.coords[0], cur.coords[1] - CIRCLE_SIZE - ARROW_HEIGHT,
-                                   cur.coords[0], cur.coords[1] - CIRCLE_SIZE, arrow="last", fill='red')
-        findDisplayObjects.append(arrow)
-        canvas.update()
+        cur = self.getRoot()
+        parent = cur
+        arrow = self.createArrow(cur)
+        callEnviron |= set(arrow)
 
         # while we haven't found the key
         while cur:
-            canvas.delete(arrow)
-            arrow = canvas.create_line(cur.coords[0], cur.coords[1] - CIRCLE_SIZE - ARROW_HEIGHT,
-                                       cur.coords[0], cur.coords[1] - CIRCLE_SIZE, arrow="last", fill='red')
-            findDisplayObjects.append(arrow)
-            canvas.update()
-            time.sleep(self.speed(1))
+            # move arrow
+            self.moveArrow(arrow, cur)
+            self.wait(0.3)
 
-            if cur.key == k:
-                foundText = canvas.create_text(cur.coords[0], cur.coords[1], text=cur.key, font=VALUE_FONT,
-                                               fill="green")
-                findDisplayObjects.append(foundText)
+            # did we find the key?
+            if cur.getKey() == key:
+                callEnviron.add(self.createHighlightedValue(cur))
+                self.wait(0.2)
+                self.cleanUp(callEnviron)
+                return cur, parent
 
-                canvas.update()
-                cleanup += findDisplayObjects
-                return cur
-
+            parent = cur
+            level += 1
             # go left ?
-            if k < cur.key:
-                cur = cur.leftChild
+            if key < cur.getKey():
+                cur = self.getLeftChild(cur)
             # go right
             else:
-                cur = cur.rightChild
-            level += 1
+                cur = self.getRightChild(cur)
+            
+        self.cleanUp(callEnviron)
+        return None, None
 
-        cleanup+=findDisplayObjects
-        return None
+    def insertElem(self, key, animation=True):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
 
-    def insertElem(self, k, animation = True):
-        global cleanup, running
-        running = True
-        findDisplayObjects = []
         inserted = False
 
         # if tree is empty, then initialize root to the new node
-        if not self.__root:
-            self.__root = self.insertChildNode(k, None, 0, None)
-            self.nElems+=1
+        if not self.getRoot():
+            self.createNode(key, None)
+            self.cleanUp(callEnviron)
             return True
 
         # start at the root
-        cur = self.__root
-        if animation:
-            arrow = canvas.create_line(ROOT_X0, ROOT_Y0 -CIRCLE_SIZE-ARROW_HEIGHT,
-                                       ROOT_X0, ROOT_Y0-CIRCLE_SIZE, arrow=LAST, fill='red')
-            findDisplayObjects.append(arrow)
-            time.sleep(self.speed(1))
-
+        cur = self.getRoot()
         level = 1
 
+        # create arrow
+        if animation:
+            arrow = self.createArrow(cur)
+            callEnviron |= set(arrow)
+
         while not inserted:
-            window.update()
             # if the key is to the left of current node, follow to the left
-            if k < cur.key:
+            if key < cur.getKey():
                 # if no left child, insert on left
-                if not cur.leftChild:
-                    cur.leftChild = self.insertChildNode(k, cur, level, Child.LEFT)
-                    inserted = True
-                cur = cur.leftChild
+                if not self.getLeftChild(cur):
+                    if animation:
+                        # calculate where new node will be
+                        coords = self.calculateCoordinates(cur, level, Child.LEFT)
+                        # move arrow to new node
+                        self.moveArrow(arrow, coords)
+                        self.wait(0.2)
 
-            else:  # otherwise, key must be to right of current node
-                if not cur.rightChild:
-                    cur.rightChild = self.insertChildNode(k, cur, level, Child.RIGHT)
+                    self.createNode(key, cur, Child.LEFT)
                     inserted = True
-                cur = cur.rightChild
+                cur = self.getLeftChild(cur)
 
-            if animation:
-                canvas.delete(arrow)
-                arrow = canvas.create_line(cur.coords[0], cur.coords[1]-CIRCLE_SIZE-ARROW_HEIGHT,
-                                           cur.coords[0], cur.coords[1]-CIRCLE_SIZE, arrow="last", fill='red')
-                findDisplayObjects.append(arrow)
-                time.sleep(self.speed(1))
+            # otherwise, key must be to right of current node
+            else:  
+                if not self.getRightChild(cur):
+                    if animation:
+                        # calculate where new node will be
+                        coords = self.calculateCoordinates(cur, level, Child.RIGHT)
+                        # move arrow to new node
+                        self.moveArrow(arrow, coords)
+                        self.wait(0.2)
+
+                    self.createNode(key, cur, Child.RIGHT)
+                    inserted = True
+                cur = self.getRightChild(cur)
 
             level+=1
 
-            if level >= MAX_LEVEL and not inserted:
-                outputText.set("Error! Can't go down another level. Maximum depth of tree is " + str(MAX_LEVEL)) if animation else None
-                cleanup+=findDisplayObjects
+            # move arrow
+            if animation and not inserted:
+                self.moveArrow(arrow, cur)
+                self.wait(0.3)
+
+            if level >= self.MAX_LEVEL and not inserted:
+                self.setMessage("Error! Can't go down another level. Maximum depth of tree is " + str(self.MAX_LEVEL)) if animation else None
+                self.cleanUp(callEnviron)
                 return False
 
-            if not running:
-                break
-
-        self.nElems += 1
-        cleanup += findDisplayObjects
-        outputText.set("Inserted") if animation else None
+        self.cleanUp(callEnviron)
         return True
 
-    def insertChildNode(self, k, parent, level, childDirection):
-        x,y = self.calculateCoordinates(parent, level, childDirection)
-        id  = self.generate_id()
+    def delete(self, key):
+        # find the node with the key
+         cur, parent = self.find(key)
 
-        canvas.create_circle(x, y, CIRCLE_SIZE, tag = id)
-        canvas.create_text(x,y, text=k, font=VALUE_FONT, tag = id)
-        if level !=0:
-            x1 = parent.coords[0]
-            y1 = parent.coords[1] +CIRCLE_SIZE
-            x2 = x
-            y2 = y-CIRCLE_SIZE
-            canvas.create_line(x1, y1, x2, y2, tag = id)
-        return Node(k, coords=(x,y), id = id)
+        # node with key does not exist
+         if not cur: return None
+                
+        # node with key does exist
+        # determine the direction of cur
+         direction = self.getChildDirection(cur)
 
-    def calculateCoordinates(self, parent, level, childDirection):
-        if level == 0:
-            return ROOT_X0, ROOT_Y0
-        elif childDirection == Child.LEFT:
-            return parent.coords[0] - 1/2**level* (NODE_X_GAP-CIRCLE_SIZE), ROOT_Y0+level* NODE_Y_GAP
-        else:
-            return parent.coords[0] + 1/2**level* (NODE_X_GAP-CIRCLE_SIZE), ROOT_Y0+level* NODE_Y_GAP
-
-    # generate id for nodes
-    def generate_id(self):
-        self.prevId+=1
-        return "item" + str(self.prevId)
-
-    def inOrderTraversal(self, cur):
-        if cur:
-            self.inOrderTraversal(cur.leftChild)
-            print(" " + str(cur), end="")
-            self.inOrderTraversal(cur.rightChild)
-
-
-    def delete(self, k, animation = True):
-        global cleanup, running
-        running = True
-        findDisplayObjects = []
-
-        # start at the root
-        cur = self.__root
-        parent = self
-        direction = None
-        
-        #if animated, show the search for the item to be deleted
-        if animation:
-            arrow = canvas.create_line(cur.coords[0], cur.coords[1] - CIRCLE_SIZE - ARROW_HEIGHT,
-                                   cur.coords[0], cur.coords[1] - CIRCLE_SIZE, arrow="last", fill='red')
-            findDisplayObjects.append(arrow)
-            canvas.update()
-
-        # while we haven't found the key
-        while cur:
-            #if animated, show the search
-            if animation:
-                canvas.delete(arrow)
-                arrow = canvas.create_line(cur.coords[0], cur.coords[1] - CIRCLE_SIZE - ARROW_HEIGHT,
-                                       cur.coords[0], cur.coords[1] - CIRCLE_SIZE, arrow="last", fill='red')
-                findDisplayObjects.append(arrow)
-                canvas.update()
-                time.sleep(self.speed(1))
-
-            #found the item to be deleted
-            if cur.key == k:
-                #if animated, show that we found the item to be deleted
-                if animation:
-                    foundText = canvas.create_text(cur.coords[0], cur.coords[1], text=cur.key, font=VALUE_FONT,
-                                               fill="green")
-                    findDisplayObjects.append(foundText)
-                    canvas.update()
-                    cleanup += findDisplayObjects
-
-                    time.sleep(self.speed(1))
-                    canvas.delete(arrow)
-                    canvas.delete(foundText)
-                #go through the process of deleting the item
-                return self.__delete(parent, cur, direction)
-
-            parent = cur
-            # go left ?
-            if k < cur.key:
-                cur = cur.leftChild
-                direction = Child.LEFT
-            # go right
-            else:
-                cur = cur.rightChild
-                direction = Child.RIGHT
-
-        cleanup+=findDisplayObjects
-        return None
+        # go through the process of deleting the item
+         return self.__delete(parent, cur, direction)
         
     def __delete(self, parent, cur, direction):
-        #save the deleted key
-        deleted = cur.key
+        # get rid of the highlighted value
+        self.cleanUp()
+
+        # create a call environment and start the animations
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
+        #save the deleted key and its index
+        deleted = cur.getKey()
 
         #remove the drawing
-        canvas.delete(cur.id)
-        canvas.update()
-        time.sleep(self.speed(1))
+        self.removeNodeDrawing(cur)
         
         #determine the correct process for removing the node from the tree
-        if cur.leftChild:
-            if cur.rightChild:                  #case 3: left and right child exist
+        if self.getLeftChild(cur):
+            if self.getRightChild(cur):                                              # cur has left and right child
                 self.__promoteSuccessor(parent, cur, direction)
-            else:
-                if parent is self:              #no right child
-                    self.__root = cur.leftChild #root was deleted
-                    self.__reDraw(self.__root, None, None, 0)
-                elif parent.leftChild is cur:   #parent's left is cur, cur only has a left
-                    parent.leftChild = cur.leftChild
-                    self.__reDraw(parent.leftChild, parent, Child.LEFT)
-                else:                           #parent's right is cur, cur only has a left
-                    parent.rightChild = cur.leftChild
-                    self.__reDraw(parent.rightChild, parent, Child.RIGHT)
-        else:                                   #a right child exists or no children
-            if parent is self:                  #deleting the root
-                self.__root = cur.rightChild
-                self.__reDraw(self.__root, None, None, 0)
-            elif parent.leftChild is cur:       #parent's left is cur, cur only has a right child
-                parent.leftChild = cur.rightChild
-                self.__reDraw(parent.leftChild, parent, Child.LEFT)
-            else:                               #parent's right is cur, cur only has a right child
-                parent.rightChild = cur.rightChild
-                self.__reDraw(parent.rightChild, parent, Child.RIGHT)
+            
+            else:                                                                   # cur only has left child
+                # get cur's left child that will be moving up
+                curLeft = self.getLeftChild(cur)
+                # get cur's grandchildren (or cur's left child's children)
+                # so we can reattach them after moving cur's left up
+                curLeftChildren = self.getChildren(curLeft)
 
-        self.nElems -= 1
+                if self.isRoot(cur):                                                # delete the root that only has left child
+                    self.removeAndReconnectNodes(cur, parent, 
+                                            self.setRoot, 
+                                            curLeft, curLeftChildren)
+
+                elif self.isLeftChild(cur):                                         #parent's left is cur, cur only has a left
+                    self.removeAndReconnectNodes(cur, parent, 
+                                            self.setLeftChild, 
+                                            curLeft, curLeftChildren)
+
+                else:                                                               #parent's right is cur, cur only has a left
+                    self.removeAndReconnectNodes(cur, parent, 
+                                            self.setRightChild, 
+                                            curLeft, curLeftChildren)
+        else:                                                                       #a right child exists or no children
+            # get cur's right child that will be moving up
+            curRight = self.getRightChild(cur)
+            # get cur's grandchildren (or cur's right child's children)
+            # so we can reattach them after moving cur's right up
+            curRightChildren = self.getChildren(curRight)
+
+            if self.isRoot(cur):                                                    # deleting the root
+                self.removeAndReconnectNodes(cur, parent, 
+                                            self.setRoot, 
+                                            curRight, curRightChildren)
+
+            elif self.isLeftChild(cur):                                             #parent's left is cur, cur has a right child / no child
+                self.removeAndReconnectNodes(cur, parent, 
+                                            self.setLeftChild, 
+                                            curRight, curRightChildren)
+
+            else:                                                                   #parent's right is cur, cur has a right child / no child
+                self.removeAndReconnectNodes(cur, parent, 
+                                            self.setRightChild, 
+                                            curRight, curRightChildren)
+
+        self.cleanUp(callEnviron)
         return deleted
 
-    #cur is item that is being moved
-    #parent is the parent of cur
-    #childDirection is the direction that parent should point to cur
-    def __reDraw(self, cur, parent, childDirection, level="begin"):
-        if cur == None: return
+    def reconnect(self, node, leftChild, rightChild):
+        if not node: return
+        # save each of their children before reconnecting with parent
+        leftChildren = self.getChildren(leftChild)
+        rightChildren = self.getChildren(rightChild)
 
-        # if the level of cur is unknown, find the level
-        if level == "begin": 
-            level = 0
-            node = self.__root
+        # reconnect the children with their parent
+        self.setLeftChild(node, leftChild)
+        self.setRightChild(node, rightChild)
 
-            # while we haven't found the key
-            while node:
-                if node.key == cur.key:
-                    break
-                # go left ?
-                if cur.key < node.key:
-                    node = node.leftChild
-                # go right
-                elif cur.key > node.key:
-                    node = node.rightChild
-                level += 1
+        # reconnect the children of the left child
+        self.reconnect(leftChild, *leftChildren)
+        # reconnect the children of the right child
+        self.reconnect(rightChild, *rightChildren)
+    
+    def removeAndReconnectNodes(self, cur, parent, commandToSetChild, curRightOrLeft, curRightOrLeftChildren):
+        # 1. delete the key
+        self.removeNodeInternal(cur)
 
-        #remove the current node's representation from the canvas
-        canvas.delete(cur.id)
-        canvas.update()
+        # 2. move cur's right/left up
+        if commandToSetChild != self.setRoot:
+            commandToSetChild(parent, curRightOrLeft)
+        else:
+            commandToSetChild(cur)
 
-        #reDraw the item in the correct position
-        x,y = self.calculateCoordinates(parent, level, childDirection)
-        canvas.create_circle(x, y, CIRCLE_SIZE, tag = cur.id)
-        canvas.create_text(x,y, text=cur.key, font=VALUE_FONT, tag = cur.id)
-        if level !=0:
-            x1 = parent.coords[0]
-            y1 = parent.coords[1] +CIRCLE_SIZE
-            x2 = x
-            y2 = y-CIRCLE_SIZE
-            canvas.create_line(x1, y1, x2, y2, tag = cur.id)
-        cur.coords = (x,y)
+        # 3. reconnect cur's right/left and its children
+        self.reconnect(curRightOrLeft, *curRightOrLeftChildren)
 
-        #reDraw any of cur's children
-        self.__reDraw(cur.leftChild, cur, Child.LEFT, level+1)
-        self.__reDraw(cur.rightChild, cur, Child.RIGHT, level+1)
+        # 4. move cur's right/left and its children up in the drawing
+        # 4a. does cur have children?
+        if curRightOrLeft:
+            moveItems = [curRightOrLeft] + self.getAllDescendants(curRightOrLeft)
+            self.moveNodesToPos(moveItems)
+        # 4b. cur was a leaf, redraw none shape in new location
+        else:
+            # did we remove a left node?
+            if commandToSetChild == self.setLeftChild:
+                self.createNoneShape(parent, 
+                                self.getLevel(parent), 
+                                self.canvas.coords(self.getLeftLine(parent)), 
+                                Child.LEFT, 
+                                parent.tag)
+            # did we remove a right node?
+            elif commandToSetChild == self.setRightChild:
+                self.createNoneShape(parent, 
+                                self.getLevel(parent), 
+                                self.canvas.coords(self.getRightLine(parent)), 
+                                Child.RIGHT, 
+                                parent.tag)
 
-    #description: method used when deleting a node with two children, locates the node to take the place of the deleted node and calls the appropiate methods
-    #             the node we want to "promote" is the key that is after the deleted key when all the keys are arranged in ascending order- this is the deleted node's right child's most left child
-    #parameters: parent is the parent of the node to be deleted, node is the node being deleted, direction indicates if node is the right or left child of its parent
     def __promoteSuccessor(self, parent, node, direction):
-        successor = node.rightChild
+        successor = self.getRightChild(node)
+        self.highlightCircle(successor)
         newParent = node
                 
         #hunt for the right child's most left child
-        while successor.leftChild:
+        self.highlightLeftLine(successor)
+        self.wait(0.2)
+        self.unHighlightCircle(successor)
+        while self.getLeftChild(successor):
             newParent = successor
-            successor = successor.leftChild
+            successor = self.getLeftChild(successor)
+            self.wait(0.2)
+            self.unHighlightLeftLine(newParent)
+            self.highlightLeftLine(successor)
 
-        #move the correct key to the deleted node's slot
-        node.key = successor.key
+        self.wait(0.2)
+        self.unHighlightLeftLine(successor)
+        self.highlightCircle(successor)
+        self.wait(0.2)
+        self.unHighlightCircle(successor)
 
-        self.__reDraw(node, parent, direction)
-        self.__delete(newParent, successor, direction)
+        # delete the node that is to be deleted
+        self.removeNodeInternal(node)
 
-    # ANIMATION METHODS
-    def speed(self, sleepTime):
-        return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
+        # copy the items associated with successor
+        # 1. generate a new tag
+        newTag = self.generateTag()
+        # 2. copy the circle and the value
+        circle = self.copyCanvasItem(successor.drawable.display_shape)
+        circle_text = self.copyCanvasItem(successor.drawable.display_val)
+        # 3. add the appropiate tags
+        self.canvas.itemconfig(circle, tags=(newTag))
+        self.canvas.itemconfig(circle_text, tags=(newTag))
+        # 4. create a drawable
+        successorCopyDrawable = drawable(successor.getKey(), self.canvas.itemconfigure(circle, 'fill'), *(circle, circle_text))
 
-    ######For testing purposes
-    def printTree(self):
-        self.pTree(self.__root, "ROOT:  ", "")
-        print()
+        # 5. create the lines
+        leftLine = self.copyCanvasItem(self.getLeftLine(successor))
+        rightLine = self.copyCanvasItem(self.getRightLine(successor))
+        # 6. add the appropiate tags
+        self.canvas.itemconfig(leftLine, tags=(newTag, "left line"))
+        self.canvas.itemconfig(rightLine, tags=(newTag, "right line"))
+        # 7. create the node object
+        successorCopy = Node(successorCopyDrawable, successor.coords, newTag)
 
-    def pTree(self, n, kind, indent):
-        print("\n" + indent + kind, end="")
-        if n:
-            print(n, end="")
-            if n.leftChild:
-                self.pTree(n.leftChild, "LEFT:  ", indent + "    ")
-            if n.rightChild:
-                self.pTree(n.rightChild, "RIGHT:  ", indent + "    ")
+        # insert the successor internally
+        if direction == Child.RIGHT: self.setRightChild(parent, successorCopy)
+        else: self.setLeftChild(parent, successorCopy)
 
-def clickInsert():
-    entered_text = textBox.get()
-    if entered_text:
-        val = int(entered_text)
+        self.moveNodesToPos([successorCopy])
+
+        self.wait(0.2)
+
+        self.__delete(newParent, successor, Child.LEFT)
+
+    def validArgument(self):
+        entered_text = self.getArgument()
+        if entered_text and entered_text.isdigit():
+            val = int(entered_text)
+            if val < 100:
+                return val
+            else:
+                self.setMessage("Input value must be an integer from 0 to 99.")
+
+    def clickInsert(self):
+        val = self.validArgument()
+        if val:
+            self.insertElem(val)
+            self.window.update()
+        self.clearArgument()
+
+    def clickFind(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input value must be an integer from 0 to 99.")
+        else:
+            result, parent = self.find(val)
+            if result != None:
+                msg = "Found {}!".format(val)
+            else:
+                msg = "Value {} not found".format(val)
+            self.setMessage(msg)
+        self.clearArgument()
+
+    def clickFill(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input value must be an integer from 0 to 99.")
+        else:
+            val = int(val)
+            if val < 32:
+                self.fill(val)
+            else:
+                self.setMessage("Input value must be an integer from 0 to 31.")
+        self.clearArgument()
+
+    def clickDelete(self):
+        val = self.validArgument()
         if val < 100:
-            tree.insertElem(int(entered_text))
+            deleted = tree.delete(val)
+            msg = "Deleted!" if deleted else "Value not found"
         else:
-            outputText.set("Input value must be an integer from 0 to 99.")
-    textBox.delete(0, END)
+            msg = "Input value must be an integer from 0 to 99."
+        self.setMessage(msg)
+        self.clearArgument()
 
-def clickFind():
-    entered_text = textBox.get()
-    if entered_text:
-        val = int(entered_text)
-        if val < 100:
-            found = tree.find(int(entered_text))
-            outputText.set("Found!" if found else "Value not found")
-        else:
-            outputText.set("Input value must be an integer from 0 to 99.")
-    textBox.delete(0, END)
+    def makeButtons(self):
+        vcmd = (self.window.register(numericValidate),
+                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        fillButton = self.addOperation(
+            "Fill", lambda: self.clickFill(), numArguments=1,
+            validationCmd=vcmd)
+        findButton = self.addOperation(
+            "Find", lambda: self.clickFind(), numArguments=1,
+            validationCmd=vcmd)
+        insertButton = self.addOperation(
+            "Insert", lambda: self.clickInsert(), numArguments=1,
+            validationCmd= vcmd)
+        deleteButton = self.addOperation(
+            "Delete", lambda: self.clickDelete(), numArguments=1,
+            validationCmd= vcmd)
+        #this makes the pause, play and stop buttons 
+        self.addAnimationButtons()
+        return [fillButton, findButton, 
+                insertButton,deleteButton]
 
-def clickFill():
-    entered_text = textBox.get()
-    if entered_text:
-        val = int(entered_text)
-        if val < 32:
-            tree.fill(val)
-        else:
-            outputText.set("Input value must be an integer from 0 to 31.")
-    textBox.delete(0, END)
+if __name__ == '__main__':
+    random.seed(3.14159)  # Use fixed seed for testing consistency
+    tree = BinaryTree()
 
-def clickDelete():
-    entered_text = textBox.get()
-    if entered_text:
-        val = int(entered_text)
-        if val < 100:
-            deleted = tree.delete(int(entered_text))
-            outputText.set("Deleted!" if deleted else "Value not found")
-        else:
-            outputText.set("Input value must be an integer from 0 to 99.")
-    textBox.delete(0, END)
-
-#What can be inserted in the textbox
-def validate(action, index, value_if_allowed,
-             prior_value, text, validation_type, trigger_type, widget_name):
-    if text in '0123456789':
-        return True
-    else:
-        return False
-
-def makeButtons():
-    fillButton = Button(bottomframe, text="Fill", command= lambda: onClick(clickFill))
-    fillButton.grid(row=1, column=0, padx=8, sticky=(E, W))
-    findButton = Button(bottomframe, text="Find", command= lambda: onClick(clickFind))
-    findButton.grid(row=1, column=1, padx=8, sticky=(E, W))
-    insertButton = Button(bottomframe, text="Insert", command= lambda: onClick(clickInsert))
-    insertButton.grid(row=1, column=2, padx=8, sticky=(E, W))
-    deleteValueButton = Button(bottomframe, text="Delete", command= lambda: onClick(clickDelete))
-    deleteValueButton.grid(row=1, column=3, padx=8, sticky=(E, W))
-
-    buttons = [findButton, insertButton, deleteValueButton]
-    return buttons
-
-
-def stop(pauseButton):
-    global running
-    running = False
-
-    if waitVar.get():
-        play(pauseButton)
-
-def pause(pauseButton):
-    global waitVar
-    waitVar.set(True)
-
-    pauseButton['text'] = "Play"
-    pauseButton['command'] = lambda: onClick(play, pauseButton)
-
-    canvas.wait_variable(waitVar)
-
-def play(pauseButton):
-    global waitVar
-    waitVar.set(False)
-
-    pauseButton['text'] = 'Pause'
-    pauseButton['command'] = lambda: onClick(pause, pauseButton)
-
-def onClick(command, parameter = None):
-    cleanUp()
-    disableButtons()
-    if parameter:
-        command(parameter)
-    else:
-        command()
-    if command not in [pause, play]:
-        enableButtons()
-
-def cleanUp():
-    global cleanup
-    if len(cleanup) > 0:
-        for o in cleanup:
-            canvas.delete(o)
-    outputText.set('')
-    window.update()
-
-def close_window():
-    window.destroy()
-    exit()
-
-def disableButtons():
-    for button in buttons:
-        button.config(state = DISABLED)
-
-def enableButtons():
-    for button in buttons:
-        button.config(state = NORMAL)
-
-def _create_circle(self, x, y, r, **kwargs):
-    return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
-Canvas.create_circle = _create_circle
-
-window = Tk()
-frame = Frame(window)
-frame.pack()
-
-waitVar = BooleanVar()
-
-canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
-window.title("Tree")
-canvas.pack()
-
-bottomframe = Frame(window)
-bottomframe.pack(side=BOTTOM)
-
-#Label(bottomframe, text="Find:", font="none 12 bold").grid(row=0, column=0, sticky=W)
-vcmd = (window.register(validate),
-        '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-textBox = Entry(bottomframe, width=20, bg="white", validate='key', validatecommand=vcmd)
-textBox.grid(row=4, column=0, sticky=W)
-scaleDefault = 100
-scale = Scale(bottomframe, from_=1, to=200, orient=HORIZONTAL, sliderlength=15)
-scale.grid(row=5, column=1, sticky=W)
-scale.set(scaleDefault)
-scaleLabel = Label(bottomframe, text="Speed:", font="none 10")
-scaleLabel.grid(row=5, column=0, sticky=E)
-
-outputText = StringVar()
-outputText.set('')
-output = Label(bottomframe, textvariable=outputText, font=CONTROLS_FONT + ('italic',), fg="blue")
-output.grid(row=0, column=3, sticky=(E, W))
-bottomframe.grid_columnconfigure(4, minsize=160)
-
-# exit button
-Button(bottomframe, text="EXIT", width=4, command=close_window).grid(row=6, column=3, sticky=W)
-
-cleanup = []
-buttons = makeButtons()
-
-tree = Tree()
-import random
-nums = list(range(1, 99))
-random.shuffle(nums)
-while tree.nElems < 20 and nums:
-    tree.insertElem(nums.pop(), False)
-window.mainloop()
+    tree.runVisualization()

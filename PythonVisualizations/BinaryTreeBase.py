@@ -66,20 +66,23 @@ class BinaryTreeBase(VisualizationApp):
 
    # returns the index of the node
    def getIndex(self, node):
-      root = self.nodes[0]
-      index = -1
+      for i in range(len(self.nodes)):
+         if self.nodes[i] is node:
+            return i
+      
+      return -1
 
-      count = 0                           # track how many items we encountered
-      i = 0                               # track what index we are at
-      while count < self.size:
-         if self.nodes[i]:                # does a node exist in this position?
-            if self.nodes[i] is node:     # did we find the node?
-               index = i
-               break
-            count += 1                    # encountered a node
-         i += 1                           # move to the next index
+      # count = 0                           # track how many items we encountered
+      # i = 0                               # track what index we are at
+      # while count < self.size:
+      #    if self.nodes[i]:                # does a node exist in this position?
+      #       if self.nodes[i] is node:     # did we find the node?
+      #          index = i
+      #          break
+      #       count += 1                    # encountered a node
+      #    i += 1                           # move to the next index
 
-      return index
+      # return index
 
    # return's the node's left child's index
    def getLeftChildIndex(self, node):
@@ -92,6 +95,7 @@ class BinaryTreeBase(VisualizationApp):
    # return's the node's right child's index
    def getRightChildIndex(self, node):
       nodeIndex = self.getIndex(node)
+      if nodeIndex == -1: return -1
       childIndex = 2*nodeIndex + 2
 
       if childIndex >= self.maxElems: return -1
@@ -112,12 +116,19 @@ class BinaryTreeBase(VisualizationApp):
       else: return None
 
    # returns the root node
-   def getRoot(self, node):
+   def getRoot(self):
       return self.nodes[0]
 
    # returns True if node is the root
    def isRoot(self, node):
       return self.nodes[0] is node
+
+   # returns True if the node has no children, false otherwise
+   def isLeaf(self, node):
+      # if neither a right or left child exists
+      if not (self.getRightChild(node) or self.getLeftChild(node)):
+         return True
+      else: return False
 
    # returns True if node is a right child, false otherwise
    def isRightChild(self, node):
@@ -134,16 +145,29 @@ class BinaryTreeBase(VisualizationApp):
       index = self.getIndex(node)
       return index % 2 == 1
 
+   # returns enum if node is right or left child
+   # returns None if node is the root
+   def getChildDirection(self, node):
+      if self.isRoot(node):
+            direction = None
+      elif self.isRightChild(node):
+         direction = Child.RIGHT
+      else:
+         direction = Child.LEFT
+      return direction
+
    # returns the node's parent
    def getParent(self, node):
       # is it the root?
       if self.isRoot(node): return None
 
+      parentIndex = self.getParentIndex(node)
+      return self.nodes[parentIndex]
+
+   def getParentIndex(self, node):
       # get node's index
       index = self.getIndex(node)
-
-      parentIndex = (index - 1) // 2
-      return self.nodes[parentIndex]
+      return (index - 1) // 2
 
    # returns the level of the node
    def getLevel(self, node):
@@ -157,6 +181,40 @@ class BinaryTreeBase(VisualizationApp):
       leftChild = self.getLeftChild(node)
 
       return max(self.getHeight(rightChild), self.getHeight(leftChild)) + 1
+
+   # returns the node's left line
+   def getLeftLine(self, node):
+      # get all the items with the node's tag
+      nodeFamily = set(self.canvas.find_withtag(node.tag))
+      # get all the lines that are left
+      lines = set(self.canvas.find_withtag("left line"))
+
+      return (lines & nodeFamily).pop()
+
+    # returns the node's left line
+   def getRightLine(self, node):
+      # get all the items with the node's tag
+      nodeFamily = set(self.canvas.find_withtag(node.tag))
+      # get all the lines that are left
+      lines = set(self.canvas.find_withtag("right line"))
+
+      return (lines & nodeFamily).pop()
+      
+   # returns a tuple of the left and right child of node
+   def getChildren(self, node):
+      return self.getLeftChild(node), self.getRightChild(node)
+
+   # returns a list of all the nodes that descend from node
+   def getAllDescendants(self, node):
+      if not node: return []
+
+      children = self.getChildren(node)
+      returnList = []
+      if children[0]: returnList.append(children[0])
+      if children[1]: returnList.append(children[1])
+
+      return returnList + self.getAllDescendants(children[0]) + self.getAllDescendants(children[1])
+      
 
    # ----------- DRAWING METHODS -------------------
    
@@ -259,6 +317,11 @@ class BinaryTreeBase(VisualizationApp):
    def unHighlightCircle(self, node):
       self.canvas.itemconfig(node.drawable.display_shape, outline="black")
 
+   # creates a highlighted value on top of the normal value associated with the node
+   def createHighlightedValue(self, node, color="green"):
+      return self.canvas.create_text(node.coords[0], node.coords[1], text=node.getKey(), font=self.VALUE_FONT,
+                                               fill=color)
+
    # highlight the value associated with the node
    def highlightValue(self, node, color="red"):
       self.canvas.itemconfig(node.drawable.display_val, fill=color)
@@ -273,12 +336,14 @@ class BinaryTreeBase(VisualizationApp):
       circle_text = self.canvas.create_text(x,y, text=key, font=self.VALUE_FONT, tag = tag)
 
       # get rid of the none shape that was in its spot
-      items = self.canvas.find_overlapping(*(self.canvas.coords(circle)))
-      if len(items) >= 5:
-         self.canvas.delete(items[-3])
-         self.canvas.delete(items[-4])
-         self.canvas.delete(items[-5])
-         self.canvas.update()
+      items = set(self.canvas.find_overlapping(*(self.canvas.coords(circle))))
+      noneShape = set(self.canvas.find_withtag("none"))
+      noneItems = (items & noneShape)
+      
+      while len(noneItems) > 0:
+         self.canvas.delete(noneItems.pop())
+
+      self.canvas.update()
 
       return circle, circle_text
 
@@ -297,9 +362,52 @@ class BinaryTreeBase(VisualizationApp):
       coords3 = (  shrinkFactor + coords2[0], coords2[1] + shrinkFactor, 
                   -shrinkFactor + coords2[2], coords2[3] + shrinkFactor)
 
-      self.canvas.create_line(coords1, tag = tag)
-      self.canvas.create_line(coords2, tag = tag)
-      self.canvas.create_line(coords3, tag = tag)
+      self.canvas.create_line(coords1, tag = (tag, "none"))
+      self.canvas.create_line(coords2, tag = (tag, "none"))
+      self.canvas.create_line(coords3, tag = (tag, "none"))
+
+   def removeNoneShapes(self, node):
+      # get the none shapes associated with the node
+      nodeShapes = set(self.canvas.find_withtag(node.tag))
+      noneShape = set(self.canvas.find_withtag("none"))
+      noneItems = (nodeShapes & noneShape)
+
+      while len(noneItems) > 0:
+         self.canvas.delete(noneItems.pop())
+
+   # delete the node's drawing
+   def removeNodeDrawing(self, node):
+      leftChild = self.getLeftChild(node)
+      rightChild =  self.getRightChild(node)
+
+      self.canvas.delete(node.drawable.display_val)
+      self.canvas.delete(node.drawable.display_shape)
+      self.canvas.delete(self.getRightLine(node))
+      self.canvas.delete(self.getLeftLine(node))
+      self.removeNoneShapes(node)
+
+   def moveNodesToPos(self, moveItems):
+      # get the coords for the node to move to
+      moveCoords = []
+      for node in moveItems:
+         node.coords = self.calculateCoordinates(self.getParent(node),self.getLevel(node), self.getChildDirection(node))
+         moveCoords.append(( node.coords[0]-self.CIRCLE_SIZE, node.coords[1]-self.CIRCLE_SIZE,
+                              node.coords[0]+self.CIRCLE_SIZE, node.coords[1]+self.CIRCLE_SIZE))
+      
+      moveItemsTags = [node.tag for node in moveItems]
+      self.moveItemsTo(moveItemsTags, moveCoords)
+
+      for node in moveItems:
+         # fix the lines
+         leftLine, rightLine = self.calculateLineCoordinates(node)
+         self.canvas.coords(self.getLeftLine(node), leftLine)
+         self.canvas.coords(self.getRightLine(node), rightLine)
+
+         # fix the none shapes
+         level = self.getLevel(node)
+         self.removeNoneShapes(node)
+         self.createNoneShape(node, level, leftLine, Child.LEFT, node.tag) if not self.getLeftChild(node) else None
+         self.createNoneShape(node, level, rightLine, Child.RIGHT, node.tag) if not self.getRightChild(node) else None
 
    # ----------- SETTER METHODS --------------------
    
@@ -343,6 +451,9 @@ class BinaryTreeBase(VisualizationApp):
 
       return node 
 
+   def setRoot(self, node):
+      self.nodes[0] = node
+
    # set the node's left child
    def setLeftChild(self, node, child):
       index = self.getLeftChildIndex(node)
@@ -384,11 +495,9 @@ class BinaryTreeBase(VisualizationApp):
       self.size = 0
       self.nodes = [None] * (2**self.MAX_LEVEL)
 
-   # delete the node's drawing and remove it from the array represenation
-   def removeNode(self, node):
-      self.canvas.delete(node.tag)
+   def removeNodeInternal(self, node):
       self.nodes[self.getIndex(node)] = None
-      self.nElems -= 1
+      self.size -= 1
 
     # rotate the node left in the array representation and animate it
     # RETURN TO FIX
