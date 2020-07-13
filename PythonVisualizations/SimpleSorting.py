@@ -742,7 +742,7 @@ def selectionSort(self):
         self.addAnimationButtons()
         findButton = self.addOperation(
             "Find", lambda: self.clickFind(), numArguments=1,
-            validationCmd=vcmd)
+            validationCmd=vcmd, helpText="Click to enter number")
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)
@@ -799,4 +799,3 @@ if __name__ == '__main__':
     array = SimpleArraySort()
 
     array.runVisualization()
-
