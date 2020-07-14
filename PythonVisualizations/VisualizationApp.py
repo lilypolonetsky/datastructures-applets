@@ -173,11 +173,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
         nColumns, nRows = self.operations.grid_size()
         withArgument = [
             gridItems[0, row] for row in range(nRows)
-            if isinstance(gridItems[0, row], Button)]
+            if isinstance(gridItems[0, row], (Button, Checkbutton))]
         withoutArgument = [
             gridItems[col, row]
             for row in range(nRows) for col in range(4, nColumns)
-            if isinstance(gridItems[col, row], Button)]
+            if isinstance(gridItems[col, row], (Button, Checkbutton))]
         button = buttonType( # Create button based on type
             self.operations, text=label, font=self.CONTROLS_FONT,
             command=self.runOperation(callback, cleanUpBefore),
