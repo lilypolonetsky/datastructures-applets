@@ -426,7 +426,7 @@ class BinaryTreeBase(VisualizationApp):
       self.size += 1
 
       # add the node object to the internal representation
-      self.setNode(node, direction, parent)
+      self.setChildNode(node, direction, parent)
 
       # draw the lines
       leftLine, rightLine = self.calculateLineCoordinates(node)
@@ -462,7 +462,7 @@ class BinaryTreeBase(VisualizationApp):
 
    # set the node's child
    # returns the index where the child is stored
-   def setNode(self, child, direction = None, parent = None):
+   def setChildNode(self, child, direction = None, parent = None):
       if not parent:
          self.nodes[0] = child
          return 0
