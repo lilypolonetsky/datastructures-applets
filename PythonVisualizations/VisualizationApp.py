@@ -301,7 +301,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText['yscrollcommand'] = self.codeVScroll.set
             self.codeText.tag_config('call_stack_boundary',
                                      background=self.CALL_STACK_BOUNDARY)
-            
+        
         self.codeText.configure(state=NORMAL)
         
         # Add a call stack boundary line if requested and other code exists
@@ -310,11 +310,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.insert('1.0',
                                  self.codeText.config('width')[-1] * '-' + '\n')
             self.codeText.tag_add('call_stack_boundary', '1.0', '1.end')
-            
+        
         # Add code at top of text widget (above stack boundary, if any)
         self.codeText.insert('1.0', code + '\n')
         self.codeText.see('1.0')
-        
+        self.window.update()
+       
         # Tag the snippets with unique tag name
         for tagName in snippets:
             self.codeText.tag_add(prefix + tagName, *snippets[tagName])
@@ -336,10 +337,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 underline=1 if highlight else 0)
             if highlight:
                 ranges = self.codeText.tag_ranges(tagName)
-                #if len(ranges) > 0:
-                    #self.codeText.see(ranges[0])
-            
-            #self.codeText.xview(MOVETO, 0)
+                if len(ranges) > 0:
+                    self.codeText.see(ranges[0])
+        
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
