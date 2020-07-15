@@ -253,7 +253,7 @@ class BinaryTree(BinaryTreeBase):
         # 4a. does cur have children?
         if curRightOrLeft:
             moveItems = [curRightOrLeft] + self.getAllDescendants(curRightOrLeft)
-            self.moveNodesToPos(moveItems)
+            self.restoreNodesPosition(moveItems)
         # 4b. cur was a leaf, redraw none shape in new location
         else:
             # did we remove a left node?
@@ -321,7 +321,7 @@ class BinaryTree(BinaryTreeBase):
         if direction == Child.RIGHT: self.setRightChild(parent, successorCopy)
         else: self.setLeftChild(parent, successorCopy)
 
-        self.moveNodesToPos([successorCopy])
+        self.restoreNodesPosition([successorCopy])
 
         self.wait(0.2)
 

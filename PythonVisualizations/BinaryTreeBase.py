@@ -374,7 +374,7 @@ class BinaryTreeBase(VisualizationApp):
       self.canvas.delete(self.getLeftLine(node))
       self.removeNoneShapes(node)
 
-   def moveNodesToPos(self, moveItems):
+   def restoreNodesPosition(self, moveItems, sleepTime=0.1):
       # get the coords for the node to move to
       moveCoords = []
       for node in moveItems:
@@ -383,7 +383,7 @@ class BinaryTreeBase(VisualizationApp):
                               node.coords[0]+self.CIRCLE_SIZE, node.coords[1]+self.CIRCLE_SIZE))
       
       moveItemsTags = [node.tag for node in moveItems]
-      self.moveItemsTo(moveItemsTags, moveCoords)
+      self.moveItemsTo(moveItemsTags, moveCoords, sleepTime=sleepTime)
 
       for node in moveItems:
          # fix the lines
