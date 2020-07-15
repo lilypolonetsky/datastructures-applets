@@ -100,9 +100,6 @@ class SimpleArraySort(VisualizationApp):
         delta = (tempPos[0] - posCellVal[0] if existing else 0,
                  - self.CELL_SIZE * 4 // 3)
         self.moveItemsBy((shape, val), delta, sleepTime=0.02)
-        
-        callEnviron.remove(shape)
-        callEnviron.remove(val)
 
         return drawable(fromDraw.val, fromDraw.color, shape, val), templabel
 
@@ -467,8 +464,6 @@ def insertionSort(self):
             else:
                 tempVal, label = self.assignToTemp(outer, callEnviron, varName="temp")
                 callEnviron.add(label)
-            callEnviron.add(tempVal.display_shape)
-            callEnviron.add(tempVal.display_val)
 
             # Inner loop starts at marked temporary item
             inner = outer
