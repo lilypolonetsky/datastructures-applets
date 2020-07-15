@@ -12,7 +12,7 @@ except ModuleNotFoundError:
 
 class BinaryTree(BinaryTreeBase):
     def __init__(self, title="Binary Search Tree", **kwargs):
-        super().__init__(title=title, **kwargs)
+        super().__init__(title=title, canvasWidth=1000, canvasHeight=400, **kwargs)
         self.buttons = self.makeButtons()
         self.title = title
 

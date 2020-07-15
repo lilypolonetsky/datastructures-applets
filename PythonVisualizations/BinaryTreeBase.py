@@ -34,24 +34,23 @@ class BinaryTreeBase(VisualizationApp):
    VALUE_FONT = ('Helvetica', FONT_SIZE)
    FOUND_FONT = ('Helvetica', FONT_SIZE)
 
-   WIDTH = 1000
-   HEIGHT = 400
-
    CIRCLE_SIZE = 15
-   NODE_X_GAP = 400
-   NODE_Y_GAP = 75
-   ROOT_X0 = WIDTH/2
-   ROOT_Y0 = CIRCLE_SIZE + 5
-   MAX_LEVEL = 5
 
-   ARROW_HEIGHT = 30
-
-   def __init__(self, title="Tree", width = WIDTH, height = HEIGHT, **kwargs):
-      super().__init__(title=title, canvasWidth= width, canvasHeight= height, **kwargs)
+   def __init__(self, title="Tree", CIRCLE_SIZE = 15, 
+               ROOT_X0 = 500, ROOT_Y0 = CIRCLE_SIZE + 10, 
+               NODE_X_GAP = 400, NODE_Y_GAP = 75,
+               ARROW_HEIGHT = 30,MAX_LEVEL = 5, **kwargs):
+      super().__init__(title=title, **kwargs)
       
       self.title = title
-      self.width = width
-      self.height = height
+
+      self.CIRCLE_SIZE = CIRCLE_SIZE         # size of each node
+      self.ROOT_X0 = ROOT_X0                 # root's x position
+      self.ROOT_Y0 = ROOT_Y0                 # root's y position
+      self.NODE_X_GAP = NODE_X_GAP           # the horizontal gap between each node (modified for each level)
+      self.NODE_Y_GAP = NODE_Y_GAP           # the vertical gap between each node (modified for each level)
+      self.ARROW_HEIGHT = ARROW_HEIGHT       # the arrow's height
+      self.MAX_LEVEL = MAX_LEVEL             # the maximum level that the tree can reach
 
       # tree will be stored in array
       # root will be index 0
