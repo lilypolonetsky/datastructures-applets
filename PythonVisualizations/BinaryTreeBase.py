@@ -218,7 +218,7 @@ class BinaryTreeBase(VisualizationApp):
       return (arrow, )
 
    # move the arrow to point above the node
-   def moveArrow(self, arrow, node, numSteps= 5):
+   def moveArrow(self, arrow, node, numSteps= 5, sleepTime=0.1):
       # was a node passed in?
       if isinstance(node, Node):
             toPos = (node.coords[0], node.coords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
@@ -228,7 +228,7 @@ class BinaryTreeBase(VisualizationApp):
             toPos = (node[0], node[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
             node[0], node[1] - self.CIRCLE_SIZE)
 
-      self.moveItemsTo(arrow, (toPos,), steps = numSteps)
+      self.moveItemsTo(arrow, (toPos,), steps = numSteps, sleepTime=sleepTime)
 
    # calculate the coordinates for the node shape
    def calculateCoordinates(self, parent, level, childDirection):
