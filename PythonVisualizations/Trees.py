@@ -306,7 +306,7 @@ class BinaryTree(BinaryTreeBase):
         self.canvas.itemconfig(circle, tags=(newTag))
         self.canvas.itemconfig(circle_text, tags=(newTag))
         # 4. create a drawable
-        successorCopyDrawable = drawable(successor.getKey(), self.canvas.itemconfigure(circle, 'fill'), *(circle, circle_text))
+        successorCopyDrawable = drawable(successor.getKey(), self.canvas.itemconfigure(circle, 'fill')[-1], *(circle, circle_text))
 
         # 5. create the lines
         leftLine = self.copyCanvasItem(self.getLeftLine(successor))

@@ -417,7 +417,7 @@ class BinaryTreeBase(VisualizationApp):
       circle, circle_text = self.createNodeShape(x, y, key, tag)
       
       # create the drawable object
-      drawableObj = drawable(key, self.canvas.itemconfigure(circle, 'fill'), *(circle, circle_text))
+      drawableObj = drawable(key, self.canvas.itemconfigure(circle, 'fill')[-1], *(circle, circle_text))
       
       # create the Node object
       node = Node(drawableObj, coords, tag)
