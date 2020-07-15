@@ -10,7 +10,7 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-import time, math, operator, re
+import time, math, operator, re, sys
 from collections import *
 from tkinter import *
 
@@ -49,13 +49,11 @@ def gridDict(frame):
              for s in slaves],
             slaves))
 
-
 # Utilities for validating characters typed in Tk entry widgets
 # These must be registered with the parent window before use
 def numericValidate(action, index, value_if_allowed,
                     prior_value, text, validation_type, trigger_type, widget_name):
     return len(value_if_allowed) == 0 or value_if_allowed.isdigit()
-
 
 geom_delims = re.compile(r'[\sXx+-]')
 
@@ -75,8 +73,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_FONT = ('Courier', 12)
     SMALL_FONT = ('Helvetica', 9)
     CODE_HIGHLIGHT = 'yellow'
-    CONTROLS_FONT = ('none', 14)
-    CALL_STACK_BOUNDARY = 'brown3'
+    CONTROLS_FONT = ('Helvetica', 12)
+    HINT_FONT = CONTROLS_FONT + ('italic',)
+    HINT_FG = 'blue'
+    HINT_BG = 'beige'
+    CALL_STACK_BOUNDARY = 'gray60'
 
     # Speed control slider
     SPEED_SCALE_MIN = 10
@@ -148,7 +149,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.fastLabel = Label(
             self.operationsLowerCenter, text="fast", font=self.CONTROLS_FONT)
         self.fastLabel.grid(row=0, column=2, sticky=W)
-        self.textEntries = []
+        self.textEntries, self.entryHints = [], []
         self.outputText = StringVar()
         self.outputText.set('')
         self.message = Label(
@@ -173,36 +174,57 @@ class VisualizationApp(object):  # Base class for Python visualizations
         nColumns, nRows = self.operations.grid_size()
         withArgument = [
             gridItems[0, row] for row in range(nRows)
-            if isinstance(gridItems[0, row], Button)]
+            if isinstance(gridItems[0, row], (Button, Checkbutton))]
         withoutArgument = [
             gridItems[col, row]
             for row in range(nRows) for col in range(4, nColumns)
-            if isinstance(gridItems[col, row], Button)]
+            if isinstance(gridItems[col, row], (Button, Checkbutton))]
         button = buttonType( # Create button based on type
-            self.operations, text=label, 
+            self.operations, text=label, font=self.CONTROLS_FONT,
             command=self.runOperation(callback, cleanUpBefore),
-            bg=self.OPERATIONS_BG)
+            bg=self.OPERATIONS_BG, **kwargs)
         setattr(button, 'required_args', numArguments)
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
                 textEntry = Entry(  # widgets if not already present
                     self.operations, width=self.maxArgWidth, bg='white',
-                    validate='key', validatecommand=validationCmd)
-                textEntry.grid(column=2, row=len(self.textEntries) + 1,
-                               padx=8, sticky=E)
+                    validate='key', validatecommand=validationCmd,
+                    font=self.CONTROLS_FONT)
+                textEntry.grid(column=2, row=len(self.textEntries) + 1, padx=8)
                 textEntry.bind(
                     '<KeyRelease>', lambda ev: self.argumentChanged(), '+')
                 self.textEntries.append(textEntry)
+            if helpText: # Make a label if there a hint on what to enter
+                while self.entryHints: # Remove past hints
+                    self.entryHints.pop().destroy()
+                hint = Label(
+                    self.operations, text=helpText, font=self.HINT_FONT,
+                    fg=self.HINT_FG, bg=self.HINT_BG)
+                hint.bind('<Button>', # Remove the hint when first clicked
+                          deleteHintHandler(hint, self.textEntries[0]))
+                for entry in self.textEntries: # and when entries get focus
+                    entry.bind('<FocusIn>', deleteHintHandler(hint, entry))
+                self.entryHints = [hint]
+
+            # Place button in grid of buttons
             buttonRow = len(withArgument) + 1
             button.grid(column=0, row=buttonRow, padx=8, sticky=(E, W))
             button.config(state=DISABLED)
-            rowSpan = max(1, (len(withArgument) + 1) // len(self.textEntries))
-            for i, textEntry in enumerate(self.textEntries):  # Spread text
-                textEntry.grid_configure(  # entries across all rows of buttons
-                    row=rowSpan * i + 1,  # with arguments
-                    rowspan=rowSpan if textEntry != self.textEntries[-1] else
-                    max(1, len(withArgument) + 1 -
-                        (len(self.textEntries) - 1) * rowSpan))
+            nEntries = len(self.textEntries)
+            rowSpan = max(1, (len(withArgument) + 1) // nEntries)
+            
+            # Spread text entries across all rows of buttons with arguments
+            # with the hint about what to enter below, if any
+            for i, entry in enumerate(self.textEntries):
+                entryRowSpan = rowSpan if i < nEntries - 1 else max(
+                    1, len(withArgument) + 1 - (nEntries - 1) * rowSpan)
+                entry.grid_configure(row=rowSpan * i + 1, rowspan=entryRowSpan)
+            if self.entryHints:
+                self.entryHintRow = max(nEntries, len(withArgument) + 1) + (
+                    0 if entryRowSpan > 2 else 1)
+                self.entryHints[0].grid_configure(
+                    column=2, row=self.entryHintRow)
+
         else:
             buttonRow = len(withoutArgument) % maxRows + 1
             button.grid(column=4 + len(withoutArgument) // maxRows,
@@ -213,7 +235,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.operations, width=2, bg=self.OPERATIONS_BORDER)
             self.opSeparator.grid(column=3, row=1, sticky=(N, E, W, S))
         if self.opSeparator:
-            self.opSeparator.grid_configure(rowspan=max(nRows, buttonRow))
+            self.opSeparator.grid_configure(
+                rowspan=max(nRows, buttonRow, 
+                            self.entryHintRow if self.entryHints else 1))
         return button
 
     def addAnimationButtons(self):
@@ -250,12 +274,16 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def clearArgument(self, index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
+            while self.entryHints:
+                self.entryHints.pop().destroy()
             self.argumentChanged()
 
     def setArgument(self, val='', index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
             self.textEntries[index].insert(0, str(val))
+            while self.entryHints:
+                self.entryHints.pop().destroy()
             self.argumentChanged()
 
     def setArguments(self, *values):
@@ -301,8 +329,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText['xscrollcommand'] = self.codeHScroll.set
             self.codeText['yscrollcommand'] = self.codeVScroll.set
             self.codeText.tag_config('call_stack_boundary',
+                                     font=self.CODE_FONT + ('overstrike',),
                                      background=self.CALL_STACK_BOUNDARY)
-            
+        
         self.codeText.configure(state=NORMAL)
         
         # Add a call stack boundary line if requested and other code exists
@@ -311,11 +340,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.insert('1.0',
                                  self.codeText.config('width')[-1] * '-' + '\n')
             self.codeText.tag_add('call_stack_boundary', '1.0', '1.end')
-            
+        
         # Add code at top of text widget (above stack boundary, if any)
         self.codeText.insert('1.0', code + '\n')
         self.codeText.see('1.0')
-        
+        self.window.update()
+       
         # Tag the snippets with unique tag name
         for tagName in snippets:
             self.codeText.tag_add(prefix + tagName, *snippets[tagName])
@@ -333,12 +363,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
             highlight = tagName[len(codeHighlightBlock.prefix):] in tags
             self.codeText.tag_config(
                 tagName,
-                background=self.CODE_HIGHLIGHT if highlight else self.OPERATIONS_BG,
+                background=self.CODE_HIGHLIGHT if highlight else '',
                 underline=1 if highlight else 0)
             if highlight:
                 ranges = self.codeText.tag_ranges(tagName)
                 if len(ranges) > 0:
                     self.codeText.see(ranges[0])
+        
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
@@ -374,13 +405,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def cleanUpCallEnviron(self, callEnviron): # Clean up a call on the stack
         while len(callEnviron):
             thing = callEnviron.pop()
-            if isinstance(thing, (str, int)):  # Canvas item IDs
+            if isinstance(thing, (str, int)) and self.canvas.type(thing):
                 self.canvas.delete(thing)
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
-                last_index = self.codeText.index(END)
+                last_line = int(float(self.codeText.index(END)))
                 self.codeText.delete(
-                    '1.0', min(last_index, '{}.0'.format(thing.lines + 2)))
+                    '1.0', '{}.0'.format(min(last_line, thing.lines + 2)))
                 self.codeText.configure(state=DISABLED)
 
     def createCallEnvironment( # Create a call environment on the call stack
@@ -620,10 +651,29 @@ class CodeHighlightBlock(object):
                  code,       # and makes a unique prefix for snippet keys
                  snippets):  # to translate them into a unique tag name
         self.code = code.strip()
-        self.lines = len(self.code.split('\n')) + 1 if len(code) > 0 else 0
+        self.lines = len(self.code.split('\n')) if len(code) > 0 else 0
         self.snippets = snippets
         self.prefix = '{:04d}-'.format(self.counter)
         CodeHighlightBlock.counter += 1
 
 class UserStop(Exception):   # Exception thrown when user stops animation
     pass
+
+# Tk widget utilities
+
+# Tkinter returns a string with a large integer followed by <lambda>
+# as a handler ID.  The calls to .bind() without a handler function
+# return an executable Python string containing handler IDs.  This
+# regular expression extracts the identifier from the executable
+# Python string.  The re.sub function is used on the compiled regex to
+# run a function on each handler ID in the the binding string.
+bindingID = re.compile(r'\d+<lambda>', re.IGNORECASE)
+
+def deleteHintHandler(hint, textEntry):
+    "Remove a hint when clicked or when text is first entered in textEntry"
+    return lambda event: (
+        textEntry.focus_set() if event.widget == hint else 0) or (
+            hint.destroy() or
+            # Remove any bound handlers the textEntry has for <FocusIn> events
+            bindingID.sub(lambda ID: textEntry.unbind(ID),
+                          textEntry.bind('<FocusIn>')))
