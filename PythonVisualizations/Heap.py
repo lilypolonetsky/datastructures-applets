@@ -140,7 +140,7 @@ class Heap(VisualizationApp):
             return         
         
         for i in range(len(self.list)-1, 0, -1):
-            if self.list[i] < self.list[(i - 1) // 2]:  #if i is less than its parent 
+            if self.list[i] > self.list[(i - 1) // 2]:  #if i is less than its parent 
                 self.swap(i, (i-1)//2)
                     
         callEnviron.discard(cellPair)
@@ -247,8 +247,8 @@ class Heap(VisualizationApp):
 
         # numArguments decides the side where the button appears in the operations grid
         insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), numArguments=1)
-        newHeapButton = self.addOperation(
+            "Insert", lambda: self.clickInsert(), numArguments=1, validationCmd=vcmd)
+        newHeapButton = self.addOperation( 
             "New", lambda: self.newArray())
 
         return [insertButton, newHeapButton]
