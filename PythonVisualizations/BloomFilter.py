@@ -10,7 +10,7 @@ except ModuleNotFoundError:
     from .VisualizationApp import *
 
 # Regular expression for false positive fraction
-fraction = re.compile(r'0?.\d+')
+fraction = re.compile(r'0*\.\d+')
 
 class BloomFilter(VisualizationApp):
     CANVAS_WIDTH=800
@@ -104,7 +104,7 @@ class BloomFilter(VisualizationApp):
         self.__displayList = [0] * self.__size
         self.__inserted = set([])
         self.display()
-        return ''
+        return 'New Bloom filter using {} bits'.format(self.__size)
         
     # ANIMATION METHODS
 
@@ -266,8 +266,9 @@ class BloomFilter(VisualizationApp):
             msg += 'Must provide number of hashes. '
         if fraction.match(probability):
             probability = float(probability)
-        else:
-            msg += 'False positive must be fraction like .05'
+        if not isinstance(probability, float) or (
+                probability <= 0 or 1 <= probability):
+            msg += 'False positive rate must be a fraction like .05'
         if msg:
             self.setMessage(msg)
             return
@@ -293,7 +294,7 @@ class BloomFilter(VisualizationApp):
         self.showInserts.set(1)
         showInsertsButton = self.addOperation(
             "Show inserted", self.clickShowInserts, buttonType=Checkbutton,
-            variable=self.showInserts)
+            variable=self.showInserts, cleanUpBefore=False)
         self.addAnimationButtons()
         return [findButton, insertButton, newButton, showInsertsButton]
 
