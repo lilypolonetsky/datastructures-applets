@@ -170,21 +170,12 @@ class BinaryTreeBase(VisualizationApp):
 
       return max(self.getHeight(rightChild), self.getHeight(leftChild)) + 1
 
-   # returns the node's left line
-   def getLeftLine(self, node):
+   # returns the line pointing to the node
+   def getLine(self, node):
       # get all the items with the node's tag
       nodeFamily = set(self.canvas.find_withtag(node.tag))
-      # get all the lines that are left
-      lines = set(self.canvas.find_withtag("left line"))
-
-      return (lines & nodeFamily).pop()
-
-    # returns the node's left line
-   def getRightLine(self, node):
-      # get all the items with the node's tag
-      nodeFamily = set(self.canvas.find_withtag(node.tag))
-      # get all the lines that are left
-      lines = set(self.canvas.find_withtag("right line"))
+      # get all the line
+      lines = set(self.canvas.find_withtag("line"))
 
       return (lines & nodeFamily).pop()
       
@@ -241,17 +232,13 @@ class BinaryTreeBase(VisualizationApp):
 
    # calculate the coordinates for the line attached to the node
    def calculateLineCoordinates(self, node):
-      x1 = node.coords[0]
-      y1 = node.coords[1] +self.CIRCLE_SIZE
+      # get node's parent
+      parent = self.getParent(node)
 
-      # where would the child be drawn?
-      level = self.getLevel(node)+1
-      x2, y2 = self.calculateCoordinates(node, level, Child.LEFT)
-      x3, y3 = self.calculateCoordinates(node, level, Child.RIGHT)
-      y2 -= self.CIRCLE_SIZE
-      y3 -= self.CIRCLE_SIZE
+      x1 = parent.coords[0]
+      y1 = parent.coords[1] +self.CIRCLE_SIZE
 
-      return [(x1, y1, x2, y2), (x1, y1, x3, y3)]
+      return (x1, y1, node.coords[0], node.coords[1])
 
    # highlight the left line of the node
    def highlightLeftLine(self, node, color = "red"):
@@ -323,56 +310,9 @@ class BinaryTreeBase(VisualizationApp):
       circle = self.canvas.create_circle(x, y, self.CIRCLE_SIZE, tag = tag)
       circle_text = self.canvas.create_text(x,y, text=key, font=self.VALUE_FONT, tag = tag)
 
-      # get rid of the none shape that was in its spot
-      items = set(self.canvas.find_overlapping(*(self.canvas.coords(circle))))
-      noneShape = set(self.canvas.find_withtag("none"))
-      noneItems = (items & noneShape)
-      
-      while len(noneItems) > 0:
-         self.canvas.delete(noneItems.pop())
-
       self.canvas.update()
 
       return circle, circle_text
-
-   # creates the none shape that nodes will point to
-   # line coords should be the coords of the line that points to none
-   def createNoneShape(self, node, level, lineCoords, direction, tag):
-      y = lineCoords[3] + (self.CIRCLE_SIZE // 2)
-      xCoord = self.calculateCoordinates(node, level+1, direction)[0]
-
-      shrinkFactor = self.CIRCLE_SIZE // 3
-
-      coords1 = ( xCoord-self.CIRCLE_SIZE, y, 
-                  xCoord+self.CIRCLE_SIZE, y)
-      coords2 = (  shrinkFactor + coords1[0], coords1[1] + shrinkFactor,
-                  -shrinkFactor + coords1[2], coords1[3] + shrinkFactor)
-      coords3 = (  shrinkFactor + coords2[0], coords2[1] + shrinkFactor, 
-                  -shrinkFactor + coords2[2], coords2[3] + shrinkFactor)
-
-      self.canvas.create_line(coords1, tag = (tag, "none"))
-      self.canvas.create_line(coords2, tag = (tag, "none"))
-      self.canvas.create_line(coords3, tag = (tag, "none"))
-
-   def removeNoneShapes(self, node):
-      # get the none shapes associated with the node
-      nodeShapes = set(self.canvas.find_withtag(node.tag))
-      noneShape = set(self.canvas.find_withtag("none"))
-      noneItems = (nodeShapes & noneShape)
-
-      while len(noneItems) > 0:
-         self.canvas.delete(noneItems.pop())
-
-   # delete the node's drawing
-   def removeNodeDrawing(self, node):
-      leftChild = self.getLeftChild(node)
-      rightChild =  self.getRightChild(node)
-
-      self.canvas.delete(node.drawable.display_val)
-      self.canvas.delete(node.drawable.display_shape)
-      self.canvas.delete(self.getRightLine(node))
-      self.canvas.delete(self.getLeftLine(node))
-      self.removeNoneShapes(node)
 
    def restoreNodesPosition(self, moveItems, sleepTime=0.1):
       # get the coords for the node to move to
@@ -385,17 +325,14 @@ class BinaryTreeBase(VisualizationApp):
       moveItemsTags = [node.tag for node in moveItems]
       self.moveItemsTo(moveItemsTags, moveCoords, sleepTime=sleepTime)
 
+      # fix the lines
       for node in moveItems:
-         # fix the lines
-         leftLine, rightLine = self.calculateLineCoordinates(node)
-         self.canvas.coords(self.getLeftLine(node), leftLine)
-         self.canvas.coords(self.getRightLine(node), rightLine)
-
-         # fix the none shapes
-         level = self.getLevel(node)
-         self.removeNoneShapes(node)
-         self.createNoneShape(node, level, leftLine, Child.LEFT, node.tag) if not self.getLeftChild(node) else None
-         self.createNoneShape(node, level, rightLine, Child.RIGHT, node.tag) if not self.getRightChild(node) else None
+         # get the coordinates of where it should be
+         lineCoords = self.calculateLineCoordinates(node)
+         # get the line
+         line = self.getLine(node)
+         
+         self.canvas.coords(line, lineCoords)
 
    # ----------- SETTER METHODS --------------------
    
@@ -429,13 +366,9 @@ class BinaryTreeBase(VisualizationApp):
       self.setChildNode(node, direction, parent)
 
       # draw the lines
-      leftLine, rightLine = self.calculateLineCoordinates(node)
-      self.canvas.create_line(*leftLine, tags = (tag, "left line"))
-      self.canvas.create_line(*rightLine, tags = (tag, "right line"))
-
-      # draw the none symbols
-      self.createNoneShape(node, level, leftLine, Child.LEFT, tag)
-      self.createNoneShape(node, level, rightLine, Child.RIGHT, tag)
+      if parent:
+         lineCoords = self.calculateLineCoordinates(node)
+         self.canvas.create_line(*lineCoords, tags = (tag, "line"))
 
       return node 
 
