@@ -57,6 +57,9 @@ class SkipList(VisualizationApp):
         
         if self.__numLinks == self.maxInserts(): return False
         
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
+        
         update = [None] * self.__maxLevel
         x = self.__header
         
@@ -81,6 +84,7 @@ class SkipList(VisualizationApp):
             # don't allow duplicates
             if x.forward[i] and insertKey == x.forward[i].key:
                 self.unHighlightNode(x)
+                self.cleanUp(callEnviron)
                 return False 
             
             update[i] = x     
@@ -105,11 +109,17 @@ class SkipList(VisualizationApp):
         
         # Complete draw of the Link onto canvas if animation
         self.completeDraw(x, update)
-        
+           
         self.__numLinks += 1
+        
+        # Finish animation
+        self.cleanUp(callEnviron) 
         return True
     
+     
     def search(self, key):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
         
         x = self.__header
         
@@ -135,14 +145,21 @@ class SkipList(VisualizationApp):
                 self.unHighlightNode(x)
                 self.unHighlightArrow(x, i)
                 self.blink(x.forward[i], "blue")
+                self.cleanUp(callEnviron)
                 return True 
            
             self.unHighlightArrow(x, i)
         
-        self.unHighlightNode(x)    
+        self.unHighlightNode(x) 
+        
+        # Finish animation
+        self.cleanUp(callEnviron)
         return False
     
     def delete(self, key):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()  
+        
         found = False
         x = self.__header
         
@@ -175,9 +192,15 @@ class SkipList(VisualizationApp):
         self.unHighlightNode(x)
         if found: self.deleteVisualNode(found)
         if found: self.__numLinks -= 1
+        
+        # Finish animation
+        self.cleanUp(callEnviron) 
+        
         return found != False
         
     def fill(self, num):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
         
         if num > self.maxInserts(): num = self.maxInserts()
         self.__numLinks = 0
@@ -195,7 +218,10 @@ class SkipList(VisualizationApp):
             while True:
                 r = random.randint(1, 99)
                 if self.insert(r): break
-            
+                
+        # Finish animation
+        self.cleanUp(callEnviron) 
+        
     def __randomLevel(self):
         level = 1
         while random.random() < 0.5 and \
@@ -577,9 +603,9 @@ class SkipList(VisualizationApp):
         fillButton = self.addOperation(
             "Fill", lambda: self.clickFill(), numArguments=1, 
             validationCmd=vcmd)
-        # this makes the pause, play and stop buttons 
+        # this makes the play, pause, and stop buttons 
         self.addAnimationButtons()
-        return [searchButton, insertButton, deleteButton, fillButton]
+        return [searchButton, insertButton, deleteButton, fillButton]  
     
     def validArgument(self):
         entered_text = self.getArgument()
@@ -595,7 +621,7 @@ class SkipList(VisualizationApp):
             self.setMessage("Input must be an integer from 0 to 99")
         else:
             result = self.search(val)
-            if result == True:
+            if result:
                 msg = "Found {}".format(val)
             else:
                 msg = "Value {} not found".format(val)
@@ -608,10 +634,10 @@ class SkipList(VisualizationApp):
             self.setMessage("Input must be an integer from 0 to 99")
         else:
             result = self.insert(val)
-            if result == False:
-                msg = "Error! Unable to insert"
+            if result:
+                msg = "Value {} inserted".format(val) 
             else:
-                msg = "Value {} inserted".format(val)
+                msg = "Error! Unable to insert" 
             self.setMessage(msg)
         self.clearArgument()
      
