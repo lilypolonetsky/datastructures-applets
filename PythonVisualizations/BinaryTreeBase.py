@@ -305,11 +305,9 @@ class BinaryTreeBase(VisualizationApp):
       self.canvas.itemconfig(node.drawable.display_val, fill="black")
 
    # draws the circle and the key value
-   def createNodeShape(self, x, y, key, tag):
-      circle = self.canvas.create_circle(x, y, self.CIRCLE_SIZE, tag = tag)
+   def createNodeShape(self, x, y, key, tag, color= drawable.palette[2]):
+      circle = self.canvas.create_circle(x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
       circle_text = self.canvas.create_text(x,y, text=key, font=self.VALUE_FONT, tag = tag)
-
-      self.canvas.update()
 
       return circle, circle_text
 
@@ -367,7 +365,9 @@ class BinaryTreeBase(VisualizationApp):
       # draw the lines
       if parent:
          lineCoords = self.calculateLineCoordinates(node)
-         self.canvas.create_line(*lineCoords, tags = (tag, "line"))
+         line = self.canvas.create_line(*lineCoords, tags = (tag, "line"))
+         # the line should be beneath the circle
+         self.canvas.tag_lower(line)
 
       return node 
 
