@@ -250,7 +250,7 @@ class OrderedArray(VisualizationApp):
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
                 i, n.val, n.color)
-            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
+            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
 
         self.window.update()
 
@@ -283,8 +283,6 @@ class OrderedArray(VisualizationApp):
         
         self.window.update()
         self.cleanUp(callEnviron)
-  #create binary find and linear find
-
 
     def find(self, val):
         callEnviron = self.createCallEnvironment()
