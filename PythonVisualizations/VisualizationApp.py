@@ -96,6 +96,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             canvasHeight=400,
             maxArgWidth=3,  # Maximum length/width of text arguments
     ):
+        self.title = title
         # Set up Tk windows for canvas and operational controls
         if window:
             self.window = window
