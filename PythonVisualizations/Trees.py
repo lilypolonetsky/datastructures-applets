@@ -148,15 +148,11 @@ class BinaryTree(BinaryTreeBase):
 
         # node with key does not exist
          if not cur: return None
-                
-        # node with key does exist
-        # determine the direction of cur
-         direction = self.getChildDirection(cur)
 
         # go through the process of deleting the item
-         return self.__delete(parent, cur, direction)
+         return self.__delete(parent, cur)
         
-    def __delete(self, parent, cur, direction):
+    def __delete(self, parent, cur):
         # get rid of the highlighted value
         self.cleanUp()
 
@@ -166,15 +162,11 @@ class BinaryTree(BinaryTreeBase):
 
         #save the deleted key and its index
         deleted = cur.getKey()
-
-        #remove the drawing
-        self.removeNodeDrawing(cur)
         
         #determine the correct process for removing the node from the tree
         if self.getLeftChild(cur):
-            if self.getRightChild(cur):                                              # cur has left and right child
-                self.__promoteSuccessor(parent, cur, direction)
-            
+            if self.getRightChild(cur):                                             # cur has left and right child                                             
+                self.__promoteSuccessor(cur, callEnviron)
             else:                                                                   # cur only has left child
                 # get cur's left child that will be moving up
                 curLeft = self.getLeftChild(cur)
@@ -196,6 +188,7 @@ class BinaryTree(BinaryTreeBase):
                     self.removeAndReconnectNodes(cur, parent, 
                                             self.setRightChild, 
                                             curLeft, curLeftChildren)
+                self.removeNodeDrawing(cur)  
         else:                                                                       #a right child exists or no children
             # get cur's right child that will be moving up
             curRight = self.getRightChild(cur)
@@ -217,6 +210,8 @@ class BinaryTree(BinaryTreeBase):
                 self.removeAndReconnectNodes(cur, parent, 
                                             self.setRightChild, 
                                             curRight, curRightChildren)
+            
+            self.removeNodeDrawing(cur)
 
         self.cleanUp(callEnviron)
         return deleted
@@ -241,91 +236,54 @@ class BinaryTree(BinaryTreeBase):
         self.removeNodeInternal(cur)
 
         # 2. move cur's right/left up
-        if commandToSetChild != self.setRoot:
-            commandToSetChild(parent, curRightOrLeft)
-        else:
-            commandToSetChild(cur)
+        if commandToSetChild != self.setRoot: commandToSetChild(parent, curRightOrLeft)
+        else: commandToSetChild(curRightOrLeft)
 
         # 3. reconnect cur's right/left and its children
         self.reconnect(curRightOrLeft, *curRightOrLeftChildren)
 
         # 4. move cur's right/left and its children up in the drawing
-        # 4a. does cur have children?
+        #does cur have children?
         if curRightOrLeft:
             moveItems = [curRightOrLeft] + self.getAllDescendants(curRightOrLeft)
             self.restoreNodesPosition(moveItems)
-        # 4b. cur was a leaf, redraw none shape in new location
-        else:
-            # did we remove a left node?
-            if commandToSetChild == self.setLeftChild:
-                self.createNoneShape(parent, 
-                                self.getLevel(parent), 
-                                self.canvas.coords(self.getLeftLine(parent)), 
-                                Child.LEFT, 
-                                parent.tag)
-            # did we remove a right node?
-            elif commandToSetChild == self.setRightChild:
-                self.createNoneShape(parent, 
-                                self.getLevel(parent), 
-                                self.canvas.coords(self.getRightLine(parent)), 
-                                Child.RIGHT, 
-                                parent.tag)
 
-    def __promoteSuccessor(self, parent, node, direction):
+        self.redrawLines()
+
+    def __promoteSuccessor(self, node, callEnviron):
         successor = self.getRightChild(node)
-        self.highlightCircle(successor)
-        newParent = node
+        parent = node
+
+        self.createHighlightedLine(successor, callEnviron=callEnviron)
                 
         #hunt for the right child's most left child
-        self.highlightLeftLine(successor)
-        self.wait(0.2)
-        self.unHighlightCircle(successor)
         while self.getLeftChild(successor):
-            newParent = successor
+            parent = successor
             successor = self.getLeftChild(successor)
+            
             self.wait(0.2)
-            self.unHighlightLeftLine(newParent)
-            self.highlightLeftLine(successor)
+            self.createHighlightedLine(successor, callEnviron=callEnviron)
 
         self.wait(0.2)
-        self.unHighlightLeftLine(successor)
-        self.highlightCircle(successor)
-        self.wait(0.2)
-        self.unHighlightCircle(successor)
+        self.createHighlightedCircle(successor, callEnviron=callEnviron)
 
-        # delete the node that is to be deleted
-        self.removeNodeInternal(node)
+        # replace node to delete with successor's key and data
+        newSuccessor = self.copyNode(successor)
+        callEnviron |= set((newSuccessor,))
+        
+        # a. internal replacement
+        newSuccessor.coords = node.coords
+        deletedIndex = self.getIndex(node)
+        self.nodes[deletedIndex] = newSuccessor
+        
+        # b. drawing replacement
+        self.restoreNodesPosition((newSuccessor,))
+        callEnviron.remove(newSuccessor)
+        self.removeNodeDrawing(node)
 
-        # copy the items associated with successor
-        # 1. generate a new tag
-        newTag = self.generateTag()
-        # 2. copy the circle and the value
-        circle = self.copyCanvasItem(successor.drawable.display_shape)
-        circle_text = self.copyCanvasItem(successor.drawable.display_val)
-        # 3. add the appropiate tags
-        self.canvas.itemconfig(circle, tags=(newTag))
-        self.canvas.itemconfig(circle_text, tags=(newTag))
-        # 4. create a drawable
-        successorCopyDrawable = drawable(successor.getKey(), self.canvas.itemconfigure(circle, 'fill')[-1], *(circle, circle_text))
-
-        # 5. create the lines
-        leftLine = self.copyCanvasItem(self.getLeftLine(successor))
-        rightLine = self.copyCanvasItem(self.getRightLine(successor))
-        # 6. add the appropiate tags
-        self.canvas.itemconfig(leftLine, tags=(newTag, "left line"))
-        self.canvas.itemconfig(rightLine, tags=(newTag, "right line"))
-        # 7. create the node object
-        successorCopy = Node(successorCopyDrawable, successor.coords, newTag)
-
-        # insert the successor internally
-        if direction == Child.RIGHT: self.setRightChild(parent, successorCopy)
-        else: self.setLeftChild(parent, successorCopy)
-
-        self.restoreNodesPosition([successorCopy])
-
-        self.wait(0.2)
-
-        self.__delete(newParent, successor, Child.LEFT)
+        # remove successor node
+        if parent is node: parent = newSuccessor
+        self.__delete(parent, successor)
 
     def validArgument(self):
         entered_text = self.getArgument()

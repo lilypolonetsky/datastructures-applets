@@ -170,13 +170,17 @@ class BinaryTreeBase(VisualizationApp):
       return max(self.getHeight(rightChild), self.getHeight(leftChild)) + 1
 
    # returns the line pointing to the node
-   def getLine(self, node):
-      # get all the items with the node's tag
-      nodeFamily = set(self.canvas.find_withtag(node.tag))
-      # get all the line
-      lines = set(self.canvas.find_withtag("line"))
+   def getLine(self, node, highlight=False):
+      coords = self.calculateLineCoordinates(node)
+      # is there a line in these coords?
+      overlap = set(self.canvas.find_overlapping(*coords))
 
-      return (lines & nodeFamily).pop()
+      if not highlight: line = set(self.canvas.find_withtag("line"))
+      else: line = set(self.canvas.find_withtag("highlight line"))
+
+      foundLine = (overlap & line)
+      if len(foundLine) > 1 and node: return set(self.canvas.find_withtag(node.tag + " line")).pop()
+      else: return foundLine.pop() if len(foundLine) > 0 else None 
       
    # returns a tuple of the left and right child of node
    def getChildren(self, node):
@@ -239,70 +243,38 @@ class BinaryTreeBase(VisualizationApp):
 
       return (x1, y1, node.coords[0], node.coords[1])
 
-   # highlight the left line of the node
-   def highlightLeftLine(self, node, color = "red"):
-      # get all the items with the node's tag
-      nodeFamily = set(self.canvas.find_withtag(node.tag))
-      # get all the lines that are left
-      lines = set(self.canvas.find_withtag("left line"))
+   def calculateParentLineCoordinates(self, parent, direction):
+      x1 = parent.coords[0]
+      y1 = parent.coords[1] +self.CIRCLE_SIZE
 
-      line = (lines & nodeFamily).pop()
+      coords = self.calculateCoordinates(parent, self.getLevel(parent)+1, direction)
+      return (x1, y1, coords[0], coords[1])
 
-      self.canvas.itemconfig(line, fill=color)
+   # highlight or unhighlight the line that points to the node
+   def createHighlightedLine(self, node, callEnviron=None, color= drawable.palette[0]):
+      line = self.getLine(node)
+      highlightLine = self.copyCanvasItem(line)
+      self.canvas.tag_raise(node.drawable.display_shape)
+      self.canvas.tag_raise(node.drawable.display_val)
 
-   # unhighlight the left line of the node
-   def unHighlightLeftLine(self, node):
-      # get all the items with the node's tag
-      nodeFamily = set(self.canvas.find_withtag(node.tag))
-      # get all the lines that are left
-      lines = set(self.canvas.find_withtag("left line"))
+      self.canvas.itemconfig(highlightLine, fill=color, width=2, tags= "highlight line")
 
-      line = (lines & nodeFamily).pop()
+      if callEnviron: callEnviron |= set((highlightLine,))
 
-      self.canvas.itemconfig(line, fill="black")
+      return highlightLine
 
-   # highlight the right line of the node
-   def highlightRightLine(self, node, color="red"):
-      # get all the items with the node's tag
-      nodeFamily = set(self.canvas.find_withtag(node.tag))
-      # get all the lines that are left
-      lines = set(self.canvas.find_withtag("right line"))
+   def createHighlightedCircle(self, node, callEnviron=None, color=drawable.palette[0]):
+      circle = self.copyCanvasItem(node.drawable.display_shape)
+      self.canvas.itemconfig(circle, outline=color, fill= '', width=2)
 
-      line = (lines & nodeFamily).pop()
+      if callEnviron: callEnviron |= set((circle,))
 
-      self.canvas.itemconfig(line, fill= color)
-
-   # unhighlight the right line of the node
-   def unHighlightRightLine(self, node):
-      # get all the items with the node's tag
-      nodeFamily = set(self.canvas.find_withtag(node.tag))
-      # get all the lines that are left
-      lines = set(self.canvas.find_withtag("right line"))
-
-      line = (lines & nodeFamily).pop()
-
-      self.canvas.itemconfig(line, fill="black")
-
-   # highlight the circle associated with the node
-   def highlightCircle(self, node, color="red"):
-      self.canvas.itemconfig(node.drawable.display_shape, outline=color)
-
-   # unhighlight the circle associated with the node
-   def unHighlightCircle(self, node):
-      self.canvas.itemconfig(node.drawable.display_shape, outline="black")
+      return circle
 
    # creates a highlighted value on top of the normal value associated with the node
-   def createHighlightedValue(self, node, color="green"):
+   def createHighlightedValue(self, node, color=drawable.palette[0]):
       return self.canvas.create_text(node.coords[0], node.coords[1], text=node.getKey(), font=self.VALUE_FONT,
                                                fill=color)
-
-   # highlight the value associated with the node
-   def highlightValue(self, node, color="red"):
-      self.canvas.itemconfig(node.drawable.display_val, fill=color)
-
-   # unhighlight the value associated with the node
-   def unHighlightValue(self, node):
-      self.canvas.itemconfig(node.drawable.display_val, fill="black")
 
    # draws the circle and the key value
    def createNodeShape(self, x, y, key, tag, color= drawable.palette[2]):
@@ -311,25 +283,49 @@ class BinaryTreeBase(VisualizationApp):
 
       return circle, circle_text
 
+   # moves all the nodes in moveItems to their proper place (as defined by their place in the array)
    def restoreNodesPosition(self, moveItems, sleepTime=0.1):
       # get the coords for the node to move to
       moveCoords = []
       for node in moveItems:
-         node.coords = self.calculateCoordinates(self.getParent(node),self.getLevel(node), self.getChildDirection(node))
+         node.coords = self.calculateCoordinates(self.getParent(node), self.getLevel(node), self.getChildDirection(node))
          moveCoords.append(( node.coords[0]-self.CIRCLE_SIZE, node.coords[1]-self.CIRCLE_SIZE,
                               node.coords[0]+self.CIRCLE_SIZE, node.coords[1]+self.CIRCLE_SIZE))
       
       moveItemsTags = [node.tag for node in moveItems]
       self.moveItemsTo(moveItemsTags, moveCoords, sleepTime=sleepTime)
 
-      # fix the lines
-      for node in moveItems:
-         # get the coordinates of where it should be
-         lineCoords = self.calculateLineCoordinates(node)
-         # get the line
-         line = self.getLine(node)
-         
-         self.canvas.coords(line, lineCoords)
+   # draw a line pointing to node
+   def createLine(self, node):
+      lineCoords = self.calculateLineCoordinates(node)
+      line = self.canvas.create_line(*lineCoords, tags = ("line", node.tag + " line"))
+      self.canvas.tag_raise(node.drawable.display_shape)
+      self.canvas.tag_raise(node.drawable.display_val)
+
+   # remove all the line drawings
+   def clearAllLines(self):
+      self.canvas.delete("line")
+
+   # draw all the lines
+   def drawAllLines(self):
+      cur = self.getRoot()
+      if cur:
+         left = self.getLeftChild(cur)
+         right = self.getRightChild(cur)
+         self.__drawLines(left, right)
+
+   def __drawLines(self, left, right):
+      if left: 
+         self.createLine(left)
+         self.__drawLines(self.getLeftChild(left), self.getRightChild(left))
+      if right: 
+         self.createLine(right)
+         self.__drawLines(self.getLeftChild(right), self.getRightChild(right))
+
+   # remove any existing lines and draw lines
+   def redrawLines(self):
+      self.clearAllLines()
+      self.drawAllLines()
 
    # ----------- SETTER METHODS --------------------
    
@@ -365,11 +361,30 @@ class BinaryTreeBase(VisualizationApp):
       # draw the lines
       if parent:
          lineCoords = self.calculateLineCoordinates(node)
-         line = self.canvas.create_line(*lineCoords, tags = (tag, "line"))
+         line = self.canvas.create_line(*lineCoords, tags = ("line", node.tag+" line"))
          # the line should be beneath the circle
          self.canvas.tag_lower(line)
 
       return node 
+
+   # create a copy of a Node object
+   def copyNode(self, node):
+      # create a tag
+      tag = self.generateTag()
+
+      # get the circle and key drawing
+      circle, circle_text = self.createNodeShape(*(node.coords), node.getKey(), tag)
+
+      # get the key
+      key = node.getKey()
+      # create the drawable obj
+      drawableObj = drawable(key, self.canvas.itemconfigure(circle, 'fill')[-1], circle, circle_text)
+
+      # add the tag
+      self.canvas.itemconfig(circle, tags=tag)
+      self.canvas.itemconfig(circle_text, tags=tag)
+      
+      return Node(drawableObj, node.coords, tag)
 
    def setRoot(self, node):
       self.nodes[0] = node
@@ -415,6 +430,19 @@ class BinaryTreeBase(VisualizationApp):
       self.size = 0
       self.nodes = [None] * (2**self.MAX_LEVEL)
 
+   # remove the node's drawing
+   def removeNodeDrawing(self, node, line=False):
+      # should the line pointing to the node be removed?
+      if line: self.removeLine(node)
+
+      self.canvas.delete(node.tag)
+
+   # remove the line that was pointing to node
+   def removeLine(self, node):
+      line = self.getLine(node)
+      if line: self.canvas.delete(line)
+
+   # remove the node from the internal array
    def removeNodeInternal(self, node):
       self.nodes[self.getIndex(node)] = None
       self.size -= 1
