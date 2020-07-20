@@ -12,11 +12,12 @@ except ModuleNotFoundError:
     from .BinaryTreeBase import *
 
 class BinaryTree(BinaryTreeBase):
-   def __init__(self):
-      super().__init__()
+   def __init__(self, x0=0, y0=0, x1=800, y1=400):
+      super().__init__(x0, y0, x1, y1)
       self.buttons = self.makeButtons()
       
-   def insert(self):
+   def example(self):
+      self.canvas.delete("all")
       callEnviron = self.createCallEnvironment()
       self.startAnimations()
 
@@ -26,32 +27,48 @@ class BinaryTree(BinaryTreeBase):
       node4 = self.createNode(70, node3, Child.RIGHT)
       node5 = self.createNode(80, node4, Child.RIGHT)
 
+      self.setMessage('Create node 30')
       self.wait(0.5)
       node6 = self.createNode(30, node2, Child.LEFT)
+
+      self.setMessage('Create node 35')
       self.wait(0.5)
       node7 = self.createNode(35, node6, Child.RIGHT)
+      
+      self.setMessage('Create node 37')
       self.wait(0.5)
       node8 = self.createNode(37, node7, Child.RIGHT)
 
-      self.highlightLeftLine(node1)
+      self.setMessage('Highlight left child link of root')
       self.wait(0.5)
-      self.unHighlightLeftLine(node1)
-      self.wait(0.5)
-      self.highlightRightLine(node2)
-      self.wait(0.5)
-      self.unHighlightRightLine(node2)
+      highlight2 = self.createHighlightedLine(node2)
 
-      self.highlightCircle(node1)
-      self.highlightValue(node1)
+      self.setMessage('Highlight right child link of root')
       self.wait(0.5)
-      self.unHighlightCircle(node1)
-      self.unHighlightValue(node1)
+      highlight3 = self.createHighlightedLine(node3)
+      
+      self.setMessage('Remove left highlight link')
+      self.wait(0.5)
+      self.canvas.delete(highlight2)
+      
+      self.setMessage('Remove right highlight link')
+      self.wait(0.5)
+      self.canvas.delete(highlight3)
+      self.wait(0.5)
+
+      self.setMessage('Highlight root node')
+      self.wait(0.5)
+      highlight1 = self.createHighlightedCircle(node1, color='red')
+      self.setMessage('Highlight root value')
+      self.wait(0.5)
+      highlight2 = self.createHighlightedValue(node1, color='green')
+      self.wait(0.5)
       self.cleanUp(callEnviron)
       
    def makeButtons(self):
       vcmd = (self.window.register(numericValidate),
                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-      exampleButton = self.addOperation("Fill example", self.insert)
+      exampleButton = self.addOperation("Fill example", self.example)
       newButton = self.addOperation("New", self.emptyTree)
       self.addAnimationButtons()
       return [exampleButton, newButton]

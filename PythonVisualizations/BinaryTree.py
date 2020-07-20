@@ -11,8 +11,10 @@ except ModuleNotFoundError:
     from .BinaryTreeBase import *
 
 class BinaryTree(BinaryTreeBase):
-    def __init__(self, title="Binary Search Tree", **kwargs):
-        super().__init__(title=title, canvasWidth=1000, canvasHeight=400, **kwargs)
+    def __init__(self, canvasWidth=800, canvasHeight=400, title="Binary Search Tree", **kwargs):
+        super().__init__(0, 0, canvasWidth, canvasHeight, title=title,
+                         canvasWidth=canvasWidth, canvasHeight=canvasHeight, 
+                         **kwargs)
         self.buttons = self.makeButtons()
         self.title = title
 
@@ -135,7 +137,10 @@ class BinaryTree(BinaryTreeBase):
                 self.wait(0.3)
 
             if level >= self.MAX_LEVEL and not inserted:
-                self.setMessage("Error! Can't go down another level. Maximum depth of tree is " + str(self.MAX_LEVEL)) if animation else None
+                if animation:
+                    self.setMessage(
+                        "Error! Cannot insert at level " + str(level) + 
+                        " or below")
                 self.cleanUp(callEnviron)
                 return False
 

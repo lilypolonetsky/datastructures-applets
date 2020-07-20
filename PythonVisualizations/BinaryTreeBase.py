@@ -34,23 +34,24 @@ class BinaryTreeBase(VisualizationApp):
    VALUE_FONT = ('Helvetica', FONT_SIZE)
    FOUND_FONT = ('Helvetica', FONT_SIZE)
 
-   CIRCLE_SIZE = 15
-
-   def __init__(self, title="Tree", CIRCLE_SIZE = 15, 
-               ROOT_X0 = 500, ROOT_Y0 = CIRCLE_SIZE + 10, 
-               NODE_X_GAP = 400, NODE_Y_GAP = 75,
+   def __init__(self, X0, Y0, X1, Y1, CIRCLE_SIZE = 15, 
                ARROW_HEIGHT = 30,MAX_LEVEL = 5, **kwargs):
-      super().__init__(title=title, **kwargs)
+      """Build a VisualizationApp that will show a binary tree on part of the
+      canvas within the rectangle bounded by (X0, Y0) and (X1, Y1).
+      CIRCLE_SIZE is the radius of the circles used for each node in the tree.
+      ARROW_HEIGHT is the length of a pointer arrow to point at a node.
+      MAX_LEVEL is one more than the maximum node level allowed in the tree.
+      """
+      super().__init__(**kwargs)
       
-      self.title = title
-
-      self.CIRCLE_SIZE = CIRCLE_SIZE         # size of each node
-      self.ROOT_X0 = ROOT_X0                 # root's x position
-      self.ROOT_Y0 = ROOT_Y0                 # root's y position
-      self.NODE_X_GAP = NODE_X_GAP           # the horizontal gap between each node (modified for each level)
-      self.NODE_Y_GAP = NODE_Y_GAP           # the vertical gap between each node (modified for each level)
-      self.ARROW_HEIGHT = ARROW_HEIGHT       # the arrow's height
-      self.MAX_LEVEL = MAX_LEVEL             # the maximum level that the tree can reach
+      self.CIRCLE_SIZE = CIRCLE_SIZE         # radius of each node
+      self.ARROW_HEIGHT = ARROW_HEIGHT       # indicator arrow height
+      self.MAX_LEVEL = MAX_LEVEL             # the max level of the tree plus 1
+      self.ROOT_X0 = (X0 + X1) // 2          # root center's x position
+      self.ROOT_Y0 = Y0 + ARROW_HEIGHT + CIRCLE_SIZE # root center's y position
+      self.TREE_WIDTH = X1 - X0 - 2 * CIRCLE_SIZE # max tree width
+      # the vertical gap between levels
+      self.LEVEL_GAP = (Y1 - CIRCLE_SIZE - self.ROOT_Y0) / max(1, MAX_LEVEL - 1)
 
       # tree will be stored in array
       # root will be index 0
@@ -229,33 +230,25 @@ class BinaryTreeBase(VisualizationApp):
         if level == 0:
             return self.ROOT_X0, self.ROOT_Y0
         elif childDirection == Child.LEFT:
-            return parent.coords[0] - 1/2**level* (self.NODE_X_GAP-self.CIRCLE_SIZE), self.ROOT_Y0+level* self.NODE_Y_GAP
+            return parent.coords[0] - 1/2**(level+1)* self.TREE_WIDTH, self.ROOT_Y0+level* self.LEVEL_GAP
         else:
-            return parent.coords[0] + 1/2**level* (self.NODE_X_GAP-self.CIRCLE_SIZE), self.ROOT_Y0+level* self.NODE_Y_GAP
+            return parent.coords[0] + 1/2**(level+1)* self.TREE_WIDTH, self.ROOT_Y0+level* self.LEVEL_GAP
 
    # calculate the coordinates for the line attached to the node
-   def calculateLineCoordinates(self, node):
+   def calculateLineCoordinates(self, node, parent=None):
       # get node's parent
-      parent = self.getParent(node)
-
-      x1 = parent.coords[0]
-      y1 = parent.coords[1] +self.CIRCLE_SIZE
-
-      return (x1, y1, node.coords[0], node.coords[1])
-
-   def calculateParentLineCoordinates(self, parent, direction):
-      x1 = parent.coords[0]
-      y1 = parent.coords[1] +self.CIRCLE_SIZE
-
-      coords = self.calculateCoordinates(parent, self.getLevel(parent)+1, direction)
-      return (x1, y1, coords[0], coords[1])
+      if parent is None:
+          parent = self.getParent(node)
+      return parent.coords + node.coords
 
    # highlight or unhighlight the line that points to the node
    def createHighlightedLine(self, node, callEnviron=None, color= drawable.palette[0]):
       line = self.getLine(node)
+      if line is None:
+          return
       highlightLine = self.copyCanvasItem(line)
-      self.canvas.tag_raise(node.drawable.display_shape)
-      self.canvas.tag_raise(node.drawable.display_val)
+      self.canvas.tag_lower(highlightLine,
+                            self.getRoot().drawable.display_shape)
 
       self.canvas.itemconfig(highlightLine, fill=color, width=2, tags= "highlight line")
 
@@ -272,9 +265,13 @@ class BinaryTreeBase(VisualizationApp):
       return circle
 
    # creates a highlighted value on top of the normal value associated with the node
-   def createHighlightedValue(self, node, color=drawable.palette[0]):
-      return self.canvas.create_text(node.coords[0], node.coords[1], text=node.getKey(), font=self.VALUE_FONT,
-                                               fill=color)
+   def createHighlightedValue(self, node, callEnviron=None, color=drawable.palette[0]):
+      text = self.canvas.create_text(
+          *node.coords, text=node.getKey(), font=self.VALUE_FONT, fill=color)
+      
+      if callEnviron: callEnviron |= set((text,))
+
+      return text
 
    # draws the circle and the key value
    def createNodeShape(self, x, y, key, tag, color= drawable.palette[2]):
@@ -297,10 +294,10 @@ class BinaryTreeBase(VisualizationApp):
 
    # draw a line pointing to node
    def createLine(self, node):
-      lineCoords = self.calculateLineCoordinates(node)
+      parent = self.getParent(node)
+      lineCoords = self.calculateLineCoordinates(node, parent)
       line = self.canvas.create_line(*lineCoords, tags = ("line", node.tag + " line"))
-      self.canvas.tag_raise(node.drawable.display_shape)
-      self.canvas.tag_raise(node.drawable.display_val)
+      self.canvas.tag_lower(line)
 
    # remove all the line drawings
    def clearAllLines(self):
