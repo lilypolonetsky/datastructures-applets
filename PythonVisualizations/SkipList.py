@@ -57,6 +57,9 @@ class SkipList(VisualizationApp):
         
         if self.__numLinks == self.maxInserts(): return False
         
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
+        
         update = [None] * self.__maxLevel
         x = self.__header
         
@@ -81,6 +84,7 @@ class SkipList(VisualizationApp):
             # don't allow duplicates
             if x.forward[i] and insertKey == x.forward[i].key:
                 self.unHighlightNode(x)
+                self.cleanUp(callEnviron)
                 return False 
             
             update[i] = x     
@@ -105,11 +109,17 @@ class SkipList(VisualizationApp):
         
         # Complete draw of the Link onto canvas if animation
         self.completeDraw(x, update)
-        
+           
         self.__numLinks += 1
+        
+        # Finish animation
+        self.cleanUp(callEnviron) 
         return True
     
+     
     def search(self, key):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
         
         x = self.__header
         
@@ -135,14 +145,21 @@ class SkipList(VisualizationApp):
                 self.unHighlightNode(x)
                 self.unHighlightArrow(x, i)
                 self.blink(x.forward[i], "blue")
+                self.cleanUp(callEnviron)
                 return True 
            
             self.unHighlightArrow(x, i)
         
-        self.unHighlightNode(x)    
+        self.unHighlightNode(x) 
+        
+        # Finish animation
+        self.cleanUp(callEnviron)
         return False
     
     def delete(self, key):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()  
+        
         found = False
         x = self.__header
         
@@ -175,9 +192,15 @@ class SkipList(VisualizationApp):
         self.unHighlightNode(x)
         if found: self.deleteVisualNode(found)
         if found: self.__numLinks -= 1
+        
+        # Finish animation
+        self.cleanUp(callEnviron) 
+        
         return found != False
         
     def fill(self, num):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
         
         if num > self.maxInserts(): num = self.maxInserts()
         self.__numLinks = 0
@@ -195,7 +218,10 @@ class SkipList(VisualizationApp):
             while True:
                 r = random.randint(1, 99)
                 if self.insert(r): break
-            
+                
+        # Finish animation
+        self.cleanUp(callEnviron) 
+        
     def __randomLevel(self):
         level = 1
         while random.random() < 0.5 and \
@@ -563,21 +589,83 @@ class SkipList(VisualizationApp):
         ########################
         
     def makeButtons(self):
-        vcmd = (self.window.register(numericValidate),\
-                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')        
-        self.addOperation("insert", lambda: self.click(self.insert), numArguments=1, validationCmd=vcmd)
-        self.addOperation("delete", lambda: self.click(self.delete), numArguments=1, validationCmd=vcmd)
-        self.addOperation("fill", lambda: self.click(self.fill), numArguments=1, validationCmd=vcmd)
-        self.addOperation("search", lambda: self.click(self.search), numArguments=1, validationCmd=vcmd)
-        self.addAnimationButtons()        
+        vcmd = (self.window.register(numericValidate),
+                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1,
+            validationCmd=vcmd, helpText="Click to enter number")
+        insertButton = self.addOperation(
+            "Insert", lambda: self.clickInsert(), numArguments=1,
+            validationCmd=vcmd)        
+        deleteButton = self.addOperation(
+            "Delete", lambda: self.clickDelete(), numArguments=1,
+            validationCmd=vcmd)
+        fillButton = self.addOperation(
+            "Fill", lambda: self.clickFill(), numArguments=1, 
+            validationCmd=vcmd)
+        # this makes the play, pause, and stop buttons 
+        self.addAnimationButtons()
+        return [searchButton, insertButton, deleteButton, fillButton]  
     
-    # already an onClick()    
-    def click(self, call):
-        val = int(self.getArgument())
-        self.setArgument()
-        self.startAnimations()
-        call(val)
-        self.stopAnimations()
+    def validArgument(self):
+        entered_text = self.getArgument()
+        if entered_text and entered_text.isdigit():
+            val = int(entered_text)
+            if val < 100:
+                return val
+            
+    # Button functions
+    def clickSearch(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input must be an integer from 0 to 99")
+        else:
+            result = self.search(val)
+            if result:
+                msg = "Found {}".format(val)
+            else:
+                msg = "Value {} not found".format(val)
+            self.setMessage(msg)
+        self.clearArgument()           
+        
+    def clickInsert(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input must be an integer from 0 to 99")
+        else:
+            result = self.insert(val)
+            if result:
+                msg = "Value {} inserted".format(val) 
+            else:
+                msg = "Error! Unable to insert" 
+            self.setMessage(msg)
+        self.clearArgument()
+     
+    def clickDelete(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input must be an integer from 0 to 99")
+        else:
+            result = self.delete(val)
+            if result:
+                msg = "Value {} deleted".format(val)
+            else:
+                msg = "Value {} not found".format(val)
+            self.setMessage(msg)
+        self.clearArgument()    
+        
+    def clickFill(self):
+        val = self.validArgument()
+        if val is None: 
+            self.setMessage("Input must be an integer from 0 to 99")
+        else:
+            if val > self.maxInserts():
+                msg = "Error! No room to display"
+            else:
+                self.fill(val)
+                msg = "Fill completed"
+            self.setMessage(msg)
+        self.clearArgument()
         
     def isAnimated(self):
         return self.animationState == self.RUNNING or self.animationState == self.PAUSED
