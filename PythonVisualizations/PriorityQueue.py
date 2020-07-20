@@ -1,3 +1,4 @@
+import random
 from tkinter import *
 try:
     from drawable import *
@@ -9,427 +10,392 @@ except ModuleNotFoundError:
 WIDTH = 800
 HEIGHT = 400
 
-CELL_SIZE = 50
-ARRAY_X0 = 100
-ARRAY_Y0 = 100
-
-class PriorityQueue(object):
+class PriorityQueue(VisualizationApp):
+    
+    CELL_SIZE = 50
+    CELL_BORDER = 2
+    CELL_BORDER_COLOR = 'black'    
+    ARRAY_X0 = 100
+    ARRAY_Y0 = 100
 
     colors = ['red', 'green', 'blue', 'orange', 'yellow', 'cyan', 'magenta',
               'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
     nextColor = 0
 
-    def __init__(self, size=12):
-        self.list = [None]*size
+    def __init__(self, size=12, title="Priority Queue", **kwargs):
+        super().__init__(title=title, **kwargs)
+        self.list = []
         self.size = size
         self.front = 1  # when PriorityQueue is empty, front 
         self.rear = 0   # should be to right of rear.
         self.nItems = 0
+        self.buttons = self.makeButtons()
+        
+        
+        self.display()        
         
     def __str__(self):
         return str(self.list)
     
-    # ANIMATION METHODS
-    def speed(self, sleepTime):
-        return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
+    def createIndex(self, index,  # cell
+                    name=None,  # with an optional name label
+                    level=1,  # at a particular level away from the cells
+                    color=None):  # (negative are below)
+        if not color: color = self.VARIABLE_COLOR
+
+        cell_coords = self.cellCoords(index)
+        cell_center = self.cellCenter(index)
+        level_spacing = self.VARIABLE_FONT[1]
+        x = cell_center[0]
+        if level > 0:
+            y0 = cell_coords[1] - self.CELL_SIZE * 3 // 5 - level * level_spacing
+            y1 = cell_coords[1] - self.CELL_SIZE * 3 // 10
+        else:
+            y0 = cell_coords[3] + self.CELL_SIZE * 3 // 5 - level * level_spacing
+            y1 = cell_coords[3] + self.CELL_SIZE * 3 // 10
+        arrow = self.canvas.create_line(
+            x, y0, x, y1, arrow="last", fill=color)
+        if name:
+            label = self.canvas.create_text(
+                x + 2, y0, text=name, anchor=SW if level > 0 else NW,
+                font=self.VARIABLE_FONT, fill=color)
+        return (arrow, label) if name else (arrow,)
     
-    def set(self, index, val):
-        # reset the value of the Element at that index to val
-        self.list[index].val = val
-
-        # get the position of the displayed value
-        pos = canvas.coords(self.list[index].display_val)
-
-        # delete the displayed value and replace it with the updated value
-        canvas.delete(self.list[index].display_val)
-        self.list[index].display_val = canvas.create_text(pos[0], pos[1], text=str(val), font=('Helvetica', '20'))
-
-        # update window
-        window.update()  
+    
+    # NEW METHODS FROM ORDERED ARRAY
+    def insert(self, val):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+        j = self.find(val)  # Find where item should go
         
+        # indicate front and rear
+        indexFront = self.createIndex(self.front, name="front", level=-1)
+        indexRear = self.createIndex(self.rear, name="rear", level=-1)
+        callEnviron |= set(indexFront)
+        callEnviron |= set(indexRear)
         
-    # insert item at rear of queue   
-    def insertRear(self, val):
+        self.list.append(drawable(None))
         
-        # Fix to self.rear starting at 1
-        if self.nItems == 0:
-            self.rear = 0
-            self.front = self.rear # circular
-            
-            # create new cell and cell value display objects
-            # Start drawing new one at rear
-            cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, \
-                                           ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, \
-                                           fill=PriorityQueue.colors[PriorityQueue.nextColor], outline='')
-            cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), \
-                                          ARRAY_Y0 + (CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
-            
-            
-            #insert the item
-            self.list[self.rear] = drawable(val, PriorityQueue.colors[PriorityQueue.nextColor], cell, cell_val)
-            
-            self.nItems += 1
-            
-            # increment nextColor
-            PriorityQueue.nextColor = (PriorityQueue.nextColor + 1) % len(PriorityQueue.colors)
+        indexK = self.createIndex(len(self.list) -1, 'k', level=-2) # create "k" arrow
+        callEnviron |= set(indexK)  
         
-            self.onOffButtons()
+        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
             
-            # update window
-            window.update()
-            
-        
-        #if there's a space to insert into
-        elif self.nItems != self.size:
-
-            #deal with wraparound
-            if self.rear == self.size-1:
-                self.rear = -1
+            self.wait(1)
+            for item in indexK:
+                self.canvas.move(item, -self.CELL_SIZE, 0)  # Move "k" arrow  
                 
-            #increment rear
-            self.rear += 1
-            
-            # create new cell and cell value display objects
-            # Start drawing new one at rear
-            cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.rear, ARRAY_Y0, \
-                                           ARRAY_X0+CELL_SIZE*(self.rear+1), ARRAY_Y0 + CELL_SIZE, \
-                                           fill=PriorityQueue.colors[PriorityQueue.nextColor], outline='')
-            cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.rear + (CELL_SIZE / 2), \
-                                          ARRAY_Y0 + (CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
-            
-            
-            #insert the item
-            self.list[self.rear] = drawable(val, PriorityQueue.colors[PriorityQueue.nextColor], cell, cell_val)
-            
-            self.nItems += 1
-            
-            # increment nextColor
-            PriorityQueue.nextColor = (PriorityQueue.nextColor + 1) % len(PriorityQueue.colors)
-        
-            self.onOffButtons()
-            
-            # update window
-            window.update()
-            
-            
-    
-    def insertFront(self, val):
-        
-        #if there's a space to insert into
-        if self.nItems != self.size:
-            
-            #deal with wraparound
-            if self.front == 0:
-                self.front = self.size
-            
-            #decrement front
-            self.front -= 1
-                        
-            # create new cell and cell value display objects
-            # Start drawing new one at rear
-            cell = canvas.create_rectangle(ARRAY_X0+CELL_SIZE*self.front, ARRAY_Y0, \
-                                           ARRAY_X0+CELL_SIZE*(self.front+1), ARRAY_Y0 + CELL_SIZE, \
-                                           fill=PriorityQueue.colors[PriorityQueue.nextColor], outline='')
-            cell_val = canvas.create_text(ARRAY_X0+CELL_SIZE*self.front + (CELL_SIZE / 2), \
-                                          ARRAY_Y0 + (CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
-            
-            #insert the item
-            self.list[self.front] = drawable(val, PriorityQueue.colors[PriorityQueue.nextColor], cell, cell_val)
-            
-            self.nItems += 1
-            
-            # increment nextColor
-            PriorityQueue.nextColor = (PriorityQueue.nextColor + 1) % len(PriorityQueue.colors)
-            
-            self.onOffButtons()
-            
-            # update window
-            window.update()
+            self.list[k].val = self.list[k - 1].val 
+            self.assignElement(k - 1, k, callEnviron)
 
-
-    
-    # remove the largest element of the queue, or None if empty
-    def removeMax(self):
-        
-        #if the queue is empty, exit
-        if self.size == 0:
-            return None
-
-        # TODO: Fix this
-        #get the value at front, and then set it to None so it will be garbage collected
-        n = self.list[self.front]
-        self.list[self.front] = None
-        
-        #increment front
-        self.front += 1
-        
-        #deal with wraparound
-        if self.front == self.size:
-            self.front = 0
             
-        self.nItems -= 1
+        # Location of the new cell in the array
+        toPositions = (self.cellCoords(j),
+                       self.cellCenter(j))
+
+        # Animate arrival of new value from operations panel area
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
+        startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
+        cellPair = self.createCellValue(startPosition, val)
+        self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
+        self.list[j]= (drawable(
+            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
         
-        # delete the associated display objects
-        canvas.delete(n.display_shape)
-        canvas.delete(n.display_val)
-        
-        self.onOffButtons()
-        
-        # update window
-        window.update()
-    
-    # remove the largest element of the queue, or None if empty
-    def removeMin(self):
-        
-        #if the queue is empty, exit
-        if self.size == 0:
-            return None
-        
-        # TODO: Fix this
-        #get the value at rear, and then set it to None so it will be garbage collected
-        n = self.list[self.rear]
-        self.list[self.rear] = None
-        
-        #decrement rear
+        # Move rear arrow
         self.rear -= 1
-        
-        #deal with wraparound
-        if self.rear == -1:
+        if self.rear < 0:
             self.rear = self.size-1
+            self.moveItemsBy(indexRear, (self.CELL_SIZE*(self.size-1), 0))
+        else:
+            self.moveItemsBy(indexRear, (self.CELL_SIZE*-1, 0))        
+        
+        self.window.update()  
+        self.cleanUp(callEnviron) 
+        self.stopAnimations()    
+    
+    def find(self, val): 
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+        lo = 0                             #Point to lo
+        indexLo = self.createIndex(lo, 'lo',level= 1)
+        callEnviron |= set(indexLo)
+        hi = len(self.list)-1              # Point to hi
+        indexHi = self.createIndex(hi, 'hi', level = 3)
+        callEnviron |= set(indexHi)
+        mid = (lo + hi) // 2               # Point to the midpoint
+        indexMid = self.createIndex(mid, 'mid', level = 2)
+        callEnviron |= set(indexMid)            
+        while lo <= hi:
+            mid = (lo + hi) // 2           # Select the midpoint
+            if self.list[mid].val == val:  # Did we find it at midpoint?  
+                self.stopAnimations()
+                self.window.update()
+                return mid                 # Return the value found 
+        
+            elif self.list[mid].val < val: # Is item in upper half?
+                deltaXLo = (mid - lo) + 1
+                self.moveItemsBy(indexLo, (self.CELL_SIZE*deltaXLo, 0))
+                lo = mid + 1               # Yes, raise the lo boundary
+                deltaXMid = ((hi - lo) // 2) + 1
+                self.moveItemsBy(indexMid, (self.CELL_SIZE*deltaXMid, 0))
+               
+            else:                         # Is item in lower half? 
+                deltaXHi = (mid -hi) - 1 
+                self.moveItemsBy(indexHi, (self.CELL_SIZE*deltaXHi, 0))
+                hi = mid - 1              # Yes, lower the hi boundary 
+                deltaXMid = ((lo- hi) //2) -1
+                self.moveItemsBy(indexMid, (self.CELL_SIZE* deltaXMid, 0))
+        
+        self.stopAnimations()
+        self.window.update()
+        self.cleanUp(callEnviron)
+        return lo                         #val not found 
+
+    
+    # delete the last element of the queue, or None if empty
+    def remove(self):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+        found = self.list[self.front] != None
+        if found:    # Record if value was found
+            self.wait(0.3)
+
+            n = self.list[self.front]
+
+            # Slide value rectangle up and off screen
+            items = (n.display_shape, n.display_val)
+            self.moveItemsOffCanvas(items, N, sleepTime=0.02)
+
+            # Create an index for shifting the cells
+            kIndex = self.createIndex(index, 'k')
+            callEnviron |= set(kIndex)
+
+            self.removeFront()
             
-        self.nItems -= 1
+            # Move front arrow
+            self.front += 1
+            #deal with wraparound
+            if self.front == self.size:
+                self.front = 0
+                self.moveItemsBy(indexFront, (self.CELL_SIZE*-(self.size-1), 0))
+            else:
+                self.moveItemsBy(indexFront, (self.CELL_SIZE, 0))
+                
+        self.cleanUp(callEnviron)
+        return found
+    
+    def removeFront(self):
+        callEnviron = self.createCallEnvironment()
         
+        # pop a Drawable from the list
+        if len(self.list) == 0:
+            self.setMessage('Array is empty!')
+            return
+        self.startAnimations()        
+        n = self.list.pop()
+
         # delete the associated display objects
-        canvas.delete(n.display_shape)
-        canvas.delete(n.display_val)
-        
-        self.onOffButtons()
-        
+        self.canvas.delete(n.display_shape)
+        self.canvas.delete(n.display_val)
+
         # update window
-        window.update()
+        self.window.update()
+        self.cleanUp(callEnviron)
+        self.stopAnimations()    
+    
+    
+    def assignElement(
+            self, fromIndex, toIndex, callEnviron,
+            steps=CELL_SIZE // 2, sleepTime=0.01):
+        fromDrawable = self.list[fromIndex]
+
+        # get positions of "to" cell in array
+        toPositions = (self.cellCoords(toIndex), self.cellCenter(toIndex))
+
+        # create new display objects as copies of the "from" cell and value
+        newCell = self.copyCanvasItem(fromDrawable.display_shape)
+        newCellVal = self.copyCanvasItem(fromDrawable.display_val)
+        callEnviron |= set([newCell, newCellVal])
+
+        # Move copies to the desired location
+        self.moveItemsTo((newCell, newCellVal), toPositions, steps=steps,
+                         sleepTime=sleepTime)
+
+        # delete the original "to" display value and the new display shape
+        self.canvas.delete(self.list[toIndex].display_val)
+        self.canvas.delete(self.list[toIndex].display_shape)
+
+        # update value and display value in "to" position in the list
+        self.list[toIndex].display_val = newCellVal
+        self.list[toIndex].val = self.list[fromIndex].val
+        self.list[toIndex].display_shape = newCell
+        self.list[toIndex].color = self.list[fromIndex].color
+        callEnviron ^= set([newCell, newCellVal])
+        
+        # delete the original "from" display value and the new display shape
+        self.canvas.delete(self.list[fromIndex].display_val)
+        self.canvas.delete(self.list[fromIndex].display_shape)        
+
+        # update the window
+        self.window.update()
+
+    def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
+        return (self.ARRAY_X0 + self.CELL_SIZE * cell_index, self.ARRAY_Y0,  # at index
+                self.ARRAY_X0 + self.CELL_SIZE * (cell_index + 1) - self.CELL_BORDER,
+                self.ARRAY_Y0 + self.CELL_SIZE - self.CELL_BORDER)
+
+    def cellCenter(self, index):  # Center point for array cell at index
+        half_cell = (self.CELL_SIZE - self.CELL_BORDER) // 2
+        return add_vector(self.cellCoords(index), (half_cell, half_cell))
+
+    def createArrayCell(self, index):  # Create a box representing an array cell
+        cell_coords = self.cellCoords(index)
+        half_border = self.CELL_BORDER // 2
+        rect = self.canvas.create_rectangle(
+            *add_vector(cell_coords,
+                        (-half_border, -half_border,
+                         self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)),
+            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER)
+        self.canvas.lower(rect)
+        return rect
+
+    def createCellValue(self, indexOrCoords, key, color=None):
+        """Create new canvas items to represent a cell value.  A square
+        is created filled with a particular color with an text key centered
+        inside.  The position of the cell can either be an integer index in
+        the Array or the bounding box coordinates of the square.  If color
+        is not supplied, the next color in the palette is used.
+        An event handler is set up to update the VisualizationApp argument
+        with the cell's value if clicked with any button.
+        Returns the tuple, (square, text), of canvas items
+        """
+        # Determine position and color of cell
+        if isinstance(indexOrCoords, int):
+            rectPos = self.cellCoords(indexOrCoords)
+            valPos = self.cellCenter(indexOrCoords)
+        else:
+            rectPos = indexOrCoords
+            valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
+        if color is None:
+            # Take the next color from the palette
+            color = drawable.palette[self.nextColor]
+            self.nextColor = (self.nextColor + 1) % len(drawable.palette)
+
+        cell_rect = self.canvas.create_rectangle(
+            *rectPos, fill=color, outline='', width=0)
+        cell_val = self.canvas.create_text(
+            *valPos, text=str(key), font=self.VALUE_FONT, fill=self.VALUE_COLOR)
+        handler = lambda e: self.setArgument(str(key))
+        for item in (cell_rect, cell_val):
+            self.canvas.tag_bind(item, '<Button>', handler)
+
+        return cell_rect, cell_val
+    
     
     def display(self):
-        canvas.delete("all")
-        xpos = ARRAY_X0
-        ypos = ARRAY_Y0
+        self.canvas.delete("all")
 
-        for i in range(self.size):
-            canvas.create_rectangle(xpos + CELL_SIZE*i, ypos, xpos + CELL_SIZE*(i+1), ypos + CELL_SIZE, fill='white', outline='black')
+        for i in range(self.size):  # Draw grid of cells
+            self.createArrayCell(i)
 
-        # go through each Element in the list
-        for n in self.list:
-            
-            # Only loop through the existing elements
-            if n:
-                print(n)
-                # create display objects for the associated Elements
-                cell = canvas.create_rectangle(xpos, ypos, xpos+CELL_SIZE, ypos+CELL_SIZE, fill=n[1], outline='')
-                cell_val = canvas.create_text(xpos+(CELL_SIZE/2), ypos+(CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
-    
-                # save the display objects to the appropriate attributes of the Element object
-                n.display_shape = cell
-                n.display_val = cell_val
-    
-                # increment xpos
-                xpos += CELL_SIZE
+        # go through each Drawable in the list
+        for i, n in enumerate(self.list):
+            if i and n:
+                # create display objects for the associated Drawables
+                n.display_shape, n.display_val = self.createCellValue(
+                    i, n.val, n.color)
+                n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
 
-        window.update()
-
-    #disable insert if queue if full, disable delete if empty
-    #enable everything else without overriding queue/deque functionality
-    def onOffButtons(self):
-        #if it's a deque
-        if buttons[5]['relief'] == 'sunken':
-            enableButtons()
-            
-        #if it's a queue
-        else:
-            buttons[0].config(state = NORMAL)
-            buttons[3].config(state = NORMAL)
+        self.window.update()
         
-        #in all cases: disable buttons as necessary
-        if self.nItems == self.size:
-            buttons[0].config(state = DISABLED)
-            buttons[1].config(state = DISABLED)
+    def randomFill(self):
+        callEnviron = self.createCallEnvironment()        
+        # Clear the list so new values can be entered
+        self.list=[] 
+        size = self.size
+        
+        # Create a list of random numbers and sort them
+        a = [random.randrange(90) for i in range(size)]
+        a.sort()
+        
+        # Append and draw them to the list and draw them
+        for i in a:
+            self.list.append(drawable(i))
+        
+        self.display()         
+        self.cleanUp(callEnviron)
+        
+    def newArraySize(self, val):
+        callEnviron = self.createCallEnvironment()                
+        # Clear Array and reset size and list
+        self.canvas.delete("all")
+        self.size = val
+        self.list = []        
+        
+        for i in range(val):  # Draw new grid of cells
+            self.createArrayCell(i) 
+        
+        self.window.update()
+        self.cleanUp(callEnviron)    
+    
+    def fixCells(self):       # Move canvas display items to exact cell coords
+        for i, drawItem in enumerate(self.list):
+            self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
+            self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
+        self.window.update()    
+    
+    def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
+        super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
+        self.fixCells()       # Restore cells to their coordinates in array    
+    
+    def validArgument(self):
+        entered_text = self.getArgument()
+        if entered_text and entered_text.isdigit():
+            val = int(entered_text)
+            if val < 100:
+                return val    
+    
+    def enableButtons(self, enable=True):
+        for btn in self.buttons:
+            btn.config(state=NORMAL if enable else DISABLED)
+    
+    def makeButtons(self):
+        vcmd = (self.window.register(numericValidate),
+                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        insertButton = self.addOperation(
+            "Insert", lambda: self.clickInsert(), numArguments=1, validationCmd=vcmd)
+        deleteButton = self.addOperation(
+            "Remove from Front", lambda: self.clickRemove(), numArguments=1, validationCmd=vcmd)
+        self.addAnimationButtons()
+        return [insertButton, deleteButton]
+    
+    def clickInsert(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input value must be an integer from 0 to 99.")
+        else:
+            if len(self.list) >= self.size:
+                self.setMessage("Error! Queue is already full.")
+            else:
+                self.insert(val)
+                self.setMessage("Value {} inserted".format(val))
+        self.clearArgument()
+    
+    def clickRemove(self):
+        result = self.remove()
+        self.clearArgument()
+    
+    def startAnimations(self):
+        self.enableButtons(enable=False)
+        super().startAnimations()
             
-        if self.nItems == 0:
-            buttons[2].config(state = DISABLED)
-            buttons[3].config(state = DISABLED)
-
-def pause(pauseButton):
-    global waitVar
-    waitVar.set(True)
-
-    pauseButton['text'] = "Play"
-    pauseButton['command'] = lambda: onClick(play, pauseButton)
-
-    canvas.wait_variable(waitVar)
-
-def play(pauseButton):
-    global waitVar
-    waitVar.set(False)
-
-    pauseButton['text'] = 'Pause'
-    pauseButton['command'] = lambda: onClick(pause, pauseButton)
-
-def onClick(command, parameter = None):
-    cleanUp()
-    #disableButtons()
-    if parameter:
-        command(parameter)
-    else:
-        command()
-    #if command not in [pause, play]:
-     #   enableButtons()
-
-def cleanUp():
-    global cleanup
-    if len(cleanup) > 0:
-        for o in cleanup:
-            canvas.delete(o)
-    outputText.set('')
-    window.update()
-
-# Button functions
-
-def clickInsertRear():
-    entered_text = textBox.get()
-    if entered_text:
-        val = entered_text
-        if len(val) < 4:
-            queue.insertRear(entered_text)
-        else:
-            outputText.set("Input value must be 3 or fewer characters.")
-        textBox.delete(0, END )
-        
-def clickInsertFront():
-    entered_text = textBox.get()
-    if entered_text:
-        #val = int(entered_text)
-        val = entered_text
-        if len(val) < 4:
-            queue.insertFront(entered_text)
-        else:
-            outputText.set("Input value must be 3 or fewer characters.")
-        textBox.delete(0, END )
-        
-def clickEnableQueue():
-    #THIS IS HARDWIRED (THE ORDER OF THE BUTTONS) - FIX
-    buttons[1].config(state = DISABLED) 
-    buttons[2].config(state = DISABLED)
-    
-    # Toggling between deque and queue
-    buttons[4].config(relief = SUNKEN)
-    buttons[5].config(relief = RAISED)
-    
-    queue.onOffButtons()
-    
-def clickEnableDeque():
-    for button in buttons:
-        button.config(state = NORMAL)
-    
-    # Toggling between deque and queue
-    buttons[4].config(relief = RAISED)
-    buttons[5].config(relief = SUNKEN)
-    
-    queue.onOffButtons()
-                
-def close_window():
-    window.destroy()
-    exit()
-
-def disableButtons():
-    for button in buttons:
-        button.config(state = DISABLED)
-
-def enableButtons():
-    for button in buttons:
-        button.config(state = NORMAL)
-
-def makeButtons():
-    insertRearButton = Button(operationsLeft, text="Insert At Rear", width=16, command= lambda: onClick(clickInsertRear))
-    insertRearButton.grid(row=3, column=0)
-    insertFrontButton = Button(operationsRight, text="Insert At Front", width=16, command= lambda: onClick(clickInsertFront))
-    insertFrontButton.grid(row=4, column=0)
-    deleteRearButton = Button(operationsRight, text="Delete Min", width=16, command= lambda: onClick(queue.removeMin))
-    deleteRearButton.grid(row=3, column=0)
-    deleteFrontButton = Button(operationsLeft, text="Delete Max", width=16, command= lambda: onClick(queue.removeMax))
-    deleteFrontButton.grid(row=4, column=0)
-    enableQueue = Button(controlButtons, text="Queue", width=20, command= lambda: onClick(clickEnableQueue))
-    enableQueue.grid(row=0, column=1)
-    enableDeque = Button(controlButtons, text="Deque", width=20, command= lambda: onClick(clickEnableDeque))
-    enableDeque.grid(row=0, column=3)    
-    buttons = [insertRearButton, insertFrontButton, deleteRearButton, deleteFrontButton, enableQueue, enableDeque]
-    return buttons
+    def stopAnimations(self):
+        super().stopAnimations()
+        self.enableButtons(enable=True)
+        self.argumentChanged()      
 
 
-# validate text entry
-def validate(action, index, value_if_allowed,
-             prior_value, text, validation_type, trigger_type, widget_name):
-    if text in '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ':
-        return True
-    else:
-        return False
-
-window = Tk()
-frame = Frame(window)
-frame.pack()
-
-waitVar = BooleanVar()
-
-canvas = Canvas(frame, width=WIDTH, height=HEIGHT)
-window.title("Priority Queue and Deque")
-canvas.pack()
-
-bottomframe = Frame(window)
-bottomframe.pack(side=BOTTOM)
-
-# Frame for operations
-operationsUpper = LabelFrame(bottomframe, text="Priority Queue and Deque", padx=4, pady=4)
-operationsUpper.pack(side=TOP)
-
-# Frame for buttons to enable and disable queue and deque
-controlButtons = Frame(operationsUpper, bd=5)
-controlButtons.pack(side=TOP)
-
-# Text frame
-textFrame = Frame(operationsUpper, bd=5)
-textFrame.pack(side=TOP)
-
-# Frame for Queue operations
-operationsLeft = Frame(operationsUpper, bd=5)
-operationsLeft.pack(side=LEFT)
-
-# Frame for Deque operations
-operationsRight = Frame(operationsUpper, bd=5)
-operationsRight.pack(side=RIGHT)
-
-operationsLower = Frame(bottomframe)
-operationsLower.pack(side=BOTTOM)
-
-vcmd = (window.register(validate),
-        '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-textBox = Entry(textFrame, width=20, bg="white", validate='key', validatecommand=vcmd)
-textBox.grid(row=1, column=2, padx=5, sticky=E)
-
-
-outputText = StringVar()
-outputText.set('')
-output = Label(operationsLower, textvariable=outputText, font="none 10 italic", fg="blue")
-output.grid(row=0, column=3, sticky=(E, W))
-operationsLower.grid_columnconfigure(3, minsize=160)
-
-## exit button
-#Button(operationsLower, text="EXIT", width=0, command=close_window)\
-    #.grid(row=0, column=4, sticky=E)
-
-cleanup = []
-queue = PriorityQueue()
-buttons = makeButtons()
-queue.display()
-clickEnableQueue()
-
-#for i in range(4):
-#    queue.insertRear(i)
-
-window.mainloop()    
+if __name__ == '__main__':
+    queue = PriorityQueue()
+    queue.runVisualization()
