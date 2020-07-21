@@ -95,7 +95,7 @@ class OrderedArray(VisualizationApp):
         cellPair = self.createCellValue(startPosition, val)
         self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
         self.list[j]= (drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))        
+            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
         
         self.window.update()  
         self.cleanUp(callEnviron) 
@@ -195,8 +195,8 @@ class OrderedArray(VisualizationApp):
             valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
         if color is None:
             # Take the next color from the palette
-            color = drawable.palette[OrderedArray.nextColor]
-            OrderedArray.nextColor = (OrderedArray.nextColor + 1) % len(drawable.palette)
+            color = drawable.palette[self.nextColor]
+            self.nextColor = (self.nextColor + 1) % len(drawable.palette)
 
         cell_rect = self.canvas.create_rectangle(
             *rectPos, fill=color, outline='', width=0)
