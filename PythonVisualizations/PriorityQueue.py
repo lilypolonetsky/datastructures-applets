@@ -22,7 +22,7 @@ class PriorityQueue(VisualizationApp):
         super().__init__(title=title, **kwargs)
         self.size = size
         self.title = title
-        self.list = []
+        self.list = [None]*self.size
         self.nItems = 0
         self.buttons = self.makeButtons()
         self.index = self.createIndex(self.nItems-1, 'front', level=-1) # indicate priority
@@ -65,17 +65,20 @@ class PriorityQueue(VisualizationApp):
 
         indexJ = self.createIndex(j, 'j', level=-2)
         callEnviron |= set(indexJ)
-        self.list.append(drawable(None))
+        callEnviron |= set(self.index)
+
+        #self.list[j] = drawable(None)
+        self.list[self.nItems] = drawable(None)
         
         while j >= 0 and val >= self.list[j].val:  # Move bigger items right
-            
+
+            self.moveItemsBy(indexJ, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "j" arrow
             self.wait(1)
-            for item in indexJ:
-                self.canvas.move(item, self.CELL_SIZE, 0)  # Move "k" arrow
                 
             self.list[j+1].val = self.list[j].val
             self.assignElement(j+1, j, callEnviron)
             j -= 1
+            self.wait(1)
 
         self.nItems += 1
             
@@ -88,8 +91,10 @@ class PriorityQueue(VisualizationApp):
         startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
         startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
         cellPair = self.createCellValue(startPosition, val)
-        self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
-        self.list[j]= (drawable(
+        callEnviron |= set(cellPair)  # Mark new cell as temporary
+        self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
+        callEnviron -= set(cellPair)  # New cell is no longer temporary
+        self.list[j] = (drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
 
         self.window.update()  
@@ -100,10 +105,7 @@ class PriorityQueue(VisualizationApp):
     def peek(self):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-
-        # draw an index pointing to the first cell
-        indexDisplay = self.createIndex(len(self.list)-1, 'front', level=-1)
-        callEnviron |= set(indexDisplay)
+        callEnviron |= set(self.index)
 
         # draw output box
         canvasDimensions = self.widgetDimensions(self.canvas)
@@ -238,26 +240,10 @@ class PriorityQueue(VisualizationApp):
                     i, n.val, n.color)
                 n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
 
+        self.index = self.createIndex(self.nItems-1, 'front', level=-1) # indicate priority
         callEnviron |= set(self.index)
 
         self.window.update()
-
-    def randomFill(self):
-        callEnviron = self.createCallEnvironment()        
-        # Clear the list so new values can be entered
-        self.list=[] 
-        size = self.size
-        
-        # Create a list of random numbers and sort them
-        a = [random.randrange(90) for i in range(size)]
-        a.sort()
-        
-        # Append and draw them to the list and draw them
-        for i in a:
-            self.list.append(drawable(i))
-        
-        self.display()         
-        self.cleanUp(callEnviron)
         
     def newArraySize(self, val):
         callEnviron = self.createCallEnvironment()                
