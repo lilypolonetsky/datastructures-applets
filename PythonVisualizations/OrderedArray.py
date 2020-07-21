@@ -82,7 +82,7 @@ class OrderedArray(VisualizationApp):
                 self.canvas.move(item, -self.CELL_SIZE, 0)  # Move "k" arrow  
                 
             self.list[k].val = self.list[k - 1].val 
-            self.assignElement(k - 1, k, callEnviron)   
+            self.assignElement(k - 1, k, callEnviron)
             
         # Location of the new cell in the array
         toPositions = (self.cellCoords(j),
@@ -100,7 +100,7 @@ class OrderedArray(VisualizationApp):
         self.window.update()  
         self.cleanUp(callEnviron) 
         self.stopAnimations()
-        
+
 
     def removeFromEnd(self):
         callEnviron = self.createCallEnvironment()
@@ -252,25 +252,25 @@ class OrderedArray(VisualizationApp):
         
         self.window.update()
         self.cleanUp(callEnviron)
-        
-    def find(self, val): 
+
+    def find(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         lo = 0                             #Point to lo
-        indexLo = self.createIndex(lo, 'lo',level= 1)
+        indexLo = self.createIndex(lo, 'lo', level=1)
         callEnviron |= set(indexLo)
         hi = len(self.list)-1              # Point to hi
         indexHi = self.createIndex(hi, 'hi', level = 3)
         callEnviron |= set(indexHi)
         mid = (lo + hi) // 2               # Point to the midpoint
-        indexMid = self.createIndex(mid, 'mid', level = 2)
-        callEnviron |= set(indexMid)            
+        indexMid = self.createIndex(mid, 'mid', level=2)
+        callEnviron |= set(indexMid)
         while lo <= hi:
             mid = (lo + hi) // 2           # Select the midpoint
-            if self.list[mid].val == val:  # Did we find it at midpoint?  
+            if self.list[mid].val == val:  # Did we find it at midpoint?
                 self.stopAnimations()
                 self.window.update()
-                return mid                 # Return the value found 
+                return mid                 # Return the value found
         
             elif self.list[mid].val < val: # Is item in upper half?
                 deltaXLo = (mid - lo) + 1
@@ -278,20 +278,19 @@ class OrderedArray(VisualizationApp):
                 lo = mid + 1               # Yes, raise the lo boundary
                 deltaXMid = ((hi - lo) // 2) + 1
                 self.moveItemsBy(indexMid, (self.CELL_SIZE*deltaXMid, 0))
-               
-            else:                         # Is item in lower half? 
-                deltaXHi = (mid -hi) - 1 
+
+            else:                         # Is item in lower half?
+                deltaXHi = (mid-hi) - 1
                 self.moveItemsBy(indexHi, (self.CELL_SIZE*deltaXHi, 0))
-                hi = mid - 1              # Yes, lower the hi boundary 
-                deltaXMid = ((lo- hi) //2) -1
-                self.moveItemsBy(indexMid, (self.CELL_SIZE* deltaXMid, 0))
+                hi = mid - 1              # Yes, lower the hi boundary
+                deltaXMid = ((lo-hi)//2)-1
+                self.moveItemsBy(indexMid, (self.CELL_SIZE*deltaXMid, 0))
         
         self.stopAnimations()
         self.window.update()
         self.cleanUp(callEnviron)
-        return lo                         #val not found 
-    
-            
+        return lo                         # val not found
+
     def remove(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
@@ -328,7 +327,6 @@ class OrderedArray(VisualizationApp):
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
         self.fixCells()       # Restore cells to their coordinates in array
-
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
@@ -400,16 +398,16 @@ class OrderedArray(VisualizationApp):
         val = self.validArgument()
         # If the number of cells desired wouldn't fit on the screen, error message
         if val is None or self.window.winfo_width() <= self.ARRAY_X0 + (val+1) * self.CELL_SIZE:
-            self.setMessage("This array size is too big to display")    
+            self.setMessage("This array size is too big to display")
         elif val == 0:
-            self.setMessage("This array size is too small")                
+            self.setMessage("This array size is too small")
         else:
-            self.newArraySize(val)        
-        self.clearArgument()    
+            self.newArraySize(val)
+        self.clearArgument()
 
     def enableButtons(self, enable=True):
         for btn in self.buttons:
-            btn.config(state=NORMAL if enable else DISABLED)    
+            btn.config(state=NORMAL if enable else DISABLED)
     
     def startAnimations(self):
         self.enableButtons(enable=False)
@@ -418,7 +416,7 @@ class OrderedArray(VisualizationApp):
     def stopAnimations(self):
         super().stopAnimations()
         self.enableButtons(enable=True)
-        self.argumentChanged()    
+        self.argumentChanged()
 
 
 if __name__ == '__main__':
