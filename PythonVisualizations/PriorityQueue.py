@@ -1,5 +1,6 @@
 import random
 from tkinter import *
+
 try:
     from drawable import *
     from VisualizationApp import *
@@ -7,14 +8,11 @@ except ModuleNotFoundError:
     from .drawable import *
     from .VisualizationApp import *
 
-WIDTH = 800
-HEIGHT = 400
 
 class PriorityQueue(VisualizationApp):
-    
     CELL_SIZE = 50
     CELL_BORDER = 2
-    CELL_BORDER_COLOR = 'black'    
+    CELL_BORDER_COLOR = 'black'
     ARRAY_X0 = 100
     ARRAY_Y0 = 100
 
@@ -24,19 +22,19 @@ class PriorityQueue(VisualizationApp):
 
     def __init__(self, size=12, title="Priority Queue", **kwargs):
         super().__init__(title=title, **kwargs)
-        self.list = []
         self.size = size
-        self.front = 1  # when PriorityQueue is empty, front 
-        self.rear = 0   # should be to right of rear.
-        self.nItems = 0
+        self.title = title
+        self.list = []
         self.buttons = self.makeButtons()
+
         
-        
-        self.display()        
-        
+        self.display()
+
     def __str__(self):
         return str(self.list)
-    
+
+    # ARRAY FUNCTIONALITY
+
     def createIndex(self, index,  # cell
                     name=None,  # with an optional name label
                     level=1,  # at a particular level away from the cells
@@ -60,20 +58,12 @@ class PriorityQueue(VisualizationApp):
                 x + 2, y0, text=name, anchor=SW if level > 0 else NW,
                 font=self.VARIABLE_FONT, fill=color)
         return (arrow, label) if name else (arrow,)
-    
-    
-    # NEW METHODS FROM ORDERED ARRAY
+
     def insert(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         j = self.find(val)  # Find where item should go
-        
-        # indicate front and rear
-        indexFront = self.createIndex(self.front, name="front", level=-1)
-        indexRear = self.createIndex(self.rear, name="rear", level=-1)
-        callEnviron |= set(indexFront)
-        callEnviron |= set(indexRear)
-        
+
         self.list.append(drawable(None))
         
         indexK = self.createIndex(len(self.list) -1, 'k', level=-2) # create "k" arrow
@@ -87,7 +77,6 @@ class PriorityQueue(VisualizationApp):
                 
             self.list[k].val = self.list[k - 1].val 
             self.assignElement(k - 1, k, callEnviron)
-
             
         # Location of the new cell in the array
         toPositions = (self.cellCoords(j),
@@ -102,13 +91,9 @@ class PriorityQueue(VisualizationApp):
         self.list[j]= (drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
         
-        # Move rear arrow
-        self.rear -= 1
-        if self.rear < 0:
-            self.rear = self.size-1
-            self.moveItemsBy(indexRear, (self.CELL_SIZE*(self.size-1), 0))
-        else:
-            self.moveItemsBy(indexRear, (self.CELL_SIZE*-1, 0))        
+        indexEnd = self.createIndex(len(self.list)-1, 'front', level=-1) # indicate priority
+        callEnviron |= set(indexEnd)
+               
         
         self.window.update()  
         self.cleanUp(callEnviron) 
@@ -157,30 +142,22 @@ class PriorityQueue(VisualizationApp):
     def remove(self):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        found = self.list[self.front] != None
+        found = len(self.list) > 0
         if found:    # Record if value was found
             self.wait(0.3)
 
-            n = self.list[self.front]
+            n = self.list[len(self.list)-1]
+
+            indexEnd = self.createIndex(len(self.list) - 1, 'front', level=-1)  # indicate priority
+            callEnviron |= set(indexEnd)
 
             # Slide value rectangle up and off screen
             items = (n.display_shape, n.display_val)
             self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
-            # Create an index for shifting the cells
-            kIndex = self.createIndex(index, 'k')
-            callEnviron |= set(kIndex)
+            self.moveItemsBy(indexEnd, (-self.CELL_SIZE, 0)) # move priority arrow
 
             self.removeFront()
-            
-            # Move front arrow
-            self.front += 1
-            #deal with wraparound
-            if self.front == self.size:
-                self.front = 0
-                self.moveItemsBy(indexFront, (self.CELL_SIZE*-(self.size-1), 0))
-            else:
-                self.moveItemsBy(indexFront, (self.CELL_SIZE, 0))
                 
         self.cleanUp(callEnviron)
         return found
@@ -202,9 +179,51 @@ class PriorityQueue(VisualizationApp):
         # update window
         self.window.update()
         self.cleanUp(callEnviron)
-        self.stopAnimations()    
-    
-    
+        self.stopAnimations()
+
+    def peek(self):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
+        # draw an index pointing to the first cell
+        indexDisplay = self.createIndex(len(self.list)-1, 'front', level=-1)
+        callEnviron |= set(indexDisplay)
+
+        # draw output box
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        spacing = self.CELL_SIZE * 3 // 4
+        padding = 10
+        outputBox = self.canvas.create_rectangle(
+            (canvasDimensions[0] - len(self.list) * spacing - padding) // 2,
+            canvasDimensions[1] - self.CELL_SIZE - padding,
+            (canvasDimensions[0] + len(self.list) * spacing + padding) // 2,
+            canvasDimensions[1] - padding,
+            fill=self.OPERATIONS_BG)
+        callEnviron.add(outputBox)
+
+        self.wait(0.3)
+
+        # calculate where the value will need to move to
+        outputBoxCoords = self.canvas.coords(outputBox)
+        midOutputBox = (outputBoxCoords[3] + outputBoxCoords[1]) // 2
+
+        # create the value to move to output box
+        valueOutput = self.copyCanvasItem(self.list[len(self.list)-1].display_val)
+        valueList = (valueOutput,)
+        callEnviron.add(valueOutput)
+
+        # move value to output box
+        toPositions = (outputBoxCoords[0] + padding / 2 + (1 / 2) * spacing,
+                       midOutputBox)
+        self.moveItemsTo(valueList, (toPositions,), sleepTime=.02)
+
+        # make the value 25% smaller
+        newSize = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
+        self.canvas.itemconfig(valueOutput, font=newSize)
+
+        self.wait(0.3)
+        self.cleanUp(callEnviron)
+
     def assignElement(
             self, fromIndex, toIndex, callEnviron,
             steps=CELL_SIZE // 2, sleepTime=0.01):
@@ -291,8 +310,7 @@ class PriorityQueue(VisualizationApp):
             self.canvas.tag_bind(item, '<Button>', handler)
 
         return cell_rect, cell_val
-    
-    
+
     def display(self):
         self.canvas.delete("all")
 
@@ -308,7 +326,7 @@ class PriorityQueue(VisualizationApp):
                 n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
 
         self.window.update()
-        
+
     def randomFill(self):
         callEnviron = self.createCallEnvironment()        
         # Clear the list so new values can be entered
@@ -337,14 +355,14 @@ class PriorityQueue(VisualizationApp):
             self.createArrayCell(i) 
         
         self.window.update()
-        self.cleanUp(callEnviron)    
+        self.cleanUp(callEnviron)
     
     def fixCells(self):       # Move canvas display items to exact cell coords
         for i, drawItem in enumerate(self.list):
             self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
             self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
-        self.window.update()    
-    
+        self.window.update()
+
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
         self.fixCells()       # Restore cells to their coordinates in array    
@@ -363,12 +381,16 @@ class PriorityQueue(VisualizationApp):
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        newSizeArrayButton = self.addOperation(
+            "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd)
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1, validationCmd=vcmd)
         deleteButton = self.addOperation(
-            "Remove from Front", lambda: self.clickRemove(), numArguments=1, validationCmd=vcmd)
+            "Remove from Front", lambda: self.clickRemove(), numArguments=1)
+        peekButton = self.addOperation(
+            "Peek", lambda: self.clickPeek(), numArguments=1)
         self.addAnimationButtons()
-        return [insertButton, deleteButton]
+        return [insertButton, deleteButton, peekButton]
     
     def clickInsert(self):
         val = self.validArgument()
@@ -385,6 +407,23 @@ class PriorityQueue(VisualizationApp):
     def clickRemove(self):
         result = self.remove()
         self.clearArgument()
+
+    def clickPeek(self):
+        if len(self.list) <= 0: self.setMessage("Error! Queue is empty.")
+        else:
+            self.peek()
+            self.setMessage("Value at front is {}".format(self.list[len(self.list)-1].val))
+
+    def clickNew(self):
+        val = self.validArgument()
+        # If the number of cells desired wouldn't fit on the screen, error message
+        if val is None or self.window.winfo_width() <= self.ARRAY_X0 + (val+1) * self.CELL_SIZE:
+            self.setMessage("This array size is too big to display")
+        elif val == 0:
+            self.setMessage("This array size is too small")
+        else:
+            self.newArraySize(val)
+        self.clearArgument()
     
     def startAnimations(self):
         self.enableButtons(enable=False)
@@ -393,7 +432,7 @@ class PriorityQueue(VisualizationApp):
     def stopAnimations(self):
         super().stopAnimations()
         self.enableButtons(enable=True)
-        self.argumentChanged()      
+        self.argumentChanged()
 
 
 if __name__ == '__main__':
