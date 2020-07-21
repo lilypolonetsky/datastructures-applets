@@ -16,8 +16,6 @@ class PriorityQueue(VisualizationApp):
     ARRAY_X0 = 100
     ARRAY_Y0 = 100
 
-    colors = ['red', 'green', 'blue', 'orange', 'yellow', 'cyan', 'magenta',
-              'dodgerblue', 'turquoise', 'grey', 'gold', 'pink']
     nextColor = 0
 
     def __init__(self, size=12, title="Priority Queue", **kwargs):
@@ -25,8 +23,9 @@ class PriorityQueue(VisualizationApp):
         self.size = size
         self.title = title
         self.list = []
+        self.nItems = 0
         self.buttons = self.makeButtons()
-
+        self.index = self.createIndex(self.nItems-1, 'front', level=-1) # indicate priority
         
         self.display()
 
@@ -62,25 +61,27 @@ class PriorityQueue(VisualizationApp):
     def insert(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        j = self.find(val)  # Find where item should go
+        j = self.nItems - 1  # Start at front
 
+        indexJ = self.createIndex(j, 'j', level=-2)
+        callEnviron |= set(indexJ)
         self.list.append(drawable(None))
         
-        indexK = self.createIndex(len(self.list) -1, 'k', level=-2) # create "k" arrow
-        callEnviron |= set(indexK)  
-        
-        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
+        while j >= 0 and val >= self.list[j].val:  # Move bigger items right
             
             self.wait(1)
-            for item in indexK:
-                self.canvas.move(item, -self.CELL_SIZE, 0)  # Move "k" arrow  
+            for item in indexJ:
+                self.canvas.move(item, self.CELL_SIZE, 0)  # Move "k" arrow
                 
-            self.list[k].val = self.list[k - 1].val 
-            self.assignElement(k - 1, k, callEnviron)
+            self.list[j+1].val = self.list[j].val
+            self.assignElement(j+1, j, callEnviron)
+            j -= 1
+
+        self.nItems += 1
             
         # Location of the new cell in the array
-        toPositions = (self.cellCoords(j),
-                       self.cellCenter(j))
+        toPositions = (self.cellCoords(j+1),
+                       self.cellCenter(j+1))
 
         # Animate arrival of new value from operations panel area
         canvasDimensions = self.widgetDimensions(self.canvas)
@@ -90,9 +91,7 @@ class PriorityQueue(VisualizationApp):
         self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
         self.list[j]= (drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
-        
-        indexEnd = self.createIndex(len(self.list)-1, 'front', level=-1) # indicate priority
-        callEnviron |= set(indexEnd)
+
         self.window.update()  
         self.cleanUp(callEnviron) 
         self.stopAnimations()
@@ -111,9 +110,9 @@ class PriorityQueue(VisualizationApp):
         spacing = self.CELL_SIZE * 3 // 4
         padding = 10
         outputBox = self.canvas.create_rectangle(
-            (canvasDimensions[0] - len(self.list) * spacing - padding) // 2,
+            (canvasDimensions[0] - self.nItems * spacing - padding) // 2,
             canvasDimensions[1] - self.CELL_SIZE - padding,
-            (canvasDimensions[0] + len(self.list) * spacing + padding) // 2,
+            (canvasDimensions[0] + self.nItems * spacing + padding) // 2,
             canvasDimensions[1] - padding,
             fill=self.OPERATIONS_BG)
         callEnviron.add(outputBox)
@@ -125,7 +124,7 @@ class PriorityQueue(VisualizationApp):
         midOutputBox = (outputBoxCoords[3] + outputBoxCoords[1]) // 2
 
         # create the value to move to output box
-        valueOutput = self.copyCanvasItem(self.list[len(self.list)-1].display_val)
+        valueOutput = self.copyCanvasItem(self.list[self.nItems-1].display_val)
         valueList = (valueOutput,)
         callEnviron.add(valueOutput)
 
@@ -168,10 +167,6 @@ class PriorityQueue(VisualizationApp):
         self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
         callEnviron ^= set([newCell, newCellVal])
-        
-        # delete the original "from" display value and the new display shape
-        self.canvas.delete(self.list[fromIndex].display_val)
-        self.canvas.delete(self.list[fromIndex].display_shape)        
 
         # update the window
         self.window.update()
@@ -229,6 +224,7 @@ class PriorityQueue(VisualizationApp):
         return cell_rect, cell_val
 
     def display(self):
+        callEnviron = self.createCallEnvironment()
         self.canvas.delete("all")
 
         for i in range(self.size):  # Draw grid of cells
@@ -241,6 +237,8 @@ class PriorityQueue(VisualizationApp):
                 n.display_shape, n.display_val = self.createCellValue(
                     i, n.val, n.color)
                 n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
+
+        callEnviron |= set(self.index)
 
         self.window.update()
 
@@ -274,86 +272,33 @@ class PriorityQueue(VisualizationApp):
         self.window.update()
         self.cleanUp(callEnviron)
 
-    def find(self, val):
-        callEnviron = self.createCallEnvironment()
-        self.startAnimations()
-        lo = 0                             #Point to lo
-        indexLo = self.createIndex(lo, 'lo', level=1)
-        callEnviron |= set(indexLo)
-        hi = len(self.list)-1              # Point to hi
-        indexHi = self.createIndex(hi, 'hi', level = 3)
-        callEnviron |= set(indexHi)
-        mid = (lo + hi) // 2               # Point to the midpoint
-        indexMid = self.createIndex(mid, 'mid', level=2)
-        callEnviron |= set(indexMid)
-        while lo <= hi:
-            mid = (lo + hi) // 2           # Select the midpoint
-            if self.list[mid].val == val:  # Did we find it at midpoint?
-                self.stopAnimations()
-                self.window.update()
-                return mid                 # Return the value found
-
-            elif self.list[mid].val < val: # Is item in upper half?
-                deltaXLo = (mid - lo) + 1
-                self.moveItemsBy(indexLo, (self.CELL_SIZE*deltaXLo, 0))
-                lo = mid + 1               # Yes, raise the lo boundary
-                deltaXMid = ((hi - lo) // 2) + 1
-                self.moveItemsBy(indexMid, (self.CELL_SIZE*deltaXMid, 0))
-
-            else:                         # Is item in lower half?
-                deltaXHi = (mid-hi) - 1
-                self.moveItemsBy(indexHi, (self.CELL_SIZE*deltaXHi, 0))
-                hi = mid - 1              # Yes, lower the hi boundary
-                deltaXMid = ((lo-hi)//2)-1
-                self.moveItemsBy(indexMid, (self.CELL_SIZE*deltaXMid, 0))
-
-        self.stopAnimations()
-        self.window.update()
-        self.cleanUp(callEnviron)
-        return lo                         # val not found
-
     # delete the last element of the queue, or None if empty
     def remove(self):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
-        found = len(self.list) > 0
-        if found:  # Record if value was found
-            self.wait(0.3)
-
-            n = self.list[len(self.list) - 1]
-
-            indexEnd = self.createIndex(len(self.list) - 1, 'front', level=-1)  # indicate priority
-            callEnviron |= set(indexEnd)
-
-            # Slide value rectangle up and off screen
-            items = (n.display_shape, n.display_val)
-            self.moveItemsOffCanvas(items, N, sleepTime=0.02)
-
-            self.moveItemsBy(indexEnd, (-self.CELL_SIZE, 0))  # move priority arrow
-
-            self.removeFront()
-
-        self.cleanUp(callEnviron)
-        return found
-
-    def removeFront(self):
-        callEnviron = self.createCallEnvironment()
-
-        # pop a Drawable from the list
-        if len(self.list) == 0:
+        if self.nItems == 0:
             self.setMessage('Array is empty!')
             return
         self.startAnimations()
-        n = self.list.pop()
+        self.wait(0.3)
 
+        n = self.list[self.nItems - 1]
+
+        indexEnd = self.createIndex(len(self.list) - 1, 'front', level=-1)  # indicate priority
+        callEnviron |= set(indexEnd)
+
+        # Slide value rectangle up and off screen
+        items = (n.display_shape, n.display_val)
+        self.moveItemsOffCanvas(items, N, sleepTime=0.02)
+
+        self.nItems -= 1
+        self.moveItemsBy(indexEnd, (-self.CELL_SIZE, 0))  # move priority arrow
+
+        n = self.list.pop()
         # delete the associated display objects
         self.canvas.delete(n.display_shape)
         self.canvas.delete(n.display_val)
 
-        # update window
-        self.window.update()
         self.cleanUp(callEnviron)
-        self.stopAnimations()
 
     def fixCells(self):       # Move canvas display items to exact cell coords
         for i, drawItem in enumerate(self.list):
@@ -373,9 +318,9 @@ class PriorityQueue(VisualizationApp):
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1, validationCmd=vcmd)
         deleteButton = self.addOperation(
-            "Remove from Front", lambda: self.clickRemove(), numArguments=1)
+            "Remove", lambda: self.clickRemove(), numArguments=0)
         peekButton = self.addOperation(
-            "Peek", lambda: self.clickPeek(), numArguments=1)
+            "Peek", lambda: self.clickPeek(), numArguments=0)
         self.addAnimationButtons()
         return [insertButton, deleteButton, peekButton]
 
@@ -391,7 +336,7 @@ class PriorityQueue(VisualizationApp):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            if len(self.list) >= self.size:
+            if self.nItems >= self.size:
                 self.setMessage("Error! Queue is already full.")
             else:
                 self.insert(val)
@@ -403,10 +348,10 @@ class PriorityQueue(VisualizationApp):
         self.clearArgument()
 
     def clickPeek(self):
-        if len(self.list) <= 0: self.setMessage("Error! Queue is empty.")
+        if self.nItems <= 0: self.setMessage("Error! Queue is empty.")
         else:
             self.peek()
-            self.setMessage("Value at front is {}".format(self.list[len(self.list)-1].val))
+            self.setMessage("Value at front is {}".format(self.list[self.nItems-1].val))
 
     def clickNew(self):
         val = self.validArgument()
