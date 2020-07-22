@@ -65,7 +65,6 @@ class PriorityQueue(VisualizationApp):
 
         indexJ = self.createIndex(j, 'j', level=-2)
         callEnviron |= set(indexJ)
-        callEnviron |= set(self.index)
 
         #self.list[j] = drawable(None)
         self.list[self.nItems] = drawable(None)
@@ -74,9 +73,9 @@ class PriorityQueue(VisualizationApp):
 
             self.moveItemsBy(indexJ, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "j" arrow
             self.wait(1)
-                
-            self.list[j+1].val = self.list[j].val
+            
             self.assignElement(j+1, j, callEnviron)
+            self.list[j+1].val = self.list[j].val
             j -= 1
             self.wait(1)
 
@@ -105,7 +104,6 @@ class PriorityQueue(VisualizationApp):
     def peek(self):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        callEnviron |= set(self.index)
 
         # draw output box
         canvasDimensions = self.widgetDimensions(self.canvas)
@@ -240,7 +238,7 @@ class PriorityQueue(VisualizationApp):
                     i, n.val, n.color)
                 n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
 
-        self.index = self.createIndex(self.nItems-1, 'front', level=-1) # indicate priority
+        #self.index = self.createIndex(self.nItems-1, 'front', level=-1) # indicate priority
         callEnviron |= set(self.index)
 
         self.window.update()
