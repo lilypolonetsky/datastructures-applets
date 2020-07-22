@@ -14,10 +14,10 @@ class Heap(VisualizationApp):
     MAX_SIZE = 31
     CELL_WIDTH = 25
     CELL_HEIGHT = 12
-    CELL_BORDER = 1
+    CELL_BORDER = 2
     CELL_BORDER_COLOR = 'black'
-    HEAP_X0 = 50
-    HEAP_Y0 = 30
+    HEAP_X0 = 80
+    HEAP_Y0 = 18
 
     def __init__(self, size=2, maxArgWidth=MAX_ARG_WIDTH, title="Heap", **kwargs):
         super().__init__(title=title, maxArgWidth=maxArgWidth, **kwargs)
@@ -27,56 +27,38 @@ class Heap(VisualizationApp):
         self.maxArgWidth = maxArgWidth
         self.buttons = self.makeButtons()
         self.display()
-        self.indexDisplay = self.createIndex(len(self.list))
 
     def __str__(self):
         return str(self.list)
     
     # Create an index arrow to point at an indexed cell with an optional name label
-    def createIndex(self, index, name=None):
+    def createIndex(self, index, level=1, name='nItems'):
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
-        x0 = self.HEAP_X0 - self.CELL_WIDTH -5
-        x1 = self.HEAP_X0 - self.CELL_WIDTH * 3 // 10
-        y0 = y1 =cell_coords[-1] + self.CELL_HEIGHT // 2 
-        if not name:
-            label = "nItems" #labels the top of the Heap "top" with the pointer arrow
+        level_spacing = self.SMALL_FONT[1]
+        if level > 0:
+            x0 = self.HEAP_X0 - self.CELL_WIDTH * 0.8 - level * level_spacing
+            x1 = self.HEAP_X0 - self.CELL_WIDTH * 0.3
         else:
-            label = name
+            x0 = self.HEAP_X0 + 1.8 * self.CELL_WIDTH - level * level_spacing
+            x1 = self.HEAP_X0 + self.CELL_WIDTH * 1.3
+        y0 = y1 = cell_center[1]
         return self.drawArrow(
-            x0, y0, x1, y1, self.VARIABLE_COLOR, self.SMALL_FONT, name=label)   
+            x0, y0, x1, y1, self.VARIABLE_COLOR, self.SMALL_FONT, name=name)
     
     # draw the actual arrow 
     def drawArrow(
             self, x0, y0, x1, y1, color, font, name=None):
         arrow = self.canvas.create_line(
             x0, y0, x1, y1, arrow="last", fill=color)
+        leftPointing = x1 < x0
+        separation = 3 if leftPointing else -3
         if name:
             label = self.canvas.create_text(
-                x0 - self.CELL_WIDTH / 2, y0 + (self.CELL_HEIGHT / 16) -3, text=name, anchor=SW,
+                x0 + separation, y0, text=name, anchor=W if leftPointing else E,
                 font=font, fill=color)
 
         return (arrow, label) if name else (arrow,) 
-
-    def swap(self, a, b, aCellObjects=[], bCellObjects=[]):
-        itemsA = [self.list[a].display_shape,
-                  self.list[a].display_val] + aCellObjects
-        itemsB = [self.list[b].display_shape,
-                  self.list[b].display_val] + bCellObjects
-        upDelta = (0, - self.CELL_HEIGHT * 4 // 3)
-        downDelta = multiply_vector(upDelta, -1)
-        if a == b:  # Swapping with self - just move up & down
-            self.moveItemsBy(itemsA, upDelta, sleepTime=0.02)
-            self.moveItemsBy(itemsA, downDelta, sleepTime=0.02)
-            return
-
-        # make a and b cells plus their associated items switch places
-        self.moveItemsOnCurve(
-            itemsA + itemsB, [self.canvas.coords(i) for i in itemsB + itemsA],
-            sleepTime=0.05, startAngle=90 * 11 / (10 + abs(a - b)))
-
-        # perform the actual cell swap operation in the list
-        self.list[a], self.list[b] = self.list[b], self.list[a]    
 
     # HEAP FUNCTIONALITY
 
@@ -85,43 +67,41 @@ class Heap(VisualizationApp):
         self.startAnimations()       
         
         #If array needs to grow, add cells:
-        if self.size < len(self.list) + 1:
-            #making a tag for the array 
-            arrayList = self.canvas.find_withtag("arrayCell")
-            #making a tag for the copy of the array 
-            for cell in arrayList:
-                item = self.copyCanvasItem(cell)
-                self.canvas.itemconfig(item, tags="newArrayCell")
-            newArrayList = self.canvas.find_withtag("newArrayCell")
-            newArrayList = list(newArrayList)
-            boxes = list(newArrayList)
-            callEnviron |= set(boxes)   
-            #adding the values to the list of the copy of the array 
-            for i in range(len(self.list)):
-                newArrayList += [self.list[i].display_shape, self.list[i].display_val]
-            self.moveItemsBy(newArrayList, (2*self.CELL_WIDTH, 0))          #moving the whole array over
+        if self.size <= len(self.list):
+            cells = list(self.canvas.find_withtag("arrayCell"))
+            for v in self.list: # move current array cells and values over
+                cells.append(v.display_shape)
+                cells.append(v.display_val)
+            self.moveItemsBy(cells, (2*self.CELL_WIDTH, 0),
+                             sleepTime=0.02)
             
-            # Growing the the array 
-            for i in range(self.size*2): 
-                self.createArrayCell(i)            
+            # Grow the the array 
             self.size *= 2
-            #copying the values back into the larger array 
-            copyVals = []
-            for i in range(len(self.list)):
-                copyVals += [self.list[i].display_shape, self.list[i].display_val]
-            self.moveItemsBy(copyVals, (-2*self.CELL_WIDTH, 0))    
-            #getting rid of the smaller array 
+            for i in range(self.size): 
+                self.createArrayCell(i)            
             
+            callEnviron |= set(cells) # Old cells are now temporary
+            
+            #copying the values back into the larger array 
+            for v in self.list:
+                newValue = (self.copyCanvasItem(v.display_shape),
+                            self.copyCanvasItem(v.display_val))
+                self.moveItemsBy(newValue, (-2*self.CELL_WIDTH, 0), 
+                                 sleepTime=0.01)
+                v.display_shape, v.display_val = newValue
 
-        #don't move arrow up if the first cell is being filled because it is already pointing there
-        if len(self.list) >= 1:
-            self.moveItemsBy(self.indexDisplay, (0, + (self.CELL_HEIGHT)))
+            # Make old cells disapper
+            for item in cells:
+                self.canvas.delete(item)
+                callEnviron.discard(item)
 
-        cellCoords = self.cellCoords2(len(self.list)) # Color box
-        cellCenter = self.cellCenter2(len(self.list)) # Number in box
+        self.moveItemsBy(self.indexDisplay, (0, self.CELL_HEIGHT),
+                         sleepTime=0.02)
+
+        cellCoords = self.cellCoords(len(self.list)) # Color box
+        cellCenter = self.cellCenter(len(self.list)) # Number in box
 
         # create new cell and cell value display objects
-        cellCoords = add_vector(cellCoords, (0, 0, 0, self.CELL_BORDER))
         toPositions = (cellCoords, cellCenter)
 
         # determine the top left and bottom right positions
@@ -135,18 +115,67 @@ class Heap(VisualizationApp):
         d = drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair)
         self.list.append(d)    #store item at the end of the list     
-        
-        if len(self.list) <= 0:            # heap condition.  The root node, i = 0,
-            return         
-        
-        for i in range(len(self.list)-1, 0, -1):
-            if self.list[i] > self.list[(i - 1) // 2]:  #if i is less than its parent 
-                self.swap(i, (i-1)//2)
-                    
         callEnviron.discard(cellPair)
+
+        self.siftUp(len(self.list) - 1)  # Sift up new item
+                    
         # finish the animation
         self.cleanUp(callEnviron)
 
+    def siftUp(self, i):
+        if i <= 0:
+            return
+        callEnviron = self.createCallEnvironment()
+        item = self.list[i].copy()
+        copyItem = (self.copyCanvasItem(item.display_shape),
+                    self.copyCanvasItem(item.display_val))
+        callEnviron |= set(copyItem)
+        itemDelta = (3 * self.CELL_WIDTH, 0)
+        self.moveItemsBy(copyItem, itemDelta, sleepTime=0.02)
+        iIndex = self.createIndex(i, name='i', level=-1)
+        parentIndex = self.createIndex((i - 1) // 2, name='parent', level=-2)
+        callEnviron |= set(iIndex + parentIndex)
+        while 0 < i:
+            parent = (i - 1) // 2
+            delta = self.cellCenter(parent)[1] - self.canvas.coords(
+                parentIndex[0])[1]
+            if delta != 0:      # Move parent index pointer
+                self.moveItemsBy(parentIndex, (0, delta), sleepTime=0.01)
+
+            self.wait(0.2)      # Pause for comparison
+            if self.list[parent] < item: # if parent less than item sifting up
+                # move a copy of the parent down to node i
+                copyVal = (self.copyCanvasItem(self.list[parent].display_shape),
+                           self.copyCanvasItem(self.list[parent].display_val))
+                callEnviron |= set(copyVal)
+                self.moveItemsOnCurve(
+                    copyVal, (self.cellCoords(i), self.cellCenter(i)),
+                    startAngle=-90 * 11 / (10 + i - parent),
+                    sleepTime=0.02)
+                self.list[i].val = self.list[parent].val
+                self.list[i].color = self.list[parent].color
+                self.canvas.delete(self.list[i].display_shape)
+                self.canvas.delete(self.list[i].display_val)
+                self.list[i].display_shape, self.list[i].display_val = copyVal
+                callEnviron -= set(copyVal)
+            else:
+                break
+
+            # Advance i to parent, move original item along with i Index
+            delta = self.cellCenter(parent)[1] - self.cellCenter(i)[1]
+            self.moveItemsBy(iIndex + copyItem, (0, delta), sleepTime=0.01)
+            i = parent
+
+        # Move copied item into appropriate location
+        self.moveItemsBy(copyItem, multiply_vector(itemDelta, -1),
+                         sleepTime=0.01)
+        self.canvas.delete(self.list[i].display_shape)
+        self.canvas.delete(self.list[i].display_val)
+        self.list[i].val, self.list[i].color = item.val, item.color
+        self.list[i].display_shape, self.list[i].display_val = copyItem
+        callEnviron -= set(copyItem)
+        self.cleanUp(callEnviron)
+        
     # lets user input an int argument that determines max size of the Heap
     def newArray(self):
         #gets rid of old elements in the list
@@ -154,40 +183,23 @@ class Heap(VisualizationApp):
         self.size = 2
         self.display()
 
-        #make a new arrow pointing to the top of the Heap
-        self.indexDisplay = self.createIndex(len(self.list))
-
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
-        return (self.HEAP_X0 + self.CELL_BORDER,  #width
-                (self.HEAP_Y0 + self.CELL_HEIGHT * (cell_index + 1)) + self.CELL_BORDER,  #height
+        return (self.HEAP_X0, 
+                self.HEAP_Y0 + self.CELL_HEIGHT * cell_index,
                 self.HEAP_X0 + self.CELL_WIDTH - self.CELL_BORDER,
-                self.HEAP_Y0 + self.CELL_HEIGHT * cell_index - self.CELL_BORDER) 
-    
-    def cellCoords2(self, cell_index):  # Get bounding rectangle for array cell
-        return (self.HEAP_X0 + self.CELL_BORDER,  #width
-                (self.HEAP_Y0 + self.CELL_HEIGHT * (cell_index + 1)),  #height
-                self.HEAP_X0 + self.CELL_WIDTH - self.CELL_BORDER,
-                self.HEAP_Y0 + self.CELL_HEIGHT * cell_index) 
-    
+                self.HEAP_Y0 + self.CELL_HEIGHT * (cell_index + 1) - self.CELL_BORDER) 
 
     def cellCenter(self, index):  # Center point for array cell at index
         half_cell_x = (self.CELL_WIDTH - self.CELL_BORDER) // 2
         half_cell_y = (self.CELL_HEIGHT - self.CELL_BORDER) // 2
-
-        return subtract_vector(self.cellCoords(index), (half_cell_x, half_cell_y))
-    
-    def cellCenter2(self, index):  # Center point for array cell at index
-        half_cell_x = (self.CELL_WIDTH + self.CELL_BORDER) // 2
-        half_cell_y = (self.CELL_HEIGHT - self.CELL_BORDER) // 2
-        
-        return add_vector(subtract_vector(self.cellCoords(index), (0, half_cell_y)), (half_cell_x, 0))    
+        return add_vector(self.cellCoords(index), (half_cell_x, half_cell_y))
 
     def createArrayCell(self, index):  # Create a box representing an array cell
         cell_coords = self.cellCoords(index)
         half_border = self.CELL_BORDER // 2
-        arrayCoords = add_vector(cell_coords,
-                                 (half_border-1, half_border-1,
-                                  self.CELL_BORDER - half_border-1, self.CELL_BORDER - half_border))
+        other_half = self.CELL_BORDER - half_border
+        arrayCoords = add_vector(
+            cell_coords, (-half_border, -half_border, other_half, other_half))
         rect = self.canvas.create_rectangle(arrayCoords,
                                             fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, tags= "arrayCell")
         self.canvas.lower(rect)
@@ -232,6 +244,9 @@ class Heap(VisualizationApp):
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
 
+        #make a new arrow pointing to the top of the Heap
+        self.indexDisplay = self.createIndex(len(self.list))
+
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
             # create display objects for the associated Drawables
@@ -240,6 +255,16 @@ class Heap(VisualizationApp):
             n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
 
         self.window.update()
+
+
+    def fixCells(self):  # Move canvas display items to exact cell coords
+        for i, drawItem in enumerate(self.list):
+            self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
+            self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
+
+    def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
+        super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
+        self.fixCells()       # Restore cells to their coordinates in array
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
@@ -250,6 +275,7 @@ class Heap(VisualizationApp):
             "Insert", lambda: self.clickInsert(), numArguments=1, validationCmd=vcmd)
         newHeapButton = self.addOperation( 
             "New", lambda: self.newArray())
+        self.addAnimationButtons()
 
         return [insertButton, newHeapButton]
     
@@ -266,16 +292,12 @@ class Heap(VisualizationApp):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            if len(self.list) == self.MAX_SIZE:
+            if len(self.list) >= self.MAX_SIZE:
                 self.setMessage("Error! Heap is already full.")
             else:
                 self.insert(val)
-                self.setMessage("Value {} inserted!".format(val))
+                self.setMessage("Value {} inserted".format(val))
         self.clearArgument()
-        
-    def setButtonsStatus(self, state=NORMAL):
-        for b in self.buttons:
-            b['state'] = state
 
 
 if __name__ == '__main__':
