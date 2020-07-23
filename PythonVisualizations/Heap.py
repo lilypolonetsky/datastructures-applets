@@ -95,9 +95,6 @@ class Heap(VisualizationApp):
                 self.canvas.delete(item)
                 callEnviron.discard(item)
 
-        self.moveItemsBy(self.indexDisplay, (0, self.CELL_HEIGHT),
-                         sleepTime=0.02)
-
         cellCoords = self.cellCoords(len(self.list)) # Color box
         cellCenter = self.cellCenter(len(self.list)) # Number in box
 
@@ -108,15 +105,23 @@ class Heap(VisualizationApp):
         startPosition = [self.HEAP_X0, 0, self.HEAP_X0, 0] #Color 
         startPosition = add_vector(startPosition, (0, 0, self.CELL_WIDTH, self.CELL_HEIGHT)) #color`
         cellPair = self.createCellValue(startPosition, val)
-        callEnviron.add(cellPair)
+        callEnviron |= set(cellPair)
         self.moveItemsTo(cellPair, toPositions, steps=self.CELL_HEIGHT, sleepTime=0.01)
     
         # add a new Drawable with the new value, color, and display objects
         d = drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair)
         self.list.append(d)    #store item at the end of the list     
-        callEnviron.discard(cellPair)
-
+        callEnviron -= set(cellPair)
+        
+        # Move nItems index to one past inserted item
+        y = self.cellCenter(len(self.list))[1]
+        # Use x coord from nItemsIndex but y value from target location
+        coords = [[y if i % 2 == 1 else c
+                   for i, c in enumerate(self.canvas.coords(i))]
+                  for i in self.nItemsIndex]
+        self.moveItemsTo(self.nItemsIndex, coords, sleepTime=0.01)
+            
         self.siftUp(len(self.list) - 1)  # Sift up new item
                     
         # finish the animation
@@ -245,7 +250,7 @@ class Heap(VisualizationApp):
             self.createArrayCell(i)
 
         #make a new arrow pointing to the top of the Heap
-        self.indexDisplay = self.createIndex(len(self.list))
+        self.nItemsIndex = self.createIndex(len(self.list))
 
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
