@@ -94,7 +94,7 @@ class PriorityQueue(VisualizationApp):
         self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
         callEnviron -= set(cellPair)  # New cell is no longer temporary
         self.list[j] = (drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
+            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1]))
 
         self.window.update()  
         self.cleanUp(callEnviron) 
