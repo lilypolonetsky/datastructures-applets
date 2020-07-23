@@ -24,6 +24,7 @@ class OrderedArray(VisualizationApp):
         self.title = title
         self.list = []
         self.buttons = self.makeButtons()
+        self.nItems = 0
 
         #Fill in initial array values with random integers
         # The display items representing these array cells are created later
@@ -66,18 +67,19 @@ class OrderedArray(VisualizationApp):
         return (arrow, label) if name else (arrow,)
 
     def insert(self, val):
+
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
+           
        # j = self.find(val)  # Find where item should go
         k=len(self.list)
-        self.list.append(drawable(None))
+        self.list.append(drawable(None))       
         
-        indexK = self.createIndex(len(self.list) -1, 'k', level=-1) # create "k" arrow
+        indexK = self.createIndex(len(self.list) -1, 'k', level=-2) # create "k" arrow
         callEnviron |= set(indexK)  
-        
+
        # for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
         while 0 < k and self.list[k-1].val > val: # over items
-
             self.moveItemsBy(indexK, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "k" arrow
 
             self.list[k].val = self.list[k - 1].val # Move larger item to right
@@ -94,15 +96,20 @@ class OrderedArray(VisualizationApp):
         cellPair = self.createCellValue(startPosition, val)
         callEnviron |= set(cellPair)  # Mark the new items as temporary
         self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
+
         self.canvas.delete(self.list[k].display_shape)  # These are now covered by the temporary items
         self.canvas.delete(self.list[k].display_val)
         self.list[k]= (drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
         callEnviron ^= set(cellPair)  # New item is no longer temporary
+        
+        # Move nItems pointer
+        self.moveItemsBy(self.nItems, (self.CELL_SIZE, 0))
+        self.wait(0.1)        
 
         self.window.update()  
-        self.cleanUp(callEnviron) 
         self.stopAnimations()
+        self.cleanUp(callEnviron) 
         
     def insertBinaryFind(self,val):
         callEnviron = self.createCallEnvironment()
@@ -138,23 +145,28 @@ class OrderedArray(VisualizationApp):
         self.cleanUp(callEnviron)
         self.stopAnimations()
     def removeFromEnd(self):
-        callEnviron = self.createCallEnvironment()
         
         # pop a Drawable from the list
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
             return
-        self.startAnimations()        
+        callEnviron = self.createCallEnvironment()         
+        
+        self.startAnimations()  
+   
+        #move nItems pointer
+        self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0))
+        
         n = self.list.pop()
 
         # delete the associated display objects
         self.canvas.delete(n.display_shape)
         self.canvas.delete(n.display_val)
-
+     
         # update window
         self.window.update()
-        self.cleanUp(callEnviron)
         self.stopAnimations()
+        self.cleanUp(callEnviron)
         
     def assignElement(
             self, fromIndex, toIndex, callEnviron,
@@ -244,13 +256,18 @@ class OrderedArray(VisualizationApp):
 
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
+        
+        # draw an index pointing to the last item in the list
+        self.nItems = self.createIndex(len(self.list), "nItems", level = -1, color = 'black')
 
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
                 i, n.val, n.color)
+
             n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
+
 
         self.window.update()
 
@@ -258,7 +275,7 @@ class OrderedArray(VisualizationApp):
         callEnviron = self.createCallEnvironment()        
         # Clear the list so new values can be entered
         self.list=[] 
-        size = self.size
+        size = self.size       
         
         # Create a list of random numbers and sort them
         a = [random.randrange(90) for i in range(size)]
@@ -267,16 +284,16 @@ class OrderedArray(VisualizationApp):
         # Append and draw them to the list and draw them
         for i in a:
             self.list.append(drawable(i))
-        
-        self.display()         
+        self.display()            
         self.cleanUp(callEnviron)
         
     def newArraySize(self, val):
-        callEnviron = self.createCallEnvironment()                
+        callEnviron = self.createCallEnvironment()  
         # Clear Array and reset size and list
         self.canvas.delete("all")
         self.size = val
-        self.list = []        
+        self.list = []
+        self.display()
         
         for i in range(val):  # Draw new grid of cells
             self.createArrayCell(i) 
@@ -287,6 +304,7 @@ class OrderedArray(VisualizationApp):
     def find(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
+       
         lo = 0                             #Point to lo
         indexLo = self.createIndex(lo, 'lo',level= 1)
         callEnviron |= set(indexLo)
@@ -317,16 +335,18 @@ class OrderedArray(VisualizationApp):
                 deltaXMid = ((lo- hi) //2) -1
                 self.moveItemsBy(indexMid, (self.CELL_SIZE* deltaXMid, 0))
         
-        self.stopAnimations()
         self.window.update()
+        self.stopAnimations()
         self.cleanUp(callEnviron)
         return lo                         #val not found 
     
             
     def remove(self, val):
-        callEnviron = self.createCallEnvironment()
+        callEnviron = self.createCallEnvironment()         
+    
         self.startAnimations()
-        index = self.find(val)
+        index = self.find(val)        
+        
         found = self.list[index].val == val
         if found:    # Record if value was found
             self.wait(0.3)
@@ -338,15 +358,21 @@ class OrderedArray(VisualizationApp):
             self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
             # Create an index for shifting the cells
-            kIndex = self.createIndex(index, 'k')
+            kIndex = self.createIndex(index, 'k', level = -2)
             callEnviron |= set(kIndex)
             
             # Slide values from right to left to fill gap
             for i in range(index+1, len(self.list)):
                 self.assignElement(i, i - 1, callEnviron)
                 self.moveItemsBy(kIndex, (self.CELL_SIZE, 0), sleepTime=0.01)
+            self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0), sleepTime=0.01)
+    
+            # delete the last cell from the list and as a drawable 
+            n = self.list.pop()  
+            self.canvas.delete(n.display_shape)
+            self.canvas.delete(n.display_val)                
 
-            self.removeFromEnd()
+        self.stopAnimations()
         self.cleanUp(callEnviron)
         return found
         
@@ -389,17 +415,17 @@ class OrderedArray(VisualizationApp):
                 return val
 
     # Button functions
-    def clickFind(self):
+    def clickFind(self):       
         val = self.validArgument()
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
+        elif len(self.list) == 0: 
+            self.setMessage("The array is empty.")
         else:
             result = self.find(val)
-            if self.list[result].val == val:
-                msg = "Found {}!".format(val)
-            else:
-                msg = "Value {} not found".format(val)
-            self.setMessage(msg)
+            if result and result < len(self.list) and self.list[result].val == val:
+                    self.setMessage("Found {}!".format(val))
+            else: self.setMessage("Value {} not found".format(val))
         self.clearArgument()
 
     def clickInsert(self):
