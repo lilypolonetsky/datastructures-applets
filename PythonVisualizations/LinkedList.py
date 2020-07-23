@@ -300,7 +300,7 @@ class LinkedList(VisualizationApp):
                                            self.LL_Y0 + self.CELL_HEIGHT+y_offset+5, outline = "RED", tag=id)
 
                 callEnviron.add(cell_outline)
-                self.wait(0.2)
+                self.wait(1.0)
 
                 # update the display
                 self.cleanUp(callEnviron)
