@@ -68,32 +68,32 @@ class Heap(VisualizationApp):
         
         #If array needs to grow, add cells:
         if self.size <= len(self.list):
-            cells = list(self.canvas.find_withtag("arrayCell"))
+            shift_delta = (2 * self.CELL_WIDTH, 0)
+            cells = self.canvas.find_withtag("arrayCell")
+            cells_and_values = list(cells)
             for v in self.list: # move current array cells and values over
-                cells.append(v.display_shape)
-                cells.append(v.display_val)
-            self.moveItemsBy(cells, (2*self.CELL_WIDTH, 0),
-                             sleepTime=0.02)
+                cells_and_values.append(v.display_shape)
+                cells_and_values.append(v.display_val)
+            self.moveItemsBy(cells_and_values, shift_delta, sleepTime=0.02)
             
             # Grow the the array 
-            self.size *= 2
             for i in range(self.size): 
-                self.createArrayCell(i)            
-            
-            callEnviron |= set(cells) # Old cells are now temporary
+                callEnviron.add(self.createArrayCell(i)) # Temporary
+                self.createArrayCell(i + self.size) # Lasting
+            self.size *= 2
             
             #copying the values back into the larger array 
             for v in self.list:
                 newValue = (self.copyCanvasItem(v.display_shape),
                             self.copyCanvasItem(v.display_val))
-                self.moveItemsBy(newValue, (-2*self.CELL_WIDTH, 0), 
+                callEnviron |= set(newValue)
+                self.moveItemsBy(newValue, multiply_vector(shift_delta, -1),
                                  sleepTime=0.01)
-                v.display_shape, v.display_val = newValue
 
-            # Make old cells disapper
-            for item in cells:
-                self.canvas.delete(item)
-                callEnviron.discard(item)
+            # Move old cells back to original positions in one step
+            # These are lasting and overlap the temporary ones just created
+            self.moveItemsBy(cells_and_values, multiply_vector(shift_delta, -1),
+                             steps=1)
 
         cellCoords = self.cellCoords(len(self.list)) # Color box
         cellCenter = self.cellCenter(len(self.list)) # Number in box
@@ -199,14 +199,17 @@ class Heap(VisualizationApp):
         half_cell_y = (self.CELL_HEIGHT - self.CELL_BORDER) // 2
         return add_vector(self.cellCoords(index), (half_cell_x, half_cell_y))
 
-    def createArrayCell(self, index):  # Create a box representing an array cell
+    def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
         half_border = self.CELL_BORDER // 2
         other_half = self.CELL_BORDER - half_border
-        arrayCoords = add_vector(
-            cell_coords, (-half_border, -half_border, other_half, other_half))
-        rect = self.canvas.create_rectangle(arrayCoords,
-                                            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, tags= "arrayCell")
+        return add_vector(cell_coords,
+                          (-half_border, -half_border, other_half, other_half))
+        
+    def createArrayCell(self, index):  # Create a box representing an array cell
+        rect = self.canvas.create_rectangle(
+            self.arrayCellCoords(index), fill=None, tags= "arrayCell",
+            outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER)
         self.canvas.lower(rect)
 
         return rect
@@ -259,17 +262,31 @@ class Heap(VisualizationApp):
                 i, n.val, n.color)
             n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
 
-        self.window.update()
-
-
-    def fixCells(self):  # Move canvas display items to exact cell coords
+    def fixPositions(self):  # Move canvas display items to exact cell coords
         for i, drawItem in enumerate(self.list):
             self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
             self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
+            
+        # Restore array cell borders in case they were moved
+        for i, item in enumerate(self.canvas.find_withtag('arrayCell')):
+            if i >= self.size: # Delete any extra cell borders
+                self.canvas.delete(item)
+            else:
+                self.canvas.coords(item, *self.arrayCellCoords(i))
+            
+        # Move nItems index to one past end of array
+        y = self.cellCenter(len(self.list))[1]
+        # Use x coord from nItemsIndex but y value from target location
+        for item in self.nItemsIndex:
+            coords = [y if i % 2 == 1 else c
+                      for i, c in enumerate(self.canvas.coords(item))]
+            self.canvas.coords(item, *coords)
 
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
-        self.fixCells()       # Restore cells to their coordinates in array
+        if ((len(args) == 0 or args[0] is None) and # When cleaning up entire 
+            kwargs.get('callEnviron', None) is None): # call stack,
+            self.fixPositions()       # restore positions of all structures
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
