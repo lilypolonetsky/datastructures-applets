@@ -75,6 +75,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     OPERATIONS_BG = 'beige'
     OPERATIONS_BORDER = 'black'
     CODE_FONT = ('Courier', 12)
+    SMALL_FONT = ('Helvetica', 9)
     CODE_HIGHLIGHT = 'yellow'
     CONTROLS_FONT = ('Helvetica', 12)
     HINT_FONT = CONTROLS_FONT + ('italic',)

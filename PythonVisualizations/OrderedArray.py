@@ -68,23 +68,60 @@ class OrderedArray(VisualizationApp):
     def insert(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        j = self.find(val)  # Find where item should go
-
+       # j = self.find(val)  # Find where item should go
+        k=len(self.list)
         self.list.append(drawable(None))
         
         indexK = self.createIndex(len(self.list) -1, 'k', level=-1) # create "k" arrow
         callEnviron |= set(indexK)  
         
-        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
-            
-            self.wait(1)
-            for item in indexK:
-                self.canvas.move(item, -self.CELL_SIZE, 0)  # Move "k" arrow  
-                
-            self.list[k].val = self.list[k - 1].val 
-            self.assignElement(k - 1, k, callEnviron)   
-            
+       # for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
+        while 0 < k and self.list[k-1].val > val: # over items
+
+            self.moveItemsBy(indexK, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "k" arrow
+
+            self.list[k].val = self.list[k - 1].val # Move larger item to right
+            self.assignElement(k - 1, k, callEnviron)
+            k -= 1  # Advance left among items
         # Location of the new cell in the array
+        toPositions = (self.cellCoords(k),
+                       self.cellCenter(k))
+
+        # Animate arrival of new value from operations panel area
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
+        startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
+        cellPair = self.createCellValue(startPosition, val)
+        callEnviron |= set(cellPair)  # Mark the new items as temporary
+        self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
+        self.canvas.delete(self.list[k].display_shape)  # These are now covered by the temporary items
+        self.canvas.delete(self.list[k].display_val)
+        self.list[k]= (drawable(
+            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
+        callEnviron ^= set(cellPair)  # New item is no longer temporary
+
+        self.window.update()  
+        self.cleanUp(callEnviron) 
+        self.stopAnimations()
+        
+    def insertBinaryFind(self,val):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+        j = self.find(val)  # Find where item should go
+
+        self.list.append(drawable(None))
+
+        indexK = self.createIndex(len(self.list) - 1, 'k', level=-1)  # create "k" arrow
+        callEnviron |= set(indexK)
+
+        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
+
+            self.moveItemsBy(indexK, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "k" arrow
+
+            self.list[k].val = self.list[k - 1].val
+            self.assignElement(k - 1, k, callEnviron)
+
+            # Location of the new cell in the array
         toPositions = (self.cellCoords(j),
                        self.cellCenter(j))
 
@@ -93,15 +130,13 @@ class OrderedArray(VisualizationApp):
         startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
         startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
         cellPair = self.createCellValue(startPosition, val)
-        self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
-        self.list[j]= (drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))        
-        
-        self.window.update()  
-        self.cleanUp(callEnviron) 
-        self.stopAnimations()
-        
+        self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
+        self.list[j] = (drawable(
+            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
 
+        self.window.update()
+        self.cleanUp(callEnviron)
+        self.stopAnimations()
     def removeFromEnd(self):
         callEnviron = self.createCallEnvironment()
         
@@ -148,10 +183,6 @@ class OrderedArray(VisualizationApp):
         self.list[toIndex].display_shape = newCell
         self.list[toIndex].color = self.list[fromIndex].color
         callEnviron ^= set([newCell, newCellVal])
-        
-        # delete the original "from" display value and the new display shape
-        self.canvas.delete(self.list[fromIndex].display_val)
-        self.canvas.delete(self.list[fromIndex].display_shape)        
 
         # update the window
         self.window.update()
@@ -219,7 +250,7 @@ class OrderedArray(VisualizationApp):
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
                 i, n.val, n.color)
-            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
+            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
 
         self.window.update()
 
@@ -252,8 +283,8 @@ class OrderedArray(VisualizationApp):
         
         self.window.update()
         self.cleanUp(callEnviron)
-        
-    def find(self, val): 
+
+    def find(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         lo = 0                             #Point to lo
