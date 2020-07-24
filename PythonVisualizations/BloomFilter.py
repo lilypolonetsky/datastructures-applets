@@ -65,10 +65,11 @@ class BloomFilter(VisualizationApp):
         delta = rotate_vector(
             multiply_vector(subtract_vector(p4, p1), 1/3),
             20 * max(-1, min(1, (p4[0] - p1[0]) / (p1[1] - p4[1]))))
+        steps = int(max(abs(tip[0] - origin[0]), abs(tip[1] - origin[1])))
         return self.canvas.create_line(
             *origin, *p1, *add_vector(p1, delta),
             *subtract_vector(p4, delta), *p4, *tip,
-            smooth=True, splinesteps=20, arrow="last", width=2, fill=color)
+            smooth=True, splinesteps=steps, arrow="last", width=2, fill=color)
     
     def __bitsNeeded(self, numKeys, numHashes, maxFalsePositive):
         # uses max false positive rate and # of hash functions to compute phi
