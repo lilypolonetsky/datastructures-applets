@@ -359,7 +359,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         codeHighlightBlock = self.getCodeHighlightBlock(callEnviron)
         if codeHighlightBlock is None:  # This shouldn't happen, but...
             return
-        if not isinstance(tags, (list, tuple)):
+        if not isinstance(tags, (list, tuple, set)):
             tags = [tags]
         for tagName in self.codeText.tag_names() if self.codeText else []:
             if not tagName.startswith(codeHighlightBlock.prefix):
@@ -463,7 +463,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             edge=N,          # One of the 4 tkinter edges: N, E, S, or W
             steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
-        if not isinstance(items, (list, tuple)):
+        if not isinstance(items, (list, tuple, set)):
             items = tuple(items)
         curPositions = [self.canvas.coords(i) for i in items]
         bboxes = [self.canvas.bbox(i) for i in items]
@@ -495,7 +495,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             delta,           # delta vector. items can be 1 item or a list/tuple
             steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
-        if not isinstance(items, (list, tuple)):
+        if not isinstance(items, (list, tuple, set)):
             items = tuple(items)
         if not isinstance(delta, (list, tuple)) or len(delta) != 2:
             raise ValueError('Delta must be a 2-dimensional vector')
@@ -515,7 +515,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             toPositions,     # items can be a single item or list of items
             steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
-        if not isinstance(items, (list, tuple)):
+        if not isinstance(items, (list, tuple, set)):
             items = tuple(items)
         if not isinstance(toPositions, (list, tuple)):
             raise ValueError('toPositions must be a list or tuple of positions')
@@ -543,7 +543,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             startAngle=90,   # Starting angle away from destination
             steps=10,        # Number of intermediate steps to reach destination
             sleepTime=0.1):  # Base time between steps (adjusted by user)
-        if not isinstance(items, (list, tuple)):
+        if not isinstance(items, (list, tuple, set)):
             items = tuple(items)
         if not isinstance(toPositions, (list, tuple)):
             raise ValueError('toPositions must be a list or tuple of positions')
