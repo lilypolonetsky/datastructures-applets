@@ -4,15 +4,17 @@ try:
     from BitHash import BitHash
     from drawable import *
     from VisualizationApp import *
+    from HashBase import *
 except ModuleNotFoundError:
     from .BitHash import BitHash
     from .drawable import *
     from .VisualizationApp import *
+    from .HashBase import *
 
 # Regular expression for false positive fraction
 fraction = re.compile(r'0*\.\d+')
 
-class BloomFilter(VisualizationApp):
+class BloomFilter(HashBase):
     CANVAS_WIDTH=800
     CANVAS_HEIGHT=400
     CELL_SIZE = 14
@@ -56,9 +58,12 @@ class BloomFilter(VisualizationApp):
     # from an origin determined by the hash key
     def cellArrow(self, bit, hashKey, nHashes, color=PROBE_COLOR):
         tip = add_vector(self.bitCellCenter(bit), (0, self.CELL_SIZE * 5 / 8))
-        origin = ((hashKey + 1) / (nHashes + 1) * self.insertedBoxPos[0] / 5 +
-                  self.insertedBoxPos[0] * 3 / 4,
-                  self.insertedBoxPos[1] + self.CELL_SIZE)
+        hashOutputCoords = self.hashOutputCoords()
+        sep = 10
+        origin = (hashOutputCoords[0] +
+                  (hashKey + 1) / (nHashes + 3) * 
+                  (self.insertedBoxPos[0] - hashOutputCoords[0]),
+                  hashOutputCoords[1] - sep)
         offset = (0, min(self.CELL_SIZE * 2, (origin[1] - tip[1]) / 4))
         p1 = subtract_vector(origin, offset)
         p4 = add_vector(tip, offset)
@@ -125,10 +130,31 @@ class BloomFilter(VisualizationApp):
         seed = 0
 
         # create number of hash values passed into the bloom filter
+        outputChars = []
         for i in range(self.__numHashes):
             h = BitHash(key, seed)
             hv = h % self.__size
 
+            if self.showHashing.get():
+                if outputChars:  # Move last output, if any, to seed input
+                    rightmost = self.canvas.coords(outputChars[0])
+                    seedCoords = self.hashSeedCoords()
+                    sep = 10
+                    up = seedCoords[1] - (self.hasher['BBox'][3] + sep)
+                    down = self.hasher['BBox'][3] + sep - rightmost[1]
+                    self.moveItemsBy(
+                        outputChars, (0, down), steps=5, sleepTime=.01)
+                    self.moveItemsBy(
+                        outputChars, (seedCoords[0] - rightmost[0], 0),
+                        steps=10, sleepTime=.01)
+                    self.moveItemsBy(
+                        outputChars, (0, up), steps=5, sleepTime=.01)
+                    for char in outputChars:
+                        self.canvas.delete(char)
+                        callEnviron.discard(char)
+                outputChars = self.animateStringHashing(
+                    key, seed, h, callEnviron=callEnviron)
+            
             callEnviron.add(self.cellArrow(hv, i, self.__numHashes))
             self.wait(0.05)
             
@@ -155,10 +181,31 @@ class BloomFilter(VisualizationApp):
         seed = 0
 
         # Probe the Bloom filter for each hash value
+        outputChars = []
         bits = 0
         for i in range(self.__numHashes):
             h = BitHash(key, seed)
             hv = h % self.__size
+            
+            if self.showHashing.get():
+                if outputChars:  # Move last output, if any, to seed input
+                    rightmost = self.canvas.coords(outputChars[0])
+                    seedCoords = self.hashSeedCoords()
+                    sep = 10
+                    up = seedCoords[1] - (self.hasher['BBox'][3] + sep)
+                    down = self.hasher['BBox'][3] + sep - rightmost[1]
+                    self.moveItemsBy(
+                        outputChars, (0, down), steps=5, sleepTime=.01)
+                    self.moveItemsBy(
+                        outputChars, (seedCoords[0] - rightmost[0], 0),
+                        steps=10, sleepTime=.01)
+                    self.moveItemsBy(
+                        outputChars, (0, up), steps=5, sleepTime=.01)
+                    for char in outputChars:
+                        self.canvas.delete(char)
+                        callEnviron.discard(char)
+                outputChars = self.animateStringHashing(
+                    key, seed, h, callEnviron=callEnviron)
 
             probe = self.cellArrow(hv, i, self.__numHashes)
             callEnviron.add(probe)
@@ -167,6 +214,7 @@ class BloomFilter(VisualizationApp):
             # if location wasn't set, change the arrow highlight
             if self.__bv[hv] == 0:
                 self.canvas.itemconfigure(probe, fill=self.PROBE_FAILED)
+                break
             else:
                 self.canvas.itemconfigure(probe, fill=self.ON_COLOR)
                 bits += 1
@@ -199,6 +247,7 @@ class BloomFilter(VisualizationApp):
             cell = self.canvas.create_rectangle(
                 *cellCoords, fill=color, outline='')
             self.__displayList[n] = drawable(bit, color, cell, None)
+        self.createHasher()
         self.insertedBoxPos = self.bitCellCoords(
             self.max_bits + self.bits_per_row // 2)[:2] + subtract_vector(
                 canvasDimensions, (self.CELL_SIZE, ) * 2)
@@ -275,6 +324,10 @@ class BloomFilter(VisualizationApp):
             return
         self.setMessage(self.newBloomFilter(nKeys, nHashes, probability))
 
+    def clickShowHashing(self):
+        if not self.showHashing.get():
+            self.positionHashBlocks(0)
+
     def clickShowInserts(self):
         self.canvas.itemconfigure(
             self.insertedKeys, 
@@ -291,6 +344,11 @@ class BloomFilter(VisualizationApp):
         newButton = self.addOperation(
             "New", self.clickNew, numArguments=3, validationCmd=vcmd,
             helpText='Enter string or #keys, #hashes, & false positive%')
+        self.showHashing = IntVar()
+        self.showHashing.set(1)
+        showHashingButton = self.addOperation(
+            "Animate hashing", self.clickShowHashing, buttonType=Checkbutton,
+            variable=self.showHashing)
         self.showInserts = IntVar()
         self.showInserts.set(1)
         showInsertsButton = self.addOperation(
