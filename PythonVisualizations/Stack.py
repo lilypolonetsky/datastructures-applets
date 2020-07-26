@@ -200,6 +200,10 @@ def peek(self):
         callEnviron = self.createCallEnvironment(
             self.peekCode.strip(), self.peekCodeSnippets)
 
+        if self.isEmpty():
+            self.cleanUp(callEnviron)
+            return None
+
         self.highlightCodeTags('check_empty', callEnviron)
         self.wait(0.2)
 
@@ -238,6 +242,8 @@ def peek(self):
         self.highlightCodeTags([], callEnviron)
         self.cleanUp(callEnviron)
 
+        return self.list[pos].val
+
     # lets user input an int argument that determines max size of the stack
     def newStack(self, size):
         #gets rid of old elements in the list
@@ -247,6 +253,26 @@ def peek(self):
 
         #make a new arrow pointing to the top of the stack
         self.indexDisplay = self.createIndex(len(self.list)-1)
+
+    isEmptyCode = """
+def isEmpty(self):
+    return self.__top < 0
+    """
+
+    isEmptyCodeSnippets = {
+        'return':('2.4','2.end'),
+    }
+
+    def isEmpty(self):
+        callEnviron = self.createCallEnvironment(
+            self.isEmptyCode.strip(), self.isEmptyCodeSnippets)
+        
+        callEnviron |= set(self.createIndex(-.5, name = "0"))
+        self.highlightCodeTags('return', callEnviron)
+        self.wait(0.3)
+        
+        self.cleanUp(callEnviron)
+        return len(self.list) == 0
 
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
         return (self.STACK_X0 + self.CELL_BORDER,
@@ -365,13 +391,10 @@ def peek(self):
             self.setMessage("Value {} popped!".format(val))
 
     def clickPeek(self):
-
-        if len(self.list) <= 0:
-            self.setMessage("Error! Stack is empty.")
-        else:
-            val = self.list[-1].val
-            self.peek()
-            self.setMessage("Value {} is at the top of the stack!".format(val))
+        val = self.peek()
+        
+        if val: self.setMessage("Value {} is at the top of the stack!".format(val))
+        else: self.setMessage("Error! Stack is empty.")       
 
     def clickNewStack(self):
         val = self.validArgument()
