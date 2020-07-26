@@ -24,8 +24,8 @@ class PriorityQueue(VisualizationApp):
         self.title = title
         self.list = [None]*self.size
         self.nItems = 0
+        self.index = None
         self.buttons = self.makeButtons()
-        self.index = self.createIndex(self.nItems-1, 'front', level=-1) # indicate priority
         
         self.display()
 
@@ -69,17 +69,15 @@ class PriorityQueue(VisualizationApp):
         #self.list[j] = drawable(None)
         self.list[self.nItems] = drawable(None)
         
+        self.wait(1)
+            
         while j >= 0 and val >= self.list[j].val:  # Move bigger items right
 
-            self.moveItemsBy(indexJ, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "j" arrow
-            self.wait(1)
-            
-            self.assignElement(j+1, j, callEnviron)
+            self.assignElement(j, j+1, callEnviron)
             self.list[j+1].val = self.list[j].val
             j -= 1
+            self.moveItemsBy(indexJ, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "j" arrow
             self.wait(1)
-
-        self.nItems += 1
             
         # Location of the new cell in the array
         toPositions = (self.cellCoords(j+1),
@@ -92,9 +90,12 @@ class PriorityQueue(VisualizationApp):
         cellPair = self.createCellValue(startPosition, val)
         callEnviron |= set(cellPair)  # Mark new cell as temporary
         self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
+        self.list[j+1] = drawable(
+            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair)
         callEnviron -= set(cellPair)  # New cell is no longer temporary
-        self.list[j] = (drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1]))
+
+        self.nItems += 1
+        self.moveItemsBy(self.index, (self.CELL_SIZE, 0), sleepTime=0.01)
 
         self.window.update()  
         self.cleanUp(callEnviron) 
@@ -224,36 +225,27 @@ class PriorityQueue(VisualizationApp):
         return cell_rect, cell_val
 
     def display(self):
-        callEnviron = self.createCallEnvironment()
         self.canvas.delete("all")
+
+        self.index = self.createIndex(self.nItems, 'nItems', level=-1) # indicate priority        
 
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
 
         # go through each Drawable in the list
-        for i, n in enumerate(self.list):
-            if i and n:
-                # create display objects for the associated Drawables
-                n.display_shape, n.display_val = self.createCellValue(
-                    i, n.val, n.color)
-                n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
-
-        #self.index = self.createIndex(self.nItems-1, 'front', level=-1) # indicate priority
-        callEnviron |= set(self.index)
+        for i in range(self.nItems):
+            drawItem = self.list[i]
 
         self.window.update()
         
     def newArraySize(self, val):
         callEnviron = self.createCallEnvironment()                
         # Clear Array and reset size and list
-        self.canvas.delete("all")
         self.size = val
-        self.list = []        
+        self.list = [None]*self.size
+        self.nItems = 0
         
-        for i in range(val):  # Draw new grid of cells
-            self.createArrayCell(i) 
-        
-        self.window.update()
+        self.display()
         self.cleanUp(callEnviron)
 
     # delete the last element of the queue, or None if empty
@@ -267,27 +259,20 @@ class PriorityQueue(VisualizationApp):
 
         n = self.list[self.nItems - 1]
 
-        indexEnd = self.createIndex(len(self.list) - 1, 'front', level=-1)  # indicate priority
-        callEnviron |= set(indexEnd)
-
         # Slide value rectangle up and off screen
         items = (n.display_shape, n.display_val)
         self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
         self.nItems -= 1
-        self.moveItemsBy(indexEnd, (-self.CELL_SIZE, 0))  # move priority arrow
+        self.moveItemsBy(self.index, (-self.CELL_SIZE, 0))  # move priority arrow
 
         n = self.list.pop()
-        # delete the associated display objects
-        self.canvas.delete(n.display_shape)
-        self.canvas.delete(n.display_val)
 
         self.cleanUp(callEnviron)
 
     def fixCells(self):       # Move canvas display items to exact cell coords
-        for i, drawItem in enumerate(self.list):
-            self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
-            self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
+        for i in range(self.nItems):
+            drawItem = self.list[i]
         self.window.update()
 
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
@@ -348,18 +333,6 @@ class PriorityQueue(VisualizationApp):
             self.newArraySize(val)
         self.clearArgument()
 
-    def enableButtons(self, enable=True):
-        for btn in self.buttons:
-            btn.config(state=NORMAL if enable else DISABLED)
-    
-    def startAnimations(self):
-        self.enableButtons(enable=False)
-        super().startAnimations()
-            
-    def stopAnimations(self):
-        super().stopAnimations()
-        self.enableButtons(enable=True)
-        self.argumentChanged()
 
 
 if __name__ == '__main__':
