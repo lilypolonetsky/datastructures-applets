@@ -367,8 +367,10 @@ class LinkedList(VisualizationApp):
         if not self.first:
             msg = "ERROR: Linked list is empty"
         elif not val:
-            msg = "Input value must be less than 9 characters"
-        else: 
+            msg = "Input value must be less than 9 characters" 
+        elif val == -1:
+            result = self.delete()
+        else:
             result = self.delete(val)
             if result != None:
                 msg = "{} Deleted!".format(val)
@@ -421,6 +423,8 @@ class LinkedList(VisualizationApp):
                 val = int(text)
                 if val< 100000000: return val
             elif len(text)<9: return text
+        else:
+            return -1
             
 #allow letters or numbers to be typed in                  
 def validate(action, index, value_if_allowed,
