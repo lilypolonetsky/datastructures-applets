@@ -144,10 +144,10 @@ def pop(self):
         val = self.copyCanvasItem(n.display_val)
         callEnviron |= set((shape, val))
 
-        labelPos = (2.5*self.STACK_X0, 
-                    self.STACK_Y0-(self.MAX_ARG_WIDTH*self.CELL_HEIGHT))
-        itemPos = (labelPos[0]-self.CELL_WIDTH/2, labelPos[1]+self.CELL_HEIGHT//2, 
-                    labelPos[0]+self.CELL_WIDTH/2, labelPos[1]+self.CELL_HEIGHT//2+self.CELL_HEIGHT)
+        itemPos = self.topBoxCoords()
+        labelPos = ((itemPos[0] + itemPos[2]) / 2, 
+                    itemPos[1] - self.CELL_HEIGHT / 2)
+
         topLabel = self.canvas.create_text(
                 *labelPos, text="top", font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
@@ -159,7 +159,7 @@ def pop(self):
         self.highlightCodeTags('empty_top', callEnviron)
         self.moveItemsBy(items, delta=(0, -max(400, self.canvas.coords(n.display_shape)[3])), steps=self.CELL_HEIGHT, sleepTime=.01)
 
-        # draw an index pointing to the last cell
+        # decrement index pointing to the last cell
         self.highlightCodeTags('decrement_top', callEnviron)
         self.moveItemsBy(self.indexDisplay, (0, (self.CELL_HEIGHT)))
 
@@ -225,11 +225,7 @@ def peek(self):
 
         # draw output box
         outputBox = self.canvas.create_rectangle(
-            self.STACK_X0 + self.CELL_WIDTH * 1.5,
-            self.STACK_Y0,
-            self.STACK_X0 + self.CELL_WIDTH * 2.5,
-            self.STACK_Y0 - self.CELL_HEIGHT,
-            fill=self.OPERATIONS_BG)
+            *self.outputBoxCoords(), fill=self.OPERATIONS_BG)
         callEnviron.add(outputBox)
 
         pos = len(self.list) - 1
@@ -257,6 +253,17 @@ def peek(self):
         self.cleanUp(callEnviron)
 
         return self.list[pos].val
+
+    def outputBoxCoords(self):
+        return (self.STACK_X0 + self.CELL_WIDTH * 1.5,
+                self.STACK_Y0,
+                self.STACK_X0 + self.CELL_WIDTH * 2.5,
+                self.STACK_Y0 - self.CELL_HEIGHT)
+
+    def topBoxCoords(self):
+        outputBox = self.outputBoxCoords()
+        return (outputBox[0], self.CELL_HEIGHT * 2,
+                outputBox[2], self.CELL_HEIGHT * 3)
 
     # lets user input an int argument that determines max size of the stack
     def newStack(self, size):
