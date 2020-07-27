@@ -279,20 +279,22 @@ class PriorityQueue(VisualizationApp):
             if drawItem:    # if i contains a cell...move the cells
                 self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
                 self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
-            else:           # if i doesn't contain a cell...move the index arrow
-                # Move nItems index to position in array
-                x = self.cellCenter(self.nItems)[0] + self.CELL_SIZE//2
-                # Use y coord from nItems index but x value from target location
-                for item in self.index:
-                    coords = [x if i%2 == 0 else c
-                              for i, c in enumerate(self.canvas.coords(item))]
-                    self.canvas.coords(item, *coords)
+
+        # Move nItems index to position in array
+        x = self.cellCenter(self.nItems)[0]
+        # Use y coord from nItems index but x value from target location
+        for item in self.index:
+            coords = [x if i%2 == 0 else c
+                      for i, c in enumerate(self.canvas.coords(item))]
+            self.canvas.coords(item, *coords)
         
         self.window.update()
 
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
-        self.fixPositions()       # Restore cells to their coordinates in array
+        if ((len(args) == 0 or args[0] is None) and # When cleaning up entire 
+            kwargs.get('callEnviron', None) is None): # call stack,
+            self.fixPositions()   # Restore cells to their coordinates in array
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
