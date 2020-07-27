@@ -139,6 +139,31 @@ def pop(self):
         items = (n.display_shape, n.display_val)
         callEnviron |= set(items)
 
+        # move item to be deleted to top area
+        shape = self.copyCanvasItem(n.display_shape)
+        val = self.copyCanvasItem(n.display_val)
+        callEnviron |= set((shape, val))
+
+        labelPos = (2.5*self.STACK_X0, 
+                    self.STACK_Y0-(self.MAX_ARG_WIDTH*self.CELL_HEIGHT))
+        itemPos = (labelPos[0]-self.CELL_WIDTH/2, labelPos[1]+self.CELL_HEIGHT//2, 
+                    labelPos[0]+self.CELL_WIDTH/2, labelPos[1]+self.CELL_HEIGHT//2+self.CELL_HEIGHT)
+        topLabel = self.canvas.create_text(
+                *labelPos, text="top", font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+        callEnviron.add(topLabel)
+
+        self.moveItemsTo([shape, val], (itemPos, (labelPos[0], itemPos[1]+self.CELL_HEIGHT//2)))
+
+        # move item out of stack
+        self.highlightCodeTags('empty_top', callEnviron)
+        self.moveItemsBy(items, delta=(0, -max(400, self.canvas.coords(n.display_shape)[3])), steps=self.CELL_HEIGHT, sleepTime=.01)
+
+        # draw an index pointing to the last cell
+        self.highlightCodeTags('decrement_top', callEnviron)
+        self.moveItemsBy(self.indexDisplay, (0, (self.CELL_HEIGHT)))
+
+        self.highlightCodeTags('return_top', callEnviron)
         # draw output box
         outputBox = self.canvas.create_rectangle(
             self.STACK_X0 + self.CELL_WIDTH * 1.5,
@@ -154,7 +179,7 @@ def pop(self):
         midOutputBoxX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
 
         # create the value to move to output box
-        valueOutput = self.copyCanvasItem(n.display_val)
+        valueOutput = self.copyCanvasItem(val)
         valueList = (valueOutput,)
         callEnviron.add(valueOutput)
 
@@ -165,17 +190,6 @@ def pop(self):
         # make the value 25% smaller
         newSize = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
         self.canvas.itemconfig(valueOutput, font=newSize)
-
-        # move item out of stack
-        self.highlightCodeTags('empty_top', callEnviron)
-        self.moveItemsBy(items, delta=(0, -max(400, self.canvas.coords(n.display_shape)[3])), steps=self.CELL_HEIGHT, sleepTime=.01)
-        
-        # draw an index pointing to the last cell
-        self.highlightCodeTags('decrement_top', callEnviron)
-        self.moveItemsBy(self.indexDisplay, (0, (self.CELL_HEIGHT)))
-
-        self.highlightCodeTags('return_top', callEnviron)
-        self.wait(0.2)
 
         # Finish animation
         self.highlightCodeTags([], callEnviron)
