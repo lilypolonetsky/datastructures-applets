@@ -20,9 +20,10 @@ class Stack(VisualizationApp):
     STACK_Y0 = 350
 
     def __init__(self, size=MAX_SIZE, maxArgWidth=MAX_ARG_WIDTH, title="Stack", **kwargs):
-        super().__init__(title=title, maxArgWidth=maxArgWidth, **kwargs)
+        kwargs['title'] = title
+        kwargs['maxArgWidth'] = maxArgWidth
+        super().__init__(**kwargs)
         self.size = size
-        self.title = title
         self.list = []
         self.maxArgWidth = maxArgWidth
         self.buttons = self.makeButtons()
