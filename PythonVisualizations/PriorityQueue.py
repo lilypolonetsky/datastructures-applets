@@ -235,6 +235,9 @@ class PriorityQueue(VisualizationApp):
         # go through each Drawable in the list
         for i in range(self.nItems):
             drawItem = self.list[i]
+            if drawItem:
+                self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
+                self.canvas.coords(drawItem.display_val, *self.cellCenter(i))            
 
         self.window.update()
         
@@ -270,14 +273,26 @@ class PriorityQueue(VisualizationApp):
 
         self.cleanUp(callEnviron)
 
-    def fixCells(self):       # Move canvas display items to exact cell coords
+    def fixPositions(self):     # Move canvas display items to exact coords
         for i in range(self.nItems):
             drawItem = self.list[i]
+            if drawItem:    # if i contains a cell...move the cells
+                self.canvas.coords(drawItem.display_shape, *self.cellCoords(i))
+                self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
+            else:           # if i doesn't contain a cell...move the index arrow
+                # Move nItems index to position in array
+                x = self.cellCenter(self.nItems)[0] + self.CELL_SIZE//2
+                # Use y coord from nItems index but x value from target location
+                for item in self.index:
+                    coords = [x if i%2 == 0 else c
+                              for i, c in enumerate(self.canvas.coords(item))]
+                    self.canvas.coords(item, *coords)
+        
         self.window.update()
 
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
-        self.fixCells()       # Restore cells to their coordinates in array
+        self.fixPositions()       # Restore cells to their coordinates in array
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
