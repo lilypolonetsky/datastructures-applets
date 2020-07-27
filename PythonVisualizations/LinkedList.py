@@ -402,16 +402,17 @@ class LinkedList(VisualizationApp):
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd)
+        self.addAnimationButtons()
         deleteButton = self.addOperation(
             "Delete", lambda: self.clickDelete(), numArguments=0,
-            validationCmd=vcmd)
+            validationCmd=vcmd, maxRows = 2)
         newLinkedListButton = self.addOperation(
             "New", lambda: self.clickNewLinkedList(), 
-            numArguments = 0, validationCmd =vcmd)
+            numArguments = 0, validationCmd =vcmd, maxRows = 2)
         getFirstButton = self.addOperation(
             "Get First", lambda: self.clickGetFirst(), numArguments = 0,
-            validationCmd=vcmd)
-        self.addAnimationButtons()
+            validationCmd=vcmd, maxRows = 2)
+    
         return [findButton, insertButton, deleteButton, newLinkedListButton, getFirstButton]        
 
     
@@ -432,7 +433,7 @@ def validate(action, index, value_if_allowed,
     if not(value_if_allowed.isdigit()):
         for i in value_if_allowed:
             if not 65<=ord(i)<=122 and i not in "0123456789": return False
-    return True
+    return True
    
 if __name__ == '__main__':
     ll = LinkedList()
