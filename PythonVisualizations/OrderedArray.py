@@ -19,9 +19,9 @@ class OrderedArray(VisualizationApp):
     nextColor = 0
 
     def __init__(self, size=10, title="Ordered Array", **kwargs):
-        super().__init__(title=title, **kwargs)
+        kwargs['title'] = title
+        super().__init__(**kwargs)
         self.size = size
-        self.title = title
         self.list = []
         self.buttons = self.makeButtons()
 
