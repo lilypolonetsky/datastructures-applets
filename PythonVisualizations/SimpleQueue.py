@@ -15,6 +15,8 @@ class Queue(VisualizationApp):
     ARRAY_X0 = 100
     ARRAY_Y0 = 100
     nextColor = 0
+    CELL_BORDER = 2
+    CELL_BORDER_COLOR = 'black'
 
     def __init__(self, size=12, title="Queue", **kwargs):
         super().__init__(title=title, **kwargs)
@@ -36,12 +38,12 @@ class Queue(VisualizationApp):
     def createIndex(  # Create an index arrow to point at an indexed
             self, index=-1, name=None, high=True):  # cell with an optional name label
 
-        coords = [self.ARRAY_X0 + self.CELL_SIZE * index, self.ARRAY_Y0, self.ARRAY_X0 + self.CELL_SIZE * (index + 1), self.ARRAY_Y0 + self.CELL_SIZE]
-
-        x0 = coords[0]+self.CELL_SIZE//2
+        cell_coords = self.cellCoords(index)
+        cell_center = self.cellCenter(index)
+        x0 = cell_center[0]
         x1 = x0
-        y0 = coords[1] - self.CELL_SIZE * 2 // 2
-        y1 = coords[1] - self.CELL_SIZE * 1 // 4
+        y0 = cell_coords[1] - self.CELL_SIZE * 2 // 2
+        y1 = cell_coords[1] - self.CELL_SIZE * 1 // 4
         if high:  # changes height of arrow
             y0 -= 20
 
@@ -75,10 +77,6 @@ class Queue(VisualizationApp):
     def insertRear(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        #if is full does not insert
-        if self.nItems==self.size:
-            self.setMessage('Queue is full!')
-            return None
 
         #if there's a space to insert into
         color = drawable.palette[self.nextColor]
@@ -95,31 +93,27 @@ class Queue(VisualizationApp):
 
         # create new cell and cell value display objects
         # Start drawing new one at rear
-        cell = self.canvas.create_rectangle(self.ARRAY_X0+self.CELL_SIZE*self.rear, self.ARRAY_Y0, \
-                                       self.ARRAY_X0+self.CELL_SIZE*(self.rear+1), self.ARRAY_Y0 + self.CELL_SIZE, \
-                                       fill=color, outline='')
-        cell_val = self.canvas.create_text(self.ARRAY_X0+self.CELL_SIZE*self.rear + (self.CELL_SIZE / 2), \
-                                      self.ARRAY_Y0 + (self.CELL_SIZE / 2), text=val, font=('Helvetica', '20'))
+        cell = self.canvas.create_rectangle(self.cellCoords(self.rear), fill=color, outline='')
+        cell_val = self.canvas.create_text(self.cellCenter(self.rear), text=val, font=('Helvetica', '20'))
 
        # insert the item
         self.list[self.rear] = drawable(val, color, cell, cell_val)
         #increment number of items
         self.nItems += 1
 
-        self.onOffButtons()
         # update window
         self.window.update()
         self.cleanUp(callEnviron)
-        self.stopAnimations()
 
     # remove the left element of the queue, or None if empty
     def removeFront(self):
-        callEnviron = self.createCallEnvironment()
-        self.startAnimations()
-        #if the queue is empty, exit
+        # if the queue is empty, exit
         if self.nItems == 0:
             self.setMessage('Queue is empty!')
             return None
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
 
         #get the value at front, and then set it to None so it will be garbage collected
         n = self.list[self.front]
@@ -140,12 +134,9 @@ class Queue(VisualizationApp):
         self.nItems -= 1
 
         # update window
-        self.onOffButtons()
-        self.cleanUp(callEnviron)
-        self.stopAnimations()
         self.window.update()
+        self.cleanUp(callEnviron)
 
-    
     def display(self):
 
         self.canvas.delete("all")
@@ -154,24 +145,23 @@ class Queue(VisualizationApp):
         self.onOffButtons()
         xpos = self.ARRAY_X0
         ypos = self.ARRAY_Y0
-
-        for i in range(self.size):
-            self.canvas.create_rectangle(xpos + self.CELL_SIZE*i, ypos, xpos + self.CELL_SIZE*(i+1), ypos + self.CELL_SIZE, fill='white', outline='black')
+        for i in range(self.size):  # Draw grid of cells
+            self.createArrayCell(i)
 
         # go through each Element in the list
         for n in self.list:
-            
+
             # Only loop through the existing elements
             if n:
 
                 # create display objects for the associated Elements
                 cell = self.canvas.create_rectangle(xpos, ypos, xpos+self.CELL_SIZE, ypos+self.CELL_SIZE, fill=n[1], outline='')
                 cell_val = self.canvas.create_text(xpos+(self.CELL_SIZE/2), ypos+(self.CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
-    
+
                 # save the display objects to the appropriate attributes of the Element object
                 n.display_shape = cell
                 n.display_val = cell_val
-    
+
                 # increment xpos
                 xpos += self.CELL_SIZE
 
@@ -194,9 +184,14 @@ class Queue(VisualizationApp):
 
     def clickInsertRear(self):
         entered_text = self.getArgument()
-        if entered_text:
+        if self.nItems == self.size:
+            self.setMessage('Queue is full!')
+            self.clearArgument()
+        elif entered_text:
             val = int(entered_text)
             if val < 100:
+                # if is full does not insert
+
                 self.insertRear(int(entered_text))
 
             else:
@@ -211,10 +206,15 @@ class Queue(VisualizationApp):
         self.onOffButtons()
         super().startAnimations()
 
-    def stopAnimations(self):
-        super().stopAnimations()
-        self.onOffButtons()
-        self.argumentChanged()
+
+    def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
+        return (self.ARRAY_X0 + self.CELL_SIZE * cell_index, self.ARRAY_Y0,  # at index
+                self.ARRAY_X0 + self.CELL_SIZE * (cell_index + 1) - self.CELL_BORDER,
+                self.ARRAY_Y0 + self.CELL_SIZE - self.CELL_BORDER)
+
+    def cellCenter(self, index):  # Center point for array cell at index
+        half_cell = (self.CELL_SIZE - self.CELL_BORDER) // 2
+        return add_vector(self.cellCoords(index), (half_cell, half_cell))
 
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
@@ -224,6 +224,20 @@ class Queue(VisualizationApp):
 
         self.deleteButton = self.addOperation("Delete", lambda: self.removeFront())
 
+    def createArrayCell(self, index):  # Create a box representing an array cell
+        cell_coords = self.cellCoords(index)
+        half_border = self.CELL_BORDER // 2
+        rect = self.canvas.create_rectangle(
+            *add_vector(cell_coords,
+                        (-half_border, -half_border,
+                         self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)),
+            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER)
+        self.canvas.lower(rect)
+        return rect
+
+    def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
+        super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
+        self.onOffButtons()       # Restore cells to their coordinates in array
 
 # validate text entry
 def validate(action, index, value_if_allowed,
