@@ -516,6 +516,25 @@ class VisualizationApp(object):  # Base class for Python visualizations
                                  self.canvas.tag_bind(canvasitem, eventType))
         return newItem
 
+    #####################################################################
+    #                                                                   #
+    #                       Animation Methods                           #
+    #                                                                   #
+    #####################################################################
+    # These methods animate canvas items moving in increments with an
+    # adjustable speed.  The items are moved together as a group.  The
+    # path taken to get to the destination is different using the
+    # different methods.  The items parameter for each method can be
+    # specified as a single item ID or tag, or as a list, tuple or set
+    # of IDs or tags. The steps parameter specifies how many
+    # incremental steps should be taken in completing the movement and
+    # must be 1 or more.  The sleepTime specifies how long to wait
+    # between incremental steps.  A sleepTime of 0 will produce the
+    # fastest steps, but you may not see the intermediate positions of
+    # the items.  The callBack function will be called at each
+    # intermediate step with two arguments: the step number starting
+    # with 0, and the total number of steps.  This last step will be
+    # the number of steps - 1.
     def moveItemsOffCanvas(  # Animate the removal of canvas items by sliding
             self, items,     # them off one of the canvas edges
             edge=N,          # One of the 4 tkinter edges: N, E, S, or W
@@ -546,13 +565,15 @@ class VisualizationApp(object):  # Base class for Python visualizations
             delta = (abs(delta[1]) * (-1 if delta[0] < 0 else 1), delta[1])
         elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
             delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
-        self.moveItemsBy(items, delta, steps=steps, sleepTime=sleepTime)
+        self.moveItemsBy(items, delta, steps=steps, sleepTime=sleepTime,
+                         callBack=callBack)
 
     def moveItemsBy(         # Animate canvas items moving from their current
             self, items,     # location in a direction indicated by a single
             delta,           # delta vector. items can be 1 item or a list/tuple
             steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
+            sleepTime=0.1,   # Base time between steps (adjusted by user)
+            callBack=None):  # Callback function for each step in animation
         if not isinstance(items, (list, tuple, set)):
             items = tuple(items)
         if not isinstance(delta, (list, tuple)) or len(delta) != 2:
@@ -566,13 +587,16 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for step in range(steps):
             for item in items:
                 self.canvas.move(item, *moveBy)
+            if callBack:     # If callback provided, call it with step count
+                callBack(step, steps)
             self.wait(sleepTime)
 
-    def moveItemsTo(         # Animate canvas items moving from their current
-            self, items,     # location to destination locations along line(s)
+    def moveItemsTo(         # Animate canvas items moving rigidly 
+            self, items,     # to destination locations along line(s)
             toPositions,     # items can be a single item or list of items
             steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
+            sleepTime=0.1,   # Base time between steps (adjusted by user)
+            callBack=None):  # Callback function for each step in animation
         if not isinstance(items, (list, tuple, set)):
             items = tuple(items)
         if not isinstance(toPositions, (list, tuple)):
@@ -589,12 +613,53 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for step in range(steps):
             for i, item in enumerate(items):
                 self.canvas.move(item, *moveBy[i])
+            if callBack:     # If callback provided, call it with step count
+                callBack(step, steps)
             self.wait(sleepTime)
             
         # Force position of new objects to their exact destinations
         for pos, item in zip(toPositions, items):
             self.canvas.coords(item, *pos)
 
+    # The moveItemsLinearly method uses all the coordinates of canvas
+    # items in calculating the movement vectors.  Don't pass the
+    # 'items' arguments with canvas tags attached to multiple items.
+    # If you do, it will only move one of them and the number of
+    # coordinates for it the toPositions argument could be a mismatch.
+    # Pass item IDs to ensure a 1-to-1 mapping.
+    def moveItemsLinearly(   # Animate canvas items moving each of their 
+            self, items,     # coordinates linearly to new destinations
+            toPositions,     # Items can be single or multiple, but not tags
+            steps=10,        # Number of intermediate steps along line
+            sleepTime=0.1,   # Base time between steps (adjusted by user)
+            callBack=None):  # Callback function for each step in animation
+        if not isinstance(items, (list, tuple, set)):
+            items = tuple(items)
+        if not isinstance(toPositions, (list, tuple)):
+            raise ValueError('toPositions must be a list or tuple of positions')
+        if not isinstance(toPositions[0], (list, tuple)):
+            toPositions = tuple(toPositions)
+        if len(items) != len(toPositions):
+            raise ValueError('Number of items must match length of toPositions')
+        steps = max(1, steps) # Must use at least 1 step
+        moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
+                  for toPos, fromPos in zip(
+                          toPositions,
+                          [self.canvas.coords(item) for item in items])]
+
+        # move the items until they reach the toPositions
+        for step in range(steps):
+            for i, item in enumerate(items):
+                self.canvas.coords(item, *add_vector(self.canvas.coords(item),
+                                                     moveBy[i]))
+            if callBack:     # If callback provided, call it with step count
+                callBack(step, steps)
+            self.wait(sleepTime)
+            
+        # Force position of new objects to their exact destinations
+        for pos, item in zip(toPositions, items):
+            self.canvas.coords(item, *pos)
+             
     def moveItemsOnCurve(    # Animate canvas items moving from their current
             self, items,     # location to destinations along a curve
             toPositions,     # items can be a single item or list of items
@@ -621,6 +686,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
                                   (toGo + 1) / scale),
                     ang)
                 self.canvas.move(item, *moveBy)
+            if callBack:     # If callback provided, call it with step count
+                callBack(step, steps)
             self.wait(sleepTime)
             
         # Force position of new objects to their exact destinations
