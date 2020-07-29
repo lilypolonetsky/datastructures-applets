@@ -54,23 +54,6 @@ class Queue(VisualizationApp):
                 x1 + 2, y0, text=name, anchor=SW,
                 font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         return (arrow, label) if name else (arrow,)
-
-    # def speed(self, sleepTime):
-    #     return (sleepTime * (scaleDefault + 50)) / (scale.get() + 50)
-    
-    def set(self, index, val):
-        # reset the value of the Element at that index to val
-        self.list[index].val = val
-
-        # get the position of the displayed value
-        pos = self.canvas.coords(self.list[index].display_val)
-
-        # delete the displayed value and replace it with the updated value
-        self.canvas.delete(self.list[index].display_val)
-        self.list[index].display_val = self.canvas.create_text(pos[0], pos[1], text=str(val), font=('Helvetica', '20'))
-
-        # update window
-        self.window.update()
         
         
     # insert item at rear of queue   
@@ -114,7 +97,6 @@ class Queue(VisualizationApp):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
 
-
         #get the value at front, and then set it to None so it will be garbage collected
         n = self.list[self.front]
         self.list[self.front] = None
@@ -130,9 +112,9 @@ class Queue(VisualizationApp):
             self.moveItemsBy(self.frontArrow, (self.CELL_SIZE * self.size * -1, 0))
         #move arrow
         self.moveItemsBy(self.frontArrow, (self.CELL_SIZE, 0))
-        #decrement number of arrows
-        self.nItems -= 1
 
+        # decrement number of arrows
+        self.nItems -= 1
         # update window
         self.window.update()
         self.cleanUp(callEnviron)
@@ -149,24 +131,10 @@ class Queue(VisualizationApp):
             self.createArrayCell(i)
 
         # go through each Element in the list
-        for n in self.list:
 
-            # Only loop through the existing elements
-            if n:
 
-                # create display objects for the associated Elements
-                cell = self.canvas.create_rectangle(xpos, ypos, xpos+self.CELL_SIZE, ypos+self.CELL_SIZE, fill=n[1], outline='')
-                cell_val = self.canvas.create_text(xpos+(self.CELL_SIZE/2), ypos+(self.CELL_SIZE/2), text=n[0], font=('Helvetica', '20'))
-
-                # save the display objects to the appropriate attributes of the Element object
-                n.display_shape = cell
-                n.display_val = cell_val
-
-                # increment xpos
-                xpos += self.CELL_SIZE
-
-        self.rearArrow = self.createIndex(self.rear, "Rear", high=False)
-        self.frontArrow = self.createIndex(self.front, "Front", high=True)
+        self.rearArrow = self.createIndex(self.rear, "rear", high=False)
+        self.frontArrow = self.createIndex(self.front, "front", high=True)
         self.window.update()
 
     #disable insert if queue if full, disable delete if empty
@@ -237,7 +205,7 @@ class Queue(VisualizationApp):
 
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
-        self.onOffButtons()       # Restore cells to their coordinates in array
+        self.onOffButtons()       # disable buttons as necessary
 
 # validate text entry
 def validate(action, index, value_if_allowed,
