@@ -332,7 +332,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeHScroll.grid(row=1, column=0, sticky=(E, W))
             self.codeText['xscrollcommand'] = self.codeHScroll.set
             self.codeText['yscrollcommand'] = self.codeVScroll.set
-            self.codeFrame.bind('<Configure>', self.resizeCodeText)
+            self.controlPanel.bind('<Configure>', self.resizeCodeText)
             self.codeText.tag_config('call_stack_boundary',
                                      font=self.CODE_FONT + ('overstrike',),
                                      background=self.CALL_STACK_BOUNDARY)
