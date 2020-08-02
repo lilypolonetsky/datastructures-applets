@@ -110,6 +110,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.canvas.pack(expand=True, fill=BOTH)
         self.setUpControlPanel()
         self.maxArgWidth = maxArgWidth
+        self.minCodeCharacterWidth = 42
+        self.minCodeCharacterHeight = 12
 
         # Set up instance variables for managing animations and operations
         self.callStack = []    # Stack of local environments for visualziation
@@ -118,13 +120,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
         
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window)
-        self.controlPanel.pack(side=BOTTOM, fill=X)
+        self.controlPanel.pack(side=BOTTOM, expand=True, fill=X)
         self.operationsUpper = LabelFrame(self.controlPanel, text="Operations")
         self.operationsUpper.grid(row=0, column=0)
-        self.operationsBorder = Frame(
+        self.operationsPadding = Frame(
             self.operationsUpper, padx=2, pady=2, bg=self.OPERATIONS_BORDER)
-        self.operationsBorder.pack(side=TOP)
-        self.operations = Frame(self.operationsBorder, bg=self.OPERATIONS_BG)
+        self.operationsPadding.pack(side=TOP)
+        self.operations = Frame(self.operationsPadding, bg=self.OPERATIONS_BG)
         self.opSeparator = None
         self.operations.pack(side=LEFT)
         self.operationsLower = Frame(self.controlPanel)
@@ -318,7 +320,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if self.codeText is None:
             self.codeText = Text(
                 self.codeFrame, wrap=NONE, background=self.OPERATIONS_BG,
-                font=self.CODE_FONT, width=40, height=12, padx=10, pady=10,
+                font=self.CODE_FONT, width=self.minCodeCharacterWidth,
+                height=self.minCodeCharacterHeight, padx=10, pady=10,
                 takefocus=False)
             self.codeText.grid(row=0, column=0, sticky=(N, E, S, W))
             self.codeVScroll = Scrollbar(
@@ -329,6 +332,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeHScroll.grid(row=1, column=0, sticky=(E, W))
             self.codeText['xscrollcommand'] = self.codeHScroll.set
             self.codeText['yscrollcommand'] = self.codeVScroll.set
+            self.codeFrame.bind('<Configure>', self.resizeCodeText)
             self.codeText.tag_config('call_stack_boundary',
                                      font=self.CODE_FONT + ('overstrike',),
                                      background=self.CALL_STACK_BOUNDARY)
@@ -351,6 +355,22 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for tagName in snippets:
             self.codeText.tag_add(prefix + tagName, *snippets[tagName])
         self.codeText.configure(state=DISABLED)
+
+    def resizeCodeText(self, event):
+        if self.codeText and self.codeText.winfo_ismapped():
+            ct = self.codeText
+            nCharsWide = ct['width']
+            padX = ct['padx']
+            available = (self.controlPanel.winfo_width() -
+                     max(self.operationsUpper.winfo_width(),
+                         self.operationsLower.winfo_width()) -
+                          self.codeVScroll.winfo_width() - padX - padX)
+            ctWidth = ct.winfo_width()
+            widthPerChar = (ctWidth - padX) / nCharsWide
+            desired = max(self.minCodeCharacterWidth, 
+                          round(available / widthPerChar))
+            if desired != nCharsWide:
+                ct['width'] = desired
 
     def highlightCodeTags(self, tags, callEnviron):
         codeHighlightBlock = self.getCodeHighlightBlock(callEnviron)
