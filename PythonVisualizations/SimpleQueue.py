@@ -17,19 +17,32 @@ class Queue(VisualizationApp):
     CELL_BORDER_COLOR = 'black'
     MAX_CELLS = 12
 
-    def __init__(self, size=MAX_CELLS, title="Queue", **kwargs):
+    def __init__(              # Create a circular Queue visualization
+            self, center=None, # centered at these coords (or canvas center)
+            outerRadius=0.9,   # w/ outer and inner radius specified as either
+            innerRadius=0.5,   # a fraction of the height or in pixels
+            size=MAX_CELLS,    # with a max number of cells
+            title="Queue",
+            **kwargs):
         super().__init__(title=title, **kwargs)
         self.list = [None]*size
         self.size = size
-        self.front = 1  # when Queue is empty, front 
-        self.rear = 0   # should be to right of rear.
         self.nItems = 0
+        self.front = 1  # when Queue is empty, front is one more than rear
+        self.rear = 0
+        if center is None:
+            center = divide_vector(self.widgetDimensions(self.canvas), 2)
+        self.X0, self.Y0 = int(center[0]), int(center[1])
+        minDimension = min(self.X0, self.Y0)
+        self.innerRadius = (innerRadius * minDimension if innerRadius <= 1 else
+                            innerRadus)
+        self.outerRadius = (outerRadius * minDimension if outerRadius <= 1 else
+                            outerRadus)
         self.makeButtons()
         self.display()
 
     def __str__(self):
-        return str(self.list)
-    
+        return str(self.list)    
     # ANIMATION METHODS
     def createIndex(  # Create an arrow to point at a particuar cell
             self,     # cell with an optional name label
@@ -98,7 +111,7 @@ class Queue(VisualizationApp):
        # insert the item
         self.list[self.rear] = drawable(val, 'color?', *cellValue)
         #increment number of items
-        self.nItems += 1
+        self.updateNItems(self.nItems + 1)
 
         # update window
         self.cleanUp(callEnviron)
@@ -130,13 +143,17 @@ class Queue(VisualizationApp):
         self.moveIndexTo(self.frontArrow, self.front, self.frontLevel)
 
         # decrement number of items
-        self.nItems -= 1
+        self.updateNItems(self.nItems - 1)
 
         self.cleanUp(callEnviron)
 
     def display(self):
         self.canvas.delete("all")
 
+        self.nItemsDisplay = self.canvas.create_text(
+            self.X0 - self.outerRadius, self.Y0 - self.outerRadius,
+            text='nItems: {}'.format(self.nItems), anchor=NW,
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
 
@@ -146,6 +163,11 @@ class Queue(VisualizationApp):
         self.frontLevel = 2
         self.frontArrow = self.createIndex(
             self.front, "front", level=self.frontLevel)
+
+    def updateNItems(self, newNItems):
+        self.nItems = newNItems
+        self.canvas.itemconfigure(
+            self.nItemsDisplay, text='nItems: {}'.format(self.nItems))
 
     #disable insert if queue if full, disable delete if empty
     #enable everything else without overriding queue/deque functionality
