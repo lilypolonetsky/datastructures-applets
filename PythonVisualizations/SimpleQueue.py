@@ -22,22 +22,34 @@ class Queue(VisualizationApp):
             outerRadius=0.9,   # w/ outer and inner radius specified as either
             innerRadius=0.5,   # a fraction of the height or in pixels
             size=MAX_CELLS,    # with a max number of cells
+            maxArgWidth=6,     # Maximum width of keys/values to show
+            frontIndexColor='blue', # Colors for index displays or '' for none
+            rearIndexColor='dark green',
+            numericIndexColor='gray40', # Color and font for numeric indices in
+            numericIndexFont=('Courier', 11), # in cells and covered by values 
             title="Queue",
             **kwargs):
-        super().__init__(title=title, **kwargs)
+        kwargs['title'] = title
+        kwargs['maxArgWidth'] = maxArgWidth
+        super().__init__(**kwargs)
         self.list = [None]*size
         self.size = size
         self.nItems = 0
         self.front = 1  # when Queue is empty, front is one more than rear
         self.rear = 0
+        self.frontIndexColor = frontIndexColor
+        self.rearIndexColor = rearIndexColor
+        self.numericIndexColor = numericIndexColor
+        self.numericIndexFont = numericIndexFont
         if center is None:
             center = divide_vector(self.widgetDimensions(self.canvas), 2)
-        self.X0, self.Y0 = int(center[0]), int(center[1])
-        minDimension = min(self.X0, self.Y0)
+        self.center = tuple(map(int, center))
+        minDimension = min(*self.center)
         self.innerRadius = (innerRadius * minDimension if innerRadius <= 1 else
                             innerRadus)
         self.outerRadius = (outerRadius * minDimension if outerRadius <= 1 else
                             outerRadus)
+        self.textRadius = (self.innerRadius + self.outerRadius) / 2
         self.makeButtons()
         self.display()
 
@@ -48,50 +60,92 @@ class Queue(VisualizationApp):
             self,     # cell with an optional name label
             index=-1,
             name=None,
+            color=VisualizationApp.VARIABLE_COLOR,
             level=1): # Level controls arrow length to avoid overlapping labels
+        if color == '':  # No color means no index created
+            return tuple()
         arrow_coords = self.arrowCoords(index, level)
         arrow = self.canvas.create_line(
-            *arrow_coords, arrow="last", fill=self.VARIABLE_COLOR)
+            *arrow_coords, arrow="last", fill=color)
         if name:
             label = self.canvas.create_text(
-                arrow_coords[0], arrow_coords[1], text=name, anchor=SW,
-                font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+                arrow_coords[0], arrow_coords[1], text=name, 
+                anchor=self.labelAnchor(arrow_coords, level),
+                font=self.VARIABLE_FONT, fill=color)
         return (arrow, label) if name else (arrow,)
 
     # Arrow endpoint coordinates to point at cell
+    # Level 1 is nearest inside inner radius, Level 2 is close to center
+    # Negative levels are inside the array cell and is used for positioning the
+    # numeric indices
     def arrowCoords(self, cellIndex, level=1):
-        cell_coords = self.cellCoords(cellIndex)
-        cell_center = self.cellCenter(cellIndex)
-        sign = 1 if level > 0 else -1
-        x0 = cell_center[0]
-        y = cell_coords[1 if level > 0 else 3]
-        y0 = y - sign * self.CELL_SIZE * 3 / 4 - self.VARIABLE_FONT[1] * level
-        y1 = y - sign * self.CELL_SIZE * 1 // 4
-        return (x0, y0, x0, y1)
+        angle = (cellIndex + 0.5) * self.sliceAngle
+        tip = rotate_vector((self.innerRadius * 0.95, 0), angle)
+        back = rotate_vector(
+            (self.innerRadius - self.VARIABLE_FONT[1] * level * 2.8, 0),
+            angle)
+        return add_vector(self.center, back) + add_vector(self.center, tip)
 
+    # Anchor for index label indexed on horizontal-vertical (0 or 1), then
+    # (xSign, ySign, level % 2)
+    anchors = [
+        {(+1, +1, 0): SE, (-1, +1, 0): SW,
+         (+1, +1, 1): NE, (-1, +1, 1): NW,
+         (+1, -1, 0): SE, (-1, -1, 0): SW,
+         (+1, -1, 1): NE, (-1, -1, 1): NW,
+        },
+        {(+1, +1, 0): SW, (-1, +1, 0): SW,
+         (+1, +1, 1): SE, (-1, +1, 1): SE,
+         (+1, -1, 0): NW, (-1, -1, 0): NW,
+         (+1, -1, 1): NE, (-1, -1, 1): NE,
+        },
+        ]
+    
+    def labelAnchor(self, arrowCoords, level):
+        vert = 1 if (abs(arrowCoords[1] - arrowCoords[3]) > 
+                     abs(arrowCoords[0] - arrowCoords[2])) else 0
+        ySign = +1 if arrowCoords[3] > arrowCoords[1] else -1
+        xSign = +1 if arrowCoords[2] > arrowCoords[0] else -1
+        return self.anchors[vert][(xSign, ySign, level % 2)]
+    
     def moveIndexTo(
             self, indexItems, cellIndex, level, steps=10, sleepTime=0.02):
         '''Move an index arrow and optional label to the point at the cell
         indexed by cellIndex from its current position'''
         newArrowCoords = self.arrowCoords(cellIndex, level)
+        # TODO: change this to moveItemsLinearly
         self.moveItemsTo(indexItems, [newArrowCoords, newArrowCoords[:2]],
                          steps=steps, sleepTime=sleepTime)
+        if len(indexItems) > 1:
+            newAnchor = self.labelAnchor(newArrowCoords, level)
+            self.canvas.itemconfigure(indexItems[1], anchor=newAnchor)
 
-    def newCellValue(self, indexOrCoords, value, color=None):
-        if isinstance(indexOrCoords, int):
-            indexOrCoords = self.cellCoords(indexOrCoords)
+    def sliceRange(self, index):
+        index %= self.size
+        return (self.sliceAngle * index, self.sliceAngle)
+    
+    def newCellValue(self, index, value, color=None):
         if color is None:
             color = drawable.palette[self.nextColor]
             # increment nextColor
             self.nextColor = (self.nextColor + 1) % len(drawable.palette)
-        
-        center = ((indexOrCoords[0] + indexOrCoords[2]) / 2,
-                  (indexOrCoords[1] + indexOrCoords[3]) / 2)
-        return (self.canvas.create_rectangle(
-            *indexOrCoords, fill=color, outline=''),
-                self.canvas.create_text(
-                    *center, text=value, font=self.VALUE_FONT,
-                    fill=self.VALUE_COLOR))
+
+        sliceRange = self.sliceRange(index)
+        outerDelta = (self.outerRadius, self.outerRadius)
+        arc = self.canvas.create_arc(
+                *subtract_vector(self.center, outerDelta),
+                *add_vector(self.center, outerDelta),
+                start=sliceRange[0], extent = sliceRange[1],
+                fill=color, width=0, outline='',
+                style=PIESLICE, tags='value background')
+        self.canvas.tag_lower(arc, 'cell')
+        textDelta = rotate_vector(
+            ((self.innerRadius + self.outerRadius) / 2, 0),
+            (index + 0.5) * self.sliceAngle)
+        text = self.canvas.create_text(
+            *add_vector(self.center, textDelta), text=value,
+            font=self.VALUE_FONT, fill=self.VALUE_COLOR)
+        return (arc, text)
             
     # insert item at rear of queue   
     def insertRear(self, val):
@@ -102,7 +156,8 @@ class Queue(VisualizationApp):
         self.rear += 1
         # deal with wraparound
         self.rear %= self.size
-        self.moveIndexTo(self.rearArrow, self.rear, self.rearLevel)
+        if self.rearArrow:
+            self.moveIndexTo(self.rearArrow, self.rear, self.rearLevel)
 
         # create new cell and cell value display objects
         # Start drawing new one at rear
@@ -140,7 +195,8 @@ class Queue(VisualizationApp):
         self.front %= self.size
         
         #move arrow
-        self.moveIndexTo(self.frontArrow, self.front, self.frontLevel)
+        if self.frontArrow:
+            self.moveIndexTo(self.frontArrow, self.front, self.frontLevel)
 
         # decrement number of items
         self.updateNItems(self.nItems - 1)
@@ -151,18 +207,19 @@ class Queue(VisualizationApp):
         self.canvas.delete("all")
 
         self.nItemsDisplay = self.canvas.create_text(
-            self.X0 - self.outerRadius, self.Y0 - self.outerRadius,
+            self.center[0] - self.outerRadius, 
+            self.center[1] - self.outerRadius,
             text='nItems: {}'.format(self.nItems), anchor=NW,
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
-        for i in range(self.size):  # Draw grid of cells
-            self.createArrayCell(i)
+
+        self.createCells(self.size)  # Draw grid of cells
 
         self.rearLevel = 1
         self.rearArrow = self.createIndex(
-            self.rear, "rear", level=self.rearLevel)
+            self.rear, "rear", level=self.rearLevel, color=self.rearIndexColor)
         self.frontLevel = 2
         self.frontArrow = self.createIndex(
-            self.front, "front", level=self.frontLevel)
+            self.front, "front", level=self.frontLevel, color=self.frontIndexColor)
 
     def updateNItems(self, newNItems):
         self.nItems = newNItems
@@ -201,36 +258,15 @@ class Queue(VisualizationApp):
             self.setMessage('Queue is full!')
             self.clearArgument()
         elif entered_text:
-            val = int(entered_text)
-            if val < 100:
-                # if is full does not insert
-
-                self.insertRear(int(entered_text))
-
-            else:
-                self.setMessage("Input value must be an integer from 0 to 99.")
+            self.insertRear(entered_text)
             self.clearArgument()
-                
-    def close_window(self):
-        self.window.destroy()
-        self.exit()
 
     def startAnimations(self):
         self.onOffButtons()
         super().startAnimations()
 
-
-    def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
-        return (self.ARRAY_X0 + self.CELL_SIZE * cell_index, self.ARRAY_Y0,  # at index
-                self.ARRAY_X0 + self.CELL_SIZE * (cell_index + 1) - self.CELL_BORDER,
-                self.ARRAY_Y0 + self.CELL_SIZE - self.CELL_BORDER)
-
-    def cellCenter(self, index):  # Center point for array cell at index
-        half_cell = (self.CELL_SIZE - self.CELL_BORDER) // 2
-        return add_vector(self.cellCoords(index), (half_cell, half_cell))
-
     def makeButtons(self):
-        vcmd = (self.window.register(numericValidate),
+        vcmd = (self.window.register(makeLengthValidate(self.maxArgWidth)),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         self.insertButton = self.addOperation(
             "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd)
@@ -242,16 +278,29 @@ class Queue(VisualizationApp):
         self.deleteButton = self.addOperation("Delete", lambda: self.removeFront())
         self.addAnimationButtons()
 
-    def createArrayCell(self, index):  # Create a box representing an array cell
-        cell_coords = self.cellCoords(index)
-        half_border = self.CELL_BORDER // 2
-        rect = self.canvas.create_rectangle(
-            *add_vector(cell_coords,
-                        (-half_border, -half_border,
-                         self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)),
-            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER)
-        self.canvas.lower(rect)
-        return rect
+    def createCells(self, nCells):  # Create a set of array cells in a circle
+        self.sliceAngle = 360 / nCells
+        outerDelta = (self.outerRadius, self.outerRadius)
+        self.slices = [
+            self.canvas.create_arc(
+                *subtract_vector(self.center, outerDelta),
+                *add_vector(self.center, outerDelta),
+                start=self.sliceAngle * sliceI, extent = self.sliceAngle,
+                fill='', width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR,
+                style=PIESLICE, tags='cell')
+            for sliceI in range(nCells)]
+        if self.numericIndexColor and self.numericIndexFont:
+            self.numericIndices = [
+                self.canvas.create_text(
+                    *self.arrowCoords(sliceI, -0.3)[:2], text=sliceI,
+                    font=self.numericIndexFont, fill=self.numericIndexColor)
+                for sliceI in range(nCells)]
+                    
+        innerDelta = (self.innerRadius, self.innerRadius)
+        self.sliceCover = self.canvas.create_oval(
+            *subtract_vector(self.center, innerDelta),
+            *add_vector(self.center, innerDelta), fill='white', 
+            width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR)
 
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
