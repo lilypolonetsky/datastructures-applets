@@ -21,10 +21,14 @@ class Queue(VisualizationApp):
             self, center=None, # centered at these coords (or canvas center)
             outerRadius=0.9,   # w/ outer and inner radius specified as either
             innerRadius=0.5,   # a fraction of the height or in pixels
-            size=MAX_CELLS,    # with a max number of cells
+            size=10,           # with a particular number of cells
             maxArgWidth=6,     # Maximum width of keys/values to show
             frontIndexColor='blue', # Colors for index displays or '' for none
             rearIndexColor='dark green',
+            valueColor='black', 
+            valueFont=('Helvetica', 16),
+            variableColor='brown3',
+            variableFont=('Courier', 14),
             numericIndexColor='gray40', # Color and font for numeric indices in
             numericIndexFont=('Courier', 11), # in cells and covered by values 
             title="Queue",
@@ -39,6 +43,10 @@ class Queue(VisualizationApp):
         self.rear = 0
         self.frontIndexColor = frontIndexColor
         self.rearIndexColor = rearIndexColor
+        self.valueColor = valueColor
+        self.valueFont = valueFont
+        self.variableColor = variableColor
+        self.variableFont = variableFont
         self.numericIndexColor = numericIndexColor
         self.numericIndexFont = numericIndexFont
         if center is None:
@@ -60,10 +68,12 @@ class Queue(VisualizationApp):
             self,     # cell with an optional name label
             index=-1,
             name=None,
-            color=VisualizationApp.VARIABLE_COLOR,
+            color=None,
             level=1): # Level controls arrow length to avoid overlapping labels
         if color == '':  # No color means no index created
             return tuple()
+        elif color is None:
+            color = self.variableColor
         arrow_coords = self.arrowCoords(index, level)
         arrow = self.canvas.create_line(
             *arrow_coords, arrow="last", fill=color)
@@ -71,7 +81,7 @@ class Queue(VisualizationApp):
             label = self.canvas.create_text(
                 arrow_coords[0], arrow_coords[1], text=name, 
                 anchor=self.labelAnchor(arrow_coords, level),
-                font=self.VARIABLE_FONT, fill=color)
+                font=self.variableFont, fill=color)
         return (arrow, label) if name else (arrow,)
 
     # Arrow endpoint coordinates to point at cell
@@ -82,7 +92,7 @@ class Queue(VisualizationApp):
         angle = (cellIndex + 0.5) * self.sliceAngle
         tip = rotate_vector((self.innerRadius * 0.95, 0), angle)
         back = rotate_vector(
-            (self.innerRadius - self.VARIABLE_FONT[1] * level * 2.8, 0),
+            (self.innerRadius - self.variableFont[1] * level * 2.8, 0),
             angle)
         return add_vector(self.center, back) + add_vector(self.center, tip)
 
@@ -102,6 +112,7 @@ class Queue(VisualizationApp):
         ]
     
     def labelAnchor(self, arrowCoords, level):
+        return 'center'
         vert = 1 if (abs(arrowCoords[1] - arrowCoords[3]) > 
                      abs(arrowCoords[0] - arrowCoords[2])) else 0
         ySign = +1 if arrowCoords[3] > arrowCoords[1] else -1
@@ -144,7 +155,7 @@ class Queue(VisualizationApp):
             (index + 0.5) * self.sliceAngle)
         text = self.canvas.create_text(
             *add_vector(self.center, textDelta), text=value,
-            font=self.VALUE_FONT, fill=self.VALUE_COLOR)
+            font=self.valueFont, fill=self.valueColor)
         return (arc, text)
             
     # insert item at rear of queue   
@@ -210,7 +221,7 @@ class Queue(VisualizationApp):
             self.center[0] - self.outerRadius, 
             self.center[1] - self.outerRadius,
             text='nItems: {}'.format(self.nItems), anchor=NW,
-            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+            font=self.variableFont, fill=self.variableColor)
 
         self.createCells(self.size)  # Draw grid of cells
 
