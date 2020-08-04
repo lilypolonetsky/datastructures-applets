@@ -113,11 +113,11 @@ class Queue(VisualizationApp):
     
     def labelAnchor(self, arrowCoords, level):
         return 'center'
-        vert = 1 if (abs(arrowCoords[1] - arrowCoords[3]) > 
-                     abs(arrowCoords[0] - arrowCoords[2])) else 0
-        ySign = +1 if arrowCoords[3] > arrowCoords[1] else -1
-        xSign = +1 if arrowCoords[2] > arrowCoords[0] else -1
-        return self.anchors[vert][(xSign, ySign, level % 2)]
+        # vert = 1 if (abs(arrowCoords[1] - arrowCoords[3]) > 
+        #              abs(arrowCoords[0] - arrowCoords[2])) else 0
+        # ySign = +1 if arrowCoords[3] > arrowCoords[1] else -1
+        # xSign = +1 if arrowCoords[2] > arrowCoords[0] else -1
+        # return self.anchors[vert][(xSign, ySign, level % 2)]
     
     def moveIndexTo(
             self, indexItems, cellIndex, level, steps=10, sleepTime=0.02):
@@ -127,9 +127,9 @@ class Queue(VisualizationApp):
         # TODO: change this to moveItemsLinearly
         self.moveItemsTo(indexItems, [newArrowCoords, newArrowCoords[:2]],
                          steps=steps, sleepTime=sleepTime)
-        if len(indexItems) > 1:
-            newAnchor = self.labelAnchor(newArrowCoords, level)
-            self.canvas.itemconfigure(indexItems[1], anchor=newAnchor)
+        # if len(indexItems) > 1:
+        #     newAnchor = self.labelAnchor(newArrowCoords, level)
+        #     self.canvas.itemconfigure(indexItems[1], anchor=newAnchor)
 
     def sliceRange(self, index):
         index %= self.size
