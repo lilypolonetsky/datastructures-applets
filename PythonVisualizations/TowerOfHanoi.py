@@ -2,9 +2,12 @@ from tkinter import *
 
 try:
     from VisualizationApp import *
+    from coordinates import *
 except ModuleNotFoundError:
     from .VisualizationApp import *
+    from .coordinates import *
 
+V = vector
 
 class TowerOfHanoi(VisualizationApp):
 
@@ -30,8 +33,9 @@ class TowerOfHanoi(VisualizationApp):
         self.baseTop = baseTop
         self.spindleSide = baseSide
         self.spindleTop = baseTop
+        self.starColor = 'red'
         self.X0, self.Y0 = bbox[:2]
-        self.width, self.height = subtract_vector(bbox[2:], bbox[:2])
+        self.width, self.height = V(bbox[2:]) - V(bbox[:2])
         self.spindles = [[]] * 3  # lists of disk indices
         self.disks = []
         self.spindleWidth = max(4, self.width // 90)
@@ -50,6 +54,9 @@ class TowerOfHanoi(VisualizationApp):
         self.canvas.delete("all")
 
         sw = self.spindleWidth
+        starOnAxis = regularStar((self.spindleX[2], 0), sw * 2, sw * 2 * 0.6, 6)
+        tiltStar = [V(V(vert) / V(1, 3)) + V(0, self.bbox[3] - sw * 2)
+                    for vert in starOnAxis]
         self.base = (
             self.canvas.create_rectangle(
                 self.bbox[0], self.bbox[3] - sw,
@@ -60,7 +67,10 @@ class TowerOfHanoi(VisualizationApp):
                 self.bbox[2], self.bbox[3] - sw,
                 self.bbox[2] - 3 * sw, self.bbox[3] - 5 * sw,
                 self.bbox[0] + 3 * sw, self.bbox[3] - 5 * sw,
-                fill=self.baseTop, outline='', width=0, tags='base')
+                fill=self.baseTop, outline='', width=0, tags='base'),
+            self.canvas.create_polygon(
+                *tiltStar, fill=self.starColor, outline='', width=0, 
+                tags=('base', 'star'))
            )
         
         # Put all disks on left spindle, largest first

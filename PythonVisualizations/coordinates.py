@@ -107,11 +107,31 @@ class vector(object):
         s, c = math.sin(a), math.cos(a)
         return (self.dot(vector(c, -s)), self.dot(vector(s, c)))
 
+def flat(*vectors): # Flatten a sequence of vectors into a tuple of coordinates
+    return tuple(v[i] for v in vectors for i in range(len(v)))
+
 def bbox(*vectors): # Return the bounding box of a sequence of vectors
     minlen = min(len(v) for v in vectors)
     return (
         tuple(min(*(p[i] for p in vectors)) for i in range(minlen)),
         tuple(max(*(p[i] for p in vectors)) for i in range(minlen)))
+
+# Return the n vertices of regular polygon of nGon sides starting from
+# a particular angle and going clockwise
+def convexPolygon(center, radius, nGon, startAngle=90):
+    V = vector
+    return tuple(V(center) + V(radius, 0).rotate(startAngle + j * 360 / nGon)
+                 for j in range(nGon))
+
+# Return a n-pointed star's vertices with a given outer and inner radii
+# starting at a particular angle and going clockwise.  (The result has
+# 2 * nPoints vertices).
+def regularStar(center, outerRadius, innerRadius, nPoints, startAngle=90):
+    V = vector
+    return tuple(
+        V(center) + V(outerRadius if j % 2 == 0 else innerRadius, 0).rotate(
+            startAngle + j * 180 / nPoints)
+        for j in range(nPoints * 2))
      
 if __name__ == '__main__':
     V = vector
@@ -129,7 +149,11 @@ if __name__ == '__main__':
         'A[0]', 'A[:2]', 'A[::2]', 'str(V(*A[::2]))', 'str(V(A[::2]))',
         'V(A[::2]).rotate(90)', 'A.rotate(37)',
         'A.dot(B)', 'A.len2()', 'A.vlen()', 'A.unit()',
-        'bbox(A, B)', 'bbox(B[1:], A)'
+        'bbox(A, B)', 'bbox(B[1:], A)',
+        'flat(*bbox(A, B))',
+        'bbox(A[1:], B[1:])', 'flat(*bbox(A[1:], B[1:]))',
+        'convexPolygon((0, 0), 10, 5)',
+        'regularStar((10, 0), 10, 5, 6)'
     ]
     for exp in expressions:
         print('{} evaluates to '.format(exp), end='')
