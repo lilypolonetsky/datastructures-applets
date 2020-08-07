@@ -54,7 +54,8 @@ class TowerOfHanoi(VisualizationApp):
         self.canvas.delete("all")
 
         sw = self.spindleWidth
-        starOnAxis = regularStar((self.spindleX[2], 0), sw * 2, sw * 2 * 0.6, 6)
+        starOnAxis = regularStar((self.bbox[2] - 5 * sw, 0),
+                                 sw * 2, sw * 2 * 0.6, 6)
         tiltStar = [V(V(vert) / V(1, 3)) + V(0, self.bbox[3] - sw * 2)
                     for vert in starOnAxis]
         self.base = (
@@ -188,7 +189,9 @@ class TowerOfHanoi(VisualizationApp):
                             .format(self.minDisks, self.maxDisks))
         else:
             nDisks = int(val)
-            self.display(int(val))
+            self.display(nDisks)
+            self.setMessage('You need at least {} move{}.  Good luck!'.format(
+                pow(2, nDisks) - 1, '' if nDisks == 1 else 's'))
         self.clearArgument()
 
 if __name__ == '__main__':
