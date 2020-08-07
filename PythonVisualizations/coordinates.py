@@ -9,8 +9,12 @@ from operator import *
 import math
 
 class vector(object):
+    # Constructor accepts multiple coordinate parameters: vector(3, 4, 5) or
+    # a sequence containing coordinates: vector([3, 4, 5])
     def __init__(self, *coords):
-        self.coords = coords
+        self.coords = tuple(coords[0]) if (
+            len(coords) == 1 and isinstance(coords[0], (list, tuple, set))
+        ) else coords
 
     def __len__(self):
         return len(self.coords)
@@ -122,8 +126,8 @@ if __name__ == '__main__':
         'A + B', 'A - B', 'A * B', 'B * A', 'A / B',
         'A * 2', 'A + 2', 'A - 2', 'A / 2',
         'A < B', 'A == B', 'A > B', 'A == A', 'A <= B', 'A <= A',
-        'A[0]', 'A[:2]', 'A[::2]', 'str(V(*A[::2]))', 'V(*A[::2]).rotate(90)',
-        'A.rotate(37)',
+        'A[0]', 'A[:2]', 'A[::2]', 'str(V(*A[::2]))', 'str(V(A[::2]))',
+        'V(A[::2]).rotate(90)', 'A.rotate(37)',
         'A.dot(B)', 'A.len2()', 'A.vlen()', 'A.unit()',
         'bbox(A, B)', 'bbox(B[1:], A)'
     ]
