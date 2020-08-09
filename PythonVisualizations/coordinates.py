@@ -110,11 +110,16 @@ class vector(object):
 def flat(*vectors): # Flatten a sequence of vectors into a tuple of coordinates
     return tuple(v[i] for v in vectors for i in range(len(v)))
 
-def bbox(*vectors): # Return the bounding box of a sequence of vectors
-    minlen = min(len(v) for v in vectors)
+def points(*coords, dimension=2): # Unflatten a list of coords into points of
+    return [                      # a given dimension
+        coords[j:j + dimension]
+        for j in range(0, (len(coords) // dimension) * dimension, dimension)]
+
+def bbox(*points): # Return the bounding box of a sequence of points
+    mindim = min(len(p) for p in points)
     return (
-        tuple(min(*(p[i] for p in vectors)) for i in range(minlen)),
-        tuple(max(*(p[i] for p in vectors)) for i in range(minlen)))
+        tuple(min(*(p[i] for p in points)) for i in range(mindim)),
+        tuple(max(*(p[i] for p in points)) for i in range(mindim)))
 
 # Return the n vertices of regular polygon of nGon sides starting from
 # a particular angle and going clockwise
@@ -152,6 +157,9 @@ if __name__ == '__main__':
         'bbox(A, B)', 'bbox(B[1:], A)',
         'flat(*bbox(A, B))',
         'bbox(A[1:], B[1:])', 'flat(*bbox(A[1:], B[1:]))',
+        '(A.coords, B.coords)', 'flat(A.coords, B.coords)',
+        'points(*flat(A.coords, B.coords))',
+        'points(*flat(A.coords, B.coords), dimension=3)', 
         'convexPolygon((0, 0), 10, 5)',
         'regularStar((10, 0), 10, 5, 6)'
     ]
