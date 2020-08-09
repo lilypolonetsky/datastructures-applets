@@ -115,7 +115,12 @@ def points(*coords, dimension=2): # Unflatten a list of coords into points of
         coords[j:j + dimension]
         for j in range(0, (len(coords) // dimension) * dimension, dimension)]
 
-def bbox(*points): # Return the bounding box of a sequence of points
+def vectors(*coords, dimension=2): # Unflatten a list of coords into vectors of
+    return [                       # a given dimension
+        vector(*coords[j:j + dimension])
+        for j in range(0, (len(coords) // dimension) * dimension, dimension)]
+
+def bbox(*points): # Return the bounding box of a sequence of points/vectors
     mindim = min(len(p) for p in points)
     return (
         tuple(min(*(p[i] for p in points)) for i in range(mindim)),
