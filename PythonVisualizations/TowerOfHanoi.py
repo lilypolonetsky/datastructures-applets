@@ -36,9 +36,11 @@ class TowerOfHanoi(VisualizationApp):
         self.starColor = 'red'
         self.X0, self.Y0 = bbox[:2]
         self.width, self.height = V(bbox[2:]) - V(bbox[:2])
-        self.spindles = [[]] * 3  # lists of disk indices
+        self.spindles = [[]] * 3      # lists of disk indices
+        self.spindleBBoxes = [[]] * 3 # 4 coordinates of spindle's bounding box
         self.disks = []
         self.picked = None
+        self.moves = 0
         self.spindleWidth = max(4, self.width // 90)
         self.diskThickness = max(self.spindleWidth, 18)
         self.padX = self.spindleWidth
@@ -91,7 +93,7 @@ class TowerOfHanoi(VisualizationApp):
     def createSpindleDrawing(self, index):
         tags = ('spindle', self.spindleTag(index))
         coords = self.spindleCoords(index)
-        return (
+        items = (
             self.canvas.create_oval(
                 *coords[0], fill=self.spindleSide, outline='', width=0,
                 tags=tags),
@@ -102,6 +104,8 @@ class TowerOfHanoi(VisualizationApp):
                 *coords[2], fill=self.spindleTop, outline='', width=0,
                 tags=tags),
         )
+        self.spindleBBoxes[index] = self.canvas.bbox(tags[1])
+        return items
 
     # Compute coordinates for the canvas items making the spindle at
     # the given index
@@ -128,7 +132,7 @@ class TowerOfHanoi(VisualizationApp):
     def createDiskDrawing(self, diskID):
         tags = ('disk', self.diskTag(diskID))
         normal = {'width': 0, 'outline': ''}
-        highlight = {'width': 1, 'outline': 'yellow'}
+        highlight = {'width': 1, 'outline': 'blue'}
         kwargs = dict(normal, tags=tags)
         coords = self.diskCoords(diskID)
         items = (
@@ -179,32 +183,34 @@ class TowerOfHanoi(VisualizationApp):
                 
     def isPickable(self, diskID):
         spindle, pos = self.diskSpindlePos(diskID)
-        return (spindle is not None and self.picked is None and
-                self.spindles[spindle][-1] == diskID)
+        return spindle is None or (self.picked is None and
+                                   self.spindles[spindle][-1] == diskID)
+
+    def isPlacable(self, diskID, spindle):
+        return spindle is not None and (
+            len(self.spindles[spindle]) == 0 or
+            self.spindles[spindle][-1] > diskID)
+
+    def isDone(self):
+        return (len(self.spindles[0]) == 0 and
+                len(self.spindles[1]) == 0 and
+                len(self.spindles[2]) == len(self.disks) and
+                len(self.spindles[2]) > 0)
 
     def enterLeaveHandler(self, ID, tag, normal, highlight):
         def handler(event):
-            print(event.type, 'for', tag)
             kwargs = highlight if (event.type == EventType.Enter and
                                    self.isPickable(ID)) else normal
-            if event.type == EventType.Enter and not self.isPickable(ID):
-                spindle, pos = self.diskSpindlePos(ID)
-                if spindle is None:
-                    print('Disk', ID, 'is not on any spindle')
-                else:
-                    print('Disk', ID,
-                          'is not pickable ({}, {}, topID={})'.format(
-                              spindle, pos, self.spindles[spindle][-1]))
             self.canvas.itemconfigure(tag, **kwargs)
-            # print('Set appearance to:', kwargs)
         return handler
     
     def startMoveHandler(self, ID, tag, normal, highlight):
         def handler(event):
-            print(event.type, 'for', tag)
             spindle, pos = self.diskSpindlePos(ID)
-            self.pickedFrom = spindle
-            self.picked = self.spindles[spindle].pop()
+            if spindle is not None:
+                self.pickedFrom = spindle
+                self.spindles[spindle].pop()
+            self.picked = ID
             self.lastPos = (event.x, event.y)
             self.canvas.tag_raise(tag, 'spindle')
             self.updateSpindles(spindle)
@@ -214,36 +220,51 @@ class TowerOfHanoi(VisualizationApp):
         def handler(event):
             if self.picked is None:
                 return
-            print(event.type, 'for', tag)
             self.canvas.move(
                 tag, event.x - self.lastPos[0], event.y - self.lastPos[1])
             self.lastPos = (event.x, event.y)
+            diskBBox = self.canvas.bbox(tag)
+            for spindle, spindleBBox in enumerate(self.spindleBBoxes):
+                kwargs = (highlight if BBoxesOverlap(
+                    diskBBox, spindleBBox) and self.isPlacable(ID, spindle)
+                          else normal)
+                self.canvas.itemconfigure(self.spindleTag(spindle), **kwargs)
         return handler
 
     def releaseHandler(self, ID, tag, normal, highlight):
         def handler(event):
-            if self.pickedFrom is None:
-                return
-            print(event.type, 'for', tag)
-            print('Placing disk', ID, 'on spindle', self.pickedFrom)
-            self.spindles[self.pickedFrom].append(ID)
+            diskBBox = self.canvas.bbox(tag)
+            dropAt = None
+            for spindle, spindleBBox in enumerate(self.spindleBBoxes):
+                if BBoxesOverlap(
+                    diskBBox, spindleBBox) and self.isPlacable(ID, spindle):
+                    dropAt = spindle
+                    self.moves += 1
+                    break
+            if dropAt is None:
+                if self.pickedFrom is None:
+                    return
+                dropAt = self.pickedFrom
+            self.spindles[dropAt].append(ID)
+            self.canvas.itemconfigure(self.spindleTag(dropAt), **normal)
             self.restoreDisks()
             self.canvas.tag_lower(tag, 'spindle')
-            self.updateSpindles(self.pickedFrom)
+            self.updateSpindles(dropAt)
             self.picked, self.pickedFrom = None, None
+            if self.isDone():
+                self.showCompletion()
         return handler
 
     def updateSpindles(self, *spindleIDs):
         for spindle in (spindleIDs if spindleIDs else range(3)):
-            print('Update spindle', spindle, 'with', 
-                  len(self.spindles[spindle]), 'disk(s) coords:',
-                  self.spindleCoords(spindle))
             for item, coords in zip(
                     self.spindleDrawings[spindle], self.spindleCoords(spindle)):
                 self.canvas.coords(item, *coords)
+            self.spindleBBoxes[spindle] = self.canvas.bbox(
+                self.spindleTag(spindle))
             self.window.update()
 
-    def restoreDisks(self, *diskIDs):
+    def restoreDisks(self, *diskIDs, cleanUpAll=True):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         for ID in (diskIDs if diskIDs else range(len(self.disks))):
@@ -252,8 +273,46 @@ class TowerOfHanoi(VisualizationApp):
             current = [self.canvas.coords(item) for item in items]
             target = self.diskCoords(ID)
             self.moveItemsTo(items, target, steps=10, sleepTime=0.01)
-        self.cleanUp(callEnviron)
-            
+        self.cleanUp(None if cleanUpAll else callEnviron)
+
+    def showCompletion(self):
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        starCenter = V(canvasDimensions) * V(1/3, 1)
+        size, ratio, points, angle = 5, 0.38, 5, 270
+        rate = 0.92
+        targetCenter = V(canvasDimensions) * V(1/2, 1/2)
+        targetSize = canvasDimensions[0] / 2
+        targetAngle = -90
+        self.startAnimations()
+        starCoords = regularStar(starCenter, size, size * ratio, points, angle)
+        star = self.canvas.create_polygon(
+            *starCoords, fill='goldenrod', outline='red', 
+            width=max(1, size / 100))
+        while size < targetSize or starCenter != targetCenter:
+            starCenter = (   # Move star towards target and increase size
+                targetCenter
+                if V(V(targetCenter) - V(starCenter)).len2() < 2 else
+                (V(V(targetCenter) * (1 - rate)) + V(V(starCenter) * rate)))
+            size = (targetSize if abs(targetSize - size) < 2 else
+                    (targetSize * (1 - rate) + size * rate))
+            angle = (targetAngle if abs(targetSize - size) < 2 else
+                     (targetAngle * (1 - rate) + angle * rate))
+            starCoords = regularStar(
+                starCenter, size, size * ratio, points, angle)
+            self.canvas.coords(star, *flat(*starCoords))
+            self.canvas.itemconfigure(star, width=max(1, size / 100))
+            self.wait(0.01)
+        font = ('Helvetica', max(12, int(size / 10)))
+        self.canvas.create_text(
+            *(V(starCenter) - V(0, font[1])), text='Puzzle Completed',
+            font=font, anchor=S)
+        self.canvas.create_text(
+            *starCenter, text='in {} move{}!'.format(
+                self.moves, '' if self.moves == 1 else 's'), 
+            font=font, anchor=S)
+        self.cleanUp()
+        self.setMessage('Puzzle completed!')
+        
     def diskTag(self, ID): return 'disk {}'.format(ID)
             
     def spindleTag(self, ID): return 'spindle {}'.format(ID)
@@ -283,6 +342,7 @@ class TowerOfHanoi(VisualizationApp):
         else:
             nDisks = int(val)
             self.display(nDisks)
+            self.moves = 0
             self.setMessage('You need at least {} move{}.  Good luck!'.format(
                 pow(2, nDisks) - 1, '' if nDisks == 1 else 's'))
         self.clearArgument()
