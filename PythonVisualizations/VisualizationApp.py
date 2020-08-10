@@ -47,6 +47,16 @@ def vector_length2(vect):    # Get the vector's length squared
 def vector_length(vect):     # Get the vector's length
     return V(vect).vlen()
 
+def BBoxesOverlap(bbox1, bbox2): # Determine if bounding boxes overlap
+    return (rangesOverlap(bbox1[0], bbox1[2], bbox2[0], bbox2[2]) and 
+            rangesOverlap(bbox1[1], bbox1[3], bbox2[1], bbox2[3]))
+
+def rangesOverlap(           # Determine if a range overlaps another
+        lo1, hi1, lo2, hi2,  # Allow zero overlap, if requested
+        zeroOK=True):
+    return ((hi1 > lo2 or (zeroOK and hi1 == lo2)) and
+            (lo1 < hi2 or (zeroOK and lo1 == hi2)))
+    
 def gridDict(frame):
     slaves = frame.grid_slaves()
     return defaultdict(
