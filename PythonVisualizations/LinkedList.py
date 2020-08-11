@@ -174,7 +174,7 @@ class LinkedList(VisualizationApp):
         
     #creates the initial "node" that indicates the head of the linked list
     def firstPointer(self, next = None):
-        self.canvas.create_rectangle(self.LL_X0 + 45, self.LL_Y0, self.LL_X0*2, self.LL_Y0 +self.CELL_HEIGHT, fill ="GRAY")
+        self.canvas.create_rectangle(self.LL_X0 + 45, self.LL_Y0, self.LL_X0*2, self.LL_Y0 +self.CELL_HEIGHT, fill ="gainsboro")
         self.canvas.create_oval(self.LL_X0 + self.CELL_HEIGHT//2 - self.DOT_SIZE // 2 +45,
                                 self.LL_Y0 + self.CELL_HEIGHT // 2 - self.DOT_SIZE // 2 ,
                                 self.LL_X0 + self.CELL_HEIGHT//2 + self.DOT_SIZE // 2 +45,
@@ -346,7 +346,6 @@ class LinkedList(VisualizationApp):
         
         #remove the node from the list and
         # return the key/data pair of the found node        
-        #callEnviron.add(cell_outline) 
         self.wait(0.4)
         prev.next = cur.next
         move = self.list[index]
