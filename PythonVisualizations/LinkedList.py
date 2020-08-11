@@ -37,10 +37,11 @@ class LinkedList(VisualizationApp):
     LL_Y0 = 100
     MAX_SIZE=20
     LEN_ROW = 5
-    ROW_GAP = 40   
+    ROW_GAP = 40  
+    MAX_ARG_WIDTH = 8
     
-    def __init__(self, title="Linked List", **kwargs):
-        super().__init__(title=title, **kwargs)
+    def __init__(self, title="Linked List", maxArgWidth=MAX_ARG_WIDTH, **kwargs):
+        super().__init__(title=title, maxArgWidth = maxArgWidth, **kwargs)
         self.title = title        
         self.first = None
         self.prev_id = -1
@@ -209,10 +210,11 @@ class LinkedList(VisualizationApp):
             
     #erases old linked list and draws empty list
     def newLinkedList(self):
-        self.firstPointer()
         self.first = None
+        self.firstPointer()
         self.size = 0
         self.list = []
+        self.dot = []
         self.arrow= []
         return self.first
     
@@ -344,12 +346,12 @@ class LinkedList(VisualizationApp):
         
         #remove the node from the list and
         # return the key/data pair of the found node        
-        callEnviron.add(cell_outline) 
+        #callEnviron.add(cell_outline) 
         self.wait(0.4)
         prev.next = cur.next
         move = self.list[index]
         dot  = self.dot[index]
-        move = move.display_shape, move.display_val, dot.display_shape        
+        move = move.display_shape, move.display_val, dot.display_shape, cell_outline        
         self.moveItemsOffCanvas(move)
         
         #update the lists of drawable nodes and dots to reflect the deletion
@@ -421,8 +423,7 @@ class LinkedList(VisualizationApp):
     ### BUTTON FUNCTIONS##
     def clickSearch(self):
         val = self.validateArgument()
-        if val is None:
-            self.setMessage("Input value must be less than 9 characters")
+        if not val:return
         else:
             result = self.search(val)
             if result != None:
@@ -435,8 +436,7 @@ class LinkedList(VisualizationApp):
     
     def clickInsert(self):
         val = self.validateArgument()
-        if val is None:
-            self.setMessage("Input value must be less than 9 characters")
+        if not val: return
         elif len(self) >= self.MAX_SIZE:
             self.setMessage("Error! Linked List is already full.")
         else:  
@@ -447,7 +447,7 @@ class LinkedList(VisualizationApp):
         if not self.first:
             msg = "ERROR: Linked list is empty"
         elif not val:
-            msg = "Input value must be less than 9 characters" 
+            return
         else:
             result = self.delete(val)
             if result != None:
@@ -458,7 +458,6 @@ class LinkedList(VisualizationApp):
         self.clearArgument()
         
     def clickDeleteFirst(self):
-        val = self.validateArgument()
         result = self.deleteFirst()
         if not self.first: 
             msg = "ERROR: Linked list is empty"
@@ -486,7 +485,7 @@ class LinkedList(VisualizationApp):
         vcmd = (self.window.register(validate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         searchButton = self.addOperation(
-            "Search", lambda: self.clickFind(), numArguments=1,
+            "Search", lambda: self.clickSearch(), numArguments=1,
             validationCmd=vcmd)
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
@@ -510,21 +509,17 @@ class LinkedList(VisualizationApp):
     
     # validate text entry
     def validateArgument(self):
-        text = self.getArgument()
-        if text:
-            if text.isdigit():
-                val = int(text)
-                if val< 100000000: return val
-            elif len(text)<9: return text
-        else:
-            return -1   
+        entered_text = self.getArgument()
+        if entered_text:
+            if len(entered_text) <= self.maxArgWidth:
+                return entered_text
+            else:
+                self.setMessage("Error! {} value is too long".format(entered_text))    
+
             
-#allow letters or numbers to be typed in                  
+##allow letters or numbers to be typed in                  
 def validate(action, index, value_if_allowed,
             prior_value, text, validation_type, trigger_type, widget_name):
-    if not(value_if_allowed.isdigit()):
-        for i in value_if_allowed:
-            if not 65<=ord(i)<=122 and i not in "0123456789": return False
     return True
    
 if __name__ == '__main__':
