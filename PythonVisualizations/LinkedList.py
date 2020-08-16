@@ -49,7 +49,8 @@ class LinkedList(VisualizationApp):
         self.list = []
         self.arrow = []
         self.dot = []
-        self.firstPointer()
+        rect, oval, text, arrow =self.firstPointer()
+        self.firstPointList= [rect, oval, text, arrow]
 
     def __len__(self):
         return len(self.list)
@@ -174,19 +175,21 @@ class LinkedList(VisualizationApp):
         
     #creates the initial "node" that indicates the head of the linked list
     def firstPointer(self, next = None):
-        self.canvas.create_rectangle(self.LL_X0 + 45, self.LL_Y0, self.LL_X0*2, self.LL_Y0 +self.CELL_HEIGHT, fill ="gainsboro")
-        self.canvas.create_oval(self.LL_X0 + self.CELL_HEIGHT//2 - self.DOT_SIZE // 2 +45,
+        rect = self.canvas.create_rectangle(self.LL_X0 + 45, self.LL_Y0, self.LL_X0*2, self.LL_Y0 +self.CELL_HEIGHT, fill ="gainsboro")
+        oval = self.canvas.create_oval(self.LL_X0 + self.CELL_HEIGHT//2 - self.DOT_SIZE // 2 +45,
                                 self.LL_Y0 + self.CELL_HEIGHT // 2 - self.DOT_SIZE // 2 ,
                                 self.LL_X0 + self.CELL_HEIGHT//2 + self.DOT_SIZE // 2 +45,
                                 self.LL_Y0 + self.CELL_HEIGHT // 2 + self.DOT_SIZE // 2, 
                                 fill="RED", outline="RED",)
+        arrow = None
         if self.first:
-            self.canvas.create_line(self.LL_X0 + self.CELL_HEIGHT//2 + 45,
+            arrow = self.canvas.create_line(self.LL_X0 + self.CELL_HEIGHT//2 + 45,
                         self.LL_Y0 + self.CELL_HEIGHT // 2,
                         self.LL_X0 + self.CELL_HEIGHT//2 + 95 + self.CELL_GAP,
                         self.LL_Y0 + self.CELL_HEIGHT // 2,
                         arrow = LAST)
-        self.canvas.create_text(self.LL_X0 + self.CELL_HEIGHT//2 + 45, self.LL_Y0 + 10,text="first", font=('Courier', '10'))          
+        text= self.canvas.create_text(self.LL_X0 + self.CELL_HEIGHT//2 + 45, self.LL_Y0 + 10,text="first", font=('Courier', '10'))
+        return rect, oval, text, arrow
     
         
     ### ANIMATION METHODS###
@@ -195,12 +198,16 @@ class LinkedList(VisualizationApp):
     def getFirst(self):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
+        if not self.first: 
+            self.cleanUp(callEnviron)
+            return
         x_offset, y_offset = self.x_y_offset(1)
         peekBox = self.canvas.create_rectangle(self.LL_X0 + x_offset, 
                                                self.LL_Y0 - (self.CELL_GAP + self.CELL_HEIGHT), 
                                                self.LL_X0+ self.CELL_WIDTH+ x_offset,
                                                self.LL_Y0 - self.CELL_GAP, 
                                                fill = self.OPERATIONS_BG)
+        callEnviron.add(peekBox)
         textX, textY = self.cell_text(1)
         firstText = self.canvas.create_text(textX, textY, text=self.first.key, font=('Helvetica', 12),tag = id)
         self.moveItemsBy((firstText,),(0, -(self.CELL_HEIGHT + self.CELL_GAP)), steps = 10, sleepTime = 0.05)
@@ -211,7 +218,9 @@ class LinkedList(VisualizationApp):
     #erases old linked list and draws empty list
     def newLinkedList(self):
         self.first = None
-        self.firstPointer()
+        self.canvas.delete(self.firstPointList[-1])
+        rect, oval, text, arrow = self.firstPointer()
+        self.firstPointList =[rect, oval, text, arrow]
         self.size = 0
         self.list = []
         self.dot = []
@@ -249,7 +258,9 @@ class LinkedList(VisualizationApp):
         self.dot.append(drawable(None, "RED", node[-1]))  
         self.list.append(drawable(val, color, *node[:-1]))
         self.first = newNode
-        self.firstPointer()
+        rect, oval, text, first_arrow = self.firstPointer()
+        self.firstPointList[-1] = first_arrow
+        
         if id==-1:
             id = self.generateId()
             newNode.id = id           
@@ -261,15 +272,15 @@ class LinkedList(VisualizationApp):
     def deleteFirst(self):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
+        first_arrow =self.firstPointList[-1]
 
         pos = 1
         x, y = self.index(pos)
         arrow = self.canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
-    
+        
         callEnviron.add(arrow)
         self.window.update()
         ans = self.first
-        if not ans: return None
         self.first = ans.next
         n = self.list[-1]
         self.list = self.list[:-1]
@@ -288,6 +299,9 @@ class LinkedList(VisualizationApp):
             else:
                 self.moveItemsBy(items, (-(self.CELL_WIDTH+ self.CELL_GAP), 0))
             pos += 1
+        if len(self.list)== 0: 
+            self.canvas.delete(first_arrow)
+            self.firstPointList[-1]= None
         self.arrowSetup()
           
         self.wait(1.0)
@@ -302,7 +316,8 @@ class LinkedList(VisualizationApp):
     def delete(self, key):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-
+                
+        first_arrow = self.firstPointList[-1]
         pos = 1
         x, y = self.index(pos)
         arrow = self.canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
@@ -347,11 +362,14 @@ class LinkedList(VisualizationApp):
         #remove the node from the list and
         # return the key/data pair of the found node        
         self.wait(0.4)
+        if len(self.list) == 1: self.first = None
         prev.next = cur.next
         move = self.list[index]
         dot  = self.dot[index]
         move = move.display_shape, move.display_val, dot.display_shape, cell_outline        
         self.moveItemsOffCanvas(move)
+        
+       
         
         #update the lists of drawable nodes and dots to reflect the deletion
         self.list[index:index+1] = []
@@ -367,6 +385,9 @@ class LinkedList(VisualizationApp):
             else:
                 self.moveItemsBy(items, (-(self.CELL_WIDTH + self.CELL_GAP), 0))
             pos += 1
+        if len(self.list)== 0: 
+            self.canvas.delete(first_arrow)
+            self.firstPointList[-1]= None            
         self.arrowSetup()
         self.wait(1)
         callEnviron.add(cur.id)
@@ -457,10 +478,10 @@ class LinkedList(VisualizationApp):
         self.clearArgument()
         
     def clickDeleteFirst(self):
-        result = self.deleteFirst()
         if not self.first: 
             msg = "ERROR: Linked list is empty"
         else:
+            self.deleteFirst()
             msg = "first node deleted"
         self.setMessage(msg)
         self.clearArgument()
