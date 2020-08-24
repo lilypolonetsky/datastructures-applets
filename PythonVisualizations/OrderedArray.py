@@ -19,9 +19,9 @@ class OrderedArray(VisualizationApp):
     nextColor = 0
 
     def __init__(self, size=10, title="Ordered Array", **kwargs):
-        kwargs['title'] = title
-        super().__init__(**kwargs)
+        super().__init__(title=title, **kwargs)
         self.size = size
+        self.title = title
         self.list = []
         self.buttons = self.makeButtons()
 
@@ -68,8 +68,8 @@ class OrderedArray(VisualizationApp):
     def insert(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-       # j = self.find(val)  # Find where item should go
         k=len(self.list)
+
         self.list.append(drawable(None))
         
         indexK = self.createIndex(len(self.list) -1, 'k', level=-1) # create "k" arrow
@@ -104,10 +104,10 @@ class OrderedArray(VisualizationApp):
         self.cleanUp(callEnviron) 
         self.stopAnimations()
         
-    def insertBinaryFind(self,val):
+    def insertBinarySearch(self,val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        j = self.find(val)  # Find where item should go
+        j = self.search(val)  # Find where item should go
 
         self.list.append(drawable(None))
 
@@ -148,8 +148,9 @@ class OrderedArray(VisualizationApp):
         n = self.list.pop()
 
         # delete the associated display objects
-        self.canvas.delete(n.display_shape)
-        self.canvas.delete(n.display_val)
+        items = (n.display_shape, n.display_val)
+        callEnviron |= set(items)
+        self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
         # update window
         self.window.update()
@@ -283,8 +284,9 @@ class OrderedArray(VisualizationApp):
         
         self.window.update()
         self.cleanUp(callEnviron)
+        
+    def search(self, val):
 
-    def find(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
         lo = 0                             #Point to lo
@@ -299,6 +301,14 @@ class OrderedArray(VisualizationApp):
         while lo <= hi:
             mid = (lo + hi) // 2           # Select the midpoint
             if self.list[mid].val == val:  # Did we find it at midpoint?  
+                posShape = self.canvas.coords(self.list[mid].display_shape)
+
+                # Highlight the found element with a circle
+                callEnviron.add(self.canvas.create_oval(
+                    *add_vector(
+                        posShape,
+                        (self.CELL_BORDER, self.CELL_BORDER, -self.CELL_BORDER, -self.CELL_BORDER)),
+                    outline=self.FOUND_COLOR))
                 self.stopAnimations()
                 self.window.update()
                 return mid                 # Return the value found 
@@ -326,7 +336,7 @@ class OrderedArray(VisualizationApp):
     def remove(self, val):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        index = self.find(val)
+        index = self.search(val)
         found = self.list[index].val == val
         if found:    # Record if value was found
             self.wait(0.3)
@@ -366,8 +376,8 @@ class OrderedArray(VisualizationApp):
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         newSizeArrayButton = self.addOperation(
             "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd)        
-        findButton = self.addOperation(
-            "Find", lambda: self.clickFind(), numArguments=1, validationCmd=vcmd)
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1, validationCmd=vcmd)
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill())        
         insertButton = self.addOperation(
@@ -378,7 +388,7 @@ class OrderedArray(VisualizationApp):
             "Delete Rightmost", lambda: self.removeFromEnd())
         #this makes the pause, play and stop buttons 
         self.addAnimationButtons()
-        return [findButton, insertButton, deleteValueButton, newSizeArrayButton, randomFillButton,
+        return [searchButton, insertButton, deleteValueButton, newSizeArrayButton, randomFillButton,
                 deleteRightmostButton]
 
     def validArgument(self):
@@ -389,12 +399,12 @@ class OrderedArray(VisualizationApp):
                 return val
 
     # Button functions
-    def clickFind(self):
+    def clickSearch(self):
         val = self.validArgument()
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            result = self.find(val)
+            result = self.search(val)
             if self.list[result].val == val:
                 msg = "Found {}!".format(val)
             else:
@@ -457,3 +467,4 @@ if __name__ == '__main__':
     array = OrderedArray()
 
     array.runVisualization()
+
