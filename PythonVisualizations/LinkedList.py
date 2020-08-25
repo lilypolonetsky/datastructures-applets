@@ -63,7 +63,7 @@ class LinkedList(VisualizationApp):
         self.prev_id+=1
         return "item" + str(self.prev_id)
     
-    #pointer arrow for find and delete
+    #pointer arrow for search and delete
     def index(self, position):
         x = position % self.LEN_ROW * (self.CELL_WIDTH + self.CELL_GAP) + self.LL_X0 + self.CELL_WIDTH / 2
         y = position // self.LEN_ROW * (self.CELL_HEIGHT + self.ROW_GAP) + self.LL_Y0
@@ -189,7 +189,7 @@ class LinkedList(VisualizationApp):
                         self.LL_Y0 + self.CELL_HEIGHT // 2,
                         arrow = LAST)
         text= self.canvas.create_text(self.LL_X0 + self.CELL_HEIGHT//2 + 45, self.LL_Y0 + 10,text="first", font=('Courier', '10'))
-        return rect, oval, text, arrow
+        return drawable(None, None, rect), drawable(None, None,oval), drawable(None, None, text), drawable(None, None, arrow)
     
         
     ### ANIMATION METHODS###
@@ -258,9 +258,10 @@ class LinkedList(VisualizationApp):
         self.dot.append(drawable(None, "RED", node[-1]))  
         self.list.append(drawable(val, color, *node[:-1]))
         self.first = newNode
-        rect, oval, text, first_arrow = self.firstPointer()
-        self.firstPointList[-1] = first_arrow
-        
+        if len(self.list) == 1:
+            rect, oval, text, first_arrow = self.firstPointer()
+            self.firstPointList[-1] = first_arrow
+            
         if id==-1:
             id = self.generateId()
             newNode.id = id           
@@ -300,7 +301,7 @@ class LinkedList(VisualizationApp):
                 self.moveItemsBy(items, (-(self.CELL_WIDTH+ self.CELL_GAP), 0))
             pos += 1
         if len(self.list)== 0: 
-            self.canvas.delete(first_arrow)
+            self.canvas.delete(first_arrow.display_shape)
             self.firstPointList[-1]= None
         self.arrowSetup()
           
@@ -325,32 +326,38 @@ class LinkedList(VisualizationApp):
         callEnviron.add(arrow)
         self.window.update()
         
-        # loop until we hit end, or find key,
-        # keeping track of previously visited node
-        cur = prev = self.first
-        n = 0
         pos = 1
         index = len(self.list)-1
-        while n< len(self.list) and cur.key != key:
-            self.wait(0.7)    
-            arrow = (arrow, )
-            if (pos-4)%self.LEN_ROW == 0:
-                self.moveItemsBy(arrow, (-((self.CELL_WIDTH + self.CELL_GAP)*(self.LEN_ROW-1)), (self.CELL_HEIGHT + self.ROW_GAP)))
-                
-            else:
-                self.moveItemsBy(arrow, ((self.CELL_WIDTH+ self.CELL_GAP), 0))
-        
-            prev = cur
-            cur = cur.next
-            pos +=1
-            n +=1
-            index -= 1
+        cur = prev = self.first
+        if self.cur.key == key:
+            self.first = self.first.next   
             
-
-        # A node with this key isn't on list
-        if n == len(self.list): 
-            self.cleanUp(callEnviron)
-            return
+        else:
+        
+            # loop until we hit end, or find key,
+            # keeping track of previously visited node
+            n = 0
+            while n< len(self.list) and cur.key != key:
+                self.wait(0.7)    
+                arrow = (arrow, )
+                if (pos-4)%self.LEN_ROW == 0:
+                    self.moveItemsBy(arrow, (-((self.CELL_WIDTH + self.CELL_GAP)*(self.LEN_ROW-1)), (self.CELL_HEIGHT + self.ROW_GAP)))
+                    
+                else:
+                    self.moveItemsBy(arrow, ((self.CELL_WIDTH+ self.CELL_GAP), 0))
+                callEnviron.add(arrow)
+            
+                prev = cur
+                cur = cur.next
+                pos +=1
+                n +=1
+                index -= 1
+                
+    
+            # A node with this key isn't on list
+            if n == len(self.list): 
+                self.cleanUp(callEnviron)
+                return
 
         # otherwise highlight the found node
         x_offset, y_offset = self.x_y_offset(pos)
@@ -363,6 +370,7 @@ class LinkedList(VisualizationApp):
         # return the key/data pair of the found node        
         self.wait(0.4)
         if len(self.list) == 1: self.first = None
+        
         prev.next = cur.next
         move = self.list[index]
         dot  = self.dot[index]
@@ -370,7 +378,7 @@ class LinkedList(VisualizationApp):
         self.moveItemsOffCanvas(move)
         
        
-        
+        if cur== self.first: self.first = cur.next
         #update the lists of drawable nodes and dots to reflect the deletion
         self.list[index:index+1] = []
         self.dot[index:index+1] =[]
@@ -385,8 +393,11 @@ class LinkedList(VisualizationApp):
             else:
                 self.moveItemsBy(items, (-(self.CELL_WIDTH + self.CELL_GAP), 0))
             pos += 1
-        if len(self.list)== 0: 
-            self.canvas.delete(first_arrow)
+        if self.first == None:
+            print(self.firstPointList)
+            sys.stderr.flush()
+            self.canvas.delete(first_arrow.display_shape)
+            self.firstPointer()
             self.firstPointList[-1]= None            
         self.arrowSetup()
         self.wait(1)
@@ -442,32 +453,27 @@ class LinkedList(VisualizationApp):
     
     ### BUTTON FUNCTIONS##
     def clickSearch(self):
-        val = self.validateArgument()
-        if not val:return
+        val = self.getArgument()
+        result = self.search(val)
+        if result != None:
+            msg = "Found {}!".format(val)
         else:
-            result = self.search(val)
-            if result != None:
-                msg = "Found {}!".format(val)
-            else:
-                msg = "Value {} not found".format(val)
-            self.setMessage(msg)
-            
+            msg = "Value {} not found".format(val)
+        self.setMessage(msg)
         self.clearArgument()
     
     def clickInsert(self):
-        val = self.validateArgument()
-        if not val: return
-        elif len(self) >= self.MAX_SIZE:
+        val = self.getArgument()
+        if len(self) >= self.MAX_SIZE:
             self.setMessage("Error! Linked List is already full.")
+            self.clearArgument()
         else:  
             self.insertElem(val)
 
     def clickDelete(self):
-        val = self.validateArgument()
+        val = self.getArgument()
         if not self.first:
             msg = "ERROR: Linked list is empty"
-        elif not val:
-            return
         else:
             result = self.delete(val)
             if result != None:
@@ -502,7 +508,7 @@ class LinkedList(VisualizationApp):
     
 
     def makeButtons(self):
-        vcmd = (self.window.register(validate),
+        vcmd = (self.window.register(self.validate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         searchButton = self.addOperation(
             "Search", lambda: self.clickSearch(), numArguments=1,
@@ -524,34 +530,15 @@ class LinkedList(VisualizationApp):
             validationCmd=vcmd, maxRows = 3)
 
     
-        return [searchButton, insertButton, deleteButton, deleteFirstButton, newLinkedListButton, getFirstButton]        
-
-    
-    # validate text entry
-    def validateArgument(self):
-        entered_text = self.getArgument()
-        if entered_text:
-            if len(entered_text) <= self.maxArgWidth:
-                return entered_text
-            else:
-                self.setMessage("Error! {} value is too long".format(entered_text))    
+        return [searchButton, insertButton, deleteButton, deleteFirstButton, newLinkedListButton, getFirstButton]         
 
             
-##allow letters or numbers to be typed in                  
-def validate(action, index, value_if_allowed,
-            prior_value, text, validation_type, trigger_type, widget_name):
-    return True
+    ##allow letters or numbers to be typed in                  
+    def validate(self, action, index, value_if_allowed,
+                             prior_value, text, validation_type, trigger_type, widget_name):
+        return len(value_if_allowed)<= self.maxArgWidth
    
 if __name__ == '__main__':
     ll = LinkedList()
     ll.runVisualization()
     
-
-###to do:
-    #animate the get first
-    ###SOLVED BH ##remove arrow from first pointer
-          ##add this to the constructer??
-    ## SOLVED?? remove the initial list..?
-    ##SOLVED...fix the arrows upon deletion
-    #add search to the delete animation
-    #
