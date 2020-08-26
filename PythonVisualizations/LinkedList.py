@@ -288,6 +288,7 @@ class LinkedList(VisualizationApp):
         dot = self.dot[-1]
         self.dot = self.dot[:-1]
         items = (n.display_shape, n.display_val, dot.display_shape)
+        callEnviron |= set(items)
         self.moveItemsOffCanvas(items)
         
         pos = 1
@@ -329,7 +330,7 @@ class LinkedList(VisualizationApp):
         pos = 1
         index = len(self.list)-1
         cur = prev = self.first
-        if self.cur.key == key:
+        if cur.key == key:
             self.first = self.first.next   
             
         else:
@@ -367,21 +368,21 @@ class LinkedList(VisualizationApp):
                                    self.LL_Y0 + self.CELL_HEIGHT+y_offset+5, outline = "RED", tag=id)
         
         #remove the node from the list and
-        # return the key/data pair of the found node        
         self.wait(0.4)
-        if len(self.list) == 1: self.first = None
         
         prev.next = cur.next
         move = self.list[index]
         dot  = self.dot[index]
-        move = move.display_shape, move.display_val, dot.display_shape, cell_outline        
-        self.moveItemsOffCanvas(move)
         
-       
-        if cur== self.first: self.first = cur.next
         #update the lists of drawable nodes and dots to reflect the deletion
+        if cur == self.first: self.first = cur.next
         self.list[index:index+1] = []
+        if len(self.list) == 0: self.first = None
         self.dot[index:index+1] =[]
+       
+        move = move.display_shape, move.display_val, dot.display_shape, cell_outline        
+        callEnviron |= set(move)
+        self.moveItemsOffCanvas(move)
         
         #slide all the nodes over to fill in the gap left by deleted node
         for i in range(index-1, -1, -1):
@@ -394,8 +395,6 @@ class LinkedList(VisualizationApp):
                 self.moveItemsBy(items, (-(self.CELL_WIDTH + self.CELL_GAP), 0))
             pos += 1
         if self.first == None:
-            print(self.firstPointList)
-            sys.stderr.flush()
             self.canvas.delete(first_arrow.display_shape)
             self.firstPointer()
             self.firstPointList[-1]= None            
@@ -403,6 +402,8 @@ class LinkedList(VisualizationApp):
         self.wait(1)
         callEnviron.add(cur.id)
         self.cleanUp(callEnviron)
+        
+        # return the key/data pair of the found node        
         return cur.key    
     
         
