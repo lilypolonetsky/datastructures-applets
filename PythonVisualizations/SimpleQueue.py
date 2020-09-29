@@ -317,14 +317,6 @@ class Queue(VisualizationApp):
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
         self.onOffButtons()       # disable buttons as necessary
 
-# validate text entry
-def validate(action, index, value_if_allowed,
-             prior_value, text, validation_type, trigger_type, widget_name):
-    if text in '0123456789':
-        return True
-    else:
-        return False
-
 if __name__ == '__main__':
     queue = Queue()
 
