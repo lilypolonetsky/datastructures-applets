@@ -277,8 +277,7 @@ class Queue(VisualizationApp):
         super().startAnimations()
 
     def makeButtons(self):
-        vcmd = (self.window.register(makeLengthValidate(self.maxArgWidth)),
-                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        vcmd = (self.window.register(makeWidthValidate(self.maxArgWidth)), '%P')
         self.insertButton = self.addOperation(
             "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd)
 
