@@ -285,7 +285,8 @@ class Queue(VisualizationApp):
             "Insert", lambda: self.clickInsertRear(), numArguments=1,
             validationCmd=vcmd)
 
-        self.deleteButton = self.addOperation("Delete", lambda: self.removeFront())
+        self.deleteButton = self.addOperation(
+            "Delete", lambda: self.removeFront())
         self.addAnimationButtons()
 
     def createCells(self, nCells):  # Create a set of array cells in a circle
