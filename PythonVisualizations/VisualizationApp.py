@@ -14,33 +14,49 @@ import time, math, operator, re, sys
 from collections import *
 from tkinter import *
 
+try:
+    from coordinates import *
+except ModuleNotFoundError:
+    from .coordinates import *
+    
 # Utilities for vector math; used for canvas item coordinates
+V = vector
 def add_vector(v1, v2):
-    return tuple(map(operator.add, v1, v2))
+    return V(v1) + V(v2)
 
 def subtract_vector(v1, v2):
+    return V(v1) - V(v2)
     return tuple(map(operator.sub, v1, v2))
 
 def divide_vector(v1, v2):   # v2 can be scalar
     if not isinstance(v2, (list, tuple)):
         v2 = [v2] * len(v1)  # Copy scalar value for vector dimension
-    return tuple(map(operator.truediv, v1, v2))
+    return V(v1) / V(v2)
 
 def multiply_vector(v1, v2): # v2 can be scalar
     if not isinstance(v2, (list, tuple)):
         v2 = [v2] * len(v1)  # Copy scalar value for vector dimension
-    return tuple(map(operator.mul, v1, v2))
+    return V(v1) * V(v2)
 
 def rotate_vector(v1, angle=0): # Rotate vector by angle degrees
-    s, c = math.sin(math.radians(angle)), math.cos(math.radians(angle))
-    return (sum(multiply_vector(v1, (c, s))), sum(multiply_vector(v1, (-s, c))))
+    return V(v1).rotate(angle)
 
 def vector_length2(vect):    # Get the vector's length squared
-    return sum(comp * comp for comp in vect)
+    return V(vect).len2()
 
 def vector_length(vect):     # Get the vector's length
-    return math.sqrt(vector_length2(vect))
+    return V(vect).vlen()
 
+def BBoxesOverlap(bbox1, bbox2): # Determine if bounding boxes overlap
+    return (rangesOverlap(bbox1[0], bbox1[2], bbox2[0], bbox2[2]) and 
+            rangesOverlap(bbox1[1], bbox1[3], bbox2[1], bbox2[3]))
+
+def rangesOverlap(           # Determine if a range overlaps another
+        lo1, hi1, lo2, hi2,  # Allow zero overlap, if requested
+        zeroOK=True):
+    return ((hi1 > lo2 or (zeroOK and hi1 == lo2)) and
+            (lo1 < hi2 or (zeroOK and lo1 == hi2)))
+    
 def gridDict(frame):
     slaves = frame.grid_slaves()
     return defaultdict(
