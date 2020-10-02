@@ -85,6 +85,8 @@ class TowerOfHanoi(VisualizationApp):
                 *tiltStar, fill=self.starColor, outline='', width=0, 
                 tags=('base', 'star'))
            )
+        self.spindleDrawings = [     # Create canvas spindles
+            self.createSpindleDrawing(j) for j in range(3)]
         self.window.update()
 
     _init__Code = '''
@@ -130,8 +132,6 @@ def reset(self):
         if callEnviron:
             self.highlightCodeTags('init_stacks', callEnviron, wait)
             self.highlightCodeTags('init_labels', callEnviron, wait)
-        self.spindleDrawings = [     # Create canvas spindles
-            self.createSpindleDrawing(j) for j in range(3)]
         if callEnviron:
             self.highlightCodeTags('init_nDisks', callEnviron, wait)
             self.highlightCodeTags('call_reset', callEnviron, wait)
@@ -156,6 +156,8 @@ def reset(self):
                     self.moveItemsTo(self.disks[ID], self.diskCoords(ID),
                                      sleepTime=0.01)
                     self.updateSpindles(spindle)
+            else:
+                self.updateSpindles(spindle)
 
         if callEnviron:
             self.cleanUp(callEnviron2)
