@@ -371,8 +371,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def showCode(self,     # Show algorithm code in a scrollable text box
                  code,     # Code to display, plus optional boundary line
                  addBoundary=False, # to separate calls on the stack
-                 prefix='',    # Prefix to apply to snippet labels
-                 snippets={}): # Dict of snippet label -> text indices
+                 prefix='',      # Prefix to apply to snippet labels
+                 snippets={},    # Dict of snippet label -> text indices
+                 sleepTime=0):   # Wait time between adding lines of text
         code = code.strip()
         if len(code) == 0:  # Empty code string?
             return          # then nothing to show
@@ -404,7 +405,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.tag_add('call_stack_boundary', '1.0', '1.end')
         
         # Add code at top of text widget (above stack boundary, if any)
-        self.codeText.insert('1.0', code + '\n')
+        if sleepTime > 0:
+            for line in reversed(code.split('\n')):
+                self.codeText.insert('1.0', line + '\n')
+                self.wait(sleepTime)
+        else:
+            self.codeText.insert('1.0', code + '\n')
         self.codeText.see('1.0')
         self.window.update()
        
@@ -453,13 +459,14 @@ class VisualizationApp(object):  # Base class for Python visualizations
             
     def cleanUp(self,         # Remove Tk items from past animations either
                 callEnviron=None,  # for a particular call or all calls
-                stopAnimations=True): # and stop animations
+                stopAnimations=True, # stop animations if requested and
+                sleepTime=0): # wait between removing code lines from stack
         if stopAnimations:
             self.stopAnimations()
         minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
         while len(self.callStack) > minStack: # 1st call unless cleaning all
             top = self.callStack.pop()
-            self.cleanUpCallEnviron(top)
+            self.cleanUpCallEnviron(top, sleepTime)
             if callEnviron is not None and callEnviron == top: # Stop popping
                 break         # stack if a particular call was being cleaned up
                 
@@ -471,7 +478,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 tkItem[1].destroy()
             self.codeText = None
 
-    def cleanUpCallEnviron(self, callEnviron): # Clean up a call on the stack
+    def cleanUpCallEnviron(    # Clean up a call on the stack
+            self, callEnviron, # removing the call environement
+            sleepTime=0):      # waiting sleepTime between removing code lines
         while len(callEnviron):
             thing = callEnviron.pop()
             if isinstance(thing, (str, int)) and self.canvas.type(thing):
@@ -479,21 +488,24 @@ class VisualizationApp(object):  # Base class for Python visualizations
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
                 last_line = int(float(self.codeText.index(END)))
-                self.codeText.delete(
-                    '1.0', '{}.0'.format(min(last_line, thing.lines + 2)))
+                for i in range(1, min(last_line, thing.lines + 2)):
+                    self.codeText.delete('1.0', '2.0')
+                    if sleepTime > 0:
+                        self.wait(sleepTime)
                 self.codeText.configure(state=DISABLED)
 
     def createCallEnvironment( # Create a call environment on the call stack
             self,              # for animating a particular call
             code='',           # code for this call, if any
-            snippets={}):      # code snippet dictionary, if any
+            snippets={},       # code snippet dictionary, if any
+            sleepTime=0):      # Wait time between inserting lines of code
         # The call environment is a set for local variables represented by
         # canvas items plus a codeHighlightBlock that controls code highlights
         codeHighlightBlock = CodeHighlightBlock(code, snippets)
         callEnviron = set([codeHighlightBlock])
         self.callStack.append(callEnviron) # Push environment on stack
         self.showCode(code, addBoundary=True, prefix=codeHighlightBlock.prefix,
-                      snippets=snippets)
+                      snippets=snippets, sleepTime=sleepTime)
         return callEnviron
         
     # Tk widget methods
