@@ -21,6 +21,7 @@ class TowerOfHanoi(VisualizationApp):
             diskTop='salmon2',       # and one for the tops
             baseSide='khaki3',       # Draw base and spindles with different
             baseTop='khaki1',        # colors on sides and tops
+            labelHeight=20,          # Height of spindle labels
             **kwargs):
         kwargs['title'] = title
         super().__init__(**kwargs)
@@ -33,6 +34,7 @@ class TowerOfHanoi(VisualizationApp):
         self.baseTop = baseTop
         self.spindleSide = baseSide
         self.spindleTop = baseTop
+        self.labelHeight = labelHeight
         self.starColor = 'red'
         self.X0, self.Y0 = bbox[:2]
         self.width, self.height = V(bbox[2:]) - V(bbox[:2])
@@ -59,22 +61,25 @@ class TowerOfHanoi(VisualizationApp):
     
     def display(self):
         self.canvas.delete("all")
+        # labels used by solver, shared across recursive calls
+        self.spindleLabels = {}
 
         sw = self.spindleWidth
+        baseBottom = self.bbox[3] - self.labelHeight
         starOnAxis = regularStar((self.bbox[2] - 5 * sw, 0),
                                  sw * 2, sw * 2 * 0.6, 6)
-        tiltStar = [V(V(vert) / V(1, 3)) + V(0, self.bbox[3] - sw * 2)
+        tiltStar = [V(V(vert) / V(1, 3)) + V(0, baseBottom - sw * 2)
                     for vert in starOnAxis]
         self.base = (
             self.canvas.create_rectangle(
-                self.bbox[0], self.bbox[3] - sw,
-                self.bbox[2], self.bbox[3], fill=self.baseSide, outline='',
+                self.bbox[0], baseBottom - sw,
+                self.bbox[2], baseBottom, fill=self.baseSide, outline='',
                 width=0, tags='base'),
             self.canvas.create_polygon(
-                self.bbox[0], self.bbox[3] - sw,
-                self.bbox[2], self.bbox[3] - sw,
-                self.bbox[2] - 3 * sw, self.bbox[3] - 5 * sw,
-                self.bbox[0] + 3 * sw, self.bbox[3] - 5 * sw,
+                self.bbox[0], baseBottom - sw,
+                self.bbox[2], baseBottom - sw,
+                self.bbox[2] - 3 * sw, baseBottom - 5 * sw,
+                self.bbox[0] + 3 * sw, baseBottom - 5 * sw,
                 fill=self.baseTop, outline='', width=0, tags='base'),
             self.canvas.create_polygon(
                 *tiltStar, fill=self.starColor, outline='', width=0, 
@@ -181,8 +186,9 @@ def reset(self):
         dt = self.diskThickness
         half = sw // 2
         quarter = half // 2
-        baseY = self.bbox[3] - 3 * sw
-        topY = self.bbox[3] - (self.maxDisks + 3) * dt - 3 * sw
+        baseBottom = self.bbox[3] - self.labelHeight
+        baseY = baseBottom - 3 * sw
+        topY = baseBottom - (self.maxDisks + 3) * dt - 3 * sw
         # Bottom of spindle goes to top of stack of disks
         bottom = baseY - len(self.spindles[index]) * dt
         return ( # Bottom disk
@@ -195,6 +201,14 @@ def reset(self):
             (self.spindleX[index] - half, topY - quarter,
              self.spindleX[index] + (sw - half), topY + (half - quarter))
         )
+
+    def spindleLabelCenter(self, index):
+        return (self.spindleX[index], self.bbox[3] - self.labelHeight // 2)
+
+    def createSpindleLabel(self, text, index):
+        return self.canvas.create_text(
+            *self.spindleLabelCenter(index), text=text, font=self.VARIABLE_FONT,
+            fill=self.VARIABLE_COLOR, tags='spindle_label')
         
     def createDiskDrawing(self, diskID):
         tags = ('disk', self.diskTag(diskID))
@@ -228,7 +242,8 @@ def reset(self):
         half = tilt // 2
         dt = self.diskThickness
         radius = (diskID + 2) * sw * 1.5
-        baseY = self.bbox[3] - 3 * sw - pos * dt
+        baseBottom = self.bbox[3] - self.labelHeight
+        baseY = baseBottom - 3 * sw - pos * dt
         topY = baseY - dt
         return ( # Bottom disk
             (self.spindleX[spindle] - radius, baseY - half,
@@ -388,7 +403,7 @@ def reset(self):
             
     def spindleTag(self, ID): return 'spindle {}'.format(ID)
     solveCode = '''
-def solve(self, nDisk, start=0, goal=2, spare=1):
+def solve(self, nDisks, start=0, goal=2, spare=1):
    if nDisks <= 0: return
    self.solve(nDisks - 1, start, spare, goal)
    self.move(start, goal)
@@ -402,26 +417,45 @@ def solve(self, nDisk, start=0, goal=2, spare=1):
         'call_solve2':('5.3','5.end'),
     }
     
-    def solve(self, nDisk=None, start=0, goal=2, spare=1):
-        if nDisk is None:
-            nDisk = self.nDisks()
+    def solve(self, nDisks=None, start=0, goal=2, spare=1):
+        if nDisks is None:
+            nDisks = self.nDisks()
         self.startAnimations()
-        wait = 0.08
+        highlightWait = 0.08
+        moveWait = 0.01
         callEnviron = self.createCallEnvironment(
-            self.solveCode.strip(), self.solveCodeSnippets)
-        self.highlightCodeTags('test_nDisks', callEnviron, wait)
-        if nDisk <= 0:
-            self.highlightCodeTags('return', callEnviron, wait)
+            self.solveCode.strip(), self.solveCodeSnippets, sleepTime=moveWait)
+        labels = ('start', 'goal', 'spare')
+        labelPositions = list(zip(labels, (start, goal, spare)))
+        for label, pos in labelPositions:
+            if label not in self.spindleLabels:
+                self.spindleLabels[label] = self.createSpindleLabel(label, pos)
+                callEnviron.add(self.spindleLabels[label])
+        labelItems = [self.spindleLabels[label] for label in labels]
+        labelCoords = [
+            self.canvas.coords(labelItem) for labelItem in labelItems]
+        toCoords = [self.spindleLabelCenter(lp[1]) for lp in labelPositions]
+        if flat(*labelCoords) != flat(*toCoords):
+            self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
+        startLabel = 'start  nDisks={}'.format(nDisks)
+        self.canvas.itemconfigure(labelItems[0], text=startLabel)
+        self.highlightCodeTags('test_nDisks', callEnviron, highlightWait)
+        if nDisks <= 0:
+            self.highlightCodeTags('return', callEnviron, highlightWait)
         else:
             self.highlightCodeTags('call_solve1', callEnviron)
-            self.solve(nDisk - 1, start, spare, goal)
+            self.solve(nDisks - 1, start, spare, goal)
+            self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
+            self.canvas.itemconfigure(labelItems[0], text=startLabel)
             self.highlightCodeTags('move_disk', callEnviron)
             self.moveDisk(start, goal)
             self.moves += 1
             self.highlightCodeTags('call_solve2', callEnviron)
-            self.solve(nDisk - 1, spare, goal, start)
+            self.solve(nDisks - 1, spare, goal, start)
+            self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
+            self.canvas.itemconfigure(labelItems[0], text=startLabel)
         self.highlightCodeTags([], callEnviron)
-        self.cleanUp(callEnviron)
+        self.cleanUp(callEnviron, sleepTime=0.01)
 
     def moveDisk(self, fromSpindle, toSpindle):
         ID = self.spindles[fromSpindle][-1]
@@ -506,6 +540,6 @@ if __name__ == '__main__':
     tower = TowerOfHanoi()
 
     if len(sys.argv) > 1 and sys.argv[1].isdigit():
-        tower.display(int(sys.argv[1]))
+        tower.setupDisks(int(sys.argv[1]))
         
     tower.runVisualization()
