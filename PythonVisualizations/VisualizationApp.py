@@ -413,12 +413,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.tag_add(prefix + tagName, *snippets[tagName])
         self.codeText.configure(state=DISABLED)
 
-    def highlightCodeTags(self, tags, callEnviron):
+    def highlightCodeTags(self, tags, callEnviron, wait=0):
         codeHighlightBlock = self.getCodeHighlightBlock(callEnviron)
         if codeHighlightBlock is None:  # This shouldn't happen, but...
             return
         if not isinstance(tags, (list, tuple, set)):
             tags = [tags]
+        found = False       # Assume tag not found
         for tagName in self.codeText.tag_names() if self.codeText else []:
             if not tagName.startswith(codeHighlightBlock.prefix):
                 continue  # Only change tags for this call environment
@@ -428,9 +429,15 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 background=self.CODE_HIGHLIGHT if highlight else '',
                 underline=1 if highlight else 0)
             if highlight:
+                found = True
                 ranges = self.codeText.tag_ranges(tagName)
                 if len(ranges) > 0:
                     self.codeText.see(ranges[0])
+        if not found and len(tags) > 0:  # This shouldn't happen so log bug
+            print('Unable to find highlight tag(s) {} among {}'.format(
+                ', '.join(tags), ', '.join(codeHighlightBlock.snippets.keys())))
+        if wait > 0:              # Optionally weit for highlight to show
+            self.wait(wait)
         
 
     # Return the CodeHighlightBlock from the set object from the call stack
@@ -453,8 +460,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         while len(self.callStack) > minStack: # 1st call unless cleaning all
             top = self.callStack.pop()
             self.cleanUpCallEnviron(top)
-            if callEnviron and callEnviron == top: # Stop popping stack if a
-                break         # a particular call was being cleaned up
+            if callEnviron is not None and callEnviron == top: # Stop popping
+                break         # stack if a particular call was being cleaned up
                 
         if callEnviron is None:  # Clear any messages if cleaning up everything
             self.setMessage()
