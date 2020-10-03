@@ -293,6 +293,7 @@ def reset(self):
     
     def startMoveHandler(self, ID, tag, normal, highlight):
         def handler(event):
+            self.cleanUp()  # Clean up any items left by solver
             spindle, pos = self.diskSpindlePos(ID)
             if spindle is not None:
                 self.pickedFrom = spindle
