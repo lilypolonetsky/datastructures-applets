@@ -431,7 +431,8 @@ def solve(self, nDisks, start=0, goal=2, spare=1):
         labels = ('start', 'goal', 'spare')
         labelPositions = list(zip(labels, (start, goal, spare)))
         for label, pos in labelPositions:
-            if label not in self.spindleLabels:
+            if (label not in self.spindleLabels or 
+                len(self.canvas.coords(self.spindleLabels[label])) == 0):
                 self.spindleLabels[label] = self.createSpindleLabel(label, pos)
                 callEnviron.add(self.spindleLabels[label])
         labelItems = [self.spindleLabels[label] for label in labels]
