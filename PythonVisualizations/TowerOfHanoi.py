@@ -490,8 +490,11 @@ def solve(self, nDisks, start=0, goal=2, spare=1):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         newButton = self.addOperation(
-            "New", self.clickNew, numArguments=1, validationCmd=vcmd)
-        self.solveButton = self.addOperation("Solve", self.clickSolve)
+            "New", self.clickNew, numArguments=1, validationCmd=vcmd,
+            argHelpText=['Number of disks'], 
+            helpText='Create a new puzzle of N disks')
+        self.solveButton = self.addOperation(
+            "Solve", self.clickSolve, helpText='Solve the puzzle')
         self.solveButton['state'] = DISABLED
         #this makes the pause, play and stop buttons 
         self.addAnimationButtons()
