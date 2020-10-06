@@ -163,12 +163,23 @@ class BinaryTreeBase(VisualizationApp):
       else: return self.getLevel(self.getParent(node)) + 1
 
    def getHeight(self, node):
-      if not node: return -1
+      if not node: return 0
 
       rightChild = self.getRightChild(node)
       leftChild = self.getLeftChild(node)
 
       return max(self.getHeight(rightChild), self.getHeight(leftChild)) + 1
+
+   # return difference in node's child heights
+   def heightDiff(self, node):
+      print("height diff")
+      leftChild, rightChild = self.getChildren(node)
+      left = self.getHeight(leftChild) if leftChild else 0
+      right = self.getHeight(rightChild) if rightChild else 0
+      
+      print("diff:", left-right)
+
+      return left - right
 
    # returns the line pointing to the node
    def getLine(self, node, highlight=False):
@@ -285,11 +296,12 @@ class BinaryTreeBase(VisualizationApp):
       # get the coords for the node to move to
       moveCoords = []
       for node in moveItems:
-         node.coords = self.calculateCoordinates(self.getParent(node), self.getLevel(node), self.getChildDirection(node))
-         moveCoords.append(( node.coords[0]-self.CIRCLE_SIZE, node.coords[1]-self.CIRCLE_SIZE,
-                              node.coords[0]+self.CIRCLE_SIZE, node.coords[1]+self.CIRCLE_SIZE))
+         if node:
+            node.coords = self.calculateCoordinates(self.getParent(node), self.getLevel(node), self.getChildDirection(node))
+            moveCoords.append(( node.coords[0]-self.CIRCLE_SIZE, node.coords[1]-self.CIRCLE_SIZE,
+                                 node.coords[0]+self.CIRCLE_SIZE, node.coords[1]+self.CIRCLE_SIZE))
       
-      moveItemsTags = [node.tag for node in moveItems]
+      moveItemsTags = [node.tag for node in moveItems if node]
       self.moveItemsTo(moveItemsTags, moveCoords, sleepTime=sleepTime)
 
    # draw a line pointing to node
@@ -328,7 +340,7 @@ class BinaryTreeBase(VisualizationApp):
    
    # create a Node object with key and parent specified
    # parent should be a Node object
-   def createNode(self, key, parent = None, direction = None):
+   def createNode(self, key, parent = None, direction = None, addToArray=True,):
       # calculate the level
       if not parent: level = 0
       else: level = self.getLevel(parent) + 1                                                
@@ -353,7 +365,7 @@ class BinaryTreeBase(VisualizationApp):
       self.size += 1
 
       # add the node object to the internal representation
-      self.setChildNode(node, direction, parent)
+      if addToArray: self.setChildNode(node, direction, parent)
 
       # draw the lines
       if parent:
@@ -444,15 +456,56 @@ class BinaryTreeBase(VisualizationApp):
       self.nodes[self.getIndex(node)] = None
       self.size -= 1
 
-    # rotate the node left in the array representation and animate it
-    # RETURN TO FIX
-   def rotateLeft(self, node):
-      pass
+   def removeNodesInternal(self, nodeList):
+      for node in nodeList:
+         self.removeNodeInternal(node)
 
-   # rotate the nodes right in the drawing and in the array representation
-   # RETURN TO FIX
-   def rotateRight(self, node):
-      pass
+    # rotate a subtree to the left in the array and animate it
+   def rotateLeft(self, top):
+      toRaise = self.getRightChild(top)                        # The node to raise is top's right child
+      leftChildOfToRaise, rightChildOfToRaise = self.getChildren(toRaise)
+      self.removeNodesInternal([leftChildOfToRaise, rightChildOfToRaise])
+
+      if self.isRoot(top):
+         self.removeNodesInternal([toRaise, rightChildOfToRaise])
+         self.setRoot(toRaise)
+         self.setRightChild(toRaise, rightChildOfToRaise)
+
+      self.removeNodeInternal(leftChildOfToRaise)
+      self.setRightChild(top, leftChildOfToRaise)          # The raised node's left crosses over
+      self.removeNodeInternal(top)
+      self.setLeftChild(toRaise, top)                          # to be the right subtree under the old
+
+      for i,node in enumerate(self.nodes):
+         print("i:", i, "node:", node)
+
+      moveItems = [toRaise, self.getRightChild(toRaise), self.getLeftChild(toRaise)]
+      self.restoreNodesPosition(moveItems)
+
+      return toRaise                                           # Return raised node to update parent
+
+   # rotate a subtree to the right in the array and animate it
+   def rotateRight(self, top):
+      toRaise = self.getLeftChild(top)
+      leftChildOfToRaise, rightChildOfToRaise = self.getChildren(toRaise)
+      self.removeNodesInternal([leftChildOfToRaise, rightChildOfToRaise])
+
+      if self.isRoot(top): 
+         self.removeNodeInternal([toRaise, leftChildOfToRaise])
+         self.setRoot(toRaise)
+         self.setLeftChild(toRaise, leftChildOfToRaise)
+
+      self.removeNodesInternal([rightChildOfToRaise, top])
+      self.setLeftChild(top, rightChildOfToRaise)
+      self.setRightChild(toRaise, top)
+
+      for i,node in enumerate(self.nodes):
+         print("i:", i, "node:", node)
+
+      moveItems = [toRaise, self.getRightChild(toRaise), self.getLeftChild(toRaise)]
+      self.restoreNodesPosition(moveItems)
+
+      return toRaise                                            # Return raised node to update parent
 
    # ----------- TESTING METHODS --------------------
    
