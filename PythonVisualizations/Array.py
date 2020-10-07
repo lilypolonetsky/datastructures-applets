@@ -414,14 +414,16 @@ def delete(self, item):
                 # remove the found circle
                 callEnviron.remove(foundCircle)
                 self.canvas.delete(foundCircle)
+                
+                # decrement nItems
+                self.highlightCodeTags('decrement_count', callEnviron)
+                self.wait(0.3)                
+                # Move nItems pointer
+                self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0), sleepTime=0.01)                       
 
                 # Slide value rectangle up and off screen
                 items = (n.display_shape, n.display_val)
                 self.moveItemsOffCanvas(items, N, sleepTime=0.02)
-
-                # decrement nItems
-                self.highlightCodeTags('decrement_count', callEnviron)
-                self.wait(0.3)
 
                 self.highlightCodeTags('shift_loop_increment', callEnviron)
                 self.wait(0.1)
@@ -438,10 +440,7 @@ def delete(self, item):
                     self.wait(0.1)
 
                     self.highlightCodeTags('shift_loop_increment', callEnviron)
-                    self.wait(0.1)
-                
-                # Move nItems pointer
-                self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0), sleepTime=0.01)                    
+                    self.wait(0.1)             
                 
                 self.highlightCodeTags('success', callEnviron)
                 # remove the last item in the list
