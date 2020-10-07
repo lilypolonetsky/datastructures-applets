@@ -227,13 +227,11 @@ def insert(self, item):
         self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0))              
         
         n = self.list.pop()  
+        items = (n.display_shape, n.display_val)
+        callEnviron |= set(items)
+        self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
-        # delete the associated display objects
-        self.canvas.delete(n.display_shape)
-        self.canvas.delete(n.display_val)
-
-        # update window
-        self.window.update()
+        # Clean up temporary items
         self.cleanUp(callEnviron)
 
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
@@ -289,7 +287,6 @@ def insert(self, item):
         return cell_rect, cell_val
 
     def display(self):
-        callEnviron = self.createCallEnvironment()
         self.canvas.delete("all")
 
         for i in range(self.size):  # Draw grid of cells
@@ -303,10 +300,9 @@ def insert(self, item):
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
                 i, n.val, n.color)
-            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
+            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
 
         self.window.update()
-        self.cleanUp(callEnviron)
         
 
     findCode = """
@@ -326,7 +322,7 @@ def find(self, item):
     def find(self, val):
         self.startAnimations()
         callEnviron = self.createCallEnvironment(
-            self.findCode.strip(), self.findCodeSnippets)            
+            self.findCode.strip(), self.findCodeSnippets)
 
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
@@ -380,7 +376,7 @@ def find(self, item):
 
     def shuffle(self):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment()          
+        callEnviron = self.createCallEnvironment()
 
         y = self.ARRAY_Y0
         for i in range(len(self.list)):
@@ -545,7 +541,7 @@ def bubbleSort(self):
         callEnviron = self.createCallEnvironment(
             SimpleArraySort.bubbleSortCode.strip(),
             self.bubbleSortCodeSnippets)
-        n = len(self.list)     
+        n = len(self.list)
 
         # make an index arrow that points to last unsorted element
         last = n - 1

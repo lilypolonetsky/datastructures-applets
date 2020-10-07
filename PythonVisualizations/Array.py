@@ -95,7 +95,7 @@ def insert(self, item):
 
         # add a new Drawable with the new value, color, and display objects
         self.list.append(drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
+            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
         callEnviron ^= set(cellPair) # Remove new cell from temp call environ
 
 
@@ -123,14 +123,11 @@ def insert(self, item):
         self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0))        
         
         n = self.list.pop()
+        items = (n.display_shape, n.display_val)
+        callEnviron |= set(items)
+        self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
-        # delete the associated display objects
-        self.canvas.delete(n.display_shape)
-        self.canvas.delete(n.display_val)
-
-        # update window
-        self.window.update()
-        self.stopAnimations()
+        # Clean up temporary items
         self.cleanUp(callEnviron)
         
     def assignElement(
@@ -227,7 +224,7 @@ def insert(self, item):
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
                 i, n.val, n.color)
-            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')    
+            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
         
         self.window.update()
 
@@ -612,19 +609,6 @@ def traverse(self, function=print):
                 msg = "Value {} not found".format(val)
             self.setMessage(msg)
         self.clearArgument()
-    
-    def enableButtons(self, enable=True):
-        for btn in self.buttons:
-            btn.config(state=NORMAL if enable else DISABLED)    
-    
-    def startAnimations(self):
-        self.enableButtons(enable=False)
-        super().startAnimations()
-            
-    def stopAnimations(self):
-        super().stopAnimations()
-        self.enableButtons(enable=True)
-        self.argumentChanged()    
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency

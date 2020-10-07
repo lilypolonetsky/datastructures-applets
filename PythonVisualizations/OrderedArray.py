@@ -107,8 +107,6 @@ class OrderedArray(VisualizationApp):
         self.moveItemsBy(self.nItems, (self.CELL_SIZE, 0))
         self.wait(0.1)        
 
-        self.window.update()  
-        self.stopAnimations()
         self.cleanUp(callEnviron) 
         
     def insertBinarySearch(self,val):
@@ -141,9 +139,8 @@ class OrderedArray(VisualizationApp):
         self.list[j] = (drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
 
-        self.window.update()
         self.cleanUp(callEnviron)
-        self.stopAnimations()
+
     def removeFromEnd(self):
         
         # pop a Drawable from the list
@@ -165,10 +162,8 @@ class OrderedArray(VisualizationApp):
         callEnviron |= set(items)
         self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
-        # update window
-        self.window.update()
+        # Clean up animations
         self.cleanUp(callEnviron)
-        self.stopAnimations()
         
     def assignElement(
             self, fromIndex, toIndex, callEnviron,
@@ -270,14 +265,13 @@ class OrderedArray(VisualizationApp):
 
             n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
 
-
         self.window.update()
 
     def randomFill(self):
         callEnviron = self.createCallEnvironment()        
         # Clear the list so new values can be entered
         self.list=[] 
-        size = self.size       
+        size = self.size
         
         # Create a list of random numbers and sort them
         a = [random.randrange(90) for i in range(size)]
@@ -297,10 +291,6 @@ class OrderedArray(VisualizationApp):
         self.list = []
         self.display()
         
-        for i in range(val):  # Draw new grid of cells
-            self.createArrayCell(i) 
-        
-        self.window.update()
         self.cleanUp(callEnviron)
         
     def search(self, val):
@@ -331,11 +321,8 @@ class OrderedArray(VisualizationApp):
                 callEnviron.add(foundCircle) 
                 
                 self.wait(0.3)
-                #remove the cirlce around the found element 
-                callEnviron.remove(foundCircle)
-                self.canvas.delete(foundCircle)                
-                self.stopAnimations()
-                self.window.update()
+
+                self.cleanUp(callEnviron)
                 return mid                 # Return the value found 
         
             elif self.list[mid].val < val: # Is item in upper half?
@@ -352,8 +339,6 @@ class OrderedArray(VisualizationApp):
                 deltaXMid = ((lo- hi) //2) -1
                 self.moveItemsBy(indexMid, (self.CELL_SIZE* deltaXMid, 0))
         
-        self.window.update()
-        self.stopAnimations()
         self.cleanUp(callEnviron)
         return lo                         #val not found 
     
@@ -366,17 +351,16 @@ class OrderedArray(VisualizationApp):
         
         found = self.list[index].val == val
         if found:    # Record if value was found
-            self.wait(0.3)
             n = self.list[index]
 
+            # Slide value rectangle up and off screen
             items = (n.display_shape, n.display_val)
+            self.moveItemsOffCanvas(items, N, sleepTime=0.01)
+            callEnviron |= set(items)
+
             #decrement nItems pointer  
             self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0), sleepTime=0.01)
             
-            # Slide value rectangle up and off screen
-            self.moveItemsOffCanvas(items, N, sleepTime=0.02)
-            callEnviron |= set(items)
-
             # Create an index for shifting the cells
             kIndex = self.createIndex(index, 'k', level = -2)
             callEnviron |= set(kIndex)
@@ -386,15 +370,12 @@ class OrderedArray(VisualizationApp):
                 self.assignElement(i, i - 1, callEnviron)
                 self.moveItemsBy(kIndex, (self.CELL_SIZE, 0), sleepTime=0.01)
     
-            # delete the last cell from the list and as a drawable 
-            n = self.list.pop()  
+            # delete the last, duplicate cell from the list and as a drawable 
+            n = self.list.pop()
             self.canvas.delete(n.display_shape)
             self.canvas.delete(n.display_val)     
-            #self.removeFromEnd()  
 
-        self.window.update()
         self.cleanUp(callEnviron)
-        self.stopAnimations()
         return found
         
     def fixCells(self):       # Move canvas display items to exact cell coords
@@ -486,20 +467,6 @@ class OrderedArray(VisualizationApp):
         else:
             self.newArraySize(val)        
         self.clearArgument()    
-
-    def enableButtons(self, enable=True):
-        for btn in self.buttons:
-            btn.config(state=NORMAL if enable else DISABLED)    
-    
-    def startAnimations(self):
-        self.enableButtons(enable=False)
-        super().startAnimations()
-            
-    def stopAnimations(self):
-        super().stopAnimations()
-        self.enableButtons(enable=True)
-        self.argumentChanged()    
-
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
