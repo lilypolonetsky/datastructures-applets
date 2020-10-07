@@ -139,7 +139,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.callStack = []    # Stack of local environments for visualziation
         self.animationState = self.STOPPED
         self.pauseButton, self.stopButton = None, None
-        
+ 
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window)
         self.controlPanel.pack(side=BOTTOM, expand=True, fill=X)
