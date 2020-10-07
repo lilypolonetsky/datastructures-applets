@@ -167,8 +167,8 @@ class OrderedArray(VisualizationApp):
 
         # update window
         self.window.update()
-        self.stopAnimations()
         self.cleanUp(callEnviron)
+        self.stopAnimations()
         
     def assignElement(
             self, fromIndex, toIndex, callEnviron,
@@ -323,11 +323,17 @@ class OrderedArray(VisualizationApp):
                 posShape = self.canvas.coords(self.list[mid].display_shape)
 
                 # Highlight the found element with a circle
-                callEnviron.add(self.canvas.create_oval(
+                foundCircle = self.canvas.create_oval(
                     *add_vector(
                         posShape,
                         (self.CELL_BORDER, self.CELL_BORDER, -self.CELL_BORDER, -self.CELL_BORDER)),
-                    outline=self.FOUND_COLOR))
+                    outline=self.FOUND_COLOR)
+                callEnviron.add(foundCircle) 
+                
+                self.wait(0.3)
+                #remove the cirlce around the found element 
+                callEnviron.remove(foundCircle)
+                self.canvas.delete(foundCircle)                
                 self.stopAnimations()
                 self.window.update()
                 return mid                 # Return the value found 
@@ -361,12 +367,15 @@ class OrderedArray(VisualizationApp):
         found = self.list[index].val == val
         if found:    # Record if value was found
             self.wait(0.3)
-
             n = self.list[index]
 
-            # Slide value rectangle up and off screen
             items = (n.display_shape, n.display_val)
+            #decrement nItems pointer  
+            self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0), sleepTime=0.01)
+            
+            # Slide value rectangle up and off screen
             self.moveItemsOffCanvas(items, N, sleepTime=0.02)
+            callEnviron |= set(items)
 
             # Create an index for shifting the cells
             kIndex = self.createIndex(index, 'k', level = -2)
@@ -376,15 +385,16 @@ class OrderedArray(VisualizationApp):
             for i in range(index+1, len(self.list)):
                 self.assignElement(i, i - 1, callEnviron)
                 self.moveItemsBy(kIndex, (self.CELL_SIZE, 0), sleepTime=0.01)
-            self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0), sleepTime=0.01)
     
             # delete the last cell from the list and as a drawable 
             n = self.list.pop()  
             self.canvas.delete(n.display_shape)
-            self.canvas.delete(n.display_val)                
+            self.canvas.delete(n.display_val)     
+            #self.removeFromEnd()  
 
-        self.stopAnimations()
+        self.window.update()
         self.cleanUp(callEnviron)
+        self.stopAnimations()
         return found
         
     def fixCells(self):       # Move canvas display items to exact cell coords
