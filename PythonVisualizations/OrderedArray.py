@@ -1,4 +1,3 @@
-#This update is for shira
 import random
 from tkinter import *
 
