@@ -64,7 +64,8 @@ class LinkedList(VisualizationApp):
         self.prev_id+=1
         return "item" + str(self.prev_id)
     
-    #used to calculate coordinates of cell parts
+    # Calculate coordinates of cell parts
+    # Position 0 is the LinkedList cell.  The Links start at postiion 1
     def x_y_offset(self, pos):
         x_offset = self.LL_X0 + pos % self.LEN_ROW * (
             self.CELL_WIDTH + self.CELL_GAP)
@@ -72,57 +73,44 @@ class LinkedList(VisualizationApp):
             self.CELL_HEIGHT + self.ROW_GAP) 
         return x_offset, y_offset
     
-    def indexTip(self, pos): # Compute position of pointer arrow tip
+    def indexTip(self, pos): # Compute position of index pointer tip
         return V(self.x_y_offset(pos)) + V((self.CELL_WIDTH // 2, 0))
 
-    #assigns coordinates for the node's text  
+    # Calculate coordinates for the center of a node's text
     def cell_text(self, pos):
         x_offset, y_offset = self.x_y_offset(pos)
         return self.CELL_HEIGHT + x_offset, self.CELL_HEIGHT // 2 + y_offset
-    
-    #assigns coordinates for the dot in the node
-    def cell_dot(self, pos):
+
+    # Calculate coordinates for the center of a node's next pointer
+    def cellNext(self, pos):
         x_offset, y_offset = self.x_y_offset(pos)
-        return self.canvas.create_oval(
-            self.CELL_HEIGHT*2 - self.DOT_SIZE // 2 + x_offset,
-            self.CELL_HEIGHT // 2 - self.DOT_SIZE // 2 + y_offset,
-            self.CELL_HEIGHT*2 + self.DOT_SIZE // 2 + x_offset,
-            self.CELL_HEIGHT // 2 + self.DOT_SIZE // 2+ y_offset, 
-            fill="RED", outline="RED", tag = id)
+        return self.CELL_HEIGHT * 2 + x_offset, self.CELL_HEIGHT // 2 + y_offset
     
-    #draws arrow based on position
-    #short arrow if not at the end of the line.
-    #otherwise draws a long arrow
+    # Create a dot for the next pointer of a node
+    def cell_dot(self, pos, id):
+        x, y = self.cellNext(pos)
+        radius = self.DOT_SIZE // 2
+        return self.canvas.create_oval(
+            x - radius, y - radius, x + radius, y + radius,
+            fill="RED", outline="RED", tags=('next dot', id))
+    
+    # Create the arrow linking a node to the next link
     def cell_arrow(self, pos):
-        x_offset, y_offset = self.x_y_offset(pos)       
-             
-        if len(self.list)>=3 and pos == 4 or (pos-4)%self.LEN_ROW ==0:
-            return (
-                self.canvas.create_line(
-                    self.CELL_HEIGHT*2 + x_offset,
-                    self.CELL_HEIGHT // 2 + y_offset,
-                    self.CELL_HEIGHT*2 + x_offset,
-                    self.CELL_HEIGHT // 2 + y_offset+self.ROW_GAP/2 + self.CELL_HEIGHT/2,
-                    tag=id),
-                self.canvas.create_line(
-                    self.CELL_HEIGHT*2 + x_offset,
-                    self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP / 2 + self.CELL_HEIGHT / 2,
-                    self.LL_X0 + self.CELL_HEIGHT*2,
-                    self.CELL_HEIGHT // 2 + y_offset+self.ROW_GAP/2 + self.CELL_HEIGHT/2,
-                    tag=id),
-                self.canvas.create_line(
-                    self.LL_X0 + self.CELL_HEIGHT*2,
-                    self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP / 2 + self.CELL_HEIGHT / 2,
-                    self.LL_X0 + self.CELL_HEIGHT*2,
-                    self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP + self.CELL_HEIGHT/2,
-                    arrow=LAST, tag=id))
-        
+        cell0 = self.cellNext(pos)
+        cell1 = self.cellNext(pos + 1)
+        spansRows = cell1[0] < cell0[0] # Flag if next cell is on next row
+        if spansRows:     # Determine tip of arrow position
+            tip = subtract_vector(cell1, (0, self.CELL_HEIGHT // 2))
         else:
-            return  (self.canvas.create_line(
-                self.CELL_HEIGHT*2 + x_offset,
-                self.CELL_HEIGHT // 2 + y_offset,
-                x_offset + self.CELL_WIDTH + self.CELL_GAP,
-                self.CELL_HEIGHT // 2 + y_offset, arrow = LAST,tag = id), )
+            tip = subtract_vector(cell1, (self.CELL_HEIGHT * 2, 0))
+        delta = V(V(tip) - V(cell0)) * 0.33
+        p0 = cell0
+        p1 = V(cell0) + (
+            V((0, (self.CELL_HEIGHT + self.ROW_GAP) // 2)) if spansRows else
+            V(delta))
+        p2 = V(tip) - (V((0, self.ROW_GAP // 2)) if spansRows else V(delta))
+        return (self.canvas.create_line(*p0, *p1, *p2, *tip,
+                                        arrow=LAST, tags=('link pointer', id)),)
     
     #accesses the next color in the pallete
     #used to assign a node's color
@@ -132,25 +120,11 @@ class LinkedList(VisualizationApp):
         return color
                 
     def arrowSetup(self, insert = False):
-        for i in self.arrow:
-            for j in i:
-                self.canvas.delete(j)
-        cur = self.first
-        pos = len(self.list) if insert == True else len(self.list)-1
-        if insert==True:
-            while pos>1:
-                if pos <= len(self.list):
-                    cell_arrow = self.cell_arrow(pos)
-                    self.arrow.append(cell_arrow)
-                pos -=1
-                cur = cur.next
-        else:
-            while pos>0:
-                if pos< len(self.list):
-                    cell_arrow = self.cell_arrow(pos)
-                    self.arrow.append(cell_arrow)
-                pos -=1
-                cur = cur.next            
+        self.canvas.delete('link pointer')
+        start = len(self.list) if insert else len(self.list)-1
+        last = 1 if insert else 0
+        for pos in range(start, last, -1):
+            self.arrow.append(self.cell_arrow(pos))
         return self.arrow
         
     
@@ -174,7 +148,7 @@ class LinkedList(VisualizationApp):
 
         self.moveItemsBy((cell_rect, cell_text), (0, y_offset), steps=9,
                          sleepTime = .05)
-        cell_dot = self.cell_dot(pos)
+        cell_dot = self.cell_dot(pos, id)
         
         handler = lambda e: self.setArgument(str(val))
         for item in (cell_rect,cell_text, cell_dot):
