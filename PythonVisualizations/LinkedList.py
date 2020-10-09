@@ -3,12 +3,14 @@ from tkinter import *
 import math
 try:
     from drawable import *
+    from coordinates import *
     from VisualizationApp import *
 except ModuleNotFoundError:
     from .drawable import *
+    from .coordinates import *
     from .VisualizationApp import *
 
-
+V = vector
 
 class Node(object):
     
@@ -54,7 +56,6 @@ class LinkedList(VisualizationApp):
 
     def __len__(self):
         return len(self.list)
-     
 
     def isEmpty(self):
         return not self.first
@@ -63,38 +64,31 @@ class LinkedList(VisualizationApp):
         self.prev_id+=1
         return "item" + str(self.prev_id)
     
-    #pointer arrow for search and delete
-    def index(self, position):
-        x = position % self.LEN_ROW * (self.CELL_WIDTH + self.CELL_GAP) + self.LL_X0 + self.CELL_WIDTH / 2
-        y = position // self.LEN_ROW * (self.CELL_HEIGHT + self.ROW_GAP) + self.LL_Y0
-        return x, y
-    
-    #accesses the next color in the pallete
-    #used to assign a node's color
-    def chooseColor(self):
-        color = drawable.palette[self.nextColor]
-        self.nextColor = (self.nextColor + 1) % len(drawable.palette)
-        return color
-    
     #used to calculate coordinates of cell parts
     def x_y_offset(self, pos):
-        x_offset = pos%self.LEN_ROW * (self.CELL_WIDTH + self.CELL_GAP)
-        y_offset = pos//self.LEN_ROW*(self.CELL_HEIGHT+self.ROW_GAP) 
+        x_offset = self.LL_X0 + pos % self.LEN_ROW * (
+            self.CELL_WIDTH + self.CELL_GAP)
+        y_offset = self.LL_Y0 + pos // self.LEN_ROW * (
+            self.CELL_HEIGHT + self.ROW_GAP) 
         return x_offset, y_offset
-
+    
+    def indexTip(self, pos): # Compute position of pointer arrow tip
+        return V(self.x_y_offset(pos)) + V((self.CELL_WIDTH // 2, 0))
 
     #assigns coordinates for the node's text  
     def cell_text(self, pos):
         x_offset, y_offset = self.x_y_offset(pos)
-        return self.LL_X0 + self.CELL_HEIGHT  + x_offset, self.LL_Y0 + self.CELL_HEIGHT // 2+y_offset
+        return self.CELL_HEIGHT + x_offset, self.CELL_HEIGHT // 2 + y_offset
     
     #assigns coordinates for the dot in the node
     def cell_dot(self, pos):
         x_offset, y_offset = self.x_y_offset(pos)
-        return self.canvas.create_oval(self.LL_X0 + self.CELL_HEIGHT*2 - self.DOT_SIZE // 2 + x_offset,
-                               self.LL_Y0 + self.CELL_HEIGHT // 2 - self.DOT_SIZE // 2 + y_offset,
-                               self.LL_X0 + self.CELL_HEIGHT*2 + self.DOT_SIZE // 2 + x_offset,
-                               self.LL_Y0 + self.CELL_HEIGHT // 2 + self.DOT_SIZE // 2+ y_offset, fill="RED", outline="RED", tag = id)
+        return self.canvas.create_oval(
+            self.CELL_HEIGHT*2 - self.DOT_SIZE // 2 + x_offset,
+            self.CELL_HEIGHT // 2 - self.DOT_SIZE // 2 + y_offset,
+            self.CELL_HEIGHT*2 + self.DOT_SIZE // 2 + x_offset,
+            self.CELL_HEIGHT // 2 + self.DOT_SIZE // 2+ y_offset, 
+            fill="RED", outline="RED", tag = id)
     
     #draws arrow based on position
     #short arrow if not at the end of the line.
@@ -103,26 +97,39 @@ class LinkedList(VisualizationApp):
         x_offset, y_offset = self.x_y_offset(pos)       
              
         if len(self.list)>=3 and pos == 4 or (pos-4)%self.LEN_ROW ==0:
-            return (self.canvas.create_line(self.LL_X0 + self.CELL_HEIGHT*2 + x_offset,
-                               self.LL_Y0 + self.CELL_HEIGHT // 2 + y_offset,
-                               self.LL_X0 + self.CELL_HEIGHT*2 + x_offset,
-                              self.LL_Y0 + self.CELL_HEIGHT // 2 + y_offset+self.ROW_GAP/2 + self.CELL_HEIGHT/2,
-                                tag=id), self.canvas.create_line(self.LL_X0 + self.CELL_HEIGHT*2 + x_offset,
-                               self.LL_Y0 + self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP / 2 + self.CELL_HEIGHT / 2,
-                               self.LL_X0 + self.CELL_HEIGHT*2,
-                               self.LL_Y0 + self.CELL_HEIGHT // 2 + y_offset+self.ROW_GAP/2 + self.CELL_HEIGHT/2,
-                               tag=id), self.canvas.create_line(self.LL_X0 + self.CELL_HEIGHT*2,
-                               self.LL_Y0 + self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP / 2 + self.CELL_HEIGHT / 2,
-                               self.LL_X0 + self.CELL_HEIGHT*2,
-                               self.LL_Y0 + self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP + self.CELL_HEIGHT/2,
-                               arrow=LAST, tag=id))
+            return (
+                self.canvas.create_line(
+                    self.CELL_HEIGHT*2 + x_offset,
+                    self.CELL_HEIGHT // 2 + y_offset,
+                    self.CELL_HEIGHT*2 + x_offset,
+                    self.CELL_HEIGHT // 2 + y_offset+self.ROW_GAP/2 + self.CELL_HEIGHT/2,
+                    tag=id),
+                self.canvas.create_line(
+                    self.CELL_HEIGHT*2 + x_offset,
+                    self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP / 2 + self.CELL_HEIGHT / 2,
+                    self.LL_X0 + self.CELL_HEIGHT*2,
+                    self.CELL_HEIGHT // 2 + y_offset+self.ROW_GAP/2 + self.CELL_HEIGHT/2,
+                    tag=id),
+                self.canvas.create_line(
+                    self.LL_X0 + self.CELL_HEIGHT*2,
+                    self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP / 2 + self.CELL_HEIGHT / 2,
+                    self.LL_X0 + self.CELL_HEIGHT*2,
+                    self.CELL_HEIGHT // 2 + y_offset + self.ROW_GAP + self.CELL_HEIGHT/2,
+                    arrow=LAST, tag=id))
         
         else:
-            return  (self.canvas.create_line(self.LL_X0 + self.CELL_HEIGHT*2 + x_offset,
-                                    self.LL_Y0 + self.CELL_HEIGHT // 2 + y_offset,
-                                    self.LL_X0 + x_offset + self.CELL_WIDTH + self.CELL_GAP,
-                                    self.LL_Y0 + self.CELL_HEIGHT // 2 + y_offset,
-                                     arrow = LAST,tag = id), )
+            return  (self.canvas.create_line(
+                self.CELL_HEIGHT*2 + x_offset,
+                self.CELL_HEIGHT // 2 + y_offset,
+                x_offset + self.CELL_WIDTH + self.CELL_GAP,
+                self.CELL_HEIGHT // 2 + y_offset, arrow = LAST,tag = id), )
+    
+    #accesses the next color in the pallete
+    #used to assign a node's color
+    def chooseColor(self):
+        color = drawable.palette[self.nextColor]
+        self.nextColor = (self.nextColor + 1) % len(drawable.palette)
+        return color
                 
     def arrowSetup(self, insert = False):
         for i in self.arrow:
@@ -132,7 +139,6 @@ class LinkedList(VisualizationApp):
         pos = len(self.list) if insert == True else len(self.list)-1
         if insert==True:
             while pos>1:
-                x_offset, y_offset = self.x_y_offset(pos) 
                 if pos <= len(self.list):
                     cell_arrow = self.cell_arrow(pos)
                     self.arrow.append(cell_arrow)
@@ -140,7 +146,6 @@ class LinkedList(VisualizationApp):
                 cur = cur.next
         else:
             while pos>0:
-                x_offset, y_offset = self.x_y_offset(pos) 
                 if pos< len(self.list):
                     cell_arrow = self.cell_arrow(pos)
                     self.arrow.append(cell_arrow)
@@ -160,10 +165,15 @@ class LinkedList(VisualizationApp):
         x_offset, y_offset = self.x_y_offset(pos)       
         if color == None:color = cur.color
         textX, textY= self.cell_text(pos)
-        cell_rect = self.canvas.create_rectangle(self.LL_X0 + x_offset,0, self.LL_X0 + self.CELL_WIDTH + x_offset, self.CELL_HEIGHT, fill= color, tag=id)
-        cell_text = self.canvas.create_text(textX, textY -self.LL_Y0, text=val, font=('Helvetica', textSize),tag = id)
+        cell_rect = self.canvas.create_rectangle(
+            x_offset, 0, self.CELL_WIDTH + x_offset, self.CELL_HEIGHT,
+            fill= color, tag=id)
+        cell_text = self.canvas.create_text(
+            textX, textY -self.LL_Y0, text=val, font=('Helvetica', textSize),
+            tag = id)
 
-        self.moveItemsBy((cell_rect, cell_text), (0, self.LL_Y0 + y_offset), steps = 9, sleepTime = .09)
+        self.moveItemsBy((cell_rect, cell_text), (0, y_offset), steps=9,
+                         sleepTime = .05)
         cell_dot = self.cell_dot(pos)
         
         handler = lambda e: self.setArgument(str(val))
@@ -202,11 +212,10 @@ class LinkedList(VisualizationApp):
             self.cleanUp(callEnviron)
             return
         x_offset, y_offset = self.x_y_offset(1)
-        peekBox = self.canvas.create_rectangle(self.LL_X0 + x_offset, 
-                                               self.LL_Y0 - (self.CELL_GAP + self.CELL_HEIGHT), 
-                                               self.LL_X0+ self.CELL_WIDTH+ x_offset,
-                                               self.LL_Y0 - self.CELL_GAP, 
-                                               fill = self.OPERATIONS_BG)
+        peekBox = self.canvas.create_rectangle(
+            x_offset, self.LL_Y0 - (self.CELL_GAP + self.CELL_HEIGHT), 
+            self.CELL_WIDTH + x_offset, self.LL_Y0 - self.CELL_GAP, 
+            fill = self.OPERATIONS_BG)
         callEnviron.add(peekBox)
         textX, textY = self.cell_text(1)
         firstText = self.canvas.create_text(textX, textY, text=self.first.key, font=('Helvetica', 12),tag = id)
@@ -276,7 +285,7 @@ class LinkedList(VisualizationApp):
         first_arrow =self.firstPointList[-1]
 
         pos = 1
-        x, y = self.index(pos)
+        x, y = self.indexTip(pos)
         arrow = self.canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
         
         callEnviron.add(arrow)
@@ -321,7 +330,7 @@ class LinkedList(VisualizationApp):
                 
         first_arrow = self.firstPointList[-1]
         pos = 1
-        x, y = self.index(pos)
+        x, y = self.indexTip(pos)
         arrow = self.canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
     
         callEnviron.add(arrow)
@@ -362,10 +371,10 @@ class LinkedList(VisualizationApp):
 
         # otherwise highlight the found node
         x_offset, y_offset = self.x_y_offset(pos)
-        cell_outline = self.canvas.create_rectangle(self.LL_X0 + x_offset-5,
-                                   self.LL_Y0+y_offset-5,
-                                   self.LL_X0 + self.CELL_WIDTH + x_offset+5,
-                                   self.LL_Y0 + self.CELL_HEIGHT+y_offset+5, outline = "RED", tag=id)
+        cell_outline = self.canvas.create_rectangle(
+            x_offset-5, y_offset-5,
+            self.CELL_WIDTH + x_offset+5, self.CELL_HEIGHT+y_offset+5,
+            outline = "RED", tag=id)
         
         #remove the node from the list and
         self.wait(0.4)
@@ -412,7 +421,7 @@ class LinkedList(VisualizationApp):
         callEnviron = self.createCallEnvironment()  
         cur = self.first
         pos = 1
-        x, y = self.index(pos)
+        x, y = self.indexTip(pos)
         arrow = self.canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
         callEnviron.add(arrow)
         pos = 0
@@ -425,10 +434,10 @@ class LinkedList(VisualizationApp):
                 
                 #highlight the box of the node that contains the search key
                 x_offset, y_offset = self.x_y_offset(pos+1)
-                cell_outline = self.canvas.create_rectangle(self.LL_X0 + x_offset-5,
-                                           self.LL_Y0+y_offset-5,
-                                           self.LL_X0 + self.CELL_WIDTH + x_offset+5,
-                                           self.LL_Y0 + self.CELL_HEIGHT+y_offset+5, outline = "RED", tag=id)
+                cell_outline = self.canvas.create_rectangle(
+                    x_offset-5, y_offset-5,
+                    self.CELL_WIDTH + x_offset + 5,
+                    self.CELL_HEIGHT + y_offset + 5, outline = "RED", tag=id)
 
                 callEnviron.add(cell_outline)
                 self.wait(1.0)
@@ -493,7 +502,6 @@ class LinkedList(VisualizationApp):
         self.setMessage(msg)
         self.clearArgument()
         
-        
     def clickNewLinkedList(self):
         self.canvas.delete('all')
         self.newLinkedList()
@@ -507,7 +515,6 @@ class LinkedList(VisualizationApp):
         self.setMessage(msg)
         self.clearArgument()
     
-
     def makeButtons(self):
         vcmd = (self.window.register(self.validate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
@@ -541,5 +548,7 @@ class LinkedList(VisualizationApp):
    
 if __name__ == '__main__':
     ll = LinkedList()
+    for arg in reversed(sys.argv[1:]):
+        ll.insertElem(arg)
     ll.runVisualization()
     
