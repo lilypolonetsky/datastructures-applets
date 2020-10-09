@@ -543,6 +543,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
             edge=N,          # One of the 4 tkinter edges: N, E, S, or W
             steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
+        for step, _ in self.moveItemsOffCanvasSequence(items, edge, steps):
+            self.wait(sleepTime)
+
+    def moveItemsOffCanvasSequence(  # Iterator for moveItemsOffCanvas
+            self, items, edge=N, steps=10):
         if not isinstance(items, (list, tuple, set)):
             items = tuple(items)
         curPositions = [self.canvas.coords(i) for i in items]
@@ -569,7 +574,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
             delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
         for step, _ in self.moveItemsBySequence(items, delta, steps):
-            yield (step, steps)
+            yield (step, _)
 
     def moveItemsBy(         # Animate canvas items moving from their current
             self, items,     # location in a direction indicated by a single
@@ -678,6 +683,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
             startAngle=90,   # Starting angle away from destination
             steps=10,        # Number of intermediate steps to reach destination
             sleepTime=0.1):  # Base time between steps (adjusted by user)
+        for step, _ in self.moveItemsOnCurveSequence(
+                items, toPositions, startAngle, steps):
+            self.wait(sleepTime)
+            
+    def moveItemsOnCurveSequence( # Iterator for moveItemsOnCurve
+            self, items, toPositions, startAngle=90, steps=10):
         if not isinstance(items, (list, tuple, set)):
             items = tuple(items)
         if not isinstance(toPositions, (list, tuple)):
