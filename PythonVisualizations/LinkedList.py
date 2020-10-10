@@ -16,11 +16,20 @@ class Node(object):
     
     # create a linked list node
     #id is used to link the different parts of each node visualization
-    def __init__(self, k, color, pos = None, n=None, id=None):
+    def __init__(
+            self, k, nextNode=None, id='',
+            cell=None, value=None, dot=None, nextPointer=None):
         self.key = k
         self.id = id
-        self.next = n  # reference to next item in list
-        self.color = color
+        self.next = nextNode  # reference to next item in list
+        self.cell = cell
+        self.value = value
+        self.dot = dot
+        self.nextPointer = nextPointer
+
+    def items(self):    # Return list of canvas items used to draw Node
+        return [i for i in (self.cell, self.value, self.dot, self.nextPointer)
+                if i is not None]
         
     def __str__(self):
         return "{" + str(self.key) + "}"
@@ -39,20 +48,17 @@ class LinkedList(VisualizationApp):
     LL_Y0 = 100
     MAX_SIZE=20
     LEN_ROW = 5
-    ROW_GAP = 40  
+    ROW_GAP = 50  
     MAX_ARG_WIDTH = 8
     
     def __init__(self, title="Linked List", maxArgWidth=MAX_ARG_WIDTH, **kwargs):
         super().__init__(title=title, maxArgWidth = maxArgWidth, **kwargs)
         self.title = title        
-        self.first = None
+        self.first = None   # Canvas ID for first pointer arrow
+        self.list = []      # List of Link nodes in linked list
         self.prev_id = -1
         self.buttons = self.makeButtons()
-        self.list = []
-        self.arrow = []
-        self.dot = []
-        rect, oval, text, arrow =self.firstPointer()
-        self.firstPointList= [rect, oval, text, arrow]
+        self.display()
 
     def __len__(self):
         return len(self.list)
@@ -60,57 +66,90 @@ class LinkedList(VisualizationApp):
     def isEmpty(self):
         return not self.first
     
-    def generateId(self):
+    def generateID(self):
         self.prev_id+=1
         return "item" + str(self.prev_id)
     
     # Calculate coordinates of cell parts
     # Position 0 is the LinkedList cell.  The Links start at postiion 1
+    # Negative position means above the Linked List node 
     def x_y_offset(self, pos):
-        x_offset = self.LL_X0 + pos % self.LEN_ROW * (
+        x_offset = self.LL_X0 + max(0, pos) % self.LEN_ROW * (
             self.CELL_WIDTH + self.CELL_GAP)
-        y_offset = self.LL_Y0 + pos // self.LEN_ROW * (
+        y_offset = self.LL_Y0 + max(-1, pos) // self.LEN_ROW * (
             self.CELL_HEIGHT + self.ROW_GAP) 
         return x_offset, y_offset
     
     def indexTip(self, pos): # Compute position of index pointer tip
-        return V(self.x_y_offset(pos)) + V((self.CELL_WIDTH // 2, 0))
+        if pos == 0:
+            nextDotCenter = self.cellNext(pos)
+            return V(nextDotCenter) - V((0, self.CELL_HEIGHT // 2))
+        return V(self.x_y_offset(pos)) + ( # Goes to middle top for normal
+            V((self.CELL_WIDTH // 2, 0)) if pos > 0 else # position, else
+            V((0, self.CELL_HEIGHT // 2))) # left middle for pos == -1
 
-    # Calculate coordinates for the center of a node's text
-    def cell_text(self, pos):
-        x_offset, y_offset = self.x_y_offset(pos)
-        return self.CELL_HEIGHT + x_offset, self.CELL_HEIGHT // 2 + y_offset
+    def cellCoords(self, pos):  # Bounding box for a Link node rectangle
+        x, y = self.x_y_offset(pos)
+        return x, y, x + self.CELL_WIDTH, y + self.CELL_HEIGHT
+
+    # Calculate coordinates for the center of a Link node's text
+    def cellText(self, pos):
+        x, y = self.x_y_offset(pos)
+        return x + self.CELL_HEIGHT, y + self.CELL_HEIGHT // 2
 
     # Calculate coordinates for the center of a node's next pointer
     def cellNext(self, pos):
-        x_offset, y_offset = self.x_y_offset(pos)
-        return self.CELL_HEIGHT * 2 + x_offset, self.CELL_HEIGHT // 2 + y_offset
-    
-    # Create a dot for the next pointer of a node
-    def cell_dot(self, pos, id):
+        x, y = self.x_y_offset(pos)
+        return x + self.CELL_HEIGHT * 2, y + self.CELL_HEIGHT // 2
+
+    def nextDot(self, pos):  # Bounding box for the dot of the next pointer
         x, y = self.cellNext(pos)
         radius = self.DOT_SIZE // 2
-        return self.canvas.create_oval(
-            x - radius, y - radius, x + radius, y + radius,
-            fill="RED", outline="RED", tags=('next dot', id))
+        return x - radius, y - radius, x + radius, y + radius
     
-    # Create the arrow linking a node to the next link
-    def cell_arrow(self, pos):
+    def display(self):      # Set up the permanent canvas items
+        self.canvas.delete('all')
+        self.linkedListNode()
+        if self.first:      # If there was a displayed first pointer, recreate
+            self.first = self.linkNext(0)
+    
+    # Create a dot for the next pointer of a Link or LinkedList node
+    def createDot(self, coordsOrPos, id):
+        coords = (coordsOrPos if isinstance(coordsOrPos, (list, tuple))
+                  else self.nextDot(coordsOrPos))
+        return self.canvas.create_oval(
+            *coords, fill="RED", outline="RED", tags=('next dot', id))
+
+    # Compute coordinaes of the link pointer from pos to pos+d (where d is
+    # usually 1)
+    # When pos is 0, creates the arrow for the LinkedList first pointer
+    # and pos -1 creates an arrow for a new node above the LinkedList
+    def nextLinkCoords(self, pos, d=1):
         cell0 = self.cellNext(pos)
-        cell1 = self.cellNext(pos + 1)
-        spansRows = cell1[0] < cell0[0] # Flag if next cell is on next row
-        if spansRows:     # Determine tip of arrow position
-            tip = subtract_vector(cell1, (0, self.CELL_HEIGHT // 2))
-        else:
-            tip = subtract_vector(cell1, (self.CELL_HEIGHT * 2, 0))
+        cell1 = self.cellNext(max(1, pos + d))
+        spansRows = cell1[1] > cell0[1] # Flag if next cell is on next row
+        # Determine position for the tip of the arrow
+        tip = V(cell1) - V(
+            (0, self.CELL_HEIGHT // 2) if spansRows else 
+            (self.CELL_HEIGHT * 2, 0))
         delta = V(V(tip) - V(cell0)) * 0.33
         p0 = cell0
         p1 = V(cell0) + (
             V((0, (self.CELL_HEIGHT + self.ROW_GAP) // 2)) if spansRows else
             V(delta))
         p2 = V(tip) - (V((0, self.ROW_GAP // 2)) if spansRows else V(delta))
-        return (self.canvas.create_line(*p0, *p1, *p2, *tip,
-                                        arrow=LAST, tags=('link pointer', id)),)
+        return (*p0, *p1, *p2, *tip)
+
+    # Create the arrow linking a Link node to the next Link
+    def linkNext(self, pos, d=1, updateInternal=True):
+        arrow = self.canvas.create_line(
+            *self.nextLinkCoords(pos, d), arrow=LAST, tags=('link pointer', ))
+        if updateInternal:
+            if pos <= 0:
+                self.first = arrow
+            else:
+                self.list[pos].nextPointer = arrow
+        return arrow
     
     #accesses the next color in the pallete
     #used to assign a node's color
@@ -118,66 +157,64 @@ class LinkedList(VisualizationApp):
         color = drawable.palette[self.nextColor]
         self.nextColor = (self.nextColor + 1) % len(drawable.palette)
         return color
-                
-    def arrowSetup(self, insert = False):
-        self.canvas.delete('link pointer')
-        start = len(self.list) if insert else len(self.list)-1
-        last = 1 if insert else 0
-        for pos in range(start, last, -1):
-            self.arrow.append(self.cell_arrow(pos))
-        return self.arrow
-        
     
-    #draws a cell based on color and text input
-    #moves cell into first spot in LL
-    #draws the arrows linking the nodes
-    def createCell(self, pos = 1,  textSize = '12', val = None, cur = None, color= None):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment()
-        if not cur: cur = self.first
-        if not val: val = cur.key
-        x_offset, y_offset = self.x_y_offset(pos)       
-        if color == None:color = cur.color
-        textX, textY= self.cell_text(pos)
-        cell_rect = self.canvas.create_rectangle(
-            x_offset, 0, self.CELL_WIDTH + x_offset, self.CELL_HEIGHT,
-            fill= color, tag=id)
-        cell_text = self.canvas.create_text(
-            textX, textY -self.LL_Y0, text=val, font=('Helvetica', textSize),
-            tag = id)
+    def linkCoords(self, pos): # Return coords for cell, text, and dot of a Link
+        return [self.cellCoords(pos), self.cellText(pos), self.nextDot(pos)]
 
-        self.moveItemsBy((cell_rect, cell_text), (0, y_offset), steps=9,
-                         sleepTime = .05)
-        cell_dot = self.cell_dot(pos, id)
+    def createLink(           # Create  the canvas items for a Link node
+            self,             # This will be placed according to coordinates
+            coordsOrPos=-1,   # or list index position (-1 = above position 1)
+            val='', textSize='12', color=None, nextNode=None,
+            updateInternal=False):
+        coords = (coords if isinstance(coordsOrPos, (list, tuple)) 
+                  else self.linkCoords(coordsOrPos))
+        if color == None:
+            color = self.chooseColor()
+        cell_rect = self.canvas.create_rectangle(
+            *coords[0], fill= color, tags=('cell', id))
+        cell_text = self.canvas.create_text(
+            *coords[1], text=val, font=('Helvetica', textSize), 
+            tags = ('cell', id))
+        cell_dot = self.createDot(coords[2], id)
+        self.canvas.tag_bind(id, '<Button>', 
+                             lambda e: self.setArgument(str(val)))
+        linkPointer = (
+            (self.linkNext(coordsOrPos, updateInternal=updateInternal), ) 
+            if nextNode and isinstance(coordsOrPos, int) else ())
+        return (cell_rect, cell_text, cell_dot) + linkPointer
         
-        handler = lambda e: self.setArgument(str(val))
-        for item in (cell_rect,cell_text, cell_dot):
-            self.canvas.tag_bind(item, '<Button>', handler)
-        self.cleanUp(callEnviron)
-        
-        return cell_rect, cell_text, cell_dot
-        
-    #creates the initial "node" that indicates the head of the linked list
-    def firstPointer(self, next = None):
-        rect = self.canvas.create_rectangle(self.LL_X0 + 45, self.LL_Y0, self.LL_X0*2, self.LL_Y0 +self.CELL_HEIGHT, fill ="gainsboro")
-        oval = self.canvas.create_oval(self.LL_X0 + self.CELL_HEIGHT//2 - self.DOT_SIZE // 2 +45,
-                                self.LL_Y0 + self.CELL_HEIGHT // 2 - self.DOT_SIZE // 2 ,
-                                self.LL_X0 + self.CELL_HEIGHT//2 + self.DOT_SIZE // 2 +45,
-                                self.LL_Y0 + self.CELL_HEIGHT // 2 + self.DOT_SIZE // 2, 
-                                fill="RED", outline="RED",)
-        arrow = None
-        if self.first:
-            arrow = self.canvas.create_line(self.LL_X0 + self.CELL_HEIGHT//2 + 45,
-                        self.LL_Y0 + self.CELL_HEIGHT // 2,
-                        self.LL_X0 + self.CELL_HEIGHT//2 + 95 + self.CELL_GAP,
-                        self.LL_Y0 + self.CELL_HEIGHT // 2,
-                        arrow = LAST)
-        text= self.canvas.create_text(self.LL_X0 + self.CELL_HEIGHT//2 + 45, self.LL_Y0 + 10,text="first", font=('Courier', '10'))
-        return drawable(None, None, rect), drawable(None, None,oval), drawable(None, None, text), drawable(None, None, arrow)
-    
+    # Creates the LinkedList "node" that is the head of the linked list
+    def linkedListNode(self):
+        x, y = self.x_y_offset(0)
+        rect = self.canvas.create_rectangle(
+            x + self.CELL_WIDTH * 2 // 3, y,
+            x + self.CELL_WIDTH, y + self.CELL_HEIGHT,
+            fill="gainsboro", tags=("LinkedList", "cell"))
+        oval = self.createDot(0, 'LinkedList')
+        ovalCoords = self.canvas.coords(oval)
+        text = self.canvas.create_text(
+            (ovalCoords[0] + ovalCoords[2]) / 2, (y + ovalCoords[1]) / 2,
+            text="first", font=('Courier', '10'))
         
     ### ANIMATION METHODS###
-    
+    def indexCoords(self, pos, level=0):
+        tip = self.indexTip(pos)
+        delta = (0, self.CELL_SIZE // 5) if pos >= 0 else (
+            self.CELL_SIZE * 4 // 5, 0)
+        offset = V(0, self.VARIABLE_FONT[1]) * level
+        start = V(V(tip) - V(delta)) - V(offset)
+        return (*start, *tip)
+        
+    def createIndex(self, pos, name=None, level=0):
+        indexCoords = self.indexCoords(pos, level)
+        arrow = self.canvas.create_line(
+            *indexCoords, arrow="last", fill=self.VARIABLE_COLOR)
+        if name:
+            name = self.canvas.create_text(
+                *indexCoords[:2], text=name, font=self.VARIABLE_FONT, 
+                fill=self.VARIABLE_COLOR, anchor=SW if pos >= 0 else SE)
+        return (arrow, name) if name else (arrow,)
+                
     #returns the first node in list
     def getFirst(self):
         callEnviron = self.createCallEnvironment()
@@ -191,249 +228,190 @@ class LinkedList(VisualizationApp):
             self.CELL_WIDTH + x_offset, self.LL_Y0 - self.CELL_GAP, 
             fill = self.OPERATIONS_BG)
         callEnviron.add(peekBox)
-        textX, textY = self.cell_text(1)
+        textX, textY = self.cellText(1)
         firstText = self.canvas.create_text(textX, textY, text=self.first.key, font=('Helvetica', 12),tag = id)
         self.moveItemsBy((firstText,),(0, -(self.CELL_HEIGHT + self.CELL_GAP)), steps = 10, sleepTime = 0.05)
         callEnviron.add(firstText)
         self.cleanUp(callEnviron)        
         return self.first
             
-    #erases old linked list and draws empty list
+    # Erases old linked list and draws empty list
     def newLinkedList(self):
         self.first = None
-        self.canvas.delete(self.firstPointList[-1])
-        rect, oval, text, arrow = self.firstPointer()
-        self.firstPointList =[rect, oval, text, arrow]
-        self.size = 0
         self.list = []
-        self.dot = []
-        self.arrow= []
-        return self.first
+        self.display()
     
- 
-    #id is used to link the different parts of each node visualization
-    #creates a new Node object, slides all the nodes already in LL to the right
-    #draws the new Node- slides it into gap at beginnning of LL
-    def insertElem(self, val, pos=1, id=-1, sleepTime=0.07, steps = 3):
+    def insertElem(      # Insert a new Link node at the front of the linked
+            self, val):   # list with a specific value
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
+
+        linkIndex = self.createIndex(-1, 'link')
+        callEnviron |= set(linkIndex)
         
-        color = self.chooseColor()
-        newNode = Node(val, color, n = self.first)
-        if self.first:
-            pos = len(self.list)
-            for i, n in enumerate(self.list):
-                dot = self.dot[i]
-                items = (n.display_shape, n.display_val, dot.display_shape)
-                if (pos-4) %5 == 0:
-                    self.moveItemsBy(items, (-((self.CELL_WIDTH + self.CELL_GAP)*(self.LEN_ROW-1)), (self.CELL_HEIGHT + self.ROW_GAP)), 
-                                    steps =steps, sleepTime= sleepTime)                                                    
-                else: 
-                    self.moveItemsBy(items, (self.CELL_WIDTH+ self.CELL_GAP, 0), steps = steps, sleepTime= sleepTime)              
-                self.arrowSetup(insert = True)
-                pos -= 1
-                             
+        newNode = Node(val, self.first, self.generateID(), 
+                       *self.createLink(-1, val, nextNode=self.first))
+        toMove = newNode.items()
+        for node in self.list:
+            toMove.extend(node.items())
+        toCoords = [self.canvas.coords(item) for node in self.list
+                    for item in node.items()] + self.linkCoords(
+                            len(self.list) + 1)
+        # When list already contains some items, splice in the target 
+        # coordinates for the last link
+        if len(self.list) > 0:
+            toCoords[-3:-3] = [self.nextLinkCoords(len(self.list))]
+        self.moveItemsLinearly(toMove, toCoords, sleepTime=0.02)
+        self.list[:0] = [newNode]
                        
-        node = self.createCell(1, '12', val = val, color = newNode.color, cur = newNode)
-        if self.first: 
-            arrow = self.cell_arrow(1)
-            self.arrow.append(arrow)
-        self.dot.append(drawable(None, "RED", node[-1]))  
-        self.list.append(drawable(val, color, *node[:-1]))
-        self.first = newNode
-        if len(self.list) == 1:
-            rect, oval, text, first_arrow = self.firstPointer()
-            self.firstPointList[-1] = first_arrow
+        if self.first is None:
+            self.linkNext(0)
             
-        if id==-1:
-            id = self.generateId()
-            newNode.id = id           
-        self.wait(0.5)
         self.cleanUp(callEnviron)
         return val 
     
-    #deletes first node in LL
+    #deletes first node in Linked List
     def deleteFirst(self):
+        self.delete(self.list[0].key)
+    
+    # Delete a link from the linked list by finding a matching goal key
+    def delete(self, goal):
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        first_arrow =self.firstPointList[-1]
 
-        pos = 1
-        x, y = self.indexTip(pos)
-        arrow = self.canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
-        
-        callEnviron.add(arrow)
-        self.window.update()
-        ans = self.first
-        self.first = ans.next
-        n = self.list[-1]
-        self.list = self.list[:-1]
-        dot = self.dot[-1]
-        self.dot = self.dot[:-1]
-        items = (n.display_shape, n.display_val, dot.display_shape)
-        callEnviron |= set(items)
-        self.moveItemsOffCanvas(items)
-        
-        pos = 1
-        for i in range(len(self.list)-1, -1, -1):
-            n = self.list[i]
-            dot = self.dot[i]
-            items = (n.display_shape, n.display_val, dot.display_shape)                
-            if (pos-4)%self.LEN_ROW == 0:
-                self.moveItemsBy(items, (((self.CELL_WIDTH + self.CELL_GAP)*(self.LEN_ROW-1)), -(self.CELL_HEIGHT + self.ROW_GAP)))
-            else:
-                self.moveItemsBy(items, (-(self.CELL_WIDTH+ self.CELL_GAP), 0))
-            pos += 1
-        if len(self.list)== 0: 
-            self.canvas.delete(first_arrow.display_shape)
-            self.firstPointList[-1]= None
-        self.arrowSetup()
-          
-        self.wait(1.0)
-        callEnviron.add(ans.id)
-        self.cleanUp(callEnviron)
-        return ans.key        
-        
-    
-    # delete a node from the linked list, returning the key
-    # pair of the deleted node. Attempt to find and delete
-    # the first node containing key
-    def delete(self, key):
-        callEnviron = self.createCallEnvironment()
-        self.startAnimations()
+        previous = 0
+        previousIndex = self.createIndex(previous, 'previous', level=1)
+        callEnviron |= set(previousIndex)
+        link = 1
+        linkIndex = self.createIndex(link, 'link')
+        callEnviron |= set(linkIndex)
+
+        while previous < len(self.list):
+
+            link = previous + 1
+            if link > 1:
+                indexCoords = self.indexCoords(link)
+                self.moveItemsTo(linkIndex, (indexCoords, indexCoords[:2]),
+                                 sleepTime=0.02)
                 
-        first_arrow = self.firstPointList[-1]
-        pos = 1
-        x, y = self.indexTip(pos)
-        arrow = self.canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
-    
-        callEnviron.add(arrow)
-        self.window.update()
-        
-        pos = 1
-        index = len(self.list)-1
-        cur = prev = self.first
-        if cur.key == key:
-            self.first = self.first.next   
-            
-        else:
-        
-            # loop until we hit end, or find key,
-            # keeping track of previously visited node
-            n = 0
-            while n< len(self.list) and cur.key != key:
-                self.wait(0.7)    
-                arrow = (arrow, )
-                if (pos-4)%self.LEN_ROW == 0:
-                    self.moveItemsBy(arrow, (-((self.CELL_WIDTH + self.CELL_GAP)*(self.LEN_ROW-1)), (self.CELL_HEIGHT + self.ROW_GAP)))
-                    
+            self.wait(0.2)     # Pause for comparison
+            if self.list[previous].key == goal:
+                foundHighlight = self.createFoundHighlight(link)
+                callEnviron.add(foundHighlight)
+                                
+                # Prepare to update next pointer from previous
+                updateFirst = previous == 0
+                nextPointer = self.list[previous].nextPointer
+                if nextPointer:
+                    toMove = (self.first if updateFirst else
+                              self.list[previous - 1].nextPointer)
+                    toCoords = self.nextLinkCoords(previous, d=2)
+                    self.canvas.tag_raise(toMove)
+                    self.moveItemsTo(toMove, toCoords, sleepTime=0.04)
+                elif updateFirst:
+                    self.canvas.delete(self.first)
+                    self.first = None
                 else:
-                    self.moveItemsBy(arrow, ((self.CELL_WIDTH+ self.CELL_GAP), 0))
-                callEnviron.add(arrow)
-            
-                prev = cur
-                cur = cur.next
-                pos +=1
-                n +=1
-                index -= 1
-                
-    
-            # A node with this key isn't on list
-            if n == len(self.list): 
-                self.cleanUp(callEnviron)
-                return
+                    self.canvas.delete(self.list[previous - 1].nextPointer)
+                    self.list[previous - 1].nextPointer = None
 
+                # Remove Link with goal key
+                self.moveItemsOffCanvas(
+                    self.list[previous].items() + [foundHighlight],
+                    sleepTime=0.01)
+                callEnviron |= set(self.list[previous].items())
+                self.list[previous:link] = []
+
+                # Reposition all remaining links
+                self.restorePositions()
+                self.cleanUp(callEnviron)
+                return goal
+
+            # Advance to next Link
+            previous = link
+            indexCoords = self.indexCoords(previous, level=1)
+            self.moveItemsTo(
+                previousIndex, (indexCoords, indexCoords[:2]),
+                sleepTime = 0.02)
+            
+        # Failed to find goal key
+        self.cleanUp(callEnviron)
+        
         # otherwise highlight the found node
-        x_offset, y_offset = self.x_y_offset(pos)
-        cell_outline = self.canvas.create_rectangle(
-            x_offset-5, y_offset-5,
-            self.CELL_WIDTH + x_offset+5, self.CELL_HEIGHT+y_offset+5,
-            outline = "RED", tag=id)
+        # x_offset, y_offset = self.x_y_offset(pos)
+        # cell_outline = self.canvas.create_rectangle(
+        #     x_offset-5, y_offset-5,
+        #     self.CELL_WIDTH + x_offset+5, self.CELL_HEIGHT+y_offset+5,
+        #     outline = "RED", tag=id)
         
-        #remove the node from the list and
-        self.wait(0.4)
-        
-        prev.next = cur.next
-        move = self.list[index]
-        dot  = self.dot[index]
-        
-        #update the lists of drawable nodes and dots to reflect the deletion
-        if cur == self.first: self.first = cur.next
-        self.list[index:index+1] = []
-        if len(self.list) == 0: self.first = None
-        self.dot[index:index+1] =[]
-       
-        move = move.display_shape, move.display_val, dot.display_shape, cell_outline        
-        callEnviron |= set(move)
-        self.moveItemsOffCanvas(move)
-        
-        #slide all the nodes over to fill in the gap left by deleted node
-        for i in range(index-1, -1, -1):
-            n = self.list[i]
-            dot = self.dot[i]
-            items = n.display_shape, n.display_val, dot.display_shape
-            if (pos-3) %5 == 1:
-                self.moveItemsBy(items, (((self.CELL_WIDTH + self.CELL_GAP)*(self.LEN_ROW-1)), -(self.ROW_GAP+ self.CELL_HEIGHT)))
+    def restorePositions(  # Move all links on the canvas to their correct
+            self, sleepTime=0.01): # positions 
+        if self.first:
+            items = [self.first]
+            toCoords = [self.nextLinkCoords(0)]
+            for i, node in enumerate(self.list):
+                items.extend(node.items())
+                toCoords.extend(self.linkCoords(i + 1))
+                if node.nextPointer:
+                    toCoords.append(self.nextLinkCoords(i + 1))
+            if sleepTime > 0:
+                self.moveItemsLinearly(items, toCoords, sleepTime=sleepTime)
             else:
-                self.moveItemsBy(items, (-(self.CELL_WIDTH + self.CELL_GAP), 0))
-            pos += 1
-        if self.first == None:
-            self.canvas.delete(first_arrow.display_shape)
-            self.firstPointer()
-            self.firstPointList[-1]= None            
-        self.arrowSetup()
-        self.wait(1)
-        callEnviron.add(cur.id)
-        self.cleanUp(callEnviron)
-        
-        # return the key/data pair of the found node        
-        return cur.key    
-    
-        
-    def search(self, key):
+                for item, coords in zip(items, toCoords):
+                    self.canvas.coords(item, coords)
+                    
+    def cleanUp(self,   # Customize cleanup to restore link positions
+                callEnvironment=None, stopAnimations=True):
+        super().cleanUp(callEnvironment, stopAnimations)
+        if len(self.callStack) == 0:
+            self.restorePositions(sleepTime=0)
+
+    def find(self, goal):
+        callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        callEnviron = self.createCallEnvironment()  
-        cur = self.first
-        pos = 1
-        x, y = self.indexTip(pos)
-        arrow = self.canvas.create_line(x, y - 40, x, y, arrow="last", fill='red')
-        callEnviron.add(arrow)
-        pos = 0
-        # go through each Element in the linked list
-        while pos!= len(self.list) and cur:
-            self.window.update()
 
-            # if the value is found
-            if cur.key == key:
+        link = 1
+        linkIndex = self.createIndex(link, 'link')
+        callEnviron |= set(linkIndex)
+
+        while link <= len(self.list):
+            if link > 1:
+                indexCoords = self.indexCoords(link)
+                self.moveItemsTo(linkIndex, (indexCoords, indexCoords[:2]),
+                                 sleepTime=0.02)
                 
-                #highlight the box of the node that contains the search key
-                x_offset, y_offset = self.x_y_offset(pos+1)
-                cell_outline = self.canvas.create_rectangle(
-                    x_offset-5, y_offset-5,
-                    self.CELL_WIDTH + x_offset + 5,
-                    self.CELL_HEIGHT + y_offset + 5, outline = "RED", tag=id)
+            self.wait(0.2)     # Pause for comparison
+            if self.list[link - 1].key == goal:
 
-                callEnviron.add(cell_outline)
-                self.wait(1.0)
-
-                # update the display
                 self.cleanUp(callEnviron)
-                return pos
+                return link
 
-            # if the value hasn't been found, wait and then move the arrow over one cell
-            self.wait(0.7)
-            cur = cur.next
-           
-            arrow = (arrow, )
-            if (pos-4)%self.LEN_ROW == 0: 
-                self.moveItemsBy(arrow, (-((self.CELL_WIDTH + self.CELL_GAP)*(self.LEN_ROW-1)), (self.CELL_HEIGHT + self.ROW_GAP)))
-            else: 
-                self.moveItemsBy(arrow, (self.CELL_WIDTH + self.CELL_GAP,0))
-            pos+=1
+            # Advance to next Link
+            link += 1
             
+        # Failed to find goal key
         self.cleanUp(callEnviron)
-        return None
+        
+    def search(self, goal):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
+
+        link = self.find(goal)
+        linkIndex = self.createIndex(0 if link is None else link, 'link')
+        callEnviron |= set(linkIndex)
+
+        if link is not None:
+            callEnviron.add(self.createFoundHighlight(link))
+            self.wait(0.5)
+
+        self.cleanUp(callEnviron)
+        return goal if link else None
             
+    def createFoundHighlight(self, pos): # Highlight the Link cell at pos
+        bbox = self.cellCoords(pos)
+        return self.canvas.create_rectangle(
+            *bbox, fill='', outline=self.FOUND_COLOR, width=4,
+            tags='found item')
     
     ### BUTTON FUNCTIONS##
     def clickSearch(self):
@@ -477,7 +455,6 @@ class LinkedList(VisualizationApp):
         self.clearArgument()
         
     def clickNewLinkedList(self):
-        self.canvas.delete('all')
         self.newLinkedList()
     
     def clickGetFirst(self):
@@ -524,5 +501,6 @@ if __name__ == '__main__':
     ll = LinkedList()
     for arg in reversed(sys.argv[1:]):
         ll.insertElem(arg)
+        ll.cleanUp()
     ll.runVisualization()
     
