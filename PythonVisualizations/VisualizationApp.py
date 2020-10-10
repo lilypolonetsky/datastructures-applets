@@ -573,7 +573,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def moveItemsOffCanvasSequence(  # Iterator for moveItemsOffCanvas
             self, items, edge=N, steps=10):
         if not isinstance(items, (list, tuple, set)):
-            items = tuple(items)
+            items = (items,)
         curPositions = [self.canvas.coords(i) for i in items]
         bboxes = [self.canvas.bbox(i) for i in items]
         bbox = bboxes[0]  # Get bounding box of all items
@@ -611,7 +611,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def moveItemsBySequence( # Iterator for moveItemsBy
             self, items, delta, steps=10):
         if not isinstance(items, (list, tuple, set)):
-            items = tuple(items)
+            items = (items,)
         if not isinstance(delta, (list, tuple)) or len(delta) != 2:
             raise ValueError('Delta must be a 2-dimensional vector')
         if vector_length2(delta) < 0.001: # If delta is tiny
@@ -638,11 +638,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
             toPositions,     # items can be a single item or list of items
             steps=10):
         if not isinstance(items, (list, tuple, set)):
-            items = tuple(items)
+            items = (items,)
         if not isinstance(toPositions, (list, tuple)):
             raise ValueError('toPositions must be a list or tuple of positions')
         if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = tuple(toPositions)
+            toPositions = (toPositions,)
         steps = max(1, steps) # Must use at least 1 step
         moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
                   for toPos, fromPos in zip(
@@ -677,11 +677,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def moveItemsLinearlySequence( # Iterator for moveItemsLinearly
             self, items, toPositions, steps=10):
         if not isinstance(items, (list, tuple, set)):
-            items = tuple(items)
+            items = (items,)
         if not isinstance(toPositions, (list, tuple)):
             raise ValueError('toPositions must be a list or tuple of positions')
         if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = tuple(toPositions)
+            toPositions = (toPositions,)
         if len(items) != len(toPositions):
             raise ValueError('Number of items must match length of toPositions')
         steps = max(1, steps) # Must use at least 1 step
