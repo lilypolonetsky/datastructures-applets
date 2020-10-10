@@ -164,8 +164,7 @@ class LinkedList(VisualizationApp):
     def createLink(           # Create  the canvas items for a Link node
             self,             # This will be placed according to coordinates
             coordsOrPos=-1,   # or list index position (-1 = above position 1)
-            val='', textSize='12', color=None, nextNode=None,
-            updateInternal=False):
+            val='', color=None, nextNode=None, updateInternal=False):
         coords = (coords if isinstance(coordsOrPos, (list, tuple)) 
                   else self.linkCoords(coordsOrPos))
         if color == None:
@@ -173,7 +172,7 @@ class LinkedList(VisualizationApp):
         cell_rect = self.canvas.create_rectangle(
             *coords[0], fill= color, tags=('cell', id))
         cell_text = self.canvas.create_text(
-            *coords[1], text=val, font=('Helvetica', textSize), 
+            *coords[1], text=val, font=self.VALUE_FONT, fill=self.VALUE_COLOR,
             tags = ('cell', id))
         cell_dot = self.createDot(coords[2], id)
         self.canvas.tag_bind(id, '<Button>', 
@@ -215,25 +214,37 @@ class LinkedList(VisualizationApp):
                 fill=self.VARIABLE_COLOR, anchor=SW if pos >= 0 else SE)
         return (arrow, name) if name else (arrow,)
                 
-    #returns the first node in list
-    def getFirst(self):
+    def getFirst(self):    # returns the value the first link in the list
         callEnviron = self.createCallEnvironment()
         self.startAnimations()
-        if not self.first: 
-            self.cleanUp(callEnviron)
-            return
-        x_offset, y_offset = self.x_y_offset(1)
-        peekBox = self.canvas.create_rectangle(
-            x_offset, self.LL_Y0 - (self.CELL_GAP + self.CELL_HEIGHT), 
-            self.CELL_WIDTH + x_offset, self.LL_Y0 - self.CELL_GAP, 
-            fill = self.OPERATIONS_BG)
+
+        firstIndex = self.createIndex(1, name='first')
+        callEnviron |= set(firstIndex)
+
+        peekBoxCoords = self.peekBoxCoords()
+        peekBox = self.createPeekBox()
         callEnviron.add(peekBox)
-        textX, textY = self.cellText(1)
-        firstText = self.canvas.create_text(textX, textY, text=self.first.key, font=('Helvetica', 12),tag = id)
-        self.moveItemsBy((firstText,),(0, -(self.CELL_HEIGHT + self.CELL_GAP)), steps = 10, sleepTime = 0.05)
+        
+        textX = (peekBoxCoords[0] + peekBoxCoords[2]) // 2
+        textY = (peekBoxCoords[1] + peekBoxCoords[3]) // 2
+        
+        firstText = self.canvas.create_text(
+            *self.cellText(1), text=self.list[0].key,
+            font=self.VALUE_FONT, fill=self.VALUE_COLOR)
         callEnviron.add(firstText)
+        self.moveItemsTo(firstText, (textX, textY), sleepTime = 0.05)
+
         self.cleanUp(callEnviron)        
-        return self.first
+        return self.list[0].key
+
+    def peekBoxCoords(self):
+        return (self.LL_X0 // 2, self.LL_Y0 // 4,
+                self.LL_X0 // 2 + self.CELL_WIDTH + self.CELL_GAP,
+                self.LL_Y0 // 4 + self.CELL_HEIGHT)
+    
+    def createPeekBox(self):
+        return self.canvas.create_rectangle(
+            *self.peekBoxCoords(), fill = self.OPERATIONS_BG)
             
     # Erases old linked list and draws empty list
     def newLinkedList(self):
@@ -458,13 +469,13 @@ class LinkedList(VisualizationApp):
         self.newLinkedList()
     
     def clickGetFirst(self):
-        cur = self.getFirst()
-        if cur!= None: 
-            val = cur.key
-            msg = "The first node is {}".format(val)
-        else: msg = "ERROR: Linked list is empty"
+        if self.isEmpty():
+            msg = "ERROR: Linked list is empty!"
+        else:
+            first = self.getFirst()
+            msg = "The first link's data is {}".format(first)
+            self.setArgument(first)
         self.setMessage(msg)
-        self.clearArgument()
     
     def makeButtons(self):
         vcmd = (self.window.register(self.validate),
