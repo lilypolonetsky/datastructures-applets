@@ -59,6 +59,7 @@ class LinkedList(VisualizationApp):
         self.prev_id = -1
         self.buttons = self.makeButtons()
         self.display()
+        self.canvas.bind('<Configure>', self.resizeCanvas)
 
     def __len__(self):
         return len(self.list)
@@ -112,6 +113,16 @@ class LinkedList(VisualizationApp):
         self.linkedListNode()
         if self.first:      # If there was a displayed first pointer, recreate
             self.first = self.linkNext(0)
+            
+    def resizeCanvas(self, event=None):   # Handle canvas resize events
+        if self.canvas and self.canvas.winfo_ismapped():
+            width, height = self.widgetDimensions(self.canvas)
+            new_row_length = max(2, (width - self.LL_X0 + self.CELL_GAP) // (
+                self.CELL_WIDTH + self.CELL_GAP))
+            change = self.LEN_ROW != new_row_length
+            self.LEN_ROW = new_row_length
+            if change:
+                self.restorePositions()
     
     # Create a dot for the next pointer of a Link or LinkedList node
     def createDot(self, coordsOrPos, id):
@@ -164,7 +175,7 @@ class LinkedList(VisualizationApp):
     def createLink(           # Create  the canvas items for a Link node
             self,             # This will be placed according to coordinates
             coordsOrPos=-1,   # or list index position (-1 = above position 1)
-            val='', color=None, nextNode=None, updateInternal=False):
+            val='', id='link', color=None, nextNode=None, updateInternal=False):
         coords = (coords if isinstance(coordsOrPos, (list, tuple)) 
                   else self.linkCoords(coordsOrPos))
         if color == None:
@@ -181,7 +192,7 @@ class LinkedList(VisualizationApp):
             (self.linkNext(coordsOrPos, updateInternal=updateInternal), ) 
             if nextNode and isinstance(coordsOrPos, int) else ())
         return (cell_rect, cell_text, cell_dot) + linkPointer
-        
+
     # Creates the LinkedList "node" that is the head of the linked list
     def linkedListNode(self):
         x, y = self.x_y_offset(0)
@@ -259,9 +270,10 @@ class LinkedList(VisualizationApp):
 
         linkIndex = self.createIndex(-1, 'link')
         callEnviron |= set(linkIndex)
-        
-        newNode = Node(val, self.first, self.generateID(), 
-                       *self.createLink(-1, val, nextNode=self.first))
+
+        nodeID = self.generateID()
+        newNode = Node(val, self.first, nodeID,
+                       *self.createLink(-1, val, nodeID, nextNode=self.first))
         callEnviron |= set(newNode.items())
         toMove = newNode.items()
         for node in self.list:
@@ -368,7 +380,12 @@ class LinkedList(VisualizationApp):
                 if node.nextPointer:
                     toCoords.append(self.nextLinkCoords(i + 1))
             if sleepTime > 0:
-                self.moveItemsLinearly(items, toCoords, sleepTime=sleepTime)
+                try:
+                    self.startAnimations()
+                    self.moveItemsLinearly(items, toCoords, sleepTime=sleepTime)
+                    self.stopAnimations()
+                except UserStop:
+                    pass
             else:
                 for item, coords in zip(items, toCoords):
                     self.canvas.coords(item, coords)
