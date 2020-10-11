@@ -262,6 +262,7 @@ class LinkedList(VisualizationApp):
         
         newNode = Node(val, self.first, self.generateID(), 
                        *self.createLink(-1, val, nextNode=self.first))
+        callEnviron |= set(newNode.items())
         toMove = newNode.items()
         for node in self.list:
             toMove.extend(node.items())
@@ -274,6 +275,7 @@ class LinkedList(VisualizationApp):
             toCoords[-3:-3] = [self.nextLinkCoords(len(self.list))]
         self.moveItemsLinearly(toMove, toCoords, sleepTime=0.02)
         self.list[:0] = [newNode]
+        callEnviron -= set(newNode.items())
                        
         if self.first is None:
             self.linkNext(0)
@@ -330,8 +332,8 @@ class LinkedList(VisualizationApp):
                 self.moveItemsOffCanvas(
                     self.list[previous].items() + [foundHighlight],
                     sleepTime=0.01)
-                callEnviron |= set(self.list[previous].items())
                 self.list[previous:link] = []
+                callEnviron |= set(self.list[previous].items())
 
                 # Reposition all remaining links
                 self.restorePositions()
