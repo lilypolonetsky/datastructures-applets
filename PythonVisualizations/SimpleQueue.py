@@ -89,7 +89,7 @@ class Queue(VisualizationApp):
     # Negative levels are inside the array cell and is used for positioning the
     # numeric indices
     def arrowCoords(self, cellIndex, level=1):
-        angle = (cellIndex + 0.5) * self.sliceAngle
+        angle = (cellIndex + 0.5) * -self.sliceAngle
         tip = rotate_vector((self.innerRadius * 0.95, 0), angle)
         back = rotate_vector(
             (self.innerRadius - self.variableFont[1] * level * 2.8, 0),
@@ -124,8 +124,7 @@ class Queue(VisualizationApp):
         '''Move an index arrow and optional label to the point at the cell
         indexed by cellIndex from its current position'''
         newArrowCoords = self.arrowCoords(cellIndex, level)
-        # TODO: change this to moveItemsLinearly
-        self.moveItemsTo(indexItems, [newArrowCoords, newArrowCoords[:2]],
+        self.moveItemsLinearly(indexItems, [newArrowCoords, newArrowCoords[:2]],
                          steps=steps, sleepTime=sleepTime)
         # if len(indexItems) > 1:
         #     newAnchor = self.labelAnchor(newArrowCoords, level)
@@ -152,7 +151,7 @@ class Queue(VisualizationApp):
         self.canvas.tag_lower(arc, 'cell')
         textDelta = rotate_vector(
             ((self.innerRadius + self.outerRadius) / 2, 0),
-            (index + 0.5) * self.sliceAngle)
+            (index + 0.5) * -self.sliceAngle)
         text = self.canvas.create_text(
             *add_vector(self.center, textDelta), text=value,
             font=self.valueFont, fill=self.valueColor)
@@ -167,8 +166,6 @@ class Queue(VisualizationApp):
         self.rear += 1
         # deal with wraparound
         self.rear %= self.size
-        if self.rearArrow:
-            self.moveIndexTo(self.rearArrow, self.rear, self.rearLevel)
 
         # create new cell and cell value display objects
         # Start drawing new one at rear
@@ -178,6 +175,8 @@ class Queue(VisualizationApp):
         self.list[self.rear] = drawable(val, 'color?', *cellValue)
         #increment number of items
         self.updateNItems(self.nItems + 1)
+        if self.rearArrow:
+            self.moveIndexTo(self.rearArrow, self.rear, self.rearLevel)
 
         # update window
         self.cleanUp(callEnviron)
