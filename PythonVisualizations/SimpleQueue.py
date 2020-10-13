@@ -205,12 +205,12 @@ class Queue(VisualizationApp):
         self.front += 1
         self.front %= self.size
         
+        # decrement number of items
+        self.updateNItems(self.nItems - 1)
+
         #move arrow
         if self.frontArrow:
             self.moveIndexTo(self.frontArrow, self.front, self.frontLevel)
-
-        # decrement number of items
-        self.updateNItems(self.nItems - 1)
 
         self.cleanUp(callEnviron)
 
@@ -313,11 +313,32 @@ class Queue(VisualizationApp):
             *add_vector(self.center, innerDelta), fill='white', 
             width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR)
 
+    def restoreIndices(self):
+        if self.frontArrow:
+            arrowCoords = self.arrowCoords(self.front, self.frontLevel)
+            self.canvas.coords(self.frontArrow[0], *arrowCoords)
+            self.canvas.coords(self.frontArrow[1], *arrowCoords[:2])
+        if self.rearArrow:
+            arrowCoords = self.arrowCoords(self.rear, self.rearLevel)
+            self.canvas.coords(self.rearArrow[0], *arrowCoords)
+            self.canvas.coords(self.rearArrow[1], *arrowCoords[:2])
+        self.updateNItems(self.nItems)
+        
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
+        if len(self.callStack) == 0:
+            self.restoreIndices()
         self.onOffButtons()       # disable buttons as necessary
 
 if __name__ == '__main__':
     queue = Queue()
 
+    try:
+        queue.startAnimations()
+        for item in sys.argv[1:]:
+            queue.insertRear(item)
+        queue.stopAnimations()
+    except UserStop:
+        queue.cleanUp()
+        
     queue.runVisualization()
