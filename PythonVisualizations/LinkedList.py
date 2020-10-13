@@ -273,6 +273,41 @@ class LinkedList(VisualizationApp):
     def createOutputBox(self, full=False):
         return self.canvas.create_rectangle(
             *self.outputBoxCoords(full), fill = self.OPERATIONS_BG)
+
+    def traverse(self):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
+        outputBoxCoords = self.outputBoxCoords(full=True)
+        callEnviron.add(self.createOutputBox(full=True))
+
+        link = 1
+        linkIndex = self.createIndex(link, name='link')
+        callEnviron |= set(linkIndex)
+
+        outputFont = ('Courier', 18)
+        charSize = (outputFont[1] * 6 // 10, outputFont[1] * 8 // 10)
+        outputText = ''
+        outX = outputBoxCoords[0] + outputFont[1]
+        outY = outputBoxCoords[1] + outputFont[1]
+        
+        while link <= len(self.list):
+            if link > 1:
+                self.moveItemsTo(
+                    linkIndex,
+                    (self.indexCoords(link), self.indexLabelCoords(link)),
+                    sleepTime=0.02)
+            linkText = text=self.list[link - 1].key
+            textItem = self.canvas.create_text(
+                *(V(self.cellText(link)) - 
+                  V((len(linkText) * charSize[0] / 2, 0))), text=linkText,
+                font=outputFont, anchor=W)
+            callEnviron.add(textItem)
+            self.moveItemsTo(textItem, (outX, outY), sleepTime = 0.05)
+            outX += charSize[0] * (len(linkText) + 1)
+            link += 1
+
+        self.cleanUp(callEnviron)
             
     # Erases old linked list and draws empty list
     def newLinkedList(self):
@@ -576,11 +611,13 @@ class LinkedList(VisualizationApp):
             "Delete First", lambda: self.clickDeleteFirst())
         getFirstButton = self.addOperation(
             "Get First", lambda: self.clickGetFirst())
+        traverseButton = self.addOperation(
+            "Traverse", lambda: self.traverse())
         self.addAnimationButtons()
     
         return [searchButton, insertButton, deleteButton, deleteFirstButton,
-                newLinkedListButton, sortedButton, getFirstButton]         
-
+                newLinkedListButton, sortedButton, getFirstButton,
+                traverseButton]
             
     ##allow letters or numbers to be typed in                  
     def validate(self, action, index, value_if_allowed,
