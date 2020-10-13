@@ -224,11 +224,20 @@ class LinkedList(VisualizationApp):
                 *indexCoords[:2], text=name, font=self.VARIABLE_FONT, 
                 fill=self.VARIABLE_COLOR, anchor=SW if pos >= 0 else SE)
         return (arrow, name) if name else (arrow,)
-                
+
+    getFirstCode = """
+def getFirst(self): 
+    return self.__first
+"""
+    getFirstCodeSnippets = {
+        'return_first': ('2.3', '2.end'),
+    }
     def getFirst(self):    # returns the value the first link in the list
-        callEnviron = self.createCallEnvironment()
+        callEnviron = self.createCallEnvironment(
+            self.getFirstCode.strip(), self.getFirstCodeSnippets)
         self.startAnimations()
 
+        self.highlightCodeTags('return_first', callEnviron)
         firstIndex = self.createIndex(1, name='first')
         callEnviron |= set(firstIndex)
 
