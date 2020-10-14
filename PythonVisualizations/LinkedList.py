@@ -211,9 +211,9 @@ class LinkedList(VisualizationApp):
         ovalCoords = self.canvas.coords(oval)
         firstText = self.canvas.create_text(
             (ovalCoords[0] + ovalCoords[2]) / 2, (y + ovalCoords[1]) / 2,
-            text="first", font=('Courier', '10'))
+            text="first", font=('Courier', -10))
         nameText = self.canvas.create_text(
-            x, y + self.CELL_HEIGHT // 2, font=('Courier', '14'),
+            x, y + self.CELL_HEIGHT // 2, font=('Courier', -14),
             text='SortedList' if sorted else 'LinkedList')
         
     ### ANIMATION METHODS###
@@ -221,14 +221,12 @@ class LinkedList(VisualizationApp):
         tip = self.indexTip(pos)
         delta = (0, self.CELL_SIZE // 5) if pos >= 0 else (
             self.CELL_SIZE * 4 // 5, 0)
-        offset = V(0, self.VARIABLE_FONT[1]) * level
+        offset = V(0, abs(self.VARIABLE_FONT[1])) * level
         start = V(V(tip) - V(delta)) - V(offset)
         return (*start, *tip)
 
     def indexLabelCoords(self, pos, level=0):
         arrowCoords = self.indexCoords(pos, level)
-        if pos < 0:
-            return arrowCoords[0], arrowCoords[1] + self.VARIABLE_FONT[1] // 2
         return arrowCoords[:2]
         
     def createIndex(self, pos, name=None, level=0):
@@ -239,7 +237,7 @@ class LinkedList(VisualizationApp):
             name = self.canvas.create_text(
                 *self.indexLabelCoords(pos, level), text=name,
                 font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR,
-                anchor=SW if pos >= 0 else SE)
+                anchor=SW if pos >= 0 else E)
         return (arrow, name) if name else (arrow,)
                 
     def getFirst(self):    # returns the value the first link in the list
@@ -285,12 +283,12 @@ class LinkedList(VisualizationApp):
         linkIndex = self.createIndex(link, name='link')
         callEnviron |= set(linkIndex)
 
-        outputFont = ('Courier', 18)
-        charSize = (outputFont[1] * 6 // 10, outputFont[1] * 8 // 10)
-        outputText = ''
-        outX = outputBoxCoords[0] + outputFont[1]
-        outY = outputBoxCoords[1] + outputFont[1]
-        
+        outputFont = ('Courier', -18)
+        outX = outputBoxCoords[0] + abs(outputFont[1])
+        outY = outputBoxCoords[1] + abs(outputFont[1])
+
+        sepX = self.textWidth(outputFont, ' ')
+        sepY = self.textHeight(outputFont, ' ')
         while link <= len(self.list):
             if link > 1:
                 self.moveItemsTo(
@@ -298,13 +296,13 @@ class LinkedList(VisualizationApp):
                     (self.indexCoords(link), self.indexLabelCoords(link)),
                     sleepTime=0.02)
             linkText = text=self.list[link - 1].key
+            tx = self.textWidth(outputFont, linkText)
             textItem = self.canvas.create_text(
-                *(V(self.cellText(link)) - 
-                  V((len(linkText) * charSize[0] / 2, 0))), text=linkText,
-                font=outputFont, anchor=W)
+                *(V(self.cellText(link)) - V((tx / 2, sepY / 2))),
+                text=linkText, font=outputFont, anchor=W)
             callEnviron.add(textItem)
             self.moveItemsTo(textItem, (outX, outY), sleepTime = 0.05)
-            outX += charSize[0] * (len(linkText) + 1)
+            outX += tx + sepX
             link += 1
 
         self.cleanUp(callEnviron)
@@ -408,38 +406,42 @@ class LinkedList(VisualizationApp):
                     sleepTime=0.02)
                 
             self.wait(0.2)     # Pause for comparison
-            if self.list[previous].key == goal:
-                foundHighlight = self.createFoundHighlight(link)
-                callEnviron.add(foundHighlight)
+            found = self.list[previous].key == goal
+            if found or (self.sorted.get() and self.list[previous].key > goal):
+                if found:
+                    foundHighlight = self.createFoundHighlight(link)
+                    callEnviron.add(foundHighlight)
                                 
-                # Prepare to update next pointer from previous
-                updateFirst = previous == 0
-                nextPointer = self.list[previous].nextPointer
-                if nextPointer:
-                    toMove = (self.first if updateFirst else
-                              self.list[previous - 1].nextPointer)
-                    toCoords = self.nextLinkCoords(previous, d=2)
-                    self.canvas.tag_raise(toMove)
-                    self.moveItemsLinearly(toMove, toCoords, sleepTime=0.05)
-                    self.wait(0.1)
-                elif updateFirst:
-                    self.canvas.delete(self.first)
-                    self.first = None
-                else:
-                    self.canvas.delete(self.list[previous - 1].nextPointer)
-                    self.list[previous - 1].nextPointer = None
+                    # Prepare to update next pointer from previous
+                    updateFirst = previous == 0
+                    nextPointer = self.list[previous].nextPointer
+                    if nextPointer:
+                        toMove = (self.first if updateFirst else
+                                  self.list[previous - 1].nextPointer)
+                        toCoords = self.nextLinkCoords(previous, d=2)
+                        self.canvas.tag_raise(toMove)
+                        self.moveItemsLinearly(toMove, toCoords, sleepTime=0.05)
+                        self.wait(0.1)
+                    elif updateFirst:
+                        self.canvas.delete(self.first)
+                        self.first = None
+                    else:
+                        self.canvas.delete(self.list[previous - 1].nextPointer)
+                        self.list[previous - 1].nextPointer = None
 
-                # Remove Link with goal key
-                self.moveItemsOffCanvas(
-                    self.list[previous].items() + [foundHighlight],
-                    sleepTime=0.01)
-                callEnviron |= set(self.list[previous].items())
-                self.list[previous:link] = []
+                    # Remove Link with goal key
+                    self.moveItemsOffCanvas(
+                        self.list[previous].items() + [foundHighlight],
+                        sleepTime=0.01)
+                    callEnviron |= set(self.list[previous].items())
+                    self.list[previous:link] = []
 
-                # Reposition all remaining links
-                self.restorePositions()
+                    # Reposition all remaining links
+                    self.restorePositions()
+                    
+                # Exit delete if item found or sorted list passed goal location
                 self.cleanUp(callEnviron)
-                return goal
+                return goal if found else None
 
             # Advance to next Link
             previous = link
