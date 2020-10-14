@@ -429,10 +429,10 @@ class LinkedList(VisualizationApp):
                         self.canvas.delete(self.list[previous - 1].nextPointer)
                         self.list[previous - 1].nextPointer = None
 
-                    # Remove Link with goal key
-                    self.moveItemsOffCanvas(
-                        self.list[previous].items() + [foundHighlight],
-                        sleepTime=0.01)
+                    # Remove Link with goal key and link index
+                    self.moveItemsOffCanvas(self.list[previous].items() + 
+                                            [foundHighlight] + list(linkIndex),
+                                            sleepTime=0.01)
                     callEnviron |= set(self.list[previous].items())
                     self.list[previous:link] = []
 
