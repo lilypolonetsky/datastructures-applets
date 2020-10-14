@@ -522,23 +522,29 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     sizePattern = re.compile(r'-?\d+')
 
-    def textDimensions(self, font, text=' '):
-        family = font[0]
-        size = font[1] if (len(font) > 1 and 
-                           (isinstance(font[1], int) or
-                            (isinstance(font[1], str) and 
-                             self.sizePattern.match(font[1])))) else 0
-        font = tkfont.Font(
-            family=family, size=size,
-            weight=self.lookFor(('bold', 'light'), font, 'normal'),
-            slant=self.lookFor(('italic', 'oblique'), font, 'roman'),
-            underline=1 if self.lookFor(('underline',), font, 0) else 0,
-            overstrike=1 if self.lookFor(('overstrike',), font, 0) else 0)
-        metrics = font.metrics()
-        return font.measure(text), metrics['linespace']
+    def textWidth(self, font, text=' '):
+        return self.tkFontFromSpec(font).measure(text)
+        
+    def textHeight(self, font, text=' '):
+        lines = text.split('\n')
+        nLines = len(lines) if lines and len(lines[-1]) > 0 else len(lines) - 1
+        return self.tkFontFromSpec(font).metrics()['linespace'] * nLines
 
-    def lookFor(self, keys, font, default):  # Find keyword in font spec
-        strings = [x.lower() for x in font if isinstance(x, str)]
+    def tkFontFromSpec(self, spec):
+        family = spec[0]
+        size = spec[1] if (len(spec) > 1 and 
+                           (isinstance(spec[1], int) or
+                            (isinstance(spec[1], str) and 
+                             self.sizePattern.match(spec[1])))) else 0
+        return tkfont.Font(
+            family=family, size=size,
+            weight=self.lookFor(('bold', 'light'), spec, 'normal'),
+            slant=self.lookFor(('italic', 'oblique'), spec, 'roman'),
+            underline=1 if self.lookFor(('underline',), spec, 0) else 0,
+            overstrike=1 if self.lookFor(('overstrike',), spec, 0) else 0)
+        
+    def lookFor(self, keys, spec, default):  # Find keyword in font spec
+        strings = [x.lower() for x in spec if isinstance(x, str)]
         for key in keys:
             if key.lower() in strings:
                 return key
