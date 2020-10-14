@@ -45,7 +45,7 @@ class Queue(VisualizationApp):
         y0 = cell_coords[1] - self.CELL_SIZE * 2 // 2
         y1 = cell_coords[1] - self.CELL_SIZE * 1 // 4
         if high:  # changes height of arrow
-            y0 -= 20
+            y0 -= abs(self.VARIABLE_FONT[1])
 
         arrow = self.canvas.create_line(
             x0, y0, x1, y1, arrow="last", fill=self.VARIABLE_COLOR)
@@ -77,7 +77,7 @@ class Queue(VisualizationApp):
         # create new cell and cell value display objects
         # Start drawing new one at rear
         cell = self.canvas.create_rectangle(self.cellCoords(self.rear), fill=color, outline='')
-        cell_val = self.canvas.create_text(self.cellCenter(self.rear), text=val, font=('Helvetica', '20'))
+        cell_val = self.canvas.create_text(self.cellCenter(self.rear), text=val, font=self.VALUE_FONT)
 
        # insert the item
         self.list[self.rear] = drawable(val, color, cell, cell_val)
