@@ -13,6 +13,7 @@ The control panel has containers for
 import time, math, operator, re, sys
 from collections import *
 from tkinter import *
+import tkinter.font as tkfont
 
 try:
     from coordinates import *
@@ -77,11 +78,10 @@ def makeWidthValidate(maxWidth):
 
 geom_delims = re.compile(r'[\sXx+-]')
 
-
 class VisualizationApp(object):  # Base class for Python visualizations
 
     # Default styles for display of values and operational controls
-    FONT_SIZE = 20
+    FONT_SIZE = -20
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     VALUE_COLOR = 'black'
     VARIABLE_FONT = ('Courier', FONT_SIZE * 8 // 10)
@@ -90,10 +90,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
     FOUND_COLOR = 'green2'
     OPERATIONS_BG = 'beige'
     OPERATIONS_BORDER = 'black'
-    CODE_FONT = ('Courier', 12)
-    SMALL_FONT = ('Helvetica', 9)
+    CODE_FONT = ('Courier', -12)
+    SMALL_FONT = ('Helvetica', -9)
     CODE_HIGHLIGHT = 'yellow'
-    CONTROLS_FONT = ('Helvetica', 12)
+    CONTROLS_FONT = ('Helvetica', -12)
     HINT_FONT = CONTROLS_FONT + ('italic',)
     HINT_FG = 'blue'
     HINT_BG = 'beige'
@@ -184,7 +184,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.message.grid(row=0, column=4, sticky=(E, W))
         self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
-
+        
     buttonTypes = (Button, Checkbutton, Radiobutton)
     
     def addOperation(  # Add a button to the operations control panel
@@ -513,12 +513,36 @@ class VisualizationApp(object):  # Base class for Python visualizations
                       snippets=snippets)
         return callEnviron
         
-    # Tk widget methods
+    # General Tk widget methods
     def widgetDimensions(self, widget):  # Get widget's (width, height)
         geom = geom_delims.split(widget.winfo_geometry())
         if geom[0] == '1' and geom[1] == '1':  # If not yet managed, use config
             geom = (widget.config('width')[-1], widget.config('height')[-1])
         return int(geom[0]), int(geom[1])
+
+    sizePattern = re.compile(r'-?\d+')
+
+    def textDimensions(self, font, text=' '):
+        family = font[0]
+        size = font[1] if (len(font) > 1 and 
+                           (isinstance(font[1], int) or
+                            (isinstance(font[1], str) and 
+                             self.sizePattern.match(font[1])))) else 0
+        font = tkfont.Font(
+            family=family, size=size,
+            weight=self.lookFor(('bold', 'light'), font, 'normal'),
+            slant=self.lookFor(('italic', 'oblique'), font, 'roman'),
+            underline=1 if self.lookFor(('underline',), font, 0) else 0,
+            overstrike=1 if self.lookFor(('overstrike',), font, 0) else 0)
+        metrics = font.metrics()
+        return font.measure(text), metrics['linespace']
+
+    def lookFor(self, keys, font, default):  # Find keyword in font spec
+        strings = [x.lower() for x in font if isinstance(x, str)]
+        for key in keys:
+            if key.lower() in strings:
+                return key
+        return default
 
     # CANVAS ITEM METHODS
     def canvas_itemconfigure(  # Get a dictionary with the canvas item's
