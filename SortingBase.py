@@ -20,15 +20,12 @@ class SortingBase(VisualizationApp):
     CELL_WIDTH = CELL_SIZE
     changeSize = False 
     
-    def __init__(self, size=10, title="SortingBase", **kwargs):
+    def __init__(self, size=10, **kwargs):
         super().__init__(title=title, **kwargs)
         self.size = size
         self.title = title
         self.list = []  # Internal array of drawable cell values
         
-        #self.buttons = self.makeButtons()
-        for i in range(size):
-            self.list.append(drawable(random.randrange(99)))
         self.display()
         
     def __str__(self):
