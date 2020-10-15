@@ -589,6 +589,11 @@ class LinkedList(VisualizationApp):
             msg = "The first link's data is {}".format(first)
             self.setArgument(first)
         self.setMessage(msg)
+
+    def clickTraverse(self):
+        self.traverse()
+        if self.isEmpty():
+            self.setMessage('No Links in list to traverse')
     
     def makeButtons(self):
         vcmd = (self.window.register(self.validate),
@@ -614,7 +619,7 @@ class LinkedList(VisualizationApp):
         getFirstButton = self.addOperation(
             "Get First", lambda: self.clickGetFirst())
         traverseButton = self.addOperation(
-            "Traverse", lambda: self.traverse())
+            "Traverse", lambda: self.clickTraverse())
         self.addAnimationButtons()
     
         return [searchButton, insertButton, deleteButton, deleteFirstButton,
@@ -628,8 +633,11 @@ class LinkedList(VisualizationApp):
    
 if __name__ == '__main__':
     ll = LinkedList()
-    for arg in reversed(sys.argv[1:]):
-        ll.insertElem(arg)
+    try:
+        for arg in reversed(sys.argv[1:]):
+            ll.insertElem(arg)
+            ll.cleanUp()
+    except UserStop:
         ll.cleanUp()
     ll.runVisualization()
     
