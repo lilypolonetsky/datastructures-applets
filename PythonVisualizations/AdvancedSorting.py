@@ -15,6 +15,9 @@ class AdvancedArraySort(SortingBase):
 
     def __init__(self, size=10, title="Advanced Sorting", **kwargs):
         super().__init__(title=title, **kwargs)
+
+        for i in range(size):
+            self.list.append(drawable(random.randrange(99)))
         
         self.buttons = self.makeButtons() 
     
