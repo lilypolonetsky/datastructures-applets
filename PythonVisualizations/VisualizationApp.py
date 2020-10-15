@@ -97,6 +97,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
     HINT_FONT = CONTROLS_FONT + ('italic',)
     HINT_FG = 'blue'
     HINT_BG = 'beige'
+    ENTRY_BG = 'white'
+    ERROR_HIGHLIGHT = 'tomato'
     CALL_STACK_BOUNDARY = 'gray60'
 
     # Speed control slider
@@ -266,11 +268,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def makeArgumentEntry(self, validationCmd, helpText=''):
         entry = Entry(
-            self.operations, width=self.maxArgWidth, bg='white',
+            self.operations, width=self.maxArgWidth, bg=self.ENTRY_BG,
             validate='key', validatecommand=validationCmd, 
             font=self.CONTROLS_FONT)
         entry.bind(
-            '<KeyRelease>', lambda ev: self.argumentChanged(), '+')
+            '<KeyRelease>', lambda ev: self.argumentChanged(ev.widget), '+')
         if helpText:
             entry.bind('<Enter>', self.makeArmHintHandler(entry, helpText))
             entry.bind('<Leave>', self.makeDisarmHintHandler(entry))
@@ -357,7 +359,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.textEntries[index].insert(0, str(values[index]))
         self.argumentChanged()
 
-    def argumentChanged(self):
+    def setArgumentHighlight(self, index, color=ENTRY_BG):
+        self.textEntries[index].configure(bg=color)
+            
+    def argumentChanged(self, widget=None):
         args = self.getArguments()
         gridItems = gridDict(self.operations)  # All operations
         nColumns, nRows = self.operations.grid_size()
@@ -368,6 +373,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 DISABLED if self.animationState != self.STOPPED or any(
                     arg == '' for arg in args[:nArgs]) else NORMAL)
 
+        for i, entry in enumerate(self.textEntries):
+            if widget == entry:  # For the entry widget that changed,
+                self.setArgumentHighlight(i) # clean any error highlight
+            
     def setMessage(self, val=''):
         self.outputText.set(val)
 
