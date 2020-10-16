@@ -36,17 +36,9 @@ class PointQuadtree(VisualizationApp):
         self.parent = None    #allows for creating coords of intersecting lines with recursion
         self.showTree = False
         self.rootOutline = None
-        #self.canvas.bind('<Configure>', self.resize)
         self.canvas['background'] = self.CANVAS_COLOR
         self.canvas.bind('<Button>', self.setXY)
         self.canvas.bind('<Double-Button-1>', self.createNode)
-
-    def resize(self, event):
-        #self.canvas.config(width = event.width, height = event.height)
-        self.canvas['width'] = event.width
-        self.canvas['height']= event.height
-        print(event.widget.winfo_width(), event.widget.winfo_height(), self.canvas['width'], self.canvas['height'])
-        sys.stderr.flush()
 
     #fills the x,y coordinates upon single canvas  mouse click
     def setXY(self, event):
@@ -65,9 +57,9 @@ class PointQuadtree(VisualizationApp):
     #horizontal and vertical lines
     def drawLine(self, n, parent, direction):
         if not self.direction:
-            n.horizontal_line =2, n.y, self.canvas['width'], n.y
-            n.vertical_line = n.x, 2, n.x, self.canvas['height']
-
+            n.horizontal_line =2, n.y, self.canvas.winfo_width(), n.y
+            n.vertical_line = n.x, 2, n.x, self.canvas.winfo_height()
+            
         else:
             p_Hx0, p_Hy0, p_Hx1, p_Hy1 = parent.horizontal_line
             p_Vx0, p_Vy0, p_Vx1, p_Vy1 = parent.vertical_line
