@@ -1,3 +1,4 @@
+  
 import random
 from tkinter import *
 from VisualizationApp import *
@@ -16,13 +17,9 @@ class Node(object):
         self.vertical_line = None
 
 class PointQuadtree(VisualizationApp):
-    MAX_ARG_WIDTH = 4
+    MAX_ARG_WIDTH = 3
     LINE_COLOR = 'SteelBlue4'
-    TEXT_COLOR = 'red'
-    ROOT_OUTLINE = 'yellow'
-    TEXT_FONT = ("Helvetica", '10')
     CIRCLE_DIMEN = 8
-    CANVAS_COLOR = 'LightSkyBlue1'
      
     def __init__(self, maxArgWidth = MAX_ARG_WIDTH, title="Point Quad Tree", **kwargs):
         super().__init__(title=title, maxArgWidth = maxArgWidth, **kwargs)
@@ -36,17 +33,9 @@ class PointQuadtree(VisualizationApp):
         self.parent = None    #allows for creating coords of intersecting lines with recursion
         self.showTree = False
         self.rootOutline = None
-        #self.canvas.bind('<Configure>', self.resize)
-        self.canvas['background'] = self.CANVAS_COLOR
+        self.border = self.canvas.create_rectangle((2, 2, 801, 401),width = 2, outline = self.LINE_COLOR)
         self.canvas.bind('<Button>', self.setXY)
         self.canvas.bind('<Double-Button-1>', self.createNode)
-        
-    def resize(self, event):
-        #self.canvas.config(width = event.width, height = event.height)
-        self.canvas['width'] = event.width
-        self.canvas['height']= event.height
-        print(event.widget.winfo_width(), event.widget.winfo_height(), self.canvas['width'], self.canvas['height'])
-        sys.stderr.flush()
 
     #fills the x,y coordinates upon single canvas  mouse click  
     def setXY(self, event):
@@ -58,15 +47,15 @@ class PointQuadtree(VisualizationApp):
     def createNode(self, event):
         x, y = event.x, event.y
         self.setArguments(str(x), str(y), ("P" + str(self.COUNTER)))
-        self.clickInsert()
+        self.insert(str(x), str(y), ("P" + str(self.COUNTER)))
 
     #Assigns the designated graph-line coordinates to each node
     #If show graph checkbutton is clicked- draws the appropriate
     #horizontal and vertical lines
     def drawLine(self, n, parent, direction):
         if not self.direction: 
-            n.horizontal_line =2, n.y, self.canvas['width'], n.y
-            n.vertical_line = n.x, 2, n.x, self.canvas['height']
+            n.horizontal_line =2, n.y, 801, n.y
+            n.vertical_line = n.x, 2, n.x, 401
         
         else:
             p_Hx0, p_Hy0, p_Hx1, p_Hy1 = parent.horizontal_line
@@ -105,11 +94,9 @@ class PointQuadtree(VisualizationApp):
             self.showTree= True
             for i in self.nodes:
                 if i == self.__root:
-                    self.rootOutline = self.canvas.create_oval((i.x - self.CIRCLE_DIMEN//2-2, 
-                                                                i.y- self.CIRCLE_DIMEN//2-2, 
-                                             i.x + self.CIRCLE_DIMEN//2+2, 
-                                             i.y + self.CIRCLE_DIMEN//2 +2), 
-                                            outline = self.ROOT_OUTLINE, width = 3)
+                    self.rootOutline = self.canvas.create_oval((i.x - self.CIRCLE_DIMEN//2-2, i.y- self.CIRCLE_DIMEN//2-2, 
+                                             i.x + self.CIRCLE_DIMEN//2+2, i.y + self.CIRCLE_DIMEN//2 +2), 
+                                            outline = "yellow", width = 3)
                     self.canvas.lift(self.rootOutline)
                 horiz = self.canvas.create_line(i.horizontal_line, fill = self.LINE_COLOR)
                 vert = self.canvas.create_line(i.vertical_line, fill = self.LINE_COLOR)
@@ -128,7 +115,6 @@ class PointQuadtree(VisualizationApp):
         # return a new Node if we've reached None
         x = int(x)
         y = int(y)
-        
         if not n: 
             node = Node(x, y, d)
             self.nodes.append(node)
@@ -138,25 +124,15 @@ class PointQuadtree(VisualizationApp):
             if self.showTree == True:
                 hor, ver = self.drawLine(node,self.parent, self.direction)
                 self.lines.append(hor), self.lines.append(ver)
-                if not self.__root: self.rootOutline = self.canvas.create_oval(
-                (x - self.CIRCLE_DIMEN//2-2, 
-                y- self.CIRCLE_DIMEN//2-2, x + self.CIRCLE_DIMEN//2+2, 
-                y + self.CIRCLE_DIMEN//2 +2), 
-                outline = self.ROOT_OUTLINE, width = 3)
-                
+                if not self.__root: self.rootOutline = self.canvas.create_oval((x - self.CIRCLE_DIMEN//2-2, y- self.CIRCLE_DIMEN//2-2, x + self.CIRCLE_DIMEN//2+2, y + self.CIRCLE_DIMEN//2 +2), outline = "yellow", width = 3)
             else: self.drawLine(node,self.parent, self.direction)
             
-            oval = self.canvas.create_oval(x - self.CIRCLE_DIMEN//2, 
-                                           y- self.CIRCLE_DIMEN//2, 
-                                           x + self.CIRCLE_DIMEN//2, 
-                                           y + self.CIRCLE_DIMEN//2, fill = "BLACK")
-            text  = self.canvas.create_text(x-15, y - 12, text = d, fill = self.TEXT_COLOR, font = self.TEXT_FONT)
+            oval = self.canvas.create_oval(x - self.CIRCLE_DIMEN//2, y- self.CIRCLE_DIMEN//2, x + self.CIRCLE_DIMEN//2, y + self.CIRCLE_DIMEN//2, fill = "BLACK")
+            text  = self.canvas.create_text(x-15, y - 12, text = d, fill = "red", font = ("Helvetica", "10"))
             self.points.append(oval)
             node.dataObjects = [text]
       
             self.COUNTER +=1 #keeps track of number of nodes inserted
-            print(self.COUNTER)
-            sys.stderr.flush()
             
             handler = lambda e: self.setArguments(str(x), str(y), str(d))
             self.canvas.tag_bind(oval, '<Button>', handler)            
@@ -167,11 +143,12 @@ class PointQuadtree(VisualizationApp):
         # add the data to the list of data, but don't recurse any further
         if n.x == x and n.y == y:
             n.data.append(d)
+            n.data.append(d)
             key = d
-            comma = self.canvas.create_text((x-3 + n.countSpaces), y - 12, fill = self.TEXT_COLOR,  text = ",", font = self.TEXT_FONT)
+            text = self.canvas.create_text((x-3 + n.countSpaces), y - 12, fill = "red",  text = ",", font = ("Helvetica", "10"))
             n.countSpaces+= 25
-            text  = self.canvas.create_text((x-15 + n.countSpaces), y - 12, fill = self.TEXT_COLOR,  text = key, font = self.TEXT_FONT)
-            n.dataObjects.append(text), n.dataObjects.append(comma)
+            text  = self.canvas.create_text((x-15 + n.countSpaces), y - 12, fill = "red",  text = key, font = ("Helvetica", "10"))
+            n.dataObjects.append(text)
             self.COUNTER +=1
             return n
       
@@ -211,41 +188,30 @@ class PointQuadtree(VisualizationApp):
         self.nodes = []
         self.direction = None
         self.parent = None
-        self.COUNTER = 1
+        self.COUNTER = 0
         self.__root = None
 
     #does not allow a data point to be re-used
     def clickInsert(self):
-        val = self.validArgument()
-        if isinstance(val, tuple):
-            x, y, d= val
+        if self.validArgument():
+            x, y, d = self.validArgument()
             for i in self.nodes:
                 for j in i.data: 
                     if d== j:
-                        self.setMessage("Node with the data {} already exists".format(d))
+                        self.setMessage("Node with this data already exists")
                         return
             self.insert(x,y,d)
             msg = "Value {} inserted".format(d)
         else:
-            msg = val
+            msg = "Insert valid argument" 
         self.setMessage(msg)
-        for i in range(len(self.textEntries)):
-            self.clearArgument(index = i)
             
     #allows only numbers for coords that are within canvas size
     #everything aside from commas and spaces for data
     def validArgument(self):
         x, y,d = self.getArguments()
-        if not(x) or not x.isdigit():
-            return "Please insert valid x coordinate"
-        elif not(y) or not y.isdigit():
-            return "Please insert valid y coordinate"
-        elif int(x)> int(self.canvas.winfo_width()) or int(y)>int(self.canvas.winfo_height()):
-            return "Coordinates must be within canvas coordinates"
-        elif len(str(d))>4: "Length of data cannot exceed four characters"
-        elif "," in str(d) or " " in str(d): 
-            return "Data may not include commas or spaces"
-        return x, y, d
+        if x and y and d and x.isdigit() and y.isdigit() and int(x)<=800 and int(y)<= 400 and len(str(d)) <=3 and not("," in str(d)) and not(" " in str(d)):
+                return x, y, d
             
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
