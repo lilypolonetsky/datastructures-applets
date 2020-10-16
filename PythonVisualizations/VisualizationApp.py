@@ -13,6 +13,7 @@ The control panel has containers for
 import time, math, operator, re, sys
 from collections import *
 from tkinter import *
+from tkinter import ttk
 
 try:
     from coordinates import *
@@ -187,7 +188,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
 
-    buttonTypes = (Button, Checkbutton, Radiobutton)
+    buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
     
     def addOperation(  # Add a button to the operations control panel
             self,      # The button can require N arguments provided by text
@@ -198,9 +199,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
             helpText=None,  # Help text for overall operation
             argHelpText=[], # Help text for each argument
             maxRows=4,      # Operations w/o args beyond maxRows -> new columns
-            buttonType=Button, # Type of button (see buttonTypes)
+            buttonType=ttk.Button, # Type of button (see buttonTypes)
             cleanUpBefore=True, # Clean up all previous animations before Op
-            **kwargs):       # Tk button keyword args
+            bg=None,        # Background color, default is OPERATIONS_BG
+            **kwargs):      # Tk button keyword args
         gridItems = gridDict(self.operations) # Operations inserted in grid
         nColumns, nRows = self.operations.grid_size()
         withArgument = [
@@ -212,10 +214,18 @@ class VisualizationApp(object):  # Base class for Python visualizations
             if isinstance(gridItems[col, row], self.buttonTypes)]
         if buttonType not in self.buttonTypes:
             raise ValueError('Unknown button type: {}'.format(buttonType))
-        button = buttonType( # Create button based on type
-            self.operations, text=label, font=self.CONTROLS_FONT,
-            command=self.runOperation(callback, cleanUpBefore),
-            bg=self.OPERATIONS_BG, **kwargs)
+        if bg is None:
+            bg = self.OPERATIONS_BG
+        if buttonType in (ttk.Button,):
+            ttk.Style().configure('TButton', font=self.CONTROLS_FONT, 
+                                  background=bg)
+            button = buttonType(self.operations, text=label, **kwargs)
+        else:
+            button = buttonType( # Create button based on type
+                self.operations, text=label, font=self.CONTROLS_FONT, bg=bg,
+                **kwargs)
+        button['command'] = self.runOperation(
+            callback, cleanUpBefore, button if numArguments > 0 else None)
         setattr(button, 'required_args', numArguments)
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
@@ -231,7 +241,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             # Place button in grid of buttons
             buttonRow = len(withArgument) + 1
             button.grid(column=0, row=buttonRow, padx=8, sticky=(E, W))
-            button.config(state=DISABLED)
+            self.widgetState(button, DISABLED)
             nEntries = len(self.textEntries)
             rowSpan = max(1, (len(withArgument) + 1) // nEntries)
             
@@ -266,6 +276,20 @@ class VisualizationApp(object):  # Base class for Python visualizations
             button.bind('<Button>', self.makeDisarmHintHandler(button), '+')
         return button
 
+    def widgetState(self, widget, state=None): # Get or set widget state
+        if isinstance(widget, (ttk.Button,)):
+            if state is None:
+                stateFlags = widget.state()
+                return DISABLED if DISABLED in stateFlags else NORMAL
+            else:
+                widget.state(('!disabled', '!pressed') if state == NORMAL 
+                             else (state, ))
+        else:
+            if state is None:
+                return widget['state']
+            else:
+                widget['state'] = state
+            
     def makeArgumentEntry(self, validationCmd, helpText=''):
         entry = Entry(
             self.operations, width=self.maxArgWidth, bg=self.ENTRY_BG,
@@ -273,6 +297,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             font=self.CONTROLS_FONT)
         entry.bind(
             '<KeyRelease>', lambda ev: self.argumentChanged(ev.widget), '+')
+        for key in ('Return', 'KP_Enter'):
+            entry.bind('<KeyPress-{}>'.format(key),
+                       lambda ev: self.returnPressed(ev), '+')
         if helpText:
             entry.bind('<Enter>', self.makeArmHintHandler(entry, helpText))
             entry.bind('<Leave>', self.makeDisarmHintHandler(entry))
@@ -302,23 +329,41 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def makeDisarmHintHandler(self, widget):
         def handler(event):
-            if event.widget == widget and getattr(widget, 'timeout_ID'):
+            if event.widget == widget and getattr(widget, 'timeout_ID', None):
                 widget.after_cancel(getattr(widget, 'timeout_ID'))
             setattr(widget, 'timeout_ID', None)
         return handler
 
+    def returnPressed(self, event):  # Handle press of Return/Enter in text
+        if hasattr(event.widget, 'last_button'): # entry argument widget
+            button = getattr(event.widget, 'last_button')
+            if self.widgetState(button) == NORMAL:
+                self.widgetState(
+                    button, 
+                    'pressed' if isinstance(button, ttk.Button) else ACTIVE)
+                self.window.update()
+                time.sleep(0.05)
+                self.widgetState(
+                    button, 
+                    '!pressed' if isinstance(button, ttk.Button) else NORMAL)
+                button.invoke()
+                
     def addAnimationButtons(self):
         self.pauseButton = self.addOperation(
             "Pause", lambda: self.onClick(self.pause, self.pauseButton),
             cleanUpBefore=False)
-        self.pauseButton['state'] = DISABLED
+        self.widgetState(self.pauseButton, DISABLED)
         self.stopButton = self.addOperation(
             "Stop", lambda: self.onClick(self.stop, self.pauseButton),
             cleanUpBefore=False)
-        self.stopButton['state'] = DISABLED
+        self.widgetState(self.stopButton, DISABLED)
         
-    def runOperation(self, command, cleanUpBefore):
-        def animatedOperation():
+    def runOperation(self, command, cleanUpBefore, button=None):
+        def animatedOperation(): # If button that uses arguments is provided,
+            if button and hasattr(button, 'required_args'): # record it as the
+                for entry in self.textEntries[:getattr( # last button pressed
+                        button, 'required_args')]: # for all its required args
+                    setattr(entry, 'last_button', button)
             try:
                 if cleanUpBefore:
                     self.cleanUp()
@@ -369,7 +414,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for button in [gridItems[0, row] for row in range(nRows)
                        if isinstance(gridItems[0, row], self.buttonTypes)]:
             nArgs = getattr(button, 'required_args')
-            button['state'] = (
+            self.widgetState(
+                button,
                 DISABLED if self.animationState != self.STOPPED or any(
                     arg == '' for arg in args[:nArgs]) else NORMAL)
 
@@ -775,7 +821,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 if isinstance(btn, self.buttonTypes) and (
                         enable or btn not in (self.stopButton, 
                                               self.pauseButton)):
-                    btn['state'] = NORMAL if enable else DISABLED
+                    self.widgetState(btn, NORMAL if enable else DISABLED)
 
     def stop(self, pauseButton):
         self.stopAnimations()
@@ -802,9 +848,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.pauseButton['text'] = 'Pause'
             self.pauseButton['command'] = self.runOperation(
                 lambda: self.onClick(self.pause, self.pauseButton), False)
-            self.pauseButton['state'] = NORMAL
+            self.widgetState(self.pauseButton, NORMAL)
         if self.stopButton:
-            self.stopButton['state'] = NORMAL
+            self.widgetState(self.stopButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
         # Calls from stack level 2+ only stop animation for their level
@@ -813,9 +859,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.animationState = self.STOPPED
             self.enableButtons(enable=True)
             if self.pauseButton:
-                self.pauseButton['state'] = DISABLED
+                self.widgetState(self.pauseButton, DISABLED)
             if self.stopButton:
-                self.stopButton['state'] = DISABLED
+                self.widgetState(self.stopButton, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 

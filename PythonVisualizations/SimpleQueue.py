@@ -143,9 +143,9 @@ class Queue(VisualizationApp):
 
         #disable buttons as necessary
         if self.nItems == self.size:
-            self.insertButton.config(state = DISABLED)
+            self.widgetState(self.insertButton, DISABLED)
         elif self.nItems==0:
-            self.deleteButton.config(state = DISABLED)
+            self.widgetState(self.deleteButton, DISABLED)
 
 
 # Button functions
