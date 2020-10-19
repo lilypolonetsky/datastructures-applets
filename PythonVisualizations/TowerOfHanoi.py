@@ -90,7 +90,7 @@ class TowerOfHanoi(VisualizationApp):
         self.window.update()
 
     _init__Code = '''
-def __init__(self, nDisks=3):
+def __init__(self, nDisks={nDisks}):
    self.__stacks = [None] * 3
    self.__labels = ['L', 'M', 'R']
    self.__nDisks = nDisks
@@ -125,7 +125,8 @@ def reset(self):
         if nDisks > 0:
             self.startAnimations()
             callEnviron = self.createCallEnvironment(
-                self._init__Code.strip(), self._init__CodeSnippets)
+                self._init__Code.strip().format(**locals()),
+                self._init__CodeSnippets)
 
         self.spindles = [[] for _ in range(3)]   # Prepare to create spindles
         wait = 0.05
@@ -406,7 +407,7 @@ def reset(self):
             
     def spindleTag(self, ID): return 'spindle {}'.format(ID)
     solveCode = '''
-def solve(self, nDisks, start=0, goal=2, spare=1):
+def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
    if nDisks <= 0: return
    self.solve(nDisks - 1, start, spare, goal)
    self.move(start, goal)
@@ -427,7 +428,8 @@ def solve(self, nDisks, start=0, goal=2, spare=1):
         highlightWait = 0.08
         moveWait = 0.01
         callEnviron = self.createCallEnvironment(
-            self.solveCode.strip(), self.solveCodeSnippets, sleepTime=moveWait)
+            self.solveCode.strip().format(**locals()),
+            self.solveCodeSnippets, sleepTime=moveWait)
         labels = ('start', 'goal', 'spare')
         labelPositions = list(zip(labels, (start, goal, spare)))
         for label, pos in labelPositions:
@@ -522,8 +524,9 @@ def solve(self, nDisks, start=0, goal=2, spare=1):
                             .format(self.minDisks, self.maxDisks))
         else:
             nDisks = int(val)
-            self.display()
-            self.setupDisks(nDisks)
+            self.spindles = [[] for _ in range(3)] # Clear all spindles
+            self.display()            # Display empty puzzle
+            self.setupDisks(nDisks)   # Setup initial disks
             self.moves = 0
             self.setMessage('You need at least {} move{}.  Good luck!'.format(
                 pow(2, nDisks) - 1, '' if nDisks == 1 else 's'))
