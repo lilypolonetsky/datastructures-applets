@@ -81,6 +81,7 @@ geom_delims = re.compile(r'[\sXx+-]')
 class VisualizationApp(object):  # Base class for Python visualizations
 
     # Default styles for display of values and operational controls
+    DEFAULT_BG = 'white'
     FONT_SIZE = -20
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     VALUE_COLOR = 'black'
@@ -127,7 +128,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
             if title:
                 self.window.title(title)
         self.canvas = Canvas(
-            self.window, width=canvasWidth, height=canvasHeight)
+            self.window, width=canvasWidth, height=canvasHeight,
+            bg=self.DEFAULT_BG)
         self.canvas.pack(expand=True, fill=BOTH)
         self.maxArgWidth = maxArgWidth
 
@@ -142,9 +144,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.pauseButton, self.stopButton = None, None
  
     def setUpControlPanel(self):  # Set up control panel structure
-        self.controlPanel = Frame(self.window)
+        self.controlPanel = Frame(self.window, bg=self.DEFAULT_BG)
         self.controlPanel.pack(side=BOTTOM, expand=True, fill=X)
-        self.operationsUpper = LabelFrame(self.controlPanel, text="Operations")
+        self.operationsUpper = LabelFrame(
+            self.controlPanel, text="Operations", bg=self.DEFAULT_BG)
         self.operationsUpper.grid(row=0, column=0)
         self.operationsPadding = Frame(
             self.operationsUpper, padx=2, pady=2, bg=self.OPERATIONS_BORDER)
@@ -152,11 +155,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.operations = Frame(self.operationsPadding, bg=self.OPERATIONS_BG)
         self.opSeparator = None
         self.operations.pack(side=LEFT)
-        self.operationsLower = Frame(self.controlPanel)
+        self.operationsLower = Frame(self.controlPanel, bg=self.DEFAULT_BG)
         self.operationsLower.grid(row=1, column=0)
-        self.operationsLowerCenter = Frame(self.operationsLower, padx=2, pady=5)
+        self.operationsLowerCenter = Frame(
+            self.operationsLower, padx=2, pady=5, bg=self.DEFAULT_BG)
         self.operationsLowerCenter.pack(side=TOP)
-        self.codeFrame = Frame(self.controlPanel)
+        self.codeFrame = Frame(self.controlPanel, bg=self.DEFAULT_BG)
         self.codeFrame.grid(row=0, column=1, rowspan=2, sticky=(N, E, S, W))
         # self.controlPanel.grid_columnconfigure(1, maxsize=200)
         self.codeText = None
@@ -170,17 +174,19 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.speedScale.set(self.SPEED_SCALE_DEFAULT)
         self.slowLabel = Label(
             self.operationsLowerCenter, text="Animation speed:  slow",
-            font=self.CONTROLS_FONT)
+            font=self.CONTROLS_FONT, bg=self.DEFAULT_BG)
         self.slowLabel.grid(row=0, column=0, sticky=W)
         self.fastLabel = Label(
-            self.operationsLowerCenter, text="fast", font=self.CONTROLS_FONT)
+            self.operationsLowerCenter, text="fast", font=self.CONTROLS_FONT,
+            bg=self.DEFAULT_BG)
         self.fastLabel.grid(row=0, column=2, sticky=W)
         self.textEntries, self.entryHints = [], []
         self.outputText = StringVar()
         self.outputText.set('')
         self.message = Label(
             self.operationsLowerCenter, textvariable=self.outputText,
-            font=self.CONTROLS_FONT + ('italic',), fg="blue")
+            font=self.CONTROLS_FONT + ('italic',), fg="blue",
+            bg=self.DEFAULT_BG)
         self.message.grid(row=0, column=4, sticky=(E, W))
         self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
