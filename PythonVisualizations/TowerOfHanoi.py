@@ -302,9 +302,9 @@ class TowerOfHanoi(VisualizationApp):
             self.canvas.coords(star, *flat(*starCoords))
             self.canvas.itemconfigure(star, width=max(1, size / 100))
             self.wait(0.01)
-        font = ('Helvetica', max(12, int(size / 10)))
+        font = ('Helvetica', -max(12, int(size / 10)))
         self.canvas.create_text(
-            *(V(starCenter) - V(0, font[1])), text='Puzzle Completed',
+            *(V(starCenter) + V(0, font[1])), text='Puzzle Completed',
             font=font, anchor=S)
         self.canvas.create_text(
             *starCenter, text='in {} move{}!'.format(
