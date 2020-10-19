@@ -396,7 +396,7 @@ def find(self, item):
             stepsToGo = steps - step
             jitter = max(1, int(stepsToGo * 2 / 3))
             half = max(1, jitter // 2)
-            for i in range(nItems)):
+            for i in range(nItems):
                 for item in self.list[i][2:]: # Get drawable shape and val
                     if item:       # If not None, move it by velocity
                         self.canvas.move(item, *velocity[i])
