@@ -224,7 +224,7 @@ def reset(self):
             self.canvas.create_rectangle(
                 *coords[1], fill=self.diskSide, **kwargs),
             self.canvas.create_oval(
-                *coords[2], fill=self.diskSide, **kwargs),
+                *coords[2], fill=self.diskTop, **kwargs),
         )
         ELHandler = self.enterLeaveHandler(diskID, tags[1], normal, highlight)
         startMoveHandler = self.startMoveHandler(
