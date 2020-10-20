@@ -11,7 +11,7 @@ except ModuleNotFoundError:
     from .VisualizationApp import *
     from .BinaryTreeBase import *
 
-class BinaryTree(BinaryTreeBase):
+class BinarySearchTree(BinaryTreeBase):
    def __init__(self, x0=0, y0=0, x1=800, y1=400):
       super().__init__(x0, y0, x1, y1)
       self.buttons = self.makeButtons()
