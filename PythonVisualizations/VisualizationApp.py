@@ -413,18 +413,21 @@ class VisualizationApp(object):  # Base class for Python visualizations
         # Add code at top of text widget (above stack boundary, if any)
         if sleepTime > 0:
             for line in reversed(code.split('\n')):
-                self.codeText.insert('1.0', line + '\n')
+                if self.codeText:
+                    self.codeText.insert('1.0', line + '\n')
                 self.wait(sleepTime)
         else:
             self.codeText.insert('1.0', code + '\n')
-        self.codeText.see('1.0')
+        if self.codeText:
+            self.codeText.see('1.0')
         self.window.update()
         self.resizeCodeText()
        
         # Tag the snippets with unique tag name
-        for tagName in snippets:
-            self.codeText.tag_add(prefix + tagName, *snippets[tagName])
-        self.codeText.configure(state=DISABLED)
+        if self.codeText:
+            for tagName in snippets:
+                self.codeText.tag_add(prefix + tagName, *snippets[tagName])
+            self.codeText.configure(state=DISABLED)
 
     def resizeCodeText(self, event=None):
         if self.codeText and self.codeText.winfo_ismapped():
@@ -512,10 +515,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.codeText.configure(state=NORMAL)
                 last_line = int(float(self.codeText.index(END)))
                 for i in range(1, min(last_line, thing.lines + 2)):
-                    self.codeText.delete('1.0', '2.0')
-                    if sleepTime > 0:
-                        self.wait(sleepTime)
-                self.codeText.configure(state=DISABLED)
+                    if self.codeText:
+                        self.codeText.delete('1.0', '2.0')
+                        if sleepTime > 0:
+                            self.wait(sleepTime)
+                if self.codeText:
+                    self.codeText.configure(state=DISABLED)
 
     def createCallEnvironment( # Create a call environment on the call stack
             self,              # for animating a particular call
@@ -638,10 +643,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
         # move the items in steps along vector
         moveBy = divide_vector(delta, steps)
-        for step in range(steps):
-            for item in items:
-                self.canvas.move(item, *moveBy)
-            yield (step, steps) # Yield step in sequence
+        if len(moveBy) == 2:
+            for step in range(steps):
+                for item in items:
+                    self.canvas.move(item, *moveBy)
+                yield (step, steps) # Yield step in sequence
 
     def moveItemsTo(         # Animate canvas items moving rigidly 
             self, items,     # to destination locations along line(s)
@@ -670,7 +676,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
         # move the items until they reach the toPositions
         for step in range(steps):
             for i, item in enumerate(items):
-                self.canvas.move(item, *moveBy[i])
+                if len(moveBy[i]) == 2:
+                    self.canvas.move(item, *moveBy[i])
+                # else:  # This shouldn't happen, but is a good point to debug
+                #     pdb.set_trace()
             yield (step, steps) # Yield step in sequence
             
         # Force position of new objects to their exact destinations
@@ -711,8 +720,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
         # move the items until they reach the toPositions
         for step in range(steps):
             for i, item in enumerate(items):
-                self.canvas.coords(item, *add_vector(self.canvas.coords(item),
-                                                     moveBy[i]))
+                if len(moveBy[i]) >= 2:
+                    self.canvas.coords(
+                        item, *add_vector(self.canvas.coords(item), moveBy[i]))
             yield (step, steps) # Yield step in sequence
             
         # Force position of new objects to their exact destinations
@@ -746,18 +756,19 @@ class VisualizationApp(object):  # Base class for Python visualizations
             scale = 1 + abs(ang) / 180  # scale is larger for higher angles
             for i, item in enumerate(items):
                 coords = self.canvas.coords(item)[:2]
-                moveBy = rotate_vector(
-                    divide_vector(subtract_vector(toPositions[i], coords),
-                                  (toGo + 1) / scale),
-                    ang)
-                self.canvas.move(item, *moveBy)
+                if len(coords) == 2:
+                    moveBy = rotate_vector(
+                        divide_vector(subtract_vector(toPositions[i], coords),
+                                      (toGo + 1) / scale),
+                        ang)
+                    self.canvas.move(item, *moveBy)
             yield (step, steps) # Yield step in sequence
             
         # Force position of new objects to their exact destinations
         for pos, item in zip(toPositions, items):
             self.canvas.coords(item, *pos)
 
-    # ANIMATION METHODS
+    # ANIMATION CONTROLS
     def speed(self, sleepTime):
         return sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get()
 

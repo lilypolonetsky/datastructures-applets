@@ -240,6 +240,8 @@ def reset(self):
 
     def diskCoords(self, diskID):
         spindle, pos = self.diskSpindlePos(diskID)
+        if spindle is None or pos is None:  # If we can't find the disk
+            return ((), (), ())  # we don't know where it should be placed
         sw = self.spindleWidth
         tilt = sw
         half = tilt // 2
@@ -355,15 +357,21 @@ def reset(self):
             self.window.update()
 
     def restoreDisks(self, *diskIDs, cleanUpAll=True):
-        callEnviron = self.createCallEnvironment()
+        callEnviron = None if cleanUpAll else self.createCallEnvironment()
         self.startAnimations()
         for ID in (diskIDs if diskIDs else range(len(self.disks))):
             tag = self.diskTag(ID)
             items = sorted(self.canvas.find_withtag(tag))
-            current = [self.canvas.coords(item) for item in items]
+            current = [self.canvas.coords(item) for item in items
+                       if self.canvas.coords(item)]
             target = self.diskCoords(ID)
-            self.moveItemsTo(items, target, steps=10, sleepTime=0.01)
-        self.cleanUp(None if cleanUpAll else callEnviron)
+            if len(current) == len(target): # Both coords must be present
+                self.moveItemsTo(items, target, steps=10, sleepTime=0.01)
+        self.cleanUp(callEnviron)
+
+    def stop(self, *args):   # Customize stop operation to restore disk
+        super().stop(*args)
+        self.restoreDisks()
 
     def showCompletion(self):
         canvasDimensions = self.widgetDimensions(self.canvas)
@@ -464,13 +472,15 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
         self.cleanUp(callEnviron, sleepTime=0.01)
 
     def moveDisk(self, fromSpindle, toSpindle):
-        ID = self.spindles[fromSpindle][-1]
+        ID = self.spindles[fromSpindle].pop()
         tag = self.diskTag(ID)
         wait = 0.01
         diskBBox = self.canvas.bbox(tag)
         fromSpindleTopBBox = self.spindleCoords(fromSpindle)[-1]
         toSpindleTopBBox = self.spindleCoords(toSpindle)[-1]
+        self.updateSpindles(fromSpindle)
         self.canvas.tag_raise(tag, 'spindle')
+        self.spindles[toSpindle].append(ID)
         self.moveItemsBy(
             self.disks[ID], 
             (0, min(fromSpindleTopBBox[1], fromSpindleTopBBox[3]) - 
@@ -482,11 +492,10 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
         self.moveItemsOnCurve(
             self.disks[ID], toCoords, sleepTime=wait,
             startAngle=40 if delta[0] < 0 else -40)
-        self.spindles[toSpindle].append(self.spindles[fromSpindle].pop())
         self.moveItemsTo(self.disks[ID], self.diskCoords(ID),
                          sleepTime=wait)
         self.canvas.tag_lower(tag, 'spindle')
-        self.updateSpindles(fromSpindle, toSpindle)
+        self.updateSpindles(toSpindle)
         
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
