@@ -63,7 +63,7 @@ def findVisualizationClasses(module, verbose=0):
             if verbose > 1:
                 print('Found {}.{}, a subclass of VisualizationApp'.format(
                     module.__name__, name))
-                classes.append(this)
+            classes.append(this)
         elif verbose > 2:
             print('Ignoring {}.{} of type {}'.format(
                 module.__name__, name, type(this)), file=sys.stderr)
