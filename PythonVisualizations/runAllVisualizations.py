@@ -12,7 +12,11 @@ recognized modules.  The rest are added in alphabetical order.
 import argparse, sys, re, webbrowser, os, subprocess, glob
 from tkinter import *
 from tkinter import ttk
-import VisualizationApp
+
+try:
+    from VisualizationApp import *
+except ModuleNotFoundError:
+    from .VisualizationApp import *
 
 PREFERRED_ARRANGEMENT = [
     ['Chapters 1-4',
@@ -56,10 +60,10 @@ def findVisualizationClasses(module, verbose=0):
     classes = []
     for name in dir(module):
         this = getattr(module, name)
-        if isinstance(this, type(VisualizationApp.VisualizationApp)) and (
+        if isinstance(this, type(VisualizationApp)) and (
                 hasattr(this, 'runVisualization') and
                 len(this.__subclasses__()) == 0 and
-                this is not VisualizationApp.VisualizationApp):
+                this is not VisualizationApp):
             if verbose > 1:
                 print('Found {}.{}, a subclass of VisualizationApp'.format(
                     module.__name__, name))
@@ -103,8 +107,7 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     ttk.Style().configure("TNotebook.Tab", font=TAB_FONT,
                           padding=[12, abs(TAB_FONT[1]) * 5 // 8, 12, 2])
     ttk.Style().configure(
-        'TFrame', bg=getattr(VisualizationApp.VisualizationApp, 
-                             'DEFAULT_BG', 'white'))
+        'TFrame', bg=getattr(VisualizationApp, 'DEFAULT_BG', 'white'))
 
     notebook = ttk.Notebook(top)
     intro = ttk.Frame(notebook)
@@ -153,10 +156,11 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
 
     appNumber = 1
     for folder in folders:
-        if verbose > 0:
-            print('Constructing folder {}'.format(folder), file=sys.stderr)
-        group = ttk.Notebook(notebook)
-        notebook.add(group, text=folder)
+        if folders[folder]:
+            if verbose > 0:
+                print('Constructing folder {}'.format(folder), file=sys.stderr)
+            group = ttk.Notebook(notebook)
+            notebook.add(group, text=folder)
         for app in folders[folder]:
             if verbose > 0:
                 print('Found app {} and instantiating in {}'.format(
