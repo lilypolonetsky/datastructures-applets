@@ -385,23 +385,21 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def clearArgument(self, index=0):
         if 0 <= index and index < len(self.textEntries):
-            self.textEntries[index].delete(0, END)
-            while self.entryHints:
-                self.entryHints.pop().destroy()
-            self.argumentChanged()
+            self.setArgument('', index)
 
     def setArgument(self, val='', index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
-            self.textEntries[index].insert(0, str(val))
+            if str(val):
+                self.textEntries[index].insert(0, str(val))
+            self.setArgumentHighlight(index)
             while self.entryHints:
                 self.entryHints.pop().destroy()
             self.argumentChanged()
 
     def setArguments(self, *values):
         for index in range(min(len(values), len(self.textEntries))):
-            self.textEntries[index].delete(0, END)
-            self.textEntries[index].insert(0, str(values[index]))
+            self.setArgument(str(values[index], index))
         self.argumentChanged()
 
     def setArgumentHighlight(self, index, color=ENTRY_BG):
