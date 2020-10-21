@@ -815,15 +815,16 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def play(self, pauseButton):
         self.startAnimations()
 
-    def startAnimations(self):
+    def startAnimations(self, enableStops=True):
         self.animationState = self.RUNNING
         self.enableButtons(enable=False)
         if self.pauseButton:
             self.pauseButton['text'] = 'Pause'
             self.pauseButton['command'] = self.runOperation(
                 lambda: self.onClick(self.pause, self.pauseButton), False)
-            self.pauseButton['state'] = NORMAL
-        if self.stopButton:
+            if enableStops:
+                self.pauseButton['state'] = NORMAL
+        if self.stopButton and enableStops:
             self.stopButton['state'] = NORMAL
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
@@ -842,6 +843,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def pauseAnimations(self):
         self.animationState = self.PAUSED
 
+    def animationsStopped(self):
+        return self.animationState == self.STOPPED
+
+    def animationsRunning(self):
+        return self.animationState != self.STOPPED
+    
     def runVisualization(self):
         self.window.mainloop()
 

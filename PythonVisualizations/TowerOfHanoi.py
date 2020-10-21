@@ -10,6 +10,11 @@ except ModuleNotFoundError:
 V = vector
 
 class TowerOfHanoi(VisualizationApp):
+    diskColors = (          # Side and top colors for disks
+        ('salmon4', 'salmon2'), ('yellow4', 'yellow3'),
+        ('chocolate3', 'chocolate1'), ('SteelBlue4', 'SteelBlue2'),
+        ('green4', 'green2'), ('orchid3', 'orchid1'),
+    )
 
     def __init__(                    # Create a Tower of Hanoi puzzle
             self,                    # visualization application
@@ -17,8 +22,6 @@ class TowerOfHanoi(VisualizationApp):
             bbox=(20, 20, 780, 380), # Fit the display within this bounding box
             minDisks=1,              # on the canvas.  Limit number of disks to
             maxDisks=6,              # between minDisks
-            diskSide='salmon4',      # Draw disks with one color for their sides
-            diskTop='salmon2',       # and one for the tops
             baseSide='khaki3',       # Draw base and spindles with different
             baseTop='khaki1',        # colors on sides and tops
             labelHeight=20,          # Height of spindle labels
@@ -28,8 +31,6 @@ class TowerOfHanoi(VisualizationApp):
         self.bbox = bbox
         self.minDisks = minDisks
         self.maxDisks = maxDisks
-        self.diskSide = diskSide
-        self.diskTop = diskTop
         self.baseSide = baseSide
         self.baseTop = baseTop
         self.spindleSide = baseSide
@@ -219,12 +220,14 @@ def reset(self):
         highlight = {'width': 1, 'outline': 'blue'}
         kwargs = dict(normal, tags=tags)
         coords = [moveAboveCanvas(bbox) for bbox in self.diskCoords(diskID)]
+        color = max(0, min(len(self.diskColors) - 1, diskID))
         items = (
-            self.canvas.create_oval(*coords[0], fill=self.diskSide, **kwargs),
-            self.canvas.create_rectangle(
-                *coords[1], fill=self.diskSide, **kwargs),
             self.canvas.create_oval(
-                *coords[2], fill=self.diskTop, **kwargs),
+                *coords[0], fill=self.diskColors[color][0], **kwargs),
+            self.canvas.create_rectangle(
+                *coords[1], fill=self.diskColors[color][0], **kwargs),
+            self.canvas.create_oval(
+                *coords[2], fill=self.diskColors[color][1], **kwargs),
         )
         ELHandler = self.enterLeaveHandler(diskID, tags[1], normal, highlight)
         startMoveHandler = self.startMoveHandler(
@@ -298,13 +301,18 @@ def reset(self):
         def handler(event):
             self.cleanUp()  # Clean up any items left by solver
             spindle, pos = self.diskSpindlePos(ID)
+            if spindle and pos and ID != self.spindles[spindle][-1]:
+                print('Cannot pick up disk', ID, 'with',
+                      self.spindles[spindle][-1], 'on top of it')
+                return
             if spindle is not None:
                 self.pickedFrom = spindle
                 self.spindles[spindle].pop()
             self.picked = ID
             self.lastPos = (event.x, event.y)
             self.canvas.tag_raise(tag, 'spindle')
-            self.updateSpindles(spindle)
+            if spindle is not None:
+                self.updateSpindles(spindle)
         return handler
 
     def moveHandler(self, ID, tag, normal, highlight):
@@ -358,7 +366,7 @@ def reset(self):
 
     def restoreDisks(self, *diskIDs, cleanUpAll=True):
         callEnviron = None if cleanUpAll else self.createCallEnvironment()
-        self.startAnimations()
+        self.startAnimations(enableStops=False)
         for ID in (diskIDs if diskIDs else range(len(self.disks))):
             tag = self.diskTag(ID)
             items = sorted(self.canvas.find_withtag(tag))
@@ -381,7 +389,7 @@ def reset(self):
         targetCenter = V(canvasDimensions) * V(1/2, 1/2)
         targetSize = canvasDimensions[0] / 2
         targetAngle = -90
-        self.startAnimations()
+        self.startAnimations(enableStops=False)
         starCoords = regularStar(starCenter, size, size * ratio, points, angle)
         star = self.canvas.create_polygon(
             *starCoords, fill='goldenrod', outline='red', 
@@ -400,9 +408,9 @@ def reset(self):
             self.canvas.coords(star, *flat(*starCoords))
             self.canvas.itemconfigure(star, width=max(1, size / 100))
             self.wait(0.01)
-        font = ('Helvetica', max(12, int(size / 10)))
+        font = ('Helvetica', -max(12, int(size / 10)))
         self.canvas.create_text(
-            *(V(starCenter) - V(0, font[1])), text='Puzzle Completed',
+            *(V(starCenter) + V(0, font[1])), text='Puzzle Completed',
             font=font, anchor=S)
         self.canvas.create_text(
             *starCenter, text='in {} move{}!'.format(
