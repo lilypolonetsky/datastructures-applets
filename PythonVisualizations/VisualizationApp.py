@@ -14,6 +14,7 @@ import time, math, operator, re, sys
 from collections import *
 from tkinter import *
 from tkinter import ttk
+import tkinter.font as tkfont
 
 try:
     from coordinates import *
@@ -78,11 +79,11 @@ def makeWidthValidate(maxWidth):
 
 geom_delims = re.compile(r'[\sXx+-]')
 
-
 class VisualizationApp(object):  # Base class for Python visualizations
 
     # Default styles for display of values and operational controls
-    FONT_SIZE = 20
+    DEFAULT_BG = 'white'
+    FONT_SIZE = -20
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     VALUE_COLOR = 'black'
     VARIABLE_FONT = ('Courier', FONT_SIZE * 8 // 10)
@@ -91,10 +92,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
     FOUND_COLOR = 'green2'
     OPERATIONS_BG = 'beige'
     OPERATIONS_BORDER = 'black'
-    CODE_FONT = ('Courier', 12)
-    SMALL_FONT = ('Helvetica', 9)
+    CODE_FONT = ('Courier', -12)
+    SMALL_FONT = ('Helvetica', -9)
     CODE_HIGHLIGHT = 'yellow'
-    CONTROLS_FONT = ('Helvetica', 12)
+    CONTROLS_FONT = ('Helvetica', -12)
     HINT_FONT = CONTROLS_FONT + ('italic',)
     HINT_FG = 'blue'
     HINT_BG = 'beige'
@@ -130,7 +131,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
             if title:
                 self.window.title(title)
         self.canvas = Canvas(
-            self.window, width=canvasWidth, height=canvasHeight)
+            self.window, width=canvasWidth, height=canvasHeight,
+            bg=self.DEFAULT_BG)
         self.canvas.pack(expand=True, fill=BOTH)
         self.maxArgWidth = maxArgWidth
 
@@ -145,9 +147,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.pauseButton, self.stopButton = None, None
  
     def setUpControlPanel(self):  # Set up control panel structure
-        self.controlPanel = Frame(self.window)
+        self.controlPanel = Frame(self.window, bg=self.DEFAULT_BG)
         self.controlPanel.pack(side=BOTTOM, expand=True, fill=X)
-        self.operationsUpper = LabelFrame(self.controlPanel, text="Operations")
+        self.operationsUpper = LabelFrame(
+            self.controlPanel, text="Operations", bg=self.DEFAULT_BG)
         self.operationsUpper.grid(row=0, column=0)
         self.operationsPadding = Frame(
             self.operationsUpper, padx=2, pady=2, bg=self.OPERATIONS_BORDER)
@@ -155,11 +158,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.operations = Frame(self.operationsPadding, bg=self.OPERATIONS_BG)
         self.opSeparator = None
         self.operations.pack(side=LEFT)
-        self.operationsLower = Frame(self.controlPanel)
+        self.operationsLower = Frame(self.controlPanel, bg=self.DEFAULT_BG)
         self.operationsLower.grid(row=1, column=0)
-        self.operationsLowerCenter = Frame(self.operationsLower, padx=2, pady=5)
+        self.operationsLowerCenter = Frame(
+            self.operationsLower, padx=2, pady=5, bg=self.DEFAULT_BG)
         self.operationsLowerCenter.pack(side=TOP)
-        self.codeFrame = Frame(self.controlPanel)
+        self.codeFrame = Frame(self.controlPanel, bg=self.DEFAULT_BG)
         self.codeFrame.grid(row=0, column=1, rowspan=2, sticky=(N, E, S, W))
         # self.controlPanel.grid_columnconfigure(1, maxsize=200)
         self.codeText = None
@@ -173,17 +177,19 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.speedScale.set(self.SPEED_SCALE_DEFAULT)
         self.slowLabel = Label(
             self.operationsLowerCenter, text="Animation speed:  slow",
-            font=self.CONTROLS_FONT)
+            font=self.CONTROLS_FONT, bg=self.DEFAULT_BG)
         self.slowLabel.grid(row=0, column=0, sticky=W)
         self.fastLabel = Label(
-            self.operationsLowerCenter, text="fast", font=self.CONTROLS_FONT)
+            self.operationsLowerCenter, text="fast", font=self.CONTROLS_FONT,
+            bg=self.DEFAULT_BG)
         self.fastLabel.grid(row=0, column=2, sticky=W)
         self.textEntries, self.entryHints = [], []
         self.outputText = StringVar()
         self.outputText.set('')
         self.message = Label(
             self.operationsLowerCenter, textvariable=self.outputText,
-            font=self.CONTROLS_FONT + ('italic',), fg="blue")
+            font=self.CONTROLS_FONT + ('italic',), fg="blue",
+            bg=self.DEFAULT_BG)
         self.message.grid(row=0, column=4, sticky=(E, W))
         self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
@@ -566,12 +572,42 @@ class VisualizationApp(object):  # Base class for Python visualizations
                       snippets=snippets)
         return callEnviron
         
-    # Tk widget methods
+    # General Tk widget methods
     def widgetDimensions(self, widget):  # Get widget's (width, height)
         geom = geom_delims.split(widget.winfo_geometry())
         if geom[0] == '1' and geom[1] == '1':  # If not yet managed, use config
             geom = (widget.config('width')[-1], widget.config('height')[-1])
         return int(geom[0]), int(geom[1])
+
+    sizePattern = re.compile(r'-?\d+')
+
+    def textWidth(self, font, text=' '):
+        return self.tkFontFromSpec(font).measure(text)
+        
+    def textHeight(self, font, text=' '):
+        lines = text.split('\n')
+        nLines = len(lines) if lines and len(lines[-1]) > 0 else len(lines) - 1
+        return self.tkFontFromSpec(font).metrics()['linespace'] * nLines
+
+    def tkFontFromSpec(self, spec):
+        family = spec[0]
+        size = spec[1] if (len(spec) > 1 and 
+                           (isinstance(spec[1], int) or
+                            (isinstance(spec[1], str) and 
+                             self.sizePattern.match(spec[1])))) else 0
+        return tkfont.Font(
+            family=family, size=size,
+            weight=self.lookFor(('bold', 'light'), spec, 'normal'),
+            slant=self.lookFor(('italic', 'oblique'), spec, 'roman'),
+            underline=1 if self.lookFor(('underline',), spec, 0) else 0,
+            overstrike=1 if self.lookFor(('overstrike',), spec, 0) else 0)
+        
+    def lookFor(self, keys, spec, default):  # Find keyword in font spec
+        strings = [x.lower() for x in spec if isinstance(x, str)]
+        for key in keys:
+            if key.lower() in strings:
+                return key
+        return default
 
     # CANVAS ITEM METHODS
     def canvas_itemconfigure(  # Get a dictionary with the canvas item's
