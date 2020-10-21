@@ -2,12 +2,10 @@ from tkinter import *
 import re
 try:
     from BitHash import BitHash
-    from drawable import *
     from VisualizationApp import *
     from HashBase import *
 except ModuleNotFoundError:
     from .BitHash import BitHash
-    from .drawable import *
     from .VisualizationApp import *
     from .HashBase import *
 
@@ -22,9 +20,10 @@ class BloomFilter(HashBase):
     BORDER_COLOR = 'black'
     ON_COLOR = 'blue'
     OFF_COLOR = 'white'
+    REINSERT_COLOR = 'sky blue'
     PROBE_COLOR = 'red'
     PROBE_FAILED = 'gray60'
-    INSERTED_FONT = (VisualizationApp.CONTROLS_FONT[0], 14)
+    INSERTED_FONT = (VisualizationApp.CONTROLS_FONT[0], -14)
     INSERTED_COLOR = 'darkblue'
     INSERTED_BG = 'wheat'
     BV_X0 = CELL_SIZE
@@ -106,7 +105,8 @@ class BloomFilter(HashBase):
 
         # attribute counter for each bit set to 1
         self.__numBitsSet = 0
-        #parallel list that displays the contents of the bit vector
+        
+        # list of canvas rectangles for each bit of the vector
         self.__displayList = [0] * self.__size
         self.__inserted = set([])
         self.display()
@@ -116,10 +116,9 @@ class BloomFilter(HashBase):
 
     def setBit(self, bit, callEnviron):
         self.__bv[bit] = 1
-        self.canvas.itemconfigure(
-            self.__displayList[bit].display_shape, fill=self.ON_COLOR)
-        self.__displayList[bit].color = self.ON_COLOR
-        self.window.update()
+        if self.__displayList[bit]:
+            self.canvas.itemconfigure(self.__displayList[bit],
+                                      fill=self.ON_COLOR)
         
     def insert(self, key):
         callEnviron = self.createCallEnvironment()
@@ -163,6 +162,10 @@ class BloomFilter(HashBase):
                 self.setBit(hv, callEnviron)
                 self.wait(0.05)
                 self.__numBitsSet += 1
+            else: # If location was set, mark with a temporary mark
+                callEnviron.add(self.canvas.create_rectangle(
+                    *self.bitCellCoords(hv), fill=self.REINSERT_COLOR,
+                    outline=''))
 
             # make old hash value new seed
             seed = h
@@ -242,11 +245,10 @@ class BloomFilter(HashBase):
                 *add_vector(cellCoords, 
                             multiply_vector((-1, -1, 0, 0), self.CELL_BORDER)),
                 outline=self.BORDER_COLOR, width=self.CELL_BORDER, fill='')
-            # create display objects for the associated drawables
-            color = self.ON_COLOR if bit else self.OFF_COLOR
-            cell = self.canvas.create_rectangle(
-                *cellCoords, fill=color, outline='')
-            self.__displayList[n] = drawable(bit, color, cell, None)
+            # create display objects for the associated bit on the canvas
+            self.__displayList[n] = self.canvas.create_rectangle(
+                *cellCoords, fill=self.ON_COLOR if bit else self.OFF_COLOR,
+                outline='')
         self.createHasher()
         self.insertedBoxPos = self.bitCellCoords(
             self.max_bits + self.bits_per_row // 2)[:2] + subtract_vector(
@@ -254,7 +256,8 @@ class BloomFilter(HashBase):
         self.insertedBox = self.canvas.create_rectangle(
             *self.insertedBoxPos, fill=self.INSERTED_BG)
         self.insertedKeys = self.canvas.create_text(
-            *add_vector(self.insertedBoxPos, (self.CONTROLS_FONT[1], ) * 2),
+            *add_vector(self.insertedBoxPos, 
+                        (abs(self.CONTROLS_FONT[1]), ) * 2),
             anchor=NW, font=self.INSERTED_FONT, fill=self.INSERTED_COLOR,
             state=DISABLED)
         self.updateInserted()
@@ -269,7 +272,7 @@ class BloomFilter(HashBase):
         # Break text into lines at whitespace
         lines = text.split('\n')
         max_chars = (self.insertedBoxPos[2] - self.insertedBoxPos[0]) // (
-            int(self.INSERTED_FONT[1] / 2))
+            int(abs(self.INSERTED_FONT[1]) / 2))
         while len(lines[-1]) > max_chars:
             words = lines[-1].split()
             line = ''
