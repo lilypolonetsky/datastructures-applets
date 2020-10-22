@@ -136,7 +136,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.HOVER_DELAY = hoverDelay
         self.setUpControlPanel()
         self.minCodeCharacterWidth = 20
-        self.minCodeCharacterHeight = 12
+        self.minCodeCharacterHeight = 11
 
         # Set up instance variables for managing animations and operations
         self.callStack = []    # Stack of local environments for visualziation
