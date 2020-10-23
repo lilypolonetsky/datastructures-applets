@@ -12,7 +12,7 @@ with a prefix 'folder' name.  The rest are added in alphabetical
 order in a folder called 'Other'.
 """
 
-import argparse, sys, re, webbrowser, os, subprocess, glob
+import argparse, sys, re, webbrowser, os, glob
 from tkinter import *
 from tkinter import ttk
 
@@ -47,11 +47,10 @@ def findVisualizations(filesAndDirectories, verbose=0):
             print('Looking for "runVisualization()" in',
                   'python files in {}'.format(fileOrDir) if isDir else isDir,
                   file=sys.stderr)
-        cmd = ['fgrep', '-sl', 'runVisualization()'] + (
-               glob.glob(os.path.join(fileOrDir, '*.py')) if isDir else [
-                   fileOrDir])
-        out, err = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()
-        for filename in out.decode().split('\n'):
+        files = glob.glob(os.path.join(fileOrDir, '*.py')) if isDir else [
+                   fileOrDir]
+        for filename in [f for f in files 
+                         if isStringInFile('runVisualization()', f)]:
             modulename, ext = os.path.splitext(os.path.basename(filename))
             if modulename:
                 try:
@@ -63,6 +62,10 @@ def findVisualizations(filesAndDirectories, verbose=0):
                         print('Unable to import module', modulename,
                               file=sys.stderr)
     return classes
+    
+def isStringInFile(text, filename):
+    with open(filename, 'r') as f:
+        return text in f.read()
             
 def findVisualizationClasses(module, verbose=0):
     classes = []
