@@ -1,2 +1,2 @@
 language = "tkinter"
-run = "python3 PythonVisualizations/runAllVisualizations.py"
+run = "python3 PythonVisualizations/runAllVisualizationsMenu.py -w"
