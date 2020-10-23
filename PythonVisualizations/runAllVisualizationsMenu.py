@@ -132,7 +132,8 @@ def makeIntro(
     next row of the container.
     '''
     for line in mesg.split('\n'):
-        URLs = [m for m in URL_pattern.finditer(line)]
+        URLs = ([m for m in URL_pattern.finditer(line)] if URLfg and URLfont 
+                else [])
         if URLs:
             URLframe = ttk.Frame(container)
             last = 0
@@ -228,10 +229,12 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     restoreMenu.bind('<Leave>', makeDisarmMenuHandler(restoreMenu, menubutton))
     
     intro = ttk.Frame(top, padding=abs(INTRO_FONT[1])*3)
-    nextline = makeIntro(intro_msg.format(
-        customInstructions=(trinketInstructions if adjustForTrinket else 
-                            desktopInstructions).strip()),
-                         intro)
+    nextline = makeIntro(
+        intro_msg.format(
+            customInstructions=(trinketInstructions if adjustForTrinket else 
+                                desktopInstructions).strip()),
+        intro, URLfg=None if adjustForTrinket else 'blue',
+        URLfont=None if adjustForTrinket else INTRO_FONT + ('italic',) )
     loading = ttk.Label(intro, text='\nLoading ...', 
                         font=INTRO_FONT + ('italic',))
     loading.grid(row=nextline, column=0)
