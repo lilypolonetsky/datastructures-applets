@@ -20,7 +20,7 @@ class SortingBase(VisualizationApp):
     CELL_WIDTH = CELL_SIZE
     changeSize = False 
     
-    def __init__(self, size=10, **kwargs):
+    def __init__(self, title, size=10, **kwargs):
         super().__init__(title=title, **kwargs)
         self.size = size
         self.title = title
