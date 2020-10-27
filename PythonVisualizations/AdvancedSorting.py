@@ -13,7 +13,7 @@ except ModuleNotFoundError:
 
 class AdvancedArraySort(SortingBase):
 
-    def __init__(self, title, size=10, **kwargs):
+    def __init__(self, title="Advanced Sorting", size=10, **kwargs):
         super().__init__(title=title, **kwargs)
 
         for i in range(size):
@@ -513,6 +513,6 @@ class AdvancedArraySort(SortingBase):
  
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = AdvancedArraySort("Advanced Sorting")
+    array = AdvancedArraySort()
 
     array.runVisualization()

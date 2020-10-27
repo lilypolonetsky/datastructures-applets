@@ -20,10 +20,9 @@ class SortingBase(VisualizationApp):
     CELL_WIDTH = CELL_SIZE
     changeSize = False 
     
-    def __init__(self, title, size=10, **kwargs):
-        super().__init__(title=title, **kwargs)
+    def __init__(self, size=10, **kwargs):
+        super().__init__(**kwargs)
         self.size = size
-        self.title = title
         self.list = []  # Internal array of drawable cell values
         
         self.display()
