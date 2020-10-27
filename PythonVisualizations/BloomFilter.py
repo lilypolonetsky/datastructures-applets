@@ -304,12 +304,13 @@ class BloomFilter(HashBase):
 
         if entered_text.isspace():
             self.setMessage("Key contains only whitespace")
+            return
         
         if entered_text:
+            for i in [1, 2]:
+                self.clearArgument(i)
             self.insert(str(entered_text))
-        self.setMessage('{} inserted'.format(repr(entered_text)))
-        for i in [1, 2]:
-            self.clearArgument(i)
+            self.setMessage('{} inserted'.format(repr(entered_text)))
 
     def clickNew(self):
         self.determine_max_bits()
