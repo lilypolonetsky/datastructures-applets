@@ -3,8 +3,8 @@ __doc__ = """
 Program to show algorithm visualizations in a nested tabbed Tk notebook.
 """
 
-from PythonVisualizations import runAllVisualizations
+from PythonVisualizations import runAllVisualizationsMenu
 
 if __name__ == '__main__':
-    runAllVisualizations.showVisualizations(
-        runAllVisualizations.findVisualizations('./PythonVisualizations'))
+    runAllVisualizationsMenu.showVisualizations(
+        runAllVisualizationsMenu.findVisualizations(['PythonVisualizations']))
