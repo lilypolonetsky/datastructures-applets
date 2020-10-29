@@ -13,6 +13,7 @@ order in a folder called 'Other'.
 """
 
 import argparse, sys, re, webbrowser, os, glob
+from importlib import *
 from tkinter import *
 from tkinter import ttk
 
@@ -39,6 +40,8 @@ PREFERRED_ARRANGEMENT = [
     ['Chapter 16', ['BloomFilter', 'SkipList']],
     ]
 
+pathsep = re.compile(r'[/\\]')
+
 def findVisualizations(filesAndDirectories, verbose=0):
     classes = set()
     for fileOrDir in filesAndDirectories:
@@ -51,10 +54,18 @@ def findVisualizations(filesAndDirectories, verbose=0):
                    fileOrDir]
         for filename in [f for f in files 
                          if isStringInFile('runVisualization()', f)]:
+            dirs = pathsep.split(os.path.normpath(os.path.dirname(filename)))
+            if dirs and dirs[0] == '.':
+                dirs.pop(0)
             modulename, ext = os.path.splitext(os.path.basename(filename))
             if modulename:
                 try:
-                    module = __import__(modulename, globals(), locals(), [], 0)
+                    fullmodulename = '.'.join(dirs + [modulename])
+                    module = import_module(fullmodulename)
+                    if verbose > 1:
+                        print('Imported {} and looking for VisualizationApp'
+                              .format(fullmodulename),
+                              file=sys.stderr)
                     classes |= set(findVisualizationClasses(
                         module, verbose=verbose))
                 except ModuleNotFoundError:
@@ -135,7 +146,7 @@ def makeIntro(
         URLs = ([m for m in URL_pattern.finditer(line)] if URLfg and URLfont 
                 else [])
         if URLs:
-            URLframe = ttk.Frame(container)
+            URLframe = ttk.Frame(container, cursor='hand2')
             last = 0
             col = 0
             for match in URLs:
@@ -234,7 +245,7 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
             customInstructions=(trinketInstructions if adjustForTrinket else 
                                 desktopInstructions).strip()),
         intro, URLfg=None if adjustForTrinket else 'blue',
-        URLfont=None if adjustForTrinket else INTRO_FONT + ('italic',) )
+        URLfont=None if adjustForTrinket else INTRO_FONT + ('underline',) )
     loading = ttk.Label(intro, text='\nLoading ...', 
                         font=INTRO_FONT + ('italic',))
     loading.grid(row=nextline, column=0)
