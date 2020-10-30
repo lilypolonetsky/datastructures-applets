@@ -234,9 +234,11 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
                 notebook.select(folder)
                 group.select(pane)
     loading.destroy()
+    nPadding = notebookStyle.configure('TNotebook').get('padding', [0] * 4)
+    iPadding = intro.config('padding')[-1][0]
+    iPadding = int(iPadding if isinstance(iPadding, str) else iPadding.string)
     intro.bind('<Configure>', 
-               resizeIntro(intro, 
-                           notebookStyle.configure('TNotebook')['padding']))
+               resizeIntro(intro, nPadding[0] + nPadding[2] + iPadding))
     top.mainloop()
 
 def resizeIntro(intro, padding):
@@ -246,9 +248,7 @@ def resizeIntro(intro, padding):
         #       ' padding =', intro.config('padding')[-1], 
         #       ' column 0 configuration =', intro.columnconfigure(0))
         # print('Notebook padding', padding)
-        newsize = (
-            intro.winfo_width() - padding[0] - padding[2] -
-            int(intro.config('padding')[-1][0].string))
+        newsize = intro.winfo_width() - padding
         # print('Desired column minsize', newsize)
         newsize = min(780, newsize)
         # print('Set column minsize to', newsize)
