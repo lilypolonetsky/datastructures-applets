@@ -277,6 +277,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.files is None or args.files == []:
-        args.files = [os.path.dirname(sys.argv[0]) or os.getcwd()]
+        args.files = [os.path.dirname(sys.argv[0]) or
+                      os.path.relpath(os.getcwd())]
     showVisualizations(findVisualizations(args.files, args.verbose),
                        start=args.start, title=args.title, verbose=args.verbose)
