@@ -9,7 +9,8 @@ order for the modules (by class name) controls the order of the
 recognized modules.  The rest are added in alphabetical order. 
 """
 
-import argparse, sys, re, webbrowser, os, subprocess, glob
+import argparse, sys, re, webbrowser, os, glob
+from importlib import *
 from tkinter import *
 from tkinter import ttk
 
@@ -31,6 +32,8 @@ PREFERRED_ARRANGEMENT = [
       'Graph', 'WeightedGraph', 'BloomFilter', 'SkipList']],
     ]
 
+pathsep = re.compile(r'[/\\]')
+
 def findVisualizations(filesAndDirectories, verbose=0):
     classes = set()
     for fileOrDir in filesAndDirectories:
@@ -39,15 +42,22 @@ def findVisualizations(filesAndDirectories, verbose=0):
             print('Looking for "runVisualization()" in',
                   'python files in {}'.format(fileOrDir) if isDir else isDir,
                   file=sys.stderr)
-        cmd = ['fgrep', '-sl', 'runVisualization()'] + (
-               glob.glob(os.path.join(fileOrDir, '*.py')) if isDir else [
-                   fileOrDir])
-        out, err = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()
-        for filename in out.decode().split('\n'):
+        files = glob.glob(os.path.join(fileOrDir, '*.py')) if isDir else [
+                   fileOrDir]
+        for filename in [f for f in files 
+                         if isStringInFile('runVisualization()', f)]:
+            dirs = pathsep.split(os.path.normpath(os.path.dirname(filename)))
+            if dirs and dirs[0] == '.':
+                dirs.pop(0)
             modulename, ext = os.path.splitext(os.path.basename(filename))
             if modulename:
                 try:
-                    module = __import__(modulename, globals(), locals(), [], 0)
+                    fullmodulename = '.'.join(dirs + [modulename])
+                    module = import_module(fullmodulename)
+                    if verbose > 1:
+                        print('Imported {} and looking for VisualizationApp'
+                              .format(fullmodulename),
+                              file=sys.stderr)
                     classes |= set(findVisualizationClasses(
                         module, verbose=verbose))
                 except ModuleNotFoundError:
@@ -55,6 +65,10 @@ def findVisualizations(filesAndDirectories, verbose=0):
                         print('Unable to import module', modulename,
                               file=sys.stderr)
     return classes
+    
+def isStringInFile(text, filename):
+    with open(filename, 'r') as f:
+        return text in f.read()
             
 def findVisualizationClasses(module, verbose=0):
     classes = []
@@ -82,63 +96,98 @@ intro_msg = """
 Welcome to the algorithm visualizations for the book:
 Data Structures and Algorithms in Python
 
-Please use these visualization tools along with the
-book to improve your understanding of how computers
-organize and manipulate data efficiently.
+Please use these visualization tools along with the book to improve
+your understanding of how computers organize and manipulate data
+efficiently.
 
-Select tabs at the top to see the different data structures.
-
+{customInstructions}
 
 Exceptional students in the Computer Science Department of
 Stern College at Yeshiva University developed these visualizations.
 https://www.yu.edu/stern/ug/computer-science
 """
 
+desktopInstructions = '''
+Select a chapter and a visualization from the tabs at the top to see the
+different data structures.
+'''
+
+trinketInstructions = '''
+Select a chapter and a visualization from the tabs at the top to see the
+different data structures.  If you are viewing this in a browser on a
+touch screen device, you may not be allowed to click on text entry
+boxes and use the soft keyboard to enter values.
+'''
+
 def openURL(URL):         # Make a callback function to open an URL
     return lambda e: webbrowser.open(URL)
 
+def makeIntro(
+        mesg, container, font=INTRO_FONT, URLfg='blue', 
+        URLfont=INTRO_FONT + ('underline',), row=0, column=0):
+    '''Make introduction screen as a sequence of labels for each line of a
+    a message.  The labels are stacked, centered inside a container
+    widget.  URLs are converted to a label within a frame that has a
+    binding to open the URL.
+    Increment row for each line added and return the grid row for the
+    next row of the container.
+    '''
+    for line in mesg.split('\n'):
+        URLs = ([m for m in URL_pattern.finditer(line)] if URLfg and URLfont 
+                else [])
+        if URLs:
+            URLframe = ttk.Frame(container, cursor='hand2')
+            last = 0
+            col = 0
+            for match in URLs:
+                if match.start() > last:
+                    label = ttk.Label(URLframe, text=line[last:match.start()],
+                                      font=font)
+                    label.grid(row=0, column=col)
+                    col += 1
+                link = ttk.Label(
+                    URLframe, text=match.group(), font=URLfont,
+                    foreground=URLfg)
+                link.grid(row=0, column=col)
+                col += 1
+                link.bind('<Button-1>', openURL(match.group()))
+                last = match.end()
+            if last < len(line):
+                label = ttk.Label(URLframe, text=line[last:], 
+                                  font=font)
+                label.grid(row=0, column=col)
+                col += 1
+            URLframe.grid(row=row, column=column)
+        else:
+            label = ttk.Label(container, text=line, font=font)
+            label.grid(row=row, column=column)
+        row += 1
+    return row
+
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
-        classes, start=None, title="Algorithm Visualizations", verbose=0):
+        classes, start=None, title="Algorithm Visualizations", 
+        adjustForTrinket=False, verbose=0):
     if len(classes) == 0:
         print('No matching classes to visualize', file=sys.stderr)
         return
     top = Tk()
     top.title(title)
-    ttk.Style().configure("TNotebook.Tab", font=TAB_FONT,
-                          padding=[12, abs(TAB_FONT[1]) * 5 // 8, 12, 2])
-    ttk.Style().configure(
-        'TFrame', bg=getattr(VisualizationApp, 'DEFAULT_BG', 'white'))
-
     notebook = ttk.Notebook(top)
-    intro = ttk.Frame(notebook)
-    for line in intro_msg.split('\n'):
-        URLs = [m for m in URL_pattern.finditer(line)]
-        if URLs:
-            frame = ttk.Frame(intro)
-            last = 0
-            for match in URLs:
-                if match.start() > last:
-                    ttk.Label(frame, text=line[last:match.start()],
-                              font=INTRO_FONT).pack(side=LEFT)
-                link = ttk.Label(
-                    frame, text=match.group(), font=INTRO_FONT + ('underline',),
-                    foreground="blue")
-                link.pack(side=LEFT)
-                link.bind('<Button-1>', openURL(match.group()))
-                last = match.end()
-            if last < len(line):
-                ttk.Label(frame, text=line[last:], 
-                          font=INTRO_FONT).pack(side=LEFT)
-            frame.pack()
-        else:
-            ttk.Label(intro, text=line, font=INTRO_FONT).pack()
+    notebookStyle = ttk.Style(notebook)
+    intro = ttk.Frame(notebook, padding=abs(INTRO_FONT[1])*3)
+    nextline = makeIntro(
+        intro_msg.format(
+            customInstructions=(trinketInstructions if adjustForTrinket else 
+                                desktopInstructions).strip()),
+        intro, URLfg=None if adjustForTrinket else 'blue',
+        URLfont=None if adjustForTrinket else INTRO_FONT + ('underline',) )
     loading = ttk.Label(intro, text='\nLoading ...', 
                         font=INTRO_FONT + ('italic',))
-    loading.pack()
-    notebook.add(intro, state=NORMAL, text='Introduction', padding=8)
+    loading.grid(row=nextline, column=0)
+    notebook.add(intro, state=NORMAL, text='Introduction')
     notebook.pack(expand=True, fill=BOTH)
     notebook.wait_visibility(top)
-
+               
     classes_dict = dict((app.__name__, app) for app in classes)
     ordered_classes = [
         classes_dict[app] for folder, apps in PREFERRED_ARRANGEMENT
@@ -185,7 +234,26 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
                 notebook.select(folder)
                 group.select(pane)
     loading.destroy()
+    intro.bind('<Configure>', 
+               resizeIntro(intro, 
+                           notebookStyle.configure('TNotebook')['padding']))
     top.mainloop()
+
+def resizeIntro(intro, padding):
+    def handler(event):
+        # print('Widget', event.widget, 'width =', event.widget.winfo_width())
+        # print('Intro widget width =', intro.winfo_width(),
+        #       ' padding =', intro.config('padding')[-1], 
+        #       ' column 0 configuration =', intro.columnconfigure(0))
+        # print('Notebook padding', padding)
+        newsize = (
+            intro.winfo_width() - padding[0] - padding[2] -
+            int(intro.config('padding')[-1][0].string))
+        # print('Desired column minsize', newsize)
+        newsize = min(780, newsize)
+        # print('Set column minsize to', newsize)
+        intro.columnconfigure(0, minsize=newsize)
+    return handler
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -198,7 +266,7 @@ if __name__ == '__main__':
         'is stored.')
     parser.add_argument(
         '-s', '--start', 
-        help='Starting tab.  '
+        help='Starting visualization.  '
         'Should match one of the visualization module titles or class name.')
     parser.add_argument(
         '-t', '--title',  default='Algorithm Visualizations',
