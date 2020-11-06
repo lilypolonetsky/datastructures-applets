@@ -116,9 +116,26 @@ class SortingBase(VisualizationApp):
                 x + 2, y0, text=name, anchor=SW if level > 0 else NW,
                 font=self.VARIABLE_FONT, fill=color)
         return (arrow, label) if name else (arrow,)  
- 
 
     # ARRAY FUNCTIONALITY
+    def new(self, val, maxCells=100):
+        if val > maxCells:
+            self.setMessage('Too many cells; must be {} or less}'.format(
+                maxCells))
+            return
+        elif val < 1:
+            self.setMessage('Too few cells; must be 1 or more')
+            return
+            
+        self.size = val
+        self.list = []
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        self.changeSize = (self.size + 2) * self.CELL_SIZE > canvasDimensions[0]
+        self.CELL_WIDTH = 20 if self.changeSize else self.CELL_SIZE
+        self.display()
+        
+        return True
+
     def insert(self, val):
         self.startAnimations()
         callEnviron = self.createCallEnvironment()

@@ -89,38 +89,6 @@ class AdvancedArraySort(SortingBase):
         # Animation stops
         self.cleanUp(callEnviron)
         return None
-
-    
-    def new(self, val):
-        # if changeSize is equal to False
-        if self.changeSize:
-            # set CELL_WIDTH to be equal to CELL_SIZE
-            self.CELL_WIDTH = self.CELL_SIZE
-            # keep changeSize equal to False
-            self.changeSize = False
-        # if there is no room on the canvas  
-        if self.window.winfo_width() <= self.ARRAY_X0 + (val+1) * self.CELL_WIDTH:
-            # change the cell width
-            self.CELL_WIDTH = 20
-            # changeSize is set to True 
-            self.changeSize = True
-            # even when the cell width is smaller, return False if there is no room on the canvas 
-            if self.window.winfo_width() <= self.ARRAY_X0 + (val+1) * self.CELL_WIDTH:
-                return False
-            
-        callEnviron = self.createCallEnvironment()                
-        # Clear Array and reset size and list
-        self.canvas.delete("all")
-        self.size = val
-        self.list = []        
-        
-        for i in range(val):  # Draw new grid of cells
-            self.createArrayCell(i) 
-        
-        self.window.update()
-        self.cleanUp(callEnviron)
-        # return True upon success 
-        return True
         
     def randomFill(self):
         callEnviron = self.createCallEnvironment()        
@@ -486,17 +454,10 @@ class AdvancedArraySort(SortingBase):
         
     def clickNew(self):
         val = self.validArgument()
-        if val == 0:
-            self.setMessage("This array size is too small")      
-        else:
-            # Capture what was returned by new() for the given val (if val is valid), 
-            # otherwise set created to False
-            created = self.new(val) if val is not None else False
-            # If created is False, error message (either because val is not valid
-            # or even with the smaller width cells the array won't fit on canvas)
-            if not created:
-                self.setMessage("This array size is too big to display")   
-        self.clearArgument()        
+        # Capture what was returned by new() for the given val 
+        created = self.new(val) if val is not None else False
+        if created:
+            self.clearArgument()        
     
     def clickDelete(self):
         val = self.validArgument()
