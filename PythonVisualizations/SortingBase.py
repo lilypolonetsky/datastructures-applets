@@ -37,14 +37,15 @@ class SortingBase(VisualizationApp):
         toItem = self.list[toIndex]
 
         # get positions of "to" cell in array
-        toPositions = (self.cellCoords(toIndex), self.cellCenter(toIndex))
-            
-        
+        toPositions = (self.fillCoords(fromItem.val, self.cellCoords(toIndex)),
+                       self.cellCenter(toIndex))
+                
         # create new display objects as copies of the "from" cell and value
         newCell = self.copyCanvasItem(fromItem.display_shape)
-        if not self.changeSize: newCellVal = self.copyCanvasItem(fromItem.display_val)
-        
-        items = (newCell, newCellVal) if not self.changeSize else (newCell,)
+        items = (newCell,)
+        if fromItem.display_val:
+            newCellVal = self.copyCanvasItem(fromItem.display_val)
+            items += (newCellVal,)
         callEnviron |= set(items)
 
         # Move copies to the desired location
@@ -56,13 +57,12 @@ class SortingBase(VisualizationApp):
         self.canvas.delete(self.list[toIndex].display_shape)
 
         # update value and display value in "to" position in the list
-        self.list[toIndex].display_val = newCellVal if not self.changeSize else None
-        self.list[toIndex].val = self.list[fromIndex].val
-        self.list[toIndex].display_shape = newCell
-        self.list[toIndex].color = self.list[fromIndex].color
+        toItem.val = fromItem.val
+        toItem.color = fromItem.color
+        toItem.display_shape = items[0]
+        toItem.display_val = items[1] if len(items) > 1 else None
         
-        callEnviron.remove(newCell)
-        if not self.changeSize: callEnviron.remove(newCellVal)
+        callEnviron -= set(items)
         
         # update the window
         self.window.update()  
@@ -202,6 +202,78 @@ class SortingBase(VisualizationApp):
         self.display()         
         self.cleanUp(callEnviron)      
         
+    def delete(self, val):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment()
+
+        # draw an index for variable j pointing to the first cell
+        indexDisplay = self.createIndex(0, 'j')
+        callEnviron |= set(indexDisplay)
+        
+        # go through each Drawable in the list
+        # look for val to be deleted
+        for j in range(len(self.list)):
+            n = self.list[j]
+
+            self.wait(0.1)
+            
+            if n.val == val:
+                # get the position of the displayed cell
+                cellShape = self.cellCoords(j)
+
+                # Highlight the found element with a circle
+                foundCircle = self.canvas.create_oval(
+                    *add_vector(
+                        cellShape,
+                        multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
+                    outline=self.FOUND_COLOR)
+                callEnviron.add(foundCircle)
+
+                # update the display
+                self.wait(0.3)
+
+                # remove the found circle
+                callEnviron.remove(foundCircle)
+                self.canvas.delete(foundCircle)
+
+                # Slide value rectangle up and off screen
+                items = (n.display_shape, n.display_val) if not self.changeSize else (n.display_shape,)
+                self.moveItemsOffCanvas(items, N, sleepTime=0.02)
+
+                #move nItems pointer
+                self.moveItemsBy(self.nItems, (-self.CELL_WIDTH, 0),
+                                 sleepTime=0.01)
+
+                # Create an index for shifting the cells
+                kIndex = self.createIndex(j, 'k')
+                callEnviron |= set(kIndex)
+            
+                # Slide values from right to left to fill gap
+                for k in range(j+1, len(self.list)):
+                    self.assignElement(k, k - 1, callEnviron)
+                    self.moveItemsBy(kIndex, (self.CELL_WIDTH, 0),
+                                     sleepTime=0.01)
+                    self.wait(0.1)
+
+                # remove the last item in the list
+                n = self.list.pop()
+                # delete the associated display objects
+                self.canvas.delete(n.display_shape)
+                self.canvas.delete(n.display_val)
+                
+                # update window
+                self.wait(0.3)
+
+                self.cleanUp(callEnviron)
+                return True
+
+            # if not found, then move the index over one cell
+            self.moveItemsBy(indexDisplay, (self.CELL_WIDTH, 0), sleepTime=0.01)
+
+        # Animation stops
+        self.cleanUp(callEnviron)
+        return None
+
     def removeFromEnd(self):
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
@@ -288,11 +360,11 @@ class SortingBase(VisualizationApp):
         return cell_rect, cell_val
     
     # get the whole box coords and return how much will get filled 
-    def fillCoords(self, val, rectPos): 
+    def fillCoords(self, val, rectPos, valMin=0, valMax=99): 
         x1, y1, x2, y2 = rectPos 
         midY = (y1 + y2) // 2
         # proportion of what is filled
-        prop = val / 99
+        prop = (val - valMin) / (valMax - valMin)
         y2 = round(midY + prop * (y2-midY))
         
         return (x1, y1, x2, y2)

@@ -21,79 +21,6 @@ class AdvancedArraySort(SortingBase):
         
         self.buttons = self.makeButtons() 
     
-    # ARRAY FUNCTIONALITY     
-    def delete(self, val):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment()
-
-        # draw an index for variable j pointing to the first cell
-        indexDisplay = self.createIndex(0, 'j')
-        callEnviron |= set(indexDisplay)
-        
-        # go through each Drawable in the list
-        # look for val to be deleted
-        for i in range(len(self.list)):
-            n = self.list[i]
-
-            if n.val == val:
-                # get the position of the displayed cell
-                cellShape = self.cellCoords(i)
-
-                # Highlight the found element with a circle
-                foundCircle = self.canvas.create_oval(
-                    *add_vector(
-                        cellShape,
-                        multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
-                    outline=self.FOUND_COLOR)
-                callEnviron.add(foundCircle)
-
-                # update the display
-                self.wait(0.3)
-
-                # remove the found circle
-                callEnviron.remove(foundCircle)
-                self.canvas.delete(foundCircle)
-
-                # Slide value rectangle up and off screen
-                items = (n.display_shape, n.display_val) if not self.changeSize else (n.display_shape,)
-                self.moveItemsOffCanvas(items, N, sleepTime=0.02)
-
-                #move nItems pointer
-                self.moveItemsBy(self.nItems, (-self.CELL_WIDTH, 0),
-                                 sleepTime=0.01)
-
-                # Create an index for shifting the cells
-                kIndex = self.createIndex(i, 'k')
-                callEnviron |= set(kIndex)
-            
-                # Slide values from right to left to fill gap
-                for j in range(i+1, len(self.list)):
-                    self.assignElement(j, j - 1, callEnviron)
-                    self.fixCells() # retain the correct shape
-                    self.moveItemsBy(kIndex, (self.CELL_WIDTH, 0), sleepTime=0.01)
-                    self.wait(0.1)
-
-                # remove the last item in the list
-                n = self.list.pop()
-                # delete the associated display objects
-                self.canvas.delete(n.display_shape)
-                self.canvas.delete(n.display_val)
-                
-                # update window
-                self.wait(0.3)
-
-                self.cleanUp(callEnviron)
-                return True
-
-            # if not found, then move the index over one cell
-            self.moveItemsBy(indexDisplay, (self.CELL_WIDTH, 0), sleepTime=0.01)
-            if self.wait(0.1):
-                break
-
-        # Animation stops
-        self.cleanUp(callEnviron)
-        return None
-        
     # SORTING METHODS 
     def split(self, index, start=0, end=-1):
         global running
@@ -381,10 +308,8 @@ class AdvancedArraySort(SortingBase):
             self.setMessage("Input value must be an integer from 0 to 99")
         else:
             result = self.delete(val)
-            if result:
-                msg = "Value {} deleted".format(val)
-            else:
-                msg = "Value {} not found".format(val)
+            msg = "Value {} {}".format(
+                val, "deleted" if result else "not found")
             self.setMessage(msg)
         self.clearArgument()    
  
