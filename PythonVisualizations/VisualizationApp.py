@@ -679,11 +679,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
         # move the items in steps along vector
         moveBy = divide_vector(delta, steps)
-        if len(moveBy) == 2:
-            for step in range(steps):
-                for item in items:
-                    self.canvas.move(item, *moveBy)
-                yield (step, steps) # Yield step in sequence
+        for step in range(steps):
+            for item in items:
+                self.canvas.move(item, *moveBy)
+            yield (step, steps) # Yield step in sequence
 
     def moveItemsTo(         # Animate canvas items moving rigidly 
             self, items,     # to destination locations along line(s)
