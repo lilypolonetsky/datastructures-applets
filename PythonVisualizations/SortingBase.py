@@ -101,7 +101,7 @@ class SortingBase(VisualizationApp):
 
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
-        level_spacing = self.VARIABLE_FONT[1]
+        level_spacing = abs(self.VARIABLE_FONT[1])
         x = cell_center[0]
         if level > 0:
             y0 = cell_coords[1] - self.CELL_SIZE * 3 // 5 - level * level_spacing
@@ -283,7 +283,7 @@ class SortingBase(VisualizationApp):
                 i, n.val, n.color)
             if self.changeSize:
                 self.canvas.delete(n.display_val)
-            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
+            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
     
         self.window.update()
         
@@ -368,8 +368,12 @@ class SortingBase(VisualizationApp):
     
     def fixCells(self):  # Move canvas display items to exact cell coords
         for i, drawItem in enumerate(self.list):
-            self.canvas.coords(drawItem.display_shape, *self.fillCoords(drawItem.val, self.cellCoords(i)))
-            if not self.changeSize: self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
+            if drawItem.display_shape:
+                self.canvas.coords(
+                    drawItem.display_shape,
+                    *self.fillCoords(drawItem.val, self.cellCoords(i)))
+            if not self.changeSize and drawItem.display_val:
+                self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
         
         self.window.update()
         
