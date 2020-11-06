@@ -37,12 +37,12 @@ class AdvancedArraySort(SortingBase):
 
             if n.val == val:
                 # get the position of the displayed cell
-                posShape = self.canvas.coords(n.display_shape)
+                cellShape = self.cellCoords(i)
 
                 # Highlight the found element with a circle
                 foundCircle = self.canvas.create_oval(
                     *add_vector(
-                        posShape,
+                        cellShape,
                         multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
                     outline=self.FOUND_COLOR)
                 callEnviron.add(foundCircle)
