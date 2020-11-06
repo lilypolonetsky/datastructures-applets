@@ -90,31 +90,7 @@ class AdvancedArraySort(SortingBase):
         self.cleanUp(callEnviron)
         return None
         
-    def randomFill(self):
-        callEnviron = self.createCallEnvironment()        
-        # Clear the list so new values can be entered
-        self.list=[] 
-        size = self.size
-        
-        # Create a list of random numbers and sort them
-        a = [random.randrange(90) for i in range(size)]
-        
-        # Append and draw them to the list and draw them
-        for i in a:
-            self.list.append(drawable(i))
-        
-        self.display()         
-        self.cleanUp(callEnviron)      
-        
-        
     # SORTING METHODS 
-    '''
-    def isSorted(self):
-        for i in range(1, len(self.list)):
-            if self.list[i] < self.list[i-1]:
-                return False
-        return True    
-        
     def split(self, index, start=0, end=-1):
         global running
         if end == -1: end = len(self.list) - 1
@@ -230,8 +206,8 @@ class AdvancedArraySort(SortingBase):
             if not running:
                 self.stopMergeSort()
                 return
-            
-    def fixGaps(self, toX=ARRAY_X0, toY=ARRAY_Y0):
+
+    def fixGaps(self, toX=SortingBase.ARRAY_X0, toY=SortingBase.ARRAY_Y0):
         done = [False] * len(self.list)
         doneCount = 0
         while doneCount < len(self.list):
@@ -262,71 +238,7 @@ class AdvancedArraySort(SortingBase):
                         doneCount += 1
                         done[i] = True
             window.update()    
-            
-     def bogoSort(self):
-        global running
-        running = True
-        while not self.isSorted() and running:
-            time.sleep(self.speed(1)) # pauses in between shuffles to show that checking if its sorted
-            self.shuffle()
-     def countingSortOnDigit(self, d):
-        ans = [0] * len(self.list)  # the sorted numbers will go here
-        counts = [0] * 10  # the counts are accumulated here
-        a = self.list[:]
-        someRemaining = False
-        tenPower = 10 ** d
-        length = len(self.list)
-        for i in range(length):
-            temp = a[i].val // tenPower
-            if temp > 0: someRemaining = True
-            counts[temp % 10] += 1
-        if someRemaining == False: return False
-        # counts[j] now contains the number of values
-        # in Array whose d'th digit is == j
-        # convert the counts into cumulative counts:
-        for j in range(1, len(counts)): counts[j] += counts[j - 1]
-        # counts[j] now contains the number of values
-        # in arr whose d'th digit is <= to j
-        # place the values of arr into the correct slot of the answer array
-        x = canvas.coords(self.list[length-1].display_shape)[0]
-        y0 = canvas.coords(self.list[length-1].display_shape)[1] + CELL_SIZE/2
-        curArrow = canvas.create_line(x, y0, x - CELL_SIZE, y0, arrow="first", fill="red")
-        curTxt = canvas.create_text(x-30, y0-10, text="cur",
-                                     font=('Helvetica', '15'))
-        self.placeHolderArray()
-        for i in range(length - 1, -1, -1):
-            temp = (a[i].val // tenPower) % 10
-            counts[temp] -= 1
-            ans[counts[temp]] = a[i]
-            canvas.move(self.list[i].display_shape, CELL_SIZE*3, (counts[temp]-i) * CELL_SIZE)
-            canvas.move(self.list[i].display_val, CELL_SIZE*3, (counts[temp]-i) * CELL_SIZE)
-            window.update()
-            time.sleep(self.speed(0.8))
-            canvas.move(curArrow, 0, - CELL_SIZE)
-            canvas.move(curTxt, 0, - CELL_SIZE)
-        canvas.delete(curArrow)
-        canvas.delete(curTxt)
-        window.update()
-        self.list = ans
-        return True
-    def radixSort(self):
-        global running
-        # get the y coordinates of the next level down
-        shapeX = canvas.coords(self.list[0].display_shape)[0]
-        valX = canvas.coords(self.list[0].display_val)[0]
-        canvas.config(width=1200, height=600)
-        for i in range(0, len(self.list)):
-            cur = self.list[i]
-            canvas.move(cur.display_shape, -(canvas.coords(cur.display_shape)[0] - shapeX), CELL_SIZE*i - 30)
-            canvas.move(cur.display_val, -(canvas.coords(cur.display_val)[0] - valX), CELL_SIZE*i - 30)
-            window.update()
-            time.sleep(self.speed(0.01))
-        i = 0
-        while self.countingSortOnDigit(i):
-            i += 1
-        canvas.config(width = WIDTH, height = HEIGHT)
-        self.display()
-    '''
+
     def drawPartition(self, left, right):
         bottom = self.canvas.create_line(self.ARRAY_X0 + self.CELL_WIDTH*left, self.ARRAY_Y0 + self.CELL_SIZE + 90,
                            self.ARRAY_X0 + self.CELL_WIDTH*(right+1), self.ARRAY_Y0 + self.CELL_SIZE + 90, fill="red")

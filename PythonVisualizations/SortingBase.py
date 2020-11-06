@@ -194,6 +194,14 @@ class SortingBase(VisualizationApp):
 
         self.cleanUp(callEnviron)     
        
+    def randomFill(self):
+        callEnviron = self.createCallEnvironment()        
+
+        self.list=[drawable(random.randrange(90)) for i in range(self.size)]
+        
+        self.display()         
+        self.cleanUp(callEnviron)      
+        
     def removeFromEnd(self):
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
@@ -215,6 +223,10 @@ class SortingBase(VisualizationApp):
     
         # Finish animation
         self.cleanUp(callEnviron)
+
+    def isSorted(self):
+        return all(self.list[i-1] <= self.list[i] 
+                   for i in range(1, len(self.list)))
         
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
         return (self.ARRAY_X0 + self.CELL_WIDTH * cell_index, self.ARRAY_Y0,  # at index
