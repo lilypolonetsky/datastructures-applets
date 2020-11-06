@@ -91,6 +91,19 @@ class SortingBase(VisualizationApp):
     
         # perform the actual cell swap operation in the list
         self.list[a], self.list[b] = self.list[b], self.list[a]   
+
+    def indexCoords(self, index, level=1):
+        cell_coords = self.cellCoords(index)
+        cell_center = self.cellCenter(index)
+        level_space = abs(self.VARIABLE_FONT[1])
+        x = cell_center[0]
+        if level > 0:
+            y0 = cell_coords[1] - self.CELL_SIZE * 3 // 5 - level * level_space
+            y1 = cell_coords[1] - self.CELL_SIZE * 3 // 10
+        else:
+            y0 = cell_coords[3] + self.CELL_SIZE * 3 // 5 - level * level_space
+            y1 = cell_coords[3] + self.CELL_SIZE * 3 // 10
+        return x, y0, x, y1
         
     def createIndex(  # Create an index arrow to point at an indexed
             self, index,  # cell
@@ -99,21 +112,12 @@ class SortingBase(VisualizationApp):
             color=None):  # (negative are below)
         if not color: color = self.VARIABLE_COLOR
 
-        cell_coords = self.cellCoords(index)
-        cell_center = self.cellCenter(index)
-        level_spacing = abs(self.VARIABLE_FONT[1])
-        x = cell_center[0]
-        if level > 0:
-            y0 = cell_coords[1] - self.CELL_SIZE * 3 // 5 - level * level_spacing
-            y1 = cell_coords[1] - self.CELL_SIZE * 3 // 10
-        else:
-            y0 = cell_coords[3] + self.CELL_SIZE * 3 // 5 - level * level_spacing
-            y1 = cell_coords[3] + self.CELL_SIZE * 3 // 10
+        x0, y0, x1, y1 = self.indexCoords(index, level)
         arrow = self.canvas.create_line(
-            x, y0, x, y1, arrow="last", fill=color)
+            x0, y0, x0, y1, arrow="last", fill=color)
         if name:
             label = self.canvas.create_text(
-                x + 2, y0, text=name, anchor=SW if level > 0 else NW,
+                x0, y0, text=name, anchor=SW if level > 0 else NW,
                 font=self.VARIABLE_FONT, fill=color)
         return (arrow, label) if name else (arrow,)  
 
@@ -159,10 +163,6 @@ class SortingBase(VisualizationApp):
             self.size += 1
             self.createArrayCell(len(self.list))
 
-        # draw an index pointing to the last cell
-        indexDisplay = self.createIndex(len(self.list), 'nItems')
-        callEnviron |= set(indexDisplay)
-
         # create new cell and cell value display objects
         toPositions = (self.fillCoords(val, self.cellCoords(len(self.list))),
                        self.cellCenter(len(self.list)))
@@ -190,7 +190,7 @@ class SortingBase(VisualizationApp):
         callEnviron ^= set(cellPair) # Remove new cell from temp call environment
 
         # advance index for next insert
-        self.moveItemsBy(indexDisplay, (self.CELL_WIDTH, 0), sleepTime=0.01)
+        self.moveItemsBy(self.nItems, (self.CELL_WIDTH, 0), sleepTime=0.01)
 
         self.cleanUp(callEnviron)     
        
@@ -209,6 +209,9 @@ class SortingBase(VisualizationApp):
     
         self.startAnimations()
         callEnviron = self.createCallEnvironment()
+
+        #move nItems pointer
+        self.moveItemsBy(self.nItems, (-self.CELL_WIDTH, 0), sleepTime=0.01)
         
         # pop an Element from the list
         n = self.list.pop()
@@ -304,6 +307,10 @@ class SortingBase(VisualizationApp):
     
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
+
+        # draw an index pointing to the last item in the list
+        self.nItems = self.createIndex(
+            len(self.list), 'nItems', level = -1, color = 'black')
     
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
@@ -403,7 +410,11 @@ class SortingBase(VisualizationApp):
                     *self.fillCoords(drawItem.val, self.cellCoords(i)))
             if not self.changeSize and drawItem.display_val:
                 self.canvas.coords(drawItem.display_val, *self.cellCenter(i))
-        
+        if self.nItems:
+            indexCoords = self.indexCoords(len(self.list), level=-1)
+            for item in self.nItems:
+                nCoords = len(self.canvas.coords(item))
+                self.canvas.coords(item, *indexCoords[:nCoords]) 
         self.window.update()
         
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting

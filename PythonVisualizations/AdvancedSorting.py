@@ -56,7 +56,11 @@ class AdvancedArraySort(SortingBase):
 
                 # Slide value rectangle up and off screen
                 items = (n.display_shape, n.display_val) if not self.changeSize else (n.display_shape,)
-                self.moveItemsOffCanvas(items, N, sleepTime=0.02)                
+                self.moveItemsOffCanvas(items, N, sleepTime=0.02)
+
+                #move nItems pointer
+                self.moveItemsBy(self.nItems, (-self.CELL_WIDTH, 0),
+                                 sleepTime=0.01)
 
                 # Create an index for shifting the cells
                 kIndex = self.createIndex(i, 'k')
