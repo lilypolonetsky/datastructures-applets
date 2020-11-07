@@ -278,41 +278,15 @@ class AdvancedArraySort(SortingBase):
             self.__quickSort(callEnviron, left, partition - 1)
             self.__quickSort(callEnviron, partition + 1, right)    
    
-    def makeButtons(self):
+    def makeButtons(self, maxRows=4):
         # get the common buttons from makeButtons() in SortingBase
-        buttons, vcmd = super().makeButtons()
+        buttons, vcmd = super().makeButtons(maxRows=maxRows)
         quickSortButton = self.addOperation(
-            "Quick Sort", lambda: self.quickSort())
-        randomFillButton = self.addOperation(
-            "Random Fill", lambda: self.randomFill())
-        newButton = self.addOperation(
-            "New", lambda: self.clickNew(), numArguments=1,
-            validationCmd=vcmd)
-        deleteButton = self.addOperation(
-            "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd) 
+            "Quicksort", lambda: self.quickSort(), maxRows=maxRows)
         self.addAnimationButtons()
-        buttons += [quickSortButton, randomFillButton, newButton, deleteButton]
+        buttons += [quickSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
         
-    def clickNew(self):
-        val = self.validArgument()
-        # Capture what was returned by new() for the given val 
-        created = self.new(val) if val is not None else False
-        if created:
-            self.clearArgument()        
-    
-    def clickDelete(self):
-        val = self.validArgument()
-        if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99")
-        else:
-            result = self.delete(val)
-            msg = "Value {} {}".format(
-                val, "deleted" if result else "not found")
-            self.setMessage(msg)
-        self.clearArgument()    
- 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
     array = AdvancedArraySort()

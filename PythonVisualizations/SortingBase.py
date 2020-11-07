@@ -18,11 +18,15 @@ class SortingBase(VisualizationApp):
     FOUND_COLOR = 'brown4'
     nextColor = 0
     CELL_WIDTH = CELL_SIZE
-    changeSize = False 
+    CELL_MIN_WIDTH = 20
     
-    def __init__(self, size=10, **kwargs):
+    def __init__(self, size=10, maxCells=100, valMax=99, **kwargs):
         super().__init__(**kwargs)
         self.size = size
+        self.maxCells = maxCells
+        self.valMax = valMax
+        self.changeSize = False 
+
         self.list = []  # Internal array of drawable cell values
         
         self.display()
@@ -44,8 +48,7 @@ class SortingBase(VisualizationApp):
         newCell = self.copyCanvasItem(fromItem.display_shape)
         items = (newCell,)
         if fromItem.display_val:
-            newCellVal = self.copyCanvasItem(fromItem.display_val)
-            items += (newCellVal,)
+            items += (self.copyCanvasItem(fromItem.display_val),)
         callEnviron |= set(items)
 
         # Move copies to the desired location
@@ -122,9 +125,12 @@ class SortingBase(VisualizationApp):
         return (arrow, label) if name else (arrow,)  
 
     # ARRAY FUNCTIONALITY
-    def new(self, val, maxCells=100):
+    def new(self, val):
+        canvasDims = self.widgetDimensions(self.canvas)
+        maxCells = min(self.maxCells, 
+                       (canvasDims[0] - self.ARRAY_X0) // self.CELL_MIN_WIDTH)
         if val > maxCells:
-            self.setMessage('Too many cells; must be {} or less}'.format(
+            self.setMessage('Too many cells; must be {} or less'.format(
                 maxCells))
             return
         elif val < 1:
@@ -133,66 +139,66 @@ class SortingBase(VisualizationApp):
             
         self.size = val
         self.list = []
-        canvasDimensions = self.widgetDimensions(self.canvas)
-        self.changeSize = (self.size + 2) * self.CELL_SIZE > canvasDimensions[0]
-        self.CELL_WIDTH = 20 if self.changeSize else self.CELL_SIZE
+        self.changeSize = (self.size + 2) * self.CELL_SIZE > canvasDims[0]
+        self.CELL_WIDTH = self.CELL_MIN_WIDTH if self.changeSize else self.CELL_SIZE
         self.display()
         
         return True
 
-    def insert(self, val):
+    def insert(self, val, allowGrowth=False):
+        canvasDims = self.widgetDimensions(self.canvas)
+        # Check if inserted cell will be off of the canvas
+        offCanvas = canvasDims[0] <= self.cellCoords(len(self.list))[2]
+
+        if (len(self.list) >= self.size and not allowGrowth or
+            len(self.list) >= self.maxCells or
+            self.CELL_WIDTH == self.CELL_MIN_WIDTH and offCanvas):
+            self.setMessage('Array is full')
+            return False
+        
         self.startAnimations()
         callEnviron = self.createCallEnvironment()
         
         # Inserting when there is no room on the canvas
-        if self.window.winfo_width() <= self.ARRAY_X0 + (
-            (len(self.list)+1) * self.CELL_SIZE):
-            # change cell width to 20
-            self.CELL_WIDTH = 20
-            # if this is the first insert that will change the width 
-            if not self.changeSize:
-                self.changeSize = True 
-                # redraw the existing cells to be narrower
-                self.fixCells()
-                self.redrawArrayCells()
-                # delete the cell values 
-                self.canvas.delete("cellVal")
+        redraw = False
+        if offCanvas and not self.changeSize:
+            self.changeSize = True 
+            self.CELL_WIDTH = self.CELL_MIN_WIDTH
+            redraw = True
+        if self.size < len(self.list) + 1:
+            self.size = len(self.list) + 1
+            redraw = True
+        if redraw:
+            self.display()
             
-        # If array needs to grow, add cells:
-        while self.size < len(self.list) + 1:
-            self.size += 1
-            self.createArrayCell(len(self.list))
-
         # create new cell and cell value display objects
         toPositions = (self.fillCoords(val, self.cellCoords(len(self.list))),
                        self.cellCenter(len(self.list)))
 
         # Animate arrival of new value from operations panel area
-        canvasDimensions = self.widgetDimensions(self.canvas)
         startPosition = add_vector(
-            [canvasDimensions[0] // 2 - self.CELL_WIDTH, canvasDimensions[1]] * 2,
-            (0, 0) + (self.CELL_WIDTH - self.CELL_BORDER, 2.5*self.CELL_SIZE - self.CELL_BORDER))
+            [canvasDims[0] // 2 - self.CELL_WIDTH, canvasDims[1]] * 2,
+            (0, 0) + (self.CELL_WIDTH - self.CELL_BORDER, 
+                      2.5*self.CELL_SIZE - self.CELL_BORDER))
         
         cellPair = self.createCellValue(startPosition, val)
+
+        if len(cellPair) == 1 or cellPair[1] is None:
+            cellPair, toPositions = cellPair[:1], toPositions[:1]
+
         callEnviron |= set(cellPair)
-        # if it is the smaller size cell
-        if self.changeSize:
-            # remove the generated cell value 
-            self.canvas.delete(cellPair[1])
-            callEnviron.remove(cellPair[1])
-            self.moveItemsTo((cellPair[0],), toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
-        else:
-            self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
+        self.moveItemsTo(cellPair, toPositions, sleepTime=0.01)
 
         # add a new Drawable with the new value, color, and display objects
         self.list.append(drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill'), *cellPair))
+            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
         callEnviron ^= set(cellPair) # Remove new cell from temp call environment
 
-        # advance index for next insert
+        # advance nItems index
         self.moveItemsBy(self.nItems, (self.CELL_WIDTH, 0), sleepTime=0.01)
 
-        self.cleanUp(callEnviron)     
+        self.cleanUp(callEnviron)
+        return True
        
     def randomFill(self):
         callEnviron = self.createCallEnvironment()        
@@ -349,18 +355,23 @@ class SortingBase(VisualizationApp):
       
         newCoords = self.fillCoords(key, rectPos)
     
-        cell_rect = self.canvas.create_rectangle(
-            *newCoords, fill=color, outline='', width=0)
-        cell_val = self.canvas.create_text(
-            *valPos, text=str(key), font=self.VALUE_FONT, fill=self.VALUE_COLOR, tags="cellVal")
+        cell = (self.canvas.create_rectangle(
+            *newCoords, fill=color, outline='', width=0),)
+        valWidth = self.textWidth(self.VALUE_FONT, str(self.valMax))
+        if valWidth < self.CELL_WIDTH:
+            cell += (self.canvas.create_text(
+                *valPos, text=str(key), font=self.VALUE_FONT,
+                fill=self.VALUE_COLOR, tags="cellVal"), )
         handler = lambda e: self.setArgument(str(key))
-        for item in (cell_rect, cell_val):
+        for item in cell:
             self.canvas.tag_bind(item, '<Button>', handler)
 
-        return cell_rect, cell_val
+        return cell if len(cell) == 2 else (cell[0], None)
     
     # get the whole box coords and return how much will get filled 
-    def fillCoords(self, val, rectPos, valMin=0, valMax=99): 
+    def fillCoords(self, val, rectPos, valMin=0, valMax=None):
+        if valMax is None:
+            valMax = self.valMax
         x1, y1, x2, y2 = rectPos 
         midY = (y1 + y2) // 2
         # proportion of what is filled
@@ -387,53 +398,56 @@ class SortingBase(VisualizationApp):
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
             # create display objects for the associated Drawables
-            n.display_shape, n.display_val = self.createCellValue(
-                i, n.val, n.color)
-            if self.changeSize:
-                self.canvas.delete(n.display_val)
+            cell = self.createCellValue(i, n.val, n.color)
+            n.display_shape = cell[0]
+            n.display_val = cell[1] if len(cell) > 1 else None
             n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
     
         self.window.update()
-        
-    def shuffle(self):
+
+    def toTarget(         # Return the 2-D vector between the indexed item's
+            self, index): # current position and its normal position in array
+        return subtract_vector(
+            self.cellCoords(index), 
+            self.canvas.coords(self.list[index].display_shape)[:2])
+    
+    def shuffle(self, steps=20):
         self.startAnimations()
         callEnviron = self.createCallEnvironment()
-    
-        y = self.ARRAY_Y0
-        for i in range(len(self.list)):
-            newI = random.randint(0, len(self.list) - 1)
-            self.list[i], self.list[newI] = self.list[newI], self.list[i]
-    
-        times = 0
-    
-        # Scramble positions
-        canvasDimensions = self.widgetDimensions(self.canvas)
-        DX = self.CELL_SIZE * 3 / 5
-        DY = DX
-        while times < len(self.list) * 2:
-            down = max(0, 5 - times) * self.CELL_SIZE // 5
-            for i in range(len(self.list)):
-                if self.wait(0.01):
-                    break
-                bBox = self.canvas.coords(self.list[i].display_shape)
-                shuffleY = random.randint(
-                    max(down - DY, -bBox[1]),
-                    min(down + DY, canvasDimensions[1] - bBox[3]))
-                shuffleX = random.randint(
-                    max(-DX, -bBox[0]), min(DX, canvasDimensions[0] - bBox[2]))
-                items = (self.list[i].display_shape, self.list[i].display_val) if not self.changeSize else (self.list[i].display_shape,)
-                self.moveItemsBy(
-                    (self.list[i].display_shape, self.list[i].display_val),
-                    (shuffleX, shuffleY),
-                    steps=1, sleepTime=0)
-            times += 1
-            if self.wait(0.01):
-                break
-            self.window.update()
-    
-        # Animate return of values to their array cells
-        self.stopMergeSort()
-    
+
+        nItems = len(self.list)    
+        random.shuffle(self.list)  # Randomly move items internally in array
+
+        coords0 = self.cellCoords(0) # Get the height of a cell
+        canvasDims = self.widgetDimensions(self.canvas)
+        height = int(coords0[3] - coords0[1])
+        vSpace = canvasDims[1] - coords0[3]
+        
+        velocity = [ # Initial velocity is mostly down and towards destination
+            (random.randint(int(dx / 3) - 1, 1) if dx < 0 else
+             random.randint(-1, int(dx / 3) + 1),
+             random.randint(int(height * 1 / 5), (height + vSpace) // 3))
+            for dx, dy in [self.toTarget(i) for i in range(nItems)]]
+        
+        for step in range(steps):
+            stepsToGo = steps - step
+            jitter = max(1, int(stepsToGo * 2 / 3))
+            half = max(1, jitter // 2)
+            for i in range(nItems):
+                for item in self.list[i][2:]: # Get drawable shape and val
+                    if item:       # If not None, move it by velocity
+                        self.canvas.move(item, *velocity[i])
+                velocity[i] = add_vector(  # Change velocity to move towards
+                    add_vector(            # target location
+                        multiply_vector(velocity[i], 0.8), 
+                        divide_vector(self.toTarget(i), stepsToGo)),
+                    (random.randint(-jitter, jitter), # Add some random jitter
+                     random.randint(-half, half)))
+            self.wait(0.05)
+
+        # Ensure all items get to new positions
+        self.fixCells()
+
         # Animation stops
         self.cleanUp(callEnviron)
         
@@ -493,40 +507,65 @@ class SortingBase(VisualizationApp):
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
         self.fixCells() 
         
-    def makeButtons(self):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle()) 
-        deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.removeFromEnd())
+        newButton = self.addOperation(
+            "New", lambda: self.clickNew(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows)
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd)
-        buttons = [shuffleButton, deleteRightmostButton, insertButton]
+            validationCmd=vcmd, maxRows=maxRows)
+        deleteButton = self.addOperation(
+            "Delete", lambda: self.clickDelete(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows)
+        randomFillButton = self.addOperation(
+            "Random Fill", lambda: self.randomFill(), maxRows=maxRows)
+        shuffleButton = self.addOperation(
+            "Shuffle", lambda: self.shuffle(), maxRows=maxRows) 
+        deleteRightmostButton = self.addOperation(
+            "Delete Rightmost", lambda: self.removeFromEnd(), maxRows=maxRows)
+        buttons = [newButton, insertButton, deleteButton,
+                   randomFillButton, shuffleButton, deleteRightmostButton]
         return buttons, vcmd  # Buttons managed by play/pause/stop controls    
     
-    def validArgument(self):
+    def validArgument(self, valMax=None):
         entered_text = self.getArgument()
         if entered_text and entered_text.isdigit():
             val = int(entered_text)
-            if val < 100:
+            if valMax is None:
+                valMax = self.valMax
+            if val < valMax:
                 return val
     
     # Button functions
     def clickInsert(self):
-        # if the animation is not stopped (it is running or paused):
-        if self.animationState != self.STOPPED:
-            # error message appears and insert will not take place
-            self.setMessage("Unable to insert at the moment")  
-        else:
-            val = self.validArgument()
-            if val is None:
-                self.setMessage("Input value must be an integer from 0 to 99")
-            else:
-                self.insert(val)
-                self.setMessage("Value {} inserted".format(val))
-            
-        self.clearArgument() 
+        val = self.validArgument()
+        if val is None:
+            self.setMessage(
+                "Input value must be an integer from 0 to {}".format(
+                    self.valMax))
+        elif self.insert(val, allowGrowth=True):
+            self.setMessage("Value {} inserted".format(val))
+            self.clearArgument() 
      
+    def clickDelete(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage("Input value must be an integer from 0 to 99")
+        else:
+            result = self.delete(val)
+            msg = "Value {} {}".format(
+                val, "deleted" if result else "not found")
+            self.setMessage(msg)
+        self.clearArgument()    
 
+    def clickNew(self):
+        val = self.validArgument(valMax=1000)
+        if val is None:
+            self.setMessage('Invalid array size')
+            self.clearArgument()
+            return
+        # If new succeeds, clear the argument
+        if self.new(val):
+            self.clearArgument()
