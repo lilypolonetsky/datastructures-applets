@@ -278,12 +278,12 @@ class AdvancedArraySort(SortingBase):
             self.__quickSort(callEnviron, left, partition - 1)
             self.__quickSort(callEnviron, partition + 1, right)    
    
-    def makeButtons(self, maxRows=4):
+    def makeButtons(self, maxRows=3):
         # get the common buttons from makeButtons() in SortingBase
         buttons, vcmd = super().makeButtons(maxRows=maxRows)
         quickSortButton = self.addOperation(
             "Quicksort", lambda: self.quickSort(), maxRows=maxRows)
-        self.addAnimationButtons()
+        self.addAnimationButtons(maxRows=maxRows)
         buttons += [quickSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
         

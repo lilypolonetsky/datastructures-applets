@@ -311,14 +311,14 @@ class VisualizationApp(object):  # Base class for Python visualizations
             setattr(widget, 'timeout_ID', None)
         return handler
 
-    def addAnimationButtons(self):
+    def addAnimationButtons(self, maxRows=4):
         self.pauseButton = self.addOperation(
             "Pause", lambda: self.onClick(self.pause, self.pauseButton),
-            cleanUpBefore=False)
+            cleanUpBefore=False, maxRows=maxRows)
         self.pauseButton['state'] = DISABLED
         self.stopButton = self.addOperation(
             "Stop", lambda: self.onClick(self.stop, self.pauseButton),
-            cleanUpBefore=False)
+            cleanUpBefore=False, maxRows=maxRows)
         self.stopButton['state'] = DISABLED
         
     def runOperation(self, command, cleanUpBefore):
