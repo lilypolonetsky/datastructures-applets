@@ -18,8 +18,9 @@ class AdvancedArraySort(SortingBase):
 
         for i in range(size):
             self.list.append(drawable(random.randrange(99)))
+        self.display()
         
-        self.buttons = self.makeButtons() 
+        self.buttons = self.makeButtons()
     
     # SORTING METHODS 
     def split(self, index, start=0, end=-1):
@@ -282,7 +283,8 @@ class AdvancedArraySort(SortingBase):
         # get the common buttons from makeButtons() in SortingBase
         buttons, vcmd = super().makeButtons(maxRows=maxRows)
         quickSortButton = self.addOperation(
-            "Quicksort", lambda: self.quickSort(), maxRows=maxRows)
+            "Quicksort", lambda: self.quickSort(), maxRows=maxRows,
+            helpText='Sort items using quicksort algorithm')
         self.addAnimationButtons(maxRows=maxRows)
         buttons += [quickSortButton]
         return buttons  # Buttons managed by play/pause/stop controls

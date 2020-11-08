@@ -32,7 +32,7 @@ class SortingBase(VisualizationApp):
         self.display()
         
     def __str__(self):
-        return str(self.list) 
+        return str(self.list)
     
     # ANIMATION METHODS
     def assignElement(self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01):
@@ -76,10 +76,6 @@ class SortingBase(VisualizationApp):
         if not self.changeSize:
             itemsA.append(self.list[a].display_val)
             itemsB.append(self.list[b].display_val)            
-        #itemsA = [self.list[a].display_shape,
-                  #self.list[a].display_val] + aCellObjects
-        #itemsB = [self.list[b].display_shape,
-                  #self.list[b].display_val] + bCellObjects
         upDelta = (0, - self.CELL_SIZE * 4 // 3)
         downDelta = multiply_vector(upDelta, -1)
         if a == b:  # Swapping with self - just move up & down
@@ -203,7 +199,7 @@ class SortingBase(VisualizationApp):
     def randomFill(self):
         callEnviron = self.createCallEnvironment()        
 
-        self.list=[drawable(random.randrange(90)) for i in range(self.size)]
+        self.list = [drawable(random.randrange(90)) for i in range(self.size)]
         
         self.display()         
         self.cleanUp(callEnviron)      
@@ -216,11 +212,9 @@ class SortingBase(VisualizationApp):
         indexDisplay = self.createIndex(0, 'j')
         callEnviron |= set(indexDisplay)
         
-        # go through each Drawable in the list
+        # go through each item in the list
         # look for val to be deleted
-        for j in range(len(self.list)):
-            n = self.list[j]
-
+        for j, n in enumerate(self.list):
             self.wait(0.1)
             
             if n.val == val:
@@ -461,8 +455,7 @@ class SortingBase(VisualizationApp):
     
         # calculate dx for each node to move it back to original position
         for i in range(len(self.list)):
-            fromX = self.canvas.coords(self.list[i].display_shape)[0]
-            fromY = self.canvas.coords(self.list[i].display_shape)[1]
+            fromX, fromY = self.canvas.coords(self.list[i].display_shape)
             if toY < fromY:
                 dx[i] = dy * ((toX + self.CELL_SIZE * i) - fromX) / (toY - fromY)
             else:
@@ -510,21 +503,28 @@ class SortingBase(VisualizationApp):
     def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        newButton = self.addOperation(
-            "New", lambda: self.clickNew(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows)
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows)
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Insert item in array')
         deleteButton = self.addOperation(
             "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows)
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Delete array item')
+        newButton = self.addOperation(
+            "New", lambda: self.clickNew(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows, 
+            argHelpText=['number of cells'],
+            helpText='Create new empty array')
         randomFillButton = self.addOperation(
-            "Random Fill", lambda: self.randomFill(), maxRows=maxRows)
+            "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
+            helpText='Fill all array cells with random keys')
         shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle(), maxRows=maxRows) 
+            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
+            helpText='Shuffle position of all items')
         deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.removeFromEnd(), maxRows=maxRows)
+            "Delete Rightmost", lambda: self.removeFromEnd(), maxRows=maxRows,
+            helpText='Delete last array item')
         buttons = [newButton, insertButton, deleteButton,
                    randomFillButton, shuffleButton, deleteRightmostButton]
         return buttons, vcmd  # Buttons managed by play/pause/stop controls    
