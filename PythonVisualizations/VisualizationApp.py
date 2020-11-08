@@ -301,9 +301,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if self.entryHint: # Remove past hints
             self.entryHint.destroy()
         hintText = 'Click to enter {}'.format(
-            ',\n'.join([' or '.join(
-                hint for entry in self.textEntries 
-                for hint in getattr(entry, 'helpTexts', set()))]))
+            ',\n'.join([
+                ' or '.join(hint for hint in getattr(entry, 'helpTexts', set()))
+                for entry in self.textEntries]))
         hint = Label(
             self.operations, text=hintText,
             font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
@@ -600,6 +600,20 @@ class VisualizationApp(object):  # Base class for Python visualizations
             geom = (widget.config('width')[-1], widget.config('height')[-1])
         return int(geom[0]), int(geom[1])
 
+    def widgetState(self, widget, state=None): # Get or set widget state
+        if isinstance(widget, (ttk.Button,)):
+            if state is None:
+                stateFlags = widget.state()
+                return DISABLED if DISABLED in stateFlags else NORMAL
+            else:
+                widget.state(('!disabled', '!pressed') if state == NORMAL 
+                             else (state, ))
+        else:
+            if state is None:
+                return widget['state']
+            else:
+                widget['state'] = state
+            
     sizePattern = re.compile(r'-?\d+')
 
     def textWidth(self, font, text=' '):

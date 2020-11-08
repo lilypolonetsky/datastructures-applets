@@ -357,24 +357,29 @@ class BloomFilter(HashBase):
             makeFilterValidate(self.maxArgWidth, ',')), '%P')
         insertButton = self.addOperation(
             "Insert", self.clickInsert, numArguments=1, validationCmd=vcmd,
-            argHelpText=['Key or number of keys'])
+            helpText='Insert a key into the Bloom filter',
+            argHelpText=['key'])
         findButton = self.addOperation(
-            "Search", self.clickFind, numArguments=1, validationCmd=vcmd)
+            "Search", self.clickFind, numArguments=1, validationCmd=vcmd,
+            helpText='Search for a key in the Bloom filter',
+            argHelpText=['key'])
         newButton = self.addOperation(
             "New", self.clickNew, numArguments=3, validationCmd=vcmd,
-            helpText='Enter string or #keys, #hashes, & false positive%',
-            argHelpText=['Key or number of keys', 'number of hashes',
+            helpText='Create new filter for #keys, #hashes, & false positive%',
+            argHelpText=['number of keys', 'number of hashes',
                          'false positive probability'])
         self.showHashing = IntVar()
         self.showHashing.set(1)
         showHashingButton = self.addOperation(
             "Animate hashing", self.clickShowHashing, buttonType=Checkbutton,
-            variable=self.showHashing)
+            variable=self.showHashing, 
+            helpText='Show/hide animation during hashing')
         self.showInserts = IntVar()
         self.showInserts.set(1)
         showInsertsButton = self.addOperation(
             "Show inserted", self.clickShowInserts, buttonType=Checkbutton,
-            variable=self.showInserts, cleanUpBefore=False)
+            variable=self.showInserts, cleanUpBefore=False,
+            helpText='Show/hide list of inserted keys')
         self.addAnimationButtons()
         return [findButton, insertButton, newButton, showInsertsButton]
     
