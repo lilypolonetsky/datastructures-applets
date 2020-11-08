@@ -497,15 +497,37 @@ def getFirst(self):
         if len(self.callStack) == 0:
             self.restorePositions(sleepTime=0)
 
+    findCode = """
+def find(self, goal, key=identity):
+    link = self.getFirst()
+    while link is not None:
+        if key(link.getData()) == goal:
+            return link
+        link = link.getNext()
+"""
+
+    findCodeSnippets = {
+        'get_first': ('2.4', '2.end'),
+        'while_link': ('3.4', '3.end'),
+        'if_found_key': ('4.8','4.end'),
+        'return_link': ('5.12', '5.end'),
+        'get_next_link': ('6.8','6.end'),
+    }
+
     def find(self, goal):
-        callEnviron = self.createCallEnvironment()
+        callEnviron = self.createCallEnvironment(
+            self.findCode.strip(), self.findCodeSnippets)
         self.startAnimations()
 
+        self.highlightCodeTags('get_first', callEnviron)
         sorted = self.sorted.get()
         link = 1
         linkIndex = self.createIndex(link, 'link')
         callEnviron |= set(linkIndex)
+        self.wait(0.2)
 
+        self.highlightCodeTags('while_link', callEnviron)
+        self.wait(0.2)
         while link <= len(self.list):
             if link > 1:
                 self.moveItemsTo(
@@ -513,27 +535,50 @@ def getFirst(self):
                     (self.indexCoords(link), self.indexLabelCoords(link)),
                     sleepTime=0.02)
                 
+            self.highlightCodeTags('if_found_key', callEnviron)
             self.wait(0.2)     # Pause for comparison
             linkKey = self.list[link - 1].key
             if linkKey == goal or (sorted and goal < linkKey):
+                self.highlightCodeTags('return_link', callEnviron)
+                self.wait(0.2)
                 self.cleanUp(callEnviron)
                 return link if linkKey == goal else None
 
             # Advance to next Link
+            self.highlightCodeTags('get_next_link', callEnviron)
             link += 1
+            self.wait(0.2)
             
         # Failed to find goal key
         self.cleanUp(callEnviron)
         
+    searchCode = """
+def search(self, goal, key=identity):
+    link = self.find(goal, key)
+    if link is not None:
+        return link.getData()
+"""
+
+    searchCodeSnippets = {
+            'call_find': ('2.4', '2.end'),
+            'check_link': ('3.4', '3.end'),
+            'return_link_data': ('4.8','4.end'),
+        }
+
     def search(self, goal):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment()
+        callEnviron = self.createCallEnvironment(
+            self.searchCode.strip(), self.searchCodeSnippets)
 
+        self.highlightCodeTags('call_find', callEnviron)
         link = self.find(goal)
         linkIndex = self.createIndex(0 if link is None else link, 'link')
         callEnviron |= set(linkIndex)
 
+        self.highlightCodeTags('check_link', callEnviron)
+        self.wait(0.2)
         if link is not None:
+            self.highlightCodeTags('return_link_data', callEnviron)
             callEnviron.add(self.createFoundHighlight(link))
             self.wait(0.5)
 
