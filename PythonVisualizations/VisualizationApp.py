@@ -180,7 +180,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.operationsLowerCenter, text="fast", font=self.CONTROLS_FONT,
             bg=self.DEFAULT_BG)
         self.fastLabel.grid(row=0, column=2, sticky=W)
-        self.textEntries, self.entryHints = [], []
+        self.textEntries, self.entryHint = [], None
         self.outputText = StringVar()
         self.outputText.set('')
         self.message = Label(
@@ -223,14 +223,15 @@ class VisualizationApp(object):  # Base class for Python visualizations
         setattr(button, 'required_args', numArguments)
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
-                textEntry = self.makeArgumentEntry(
-                    validationCmd,
-                    argHelpText[len(self.textEntries)]
-                    if len(argHelpText) > len(self.textEntries) else '')
+                textEntry = self.makeArgumentEntry(validationCmd)
                 self.textEntries.append(textEntry)
                 textEntry.grid(column=2, row=len(self.textEntries), padx=8)
+            for help, textEntry in zip(argHelpText, self.textEntries):
+                helpTexts = getattr(textEntry, 'helpTexts', set())
+                helpTexts.add(help)
+                setattr(textEntry, 'helpTexts', helpTexts)
             if argHelpText: # Make a label if there are hints on what to enter
-                self.makeEntryHints(argHelpText[:numArguments])
+                self.makeEntryHints()
 
             # Place button in grid of buttons
             buttonRow = len(withArgument) + 1
@@ -245,11 +246,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 entryRowSpan = rowSpan if i < nEntries - 1 else max(
                     1, len(withArgument) + 1 - (nEntries - 1) * rowSpan)
                 entry.grid_configure(row=rowSpan * i + 1, rowspan=entryRowSpan)
-            if self.entryHints:
+            if self.entryHint:
                 self.entryHintRow = max(nEntries, len(withArgument) + 1) + (
                     0 if entryRowSpan > 2 else 1)
-                self.entryHints[0].grid_configure(
-                    column=2, row=self.entryHintRow)
+                self.entryHint.grid_configure(column=2, row=self.entryHintRow)
 
         else:
             buttonRow = len(withoutArgument) % maxRows + 1
@@ -263,50 +263,54 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if self.opSeparator:
             self.opSeparator.grid_configure(
                 rowspan=max(nRows, buttonRow, 
-                            self.entryHintRow if self.entryHints else 1))
+                            self.entryHintRow if self.entryHint else 1))
         if helpText:
             button.bind('<Enter>', self.makeArmHintHandler(button, helpText))
             button.bind('<Leave>', self.makeDisarmHintHandler(button))
             button.bind('<Button>', self.makeDisarmHintHandler(button), '+')
         return button
 
-    def makeArgumentEntry(self, validationCmd, helpText=''):
+    def makeArgumentEntry(self, validationCmd):
         entry = Entry(
             self.operations, width=self.maxArgWidth, bg='white',
             validate='key', validatecommand=validationCmd, 
             font=self.CONTROLS_FONT)
-        entry.bind(
-            '<KeyRelease>', lambda ev: self.argumentChanged(), '+')
-        if helpText:
-            entry.bind('<Enter>', self.makeArmHintHandler(entry, helpText))
-            entry.bind('<Leave>', self.makeDisarmHintHandler(entry))
-            entry.bind('<KeyRelease>', self.makeDisarmHintHandler(entry), '+')
+        entry.bind('<KeyRelease>', lambda ev: self.argumentChanged(), '+')
+        entry.bind('<Enter>', self.makeArmHintHandler(entry))
+        entry.bind('<Leave>', self.makeDisarmHintHandler(entry))
+        entry.bind('<KeyRelease>', self.makeDisarmHintHandler(entry), '+')
         return entry
 
-    def makeEntryHints(self, hints):
-        while self.entryHints: # Remove past hints
-            self.entryHints.pop().destroy()
+    def makeEntryHints(self):
+        if self.entryHint: # Remove past hints
+            self.entryHint.destroy()
+        hintText = 'Click to enter {}'.format(
+            ',\n'.join([' or '.join(
+                hint for entry in self.textEntries 
+                for hint in getattr(entry, 'helpTexts', set()))]))
         hint = Label(
-            self.operations, text='Click to enter ' + ',\n'.join(hints),
+            self.operations, text=hintText,
             font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
         hint.bind('<Button>', # Remove the hint when first clicked
                   deleteInitialHintHandler(hint, self.textEntries[0]))
         for entry in self.textEntries: # and when entries get focus
             entry.bind('<FocusIn>', deleteInitialHintHandler(hint, entry))
-        self.entryHints = [hint]
+        self.entryHint = hint
         
-    def makeArmHintHandler(self, widget, helpText):
+    def makeArmHintHandler(self, widget, helpText=None):
         def handler(event):
+            hint = ' or '.join(
+                getattr(widget, 'helpTexts', set())) if helpText is None else helpText
             setattr(widget, 'timeout_ID',
                     widget.after(
                         self.HOVER_DELAY, 
-                        lambda: self.setMessage(helpText) or
+                        lambda: self.setMessage(hint) or
                         setattr(widget, 'timeout_ID', None)))
         return handler
 
     def makeDisarmHintHandler(self, widget):
         def handler(event):
-            if event.widget == widget and getattr(widget, 'timeout_ID'):
+            if event.widget == widget and getattr(widget, 'timeout_ID', None):
                 widget.after_cancel(getattr(widget, 'timeout_ID'))
             setattr(widget, 'timeout_ID', None)
         return handler
@@ -314,11 +318,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def addAnimationButtons(self, maxRows=4):
         self.pauseButton = self.addOperation(
             "Pause", lambda: self.onClick(self.pause, self.pauseButton),
-            cleanUpBefore=False, maxRows=maxRows)
+            cleanUpBefore=False, maxRows=maxRows,
+            helpText='Pause or resume playing animation')
         self.pauseButton['state'] = DISABLED
         self.stopButton = self.addOperation(
             "Stop", lambda: self.onClick(self.stop, self.pauseButton),
-            cleanUpBefore=False, maxRows=maxRows)
+            cleanUpBefore=False, maxRows=maxRows,
+            helpText='Stop animation')
         self.stopButton['state'] = DISABLED
         
     def runOperation(self, command, cleanUpBefore):
@@ -345,16 +351,18 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def clearArgument(self, index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
-            while self.entryHints:
-                self.entryHints.pop().destroy()
+            if self.entryHint:
+                self.entryHint.destroy()
+                self.entryHint = None
             self.argumentChanged()
 
     def setArgument(self, val='', index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
             self.textEntries[index].insert(0, str(val))
-            while self.entryHints:
-                self.entryHints.pop().destroy()
+            if self.entryHint:
+                self.entryHint.destroy()
+                self.entryHint = None
             self.argumentChanged()
 
     def setArguments(self, *values):
