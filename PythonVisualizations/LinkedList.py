@@ -245,7 +245,7 @@ def getFirst(self):
     return self.__first
 """
     getFirstCodeSnippets = {
-        'return_first': ('2.3', '2.end'),
+        'return_first': ('2.4', '2.end'),
     }
     def getFirst(self):    # returns the value the first link in the list
         callEnviron = self.createCallEnvironment(
