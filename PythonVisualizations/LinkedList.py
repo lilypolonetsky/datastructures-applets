@@ -389,31 +389,108 @@ def getFirst(self):
         self.cleanUp(callEnviron)
         return val 
     
+    unsortedDeleteCode = """
+def delete(self, goal, key=identity):
+    if self.isEmpty():
+        raise Exception("Cannot delete from empty linked list")
+
+    previous = self
+    while previous.getNext() is not None:
+        link = previous.getNext()
+        if goal == key(link.getData()):
+            previous.setNext(link.getNext())
+            return True
+        previous = link
+        
+    raise Exception("No item with matching key found in list")
+    """
+
+    unsortedDeleteCodeSnippets = {
+        'check_if_empty': ('2.4','2.end'),
+        'empty_exception': ('3.8','3.end'),
+        'init_prev': ('5.4','5.end'),
+        'while_next': ('6.4','6.end'),
+        'get_next': ('7.8','7.end'),
+        'key_comparison': ('8.8','8.end'),
+        'set_prev_next': ('9.12','9.end'),
+        'return_true': ('10.12','10.end'),
+        'move_prev_over': ('11.8','11.end'),
+        'no_item_found': ('13.4','13.end'),
+    }
+
+    sortedDeleteCode = """
+def delete(self, goal):
+    if self.isEmpty():
+        raise Exception("Cannot delete from empty linked list")
+
+    previous = self
+    while (previous.getNext() is not None and self.__key(previous.getNext().getData()) < goal):
+        previous = previous.getNext()
+        if (previous.getNext() is None or goal != self.__key(previous.getNext().getData())):
+            raise Exception("No datum with matching key found in list")
+
+        previous.setNext(previous.getNext().getNext())
+    """
+
+    sortedDeleteCodeSnippets = {
+        'check_if_empty': ('2.4', '2.end'),
+        'empty_exception': ('3.8','3.end'),
+        'init_prev': ('5.4','5.end'),
+        'while_next': ('6.4','6.end'),
+        'get_next': ('7.8','7.end'),
+        'key_comparison': ('8.8','8.end'),
+        'no_item_found': ('9.12','9.end'),
+        'set_prev_next': ('11.8','11.end'),
+    }
+
     #deletes first node in Linked List
     def deleteFirst(self):
-        self.delete(self.list[0].key)
+        deleteKey = self.list[0].key if self.first else None
+        return self.delete(deleteKey)
     
     # Delete a link from the linked list by finding a matching goal key
     def delete(self, goal):
-        callEnviron = self.createCallEnvironment()
+        if self.sorted.get():
+            callEnviron = self.createCallEnvironment(
+            self.sortedDeleteCode.strip(), self.sortedDeleteCodeSnippets)
+        else:
+            callEnviron = self.createCallEnvironment(
+                self.unsortedDeleteCode.strip(), self.unsortedDeleteCodeSnippets)
         self.startAnimations()
+
+        # check if empty
+        self.highlightCodeTags('check_if_empty', callEnviron)
+        self.wait(0.2)
+        if not self.first:
+            self.highlightCodeTags('empty_exception', callEnviron)
+            self.wait(0.2)
+            self.cleanUp(callEnviron)
+            return None
 
         previous = 0
         previousIndex = self.createIndex(previous, 'previous', level=1)
         callEnviron |= set(previousIndex)
+        self.highlightCodeTags('init_prev', callEnviron)
+        self.wait(0.2)
+
         link = 1
         linkIndex = self.createIndex(link, 'link')
         callEnviron |= set(linkIndex)
 
         while previous < len(self.list):
+            self.highlightCodeTags('while_next', callEnviron)
+            self.wait(0.2)
 
+            self.highlightCodeTags('get_next', callEnviron)
+            self.wait(0.2)
             link = previous + 1
             if link > 1:
                 self.moveItemsTo(
                     linkIndex, 
                     (self.indexCoords(link), self.indexLabelCoords(link)),
                     sleepTime=0.02)
-                
+            
+            self.highlightCodeTags('key_comparison', callEnviron)
             self.wait(0.2)     # Pause for comparison
             found = self.list[previous].key == goal
             if found or (self.sorted.get() and self.list[previous].key > goal):
@@ -422,6 +499,7 @@ def getFirst(self):
                     callEnviron.add(foundHighlight)
                                 
                     # Prepare to update next pointer from previous
+                    self.highlightCodeTags('set_prev_next', callEnviron)
                     updateFirst = previous == 0
                     nextPointer = self.list[previous].nextPointer
                     if nextPointer:
@@ -449,10 +527,20 @@ def getFirst(self):
                     self.restorePositions()
                     
                 # Exit delete if item found or sorted list passed goal location
-                self.cleanUp(callEnviron)
-                return goal if found else None
+                if found:
+                    if not self.sorted.get():
+                        self.highlightCodeTags('return_true', callEnviron)
+                        self.wait(0.2)
+                    self.cleanUp(callEnviron)
+                    return goal
+                else:
+                    self.highlightCodeTags('no_item_found', callEnviron)
+                    self.wait(0.2)
+                    self.cleanUp(callEnviron)
+                    return None
 
             # Advance to next Link
+            if not self.sorted.get(): self.highlightCodeTags('move_prev_over', callEnviron)
             previous = link
             self.moveItemsTo(
                 previousIndex,
@@ -461,6 +549,8 @@ def getFirst(self):
                 sleepTime = 0.02)
             
         # Failed to find goal key
+        self.highlightCodeTags('no_item_found',callEnviron)
+        self.wait(0.2)
         self.cleanUp(callEnviron)
         
         # otherwise highlight the found node
@@ -611,25 +701,22 @@ def search(self, goal, key=identity):
             self.insertElem(val)
 
     def clickDelete(self):
+        empty = False if self.first else True       # check whether linked list is empty or not
         val = self.getArgument()
-        if not self.first:
-            msg = "ERROR: Linked list is empty"
-        else:
-            result = self.delete(val)
+        result = self.delete(val)
+        if not empty:                               # only set a message if linked list was not empty
             if result != None:
                 msg = "{} Deleted!".format(val)
             else:
                 msg = "Value {} not found".format(val)
-        self.setMessage(msg)
+            self.setMessage(msg)
         self.clearArgument()
         
     def clickDeleteFirst(self):
-        if not self.first: 
-            msg = "ERROR: Linked list is empty"
-        else:
-            self.deleteFirst()
+        deleted = self.deleteFirst()
+        if deleted:                     # only set message if something was deleted
             msg = "first node deleted"
-        self.setMessage(msg)
+            self.setMessage(msg)
         self.clearArgument()
         
     def clickNewLinkedList(self):
