@@ -316,11 +316,28 @@ def getFirst(self):
 
         self.cleanUp(callEnviron)
             
+    newLinkedListCode = """
+def __init__(self):
+    self.__first = None
+    """
+
+    newLinkedListCodeSnippets = {
+        'first_pointer': ('2.4','2.end'),
+    }
+
     # Erases old linked list and draws empty list
     def newLinkedList(self):
+        callEnviron = self.createCallEnvironment(
+            self.newLinkedListCode.strip(), self.newLinkedListCodeSnippets)
+        self.startAnimations(enableStops=False)
         self.first = None
         self.list = []
         self.display()
+
+        self.highlightCodeTags('first_pointer', callEnviron)
+        self.wait(0.2)
+
+        self.cleanUp(callEnviron)
     
     def insertElem(       # Insert a new Link node at the front of the linked
             self, val):   # list with a specific value
