@@ -97,12 +97,7 @@ def __init__(self, nDisks={nDisks}):
    self.__nDisks = nDisks
    self.reset()
 '''
-    _init__CodeSnippets = {
-        'init_stacks':('2.3','2.end'),
-        'init_labels':('3.3','3.end'),
-        'init_nDisks':('4.3','4.end'),
-        'call_reset':('5.3','5.end'),
-    }
+
     resetCode = '''
 def reset(self):
    for spindle in range(3):
@@ -113,48 +108,44 @@ def reset(self):
                self.__nDisks, 0, -1):
             self.__stacks[spindle].push(disk)
 '''
-    resetCodeSnippets = {
-        'increment_spindle':('2.7','2.26'),
-        'create_stack':('3.6','4.end'),
-        'test_spindle':('5.9','5.21'),
-        'increment_disk':('6.13','7.36'),
-        'push_disk':('8.12','8.end'),
-    }
 
     def setupDisks(self, nDisks):
         callEnviron = None
         if nDisks > 0:
             self.startAnimations()
             callEnviron = self.createCallEnvironment(
-                self._init__Code.strip().format(**locals()),
-                self._init__CodeSnippets)
+                self._init__Code.format(**locals()))
 
         self.spindles = [[] for _ in range(3)]   # Prepare to create spindles
         wait = 0.05
         if callEnviron:
-            self.highlightCodeTags('init_stacks', callEnviron, wait)
-            self.highlightCodeTags('init_labels', callEnviron, wait)
-        if callEnviron:
-            self.highlightCodeTags('init_nDisks', callEnviron, wait)
-            self.highlightCodeTags('call_reset', callEnviron, wait)
-            callEnviron2 = self.createCallEnvironment(
-                self.resetCode.strip(), self.resetCodeSnippets)
-            self.highlightCodeTags('increment_spindle', callEnviron2)
+            self.highlightCode('self.__stacks = [None] * 3', callEnviron, wait)
+            self.highlightCode("self.__labels = ['L', 'M', 'R']",
+                               callEnviron, wait)
+            self.highlightCode('self.__nDisks = nDisks', callEnviron, wait)
+            self.highlightCode('self.reset()', callEnviron, wait)
+            callEnviron2 = self.createCallEnvironment(self.resetCode)
+            self.highlightCode('spindle in range(3)', callEnviron2)
 
         self.disks = [None] * nDisks # Prepare to create disks
         for spindle in range(3):
             if callEnviron:
-                self.highlightCodeTags('increment_spindle', callEnviron2, wait)
-                self.highlightCodeTags('create_stack', callEnviron2, wait)
-                self.highlightCodeTags('test_spindle', callEnviron2, wait)
+                self.highlightCode('spindle in range(3)', callEnviron2, wait)
+                self.highlightCode(
+                    'self.__stacks[spindle] = Stack(\n         self.__nDisks)',
+                    callEnviron2, wait)
+                self.highlightCode('spindle == 0', callEnviron2, wait)
                 
             if spindle == 0: # On left spindle
                 for ID in range(nDisks - 1, -1, -1):
-                    self.highlightCodeTags('increment_disk', callEnviron2, wait)
+                    self.highlightCode(
+                        'disk in range(\n               self.__nDisks, 0, -1)',
+                        callEnviron2, wait)
                     # Internally put disk on spindle
                     self.spindles[spindle].append(ID)
                     self.disks[ID] = self.createDiskDrawing(ID)
-                    self.highlightCodeTags('push_disk', callEnviron2, wait)
+                    self.highlightCode('self.__stacks[spindle].push(disk)',
+                                       callEnviron2, wait)
                     self.moveItemsTo(self.disks[ID], self.diskCoords(ID),
                                      sleepTime=0.01)
                     self.updateSpindles(spindle)
@@ -163,7 +154,7 @@ def reset(self):
 
         if callEnviron:
             self.cleanUp(callEnviron2)
-            self.highlightCodeTags([], callEnviron, wait)
+            self.highlightCode([], callEnviron, wait)
             self.cleanUp(callEnviron)
 
     def createSpindleDrawing(self, index):
@@ -444,8 +435,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
         highlightWait = 0.08
         moveWait = 0.01
         callEnviron = self.createCallEnvironment(
-            self.solveCode.strip().format(**locals()),
-            self.solveCodeSnippets, sleepTime=moveWait)
+            self.solveCode.format(**locals()))
         labels = ('start', 'goal', 'spare')
         labelPositions = list(zip(labels, (start, goal, spare)))
         for label, pos in labelPositions:
@@ -461,22 +451,24 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
             self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
         startLabel = 'start  nDisks={}'.format(nDisks)
         self.canvas.itemconfigure(labelItems[0], text=startLabel)
-        self.highlightCodeTags('test_nDisks', callEnviron, highlightWait)
+        self.highlightCode('nDisks <= 0', callEnviron, highlightWait)
         if nDisks <= 0:
-            self.highlightCodeTags('return', callEnviron, highlightWait)
+            self.highlightCode('return', callEnviron, highlightWait)
         else:
-            self.highlightCodeTags('call_solve1', callEnviron)
+            self.highlightCode('self.solve(nDisks - 1, start, spare, goal)',
+                               callEnviron)
             self.solve(nDisks - 1, start, spare, goal)
             self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
             self.canvas.itemconfigure(labelItems[0], text=startLabel)
-            self.highlightCodeTags('move_disk', callEnviron)
+            self.highlightCode('self.move(start, goal)', callEnviron)
             self.moveDisk(start, goal)
             self.moves += 1
-            self.highlightCodeTags('call_solve2', callEnviron)
+            self.highlightCode('self.solve(nDisks - 1, spare, goal, start)',
+                               callEnviron)
             self.solve(nDisks - 1, spare, goal, start)
             self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
             self.canvas.itemconfigure(labelItems[0], text=startLabel)
-        self.highlightCodeTags([], callEnviron)
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron, sleepTime=0.01)
 
     def moveDisk(self, fromSpindle, toSpindle):
