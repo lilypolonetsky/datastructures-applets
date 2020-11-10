@@ -420,13 +420,6 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
    self.move(start, goal)
    self.solve(nDisks - 1, spare, goal, start)
 '''
-    solveCodeSnippets = {
-        'test_nDisks':('2.6','2.17'),
-        'return':('2.19','2.end'),
-        'call_solve1':('3.3','3.end'),
-        'move_disk':('4.3','4.end'),
-        'call_solve2':('5.3','5.end'),
-    }
     
     def solve(self, nDisks=None, start=0, goal=2, spare=1):
         if nDisks is None:
