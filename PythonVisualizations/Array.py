@@ -68,17 +68,11 @@ def insert(self, item):
     self.__nItems += 1
     """
 
-    insertCodeSnippets = {
-        'add_item':('2.4','2.end'),
-        'increment_count':('3.4','3.end')
-    }
-
     def insert(self, val):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(
-            self.insertCode.strip(), self.insertCodeSnippets)
+        callEnviron = self.createCallEnvironment(self.insertCode)
 
-        self.highlightCodeTags('add_item', callEnviron)
+        self.highlightCode('self.__a[self.__nItems] = item', callEnviron)
 
         # create new cell and cell value display objects
         toPositions = (self.cellCoords(len(self.list)),
@@ -100,13 +94,13 @@ def insert(self, item):
 
 
         # advance index for next insert
-        self.highlightCodeTags('increment_count', callEnviron)
+        self.highlightCode('self.__nItems += 1', callEnviron)
         
         # Move nItems pointer
         self.moveItemsBy(self.nItems, (self.CELL_SIZE, 0))
         self.wait(0.1)
 
-        self.highlightCodeTags([], callEnviron)
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
     def removeFromEnd(self):
@@ -234,18 +228,12 @@ def get(self, n):
         return self.__a[n]
     """
 
-    getCodeSnippets = {
-        'check_bounds': ('2.7','2.35'),
-        'return': ('3.8', '3.end'),
-    }
-
     def get(self, n):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(
-            self.getCode.strip(), self.getCodeSnippets)
-        self.highlightCodeTags('check_bounds', callEnviron)
+        callEnviron = self.createCallEnvironment(self.getCode)
+        self.highlightCode('0 <= n and n < self.__nItems', callEnviron)
         self.wait(0.2)
-        self.highlightCodeTags('return', callEnviron)
+        self.highlightCode('return self.__a[n]', callEnviron)
         if 0 <= n and n < len(self.list):
             result = self.list[n]
         else:
@@ -259,21 +247,14 @@ def search(self, item):
     return self.get(self.find(item))
     """
 
-    searchCodeSnippets = {
-        'call_find': ('2.20','2.35'),
-        'call_get': ('2.11','2.end'),
-        'return': ('2.4', '2.end'),
-    }
-
     def search(self, item):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(
-            self.searchCode.strip(), self.searchCodeSnippets)
-        self.highlightCodeTags('call_find', callEnviron)
+        callEnviron = self.createCallEnvironment(self.searchCode)
+        self.highlightCode('self.find(item)', callEnviron)
         n = self.find(item)
-        self.highlightCodeTags('call_get', callEnviron)
+        self.highlightCode('self.get(self.find(item))', callEnviron)
         result = self.get(n)
-        self.highlightCodeTags('return', callEnviron)
+        self.highlightCode('return self.get(self.find(item))', callEnviron)
         self.wait(0.2)
         self.cleanUp(callEnviron)
         return result
@@ -286,37 +267,29 @@ def find(self, item):
     return -1
     """
 
-    findCodeSnippets = {
-        'outer_loop_increment': ('2.8','2.31'),
-        'key_comparison': ('3.11','3.30'),
-        'key_found': ('4.12','4.end'),
-        'key_not_found': ('5.4', '5.end'),
-    }
-
     def find(self, val):
         self.startAnimations()
        
-        callEnviron = self.createCallEnvironment(
-            self.findCode.strip(), self.findCodeSnippets)
+        callEnviron = self.createCallEnvironment(self.findCode)
         
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
         callEnviron |= set(indexDisplay)
 
         # show that we are starting the loop
-        self.highlightCodeTags('outer_loop_increment', callEnviron)
+        self.highlightCode('j in range(self.nItems)', callEnviron)
 
         # go through each Drawable in the list
         for i in range(len(self.list)):
             n = self.list[i]
             
             # if the value is found
-            self.highlightCodeTags('key_comparison', callEnviron)
+            self.highlightCode('self.__a[j] == item', callEnviron)
             self.wait(0.1)
             
             if n.val == val:
                 # get the position of the displayed cell
-                self.highlightCodeTags('key_found', callEnviron)
+                self.highlightCode('return j', callEnviron)
                 posShape = self.canvas.coords(n.display_shape)
 
                 # Highlight the found element with a circle
@@ -330,21 +303,21 @@ def find(self, item):
                 self.wait(0.1)
 
                 # Animation stops
-                self.highlightCodeTags([], callEnviron)
+                self.highlightCode([], callEnviron)
                 self.cleanUp(callEnviron)
                 return i
 
             # if not found, then move the index over one cell
-            self.highlightCodeTags('outer_loop_increment', callEnviron)
+            self.highlightCode('j in range(self.nItems)', callEnviron)
             self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.01)
             self.wait(0.1)
 
         # key not found
-        self.highlightCodeTags('key_not_found', callEnviron)
+        self.highlightCode('return -1', callEnviron)
         self.wait(0.1)
 
         # Animation stops
-        self.highlightCodeTags([], callEnviron)
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         return -1
 
@@ -359,29 +332,17 @@ def delete(self, item):
     return False
 """
 
-    removeCodeSnippets = {
-        'outer_loop_increment': ('2.8','2.33'),
-        'key_comparison': ('3.11', '3.30'),
-        'decrement_count': ('4.12','4.end'),
-        'shift_loop_increment': ('5.16','5.44'),
-        'shift_items': ('6.15','6.end'),
-        'success': ('7.12','7.end'),
-        'failure': ('8.4','8.end'),
-    }
-
     def remove(self, val):
         self.startAnimations()
                 
-        callEnviron = self.createCallEnvironment(
-            self.removeCode.strip(), self.removeCodeSnippets)
-        
+        callEnviron = self.createCallEnvironment(self.removeCode)
         
         # draw an index for variable j pointing to the first cell
         Jindex = self.createIndex(0, 'j')
         callEnviron |= set(Jindex)
 
         # show that we are starting the loop
-        self.highlightCodeTags('outer_loop_increment', callEnviron)
+        self.highlightCode('j in range(self.__nItems)', callEnviron)
         self.wait(0.1)
         
         # go through each Drawable in the list
@@ -390,7 +351,7 @@ def delete(self, item):
             n = self.list[i]
 
             # if the value is found
-            self.highlightCodeTags('key_comparison', callEnviron)
+            self.highlightCode('self.__a[j] == item', callEnviron)
             self.wait(0.1)
 
             if n.val == val:
@@ -413,7 +374,7 @@ def delete(self, item):
                 self.canvas.delete(foundCircle)
                 
                 # decrement nItems
-                self.highlightCodeTags('decrement_count', callEnviron)
+                self.highlightCode('self.__nItems -= 1', callEnviron)
                 self.wait(0.3)                
                 # Move nItems pointer
                 self.moveItemsBy(self.nItems, (-self.CELL_SIZE, 0), sleepTime=0.01)                       
@@ -422,7 +383,7 @@ def delete(self, item):
                 items = (n.display_shape, n.display_val)
                 self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
-                self.highlightCodeTags('shift_loop_increment', callEnviron)
+                self.highlightCode('k in range(j, self.__nItems)', callEnviron)
                 self.wait(0.1)
 
                 # Create an index for shifting the cells
@@ -431,15 +392,17 @@ def delete(self, item):
                     
                 # Slide values from right to left to fill gap
                 for j in range(i+1, len(self.list)):
-                    self.highlightCodeTags('shift_items', callEnviron)
+                    self.highlightCode('self.__a[k] = self.__a[k+1]',
+                                       callEnviron)
                     self.assignElement(j, j - 1, callEnviron)
                     self.moveItemsBy(kIndex, (self.CELL_SIZE, 0), sleepTime=0.01)
                     self.wait(0.1)
 
-                    self.highlightCodeTags('shift_loop_increment', callEnviron)
+                    self.highlightCode('k in range(j, self.__nItems)', 
+                                       callEnviron)
                     self.wait(0.1)             
                 
-                self.highlightCodeTags('success', callEnviron)
+                self.highlightCode('return True', callEnviron)
                 # remove the last item in the list
                 n = self.list.pop()
                 # delete the associated display objects
@@ -449,22 +412,22 @@ def delete(self, item):
                 # update window
                 self.wait(0.3)
 
-                self.highlightCodeTags([], callEnviron)
+                self.highlightCode([], callEnviron)
                 self.cleanUp(callEnviron)
                 return True
 
             # if not found, then move the index over one cell
-            self.highlightCodeTags('outer_loop_increment', callEnviron)
+            self.highlightCode('j in range(self.__nItems)', callEnviron)
             self.moveItemsBy(Jindex, (self.CELL_SIZE, 0), sleepTime=0.01)
             if self.wait(0.1):
                 break
         
         # key not found
-        self.highlightCodeTags('failure', callEnviron)
+        self.highlightCode('return False', callEnviron)
         self.wait(.3)
 
         # Animation stops
-        self.highlightCodeTags([], callEnviron)
+        self.highlightCode([], callEnviron)
 
         self.cleanUp(callEnviron)
         return None
@@ -485,15 +448,10 @@ def traverse(self, function=print):
         function(self.__a[j])
     """
 
-    traverseCodeSnippets = {
-        'loop': ('2.8','2.32'),
-        'print': ('3.8','3.end'),
-    }
     def traverse(self):
         self.startAnimations()
      
-        callEnviron = self.createCallEnvironment(
-            self.traverseCode.strip(), self.traverseCodeSnippets)        
+        callEnviron = self.createCallEnvironment(self.traverseCode)
         
         # draw an index pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
@@ -511,7 +469,7 @@ def traverse(self, function=print):
             fill = self.OPERATIONS_BG)
         callEnviron.add(outputBox)
 
-        self.highlightCodeTags('loop', callEnviron)
+        self.highlightCode('j in range(self.nItems)', callEnviron)
         self.wait(0.3)
         for j in range(len(self.list)):
             # calculate where the value will need to move to
@@ -524,7 +482,7 @@ def traverse(self, function=print):
             callEnviron.add(valueOutput)
 
             # move value to output box
-            self.highlightCodeTags('print', callEnviron)
+            self.highlightCode('function(self.__a[j])', callEnviron)
             toPositions = (outputBoxCoords[0] + padding/2 + (j + 1/2)*spacing, 
                            midOutputBox)
             self.moveItemsTo(valueList, (toPositions,), sleepTime=.02)
@@ -535,12 +493,12 @@ def traverse(self, function=print):
 
             # wait and then move the index pointer over
             self.wait(0.2)
-            self.highlightCodeTags('loop', callEnviron)
+            self.highlightCode('j in range(self.nItems)', callEnviron)
             self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.03)
 
             self.wait(0.3)
 
-        self.highlightCodeTags([], callEnviron)
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
     def makeButtons(self):

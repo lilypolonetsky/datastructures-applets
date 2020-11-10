@@ -34,7 +34,7 @@ class CodeHighlightBlock(object):
                    self.textWidget.index(self.startMark).split('.')[0])
                newspan = ['{}.{}'.format(startLine + int(line), char)
                           for line, char in [ind.split('.') for ind in span]]
-               tag = '{}{}:{}'.format(self.prefix, fragment[0], fragment[1])
+               tag = self.tag(*fragment)
                self.textWidget.tag_add(tag, *newspan)
                self.cache[fragment] = tag
                return tag
@@ -45,6 +45,10 @@ class CodeHighlightBlock(object):
            raise KeyError('Snippet "{}" copy {} not found in code block'.format(
                *fragment))
 
+    def tag(self, fragment, copy=1):
+        '''Tag name for a given fragment in this code block'''
+        return '{}{}:{}'.format(self.prefix, fragment, copy)
+    
     def findFragment(self, fragment, copy=1):
         '''Find a code fragment within the code block.  Look for the nth copy
         when there are multiple copies.  Return the line.char position of the
