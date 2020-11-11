@@ -17,7 +17,7 @@ class SimpleArraySort(SortingBase):
         super().__init__(**kwargs)
 
         for i in range(self.size):
-            self.list.append(drawable(random.randrange(99)))
+            self.list.append(drawable(random.randrange(self.valMax)))
         self.display()
 
         self.buttons = self.makeButtons()
