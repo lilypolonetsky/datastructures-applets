@@ -13,10 +13,10 @@ except ModuleNotFoundError:
 
 class AdvancedArraySort(SortingBase):
 
-    def __init__(self, title="Advanced Sorting", size=10, **kwargs):
+    def __init__(self, title="Advanced Sorting", **kwargs):
         super().__init__(title=title, **kwargs)
 
-        for i in range(size):
+        for i in range(self.size):
             self.list.append(drawable(random.randrange(99)))
         self.display()
         
