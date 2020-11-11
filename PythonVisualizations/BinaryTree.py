@@ -297,7 +297,7 @@ class BinaryTree(BinaryTreeBase):
     def clickDelete(self):
         val = self.validArgument()
         if val < 100:
-            deleted = tree.delete(val)
+            deleted = self.delete(val)
             msg = ("Deleted {}".format(val) if deleted else
                    "Value {} not found".format(val))
         else:
