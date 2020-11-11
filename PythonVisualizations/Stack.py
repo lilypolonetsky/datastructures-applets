@@ -434,10 +434,6 @@ def isEmpty(self):
             self.setMessage("New stack created of size {}. ".format(val))
         self.clearArgument()
 
-    def setButtonsStatus(self, state=NORMAL):
-        for b in self.buttons:
-            b['state'] = state
-
 
 if __name__ == '__main__':
     # random.seed(3.14159)    # Use fixed seed for testing consistency

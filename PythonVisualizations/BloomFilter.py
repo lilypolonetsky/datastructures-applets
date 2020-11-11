@@ -2,12 +2,10 @@ from tkinter import *
 import re
 try:
     from BitHash import BitHash
-    from drawable import *
     from VisualizationApp import *
     from HashBase import *
 except ModuleNotFoundError:
     from .BitHash import BitHash
-    from .drawable import *
     from .VisualizationApp import *
     from .HashBase import *
 
@@ -22,6 +20,7 @@ class BloomFilter(HashBase):
     BORDER_COLOR = 'black'
     ON_COLOR = 'blue'
     OFF_COLOR = 'white'
+    REINSERT_COLOR = 'sky blue'
     PROBE_COLOR = 'red'
     PROBE_FAILED = 'gray60'
     INSERTED_FONT = (VisualizationApp.CONTROLS_FONT[0], -14)
@@ -106,7 +105,8 @@ class BloomFilter(HashBase):
 
         # attribute counter for each bit set to 1
         self.__numBitsSet = 0
-        #parallel list that displays the contents of the bit vector
+        
+        # list of canvas rectangles for each bit of the vector
         self.__displayList = [0] * self.__size
         self.__inserted = set([])
         self.display()
@@ -116,10 +116,9 @@ class BloomFilter(HashBase):
 
     def setBit(self, bit, callEnviron):
         self.__bv[bit] = 1
-        self.canvas.itemconfigure(
-            self.__displayList[bit].display_shape, fill=self.ON_COLOR)
-        self.__displayList[bit].color = self.ON_COLOR
-        self.window.update()
+        if self.__displayList[bit]:
+            self.canvas.itemconfigure(self.__displayList[bit],
+                                      fill=self.ON_COLOR)
         
     def insert(self, key):
         callEnviron = self.createCallEnvironment()
@@ -163,6 +162,10 @@ class BloomFilter(HashBase):
                 self.setBit(hv, callEnviron)
                 self.wait(0.05)
                 self.__numBitsSet += 1
+            else: # If location was set, mark with a temporary mark
+                callEnviron.add(self.canvas.create_rectangle(
+                    *self.bitCellCoords(hv), fill=self.REINSERT_COLOR,
+                    outline=''))
 
             # make old hash value new seed
             seed = h
@@ -242,11 +245,10 @@ class BloomFilter(HashBase):
                 *add_vector(cellCoords, 
                             multiply_vector((-1, -1, 0, 0), self.CELL_BORDER)),
                 outline=self.BORDER_COLOR, width=self.CELL_BORDER, fill='')
-            # create display objects for the associated drawables
-            color = self.ON_COLOR if bit else self.OFF_COLOR
-            cell = self.canvas.create_rectangle(
-                *cellCoords, fill=color, outline='')
-            self.__displayList[n] = drawable(bit, color, cell, None)
+            # create display objects for the associated bit on the canvas
+            self.__displayList[n] = self.canvas.create_rectangle(
+                *cellCoords, fill=self.ON_COLOR if bit else self.OFF_COLOR,
+                outline='')
         self.createHasher()
         self.insertedBoxPos = self.bitCellCoords(
             self.max_bits + self.bits_per_row // 2)[:2] + subtract_vector(
@@ -284,21 +286,31 @@ class BloomFilter(HashBase):
     def clickFind(self):
         entered_text = self.getArgument(0)
         if not entered_text:
+            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
             self.setMessage("No text entered")
             return
         
+        if entered_text.isspace():
+            self.setMessage("Key contains only whitespace")
+        
         self.setMessage("{} {} in filter".format(
-            entered_text, "may be" if self.find(str(entered_text)) else "not"))
+            repr(entered_text),
+            "may be" if self.find(str(entered_text)) else "not"))
         for i in [1, 2]:
             self.clearArgument(i)
 
     def clickInsert(self):
         entered_text = self.getArgument(0)
+
+        if entered_text.isspace():
+            self.setMessage("Key contains only whitespace")
+            return
+        
         if entered_text:
+            for i in [1, 2]:
+                self.clearArgument(i)
             self.insert(str(entered_text))
-        self.setMessage('{} inserted'.format(entered_text))
-        for i in [1, 2]:
-            self.clearArgument(i)
+            self.setMessage('{} inserted'.format(repr(entered_text)))
 
     def clickNew(self):
         self.determine_max_bits()
@@ -308,19 +320,23 @@ class BloomFilter(HashBase):
             nKeys = int(nKeys)
         else:
             msg += 'Must provide positive number of keys. '
+            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
         if nHashes.isdigit():
             if 0 < int(nHashes) and int(nHashes) < self.MAX_HASHES:
                 nHashes = int(nHashes)
             else:
                 msg += '#Hashes must be between 0 and {}. '.format(
                     self.MAX_HASHES)
+                self.setArgumentHighlight(1, self.ERROR_HIGHLIGHT)
         else:
             msg += 'Must provide number of hashes. '
+            self.setArgumentHighlight(1, self.ERROR_HIGHLIGHT)
         if fraction.match(probability):
             probability = float(probability)
         if not isinstance(probability, float) or (
                 probability <= 0 or 1 <= probability):
             msg += 'False positive rate must be a fraction like .05'
+            self.setArgumentHighlight(2, self.ERROR_HIGHLIGHT)
         if msg:
             self.setMessage(msg)
             return
@@ -340,22 +356,30 @@ class BloomFilter(HashBase):
         vcmd = (self.window.register(
             makeFilterValidate(self.maxArgWidth, ',')), '%P')
         insertButton = self.addOperation(
-            "Insert", self.clickInsert, numArguments=1, validationCmd=vcmd)
+            "Insert", self.clickInsert, numArguments=1, validationCmd=vcmd,
+            helpText='Insert a key into the Bloom filter',
+            argHelpText=['key'])
         findButton = self.addOperation(
-            "Search", self.clickFind, numArguments=1, validationCmd=vcmd)
+            "Search", self.clickFind, numArguments=1, validationCmd=vcmd,
+            helpText='Search for a key in the Bloom filter',
+            argHelpText=['key'])
         newButton = self.addOperation(
             "New", self.clickNew, numArguments=3, validationCmd=vcmd,
-            helpText='Enter string or #keys, #hashes, & false positive%')
+            helpText='Create new filter for #keys, #hashes, & false positive%',
+            argHelpText=['number of keys', 'number of hashes',
+                         'false positive probability'])
         self.showHashing = IntVar()
         self.showHashing.set(1)
         showHashingButton = self.addOperation(
             "Animate hashing", self.clickShowHashing, buttonType=Checkbutton,
-            variable=self.showHashing)
+            variable=self.showHashing, 
+            helpText='Show/hide animation during hashing')
         self.showInserts = IntVar()
         self.showInserts.set(1)
         showInsertsButton = self.addOperation(
             "Show inserted", self.clickShowInserts, buttonType=Checkbutton,
-            variable=self.showInserts, cleanUpBefore=False)
+            variable=self.showInserts, cleanUpBefore=False,
+            helpText='Show/hide list of inserted keys')
         self.addAnimationButtons()
         return [findButton, insertButton, newButton, showInsertsButton]
     
