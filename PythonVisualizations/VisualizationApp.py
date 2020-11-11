@@ -421,7 +421,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.setArgument(str(values[index], index))
         self.argumentChanged()
 
-    def setArgumentHighlight(self, index, color=ENTRY_BG):
+    def setArgumentHighlight(self, index=0, color=ENTRY_BG):
         self.textEntries[index].configure(bg=color)
             
     def argumentChanged(self, widget=None):
@@ -631,7 +631,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         # canvas items plus a codeHighlightBlock that controls code highlights
         self.showCode(code, addBoundary=True, sleepTime=sleepTime)
         codeHighlightBlock = CodeHighlightBlock(code, self.codeText)
-        codeHighlightBlock.markStart()
+        if self.codeText:
+            codeHighlightBlock.markStart()
         callEnviron = set([codeHighlightBlock])
         self.callStack.append(callEnviron) # Push environment on stack
         return callEnviron
