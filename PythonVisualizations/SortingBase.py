@@ -141,11 +141,11 @@ class SortingBase(VisualizationApp):
         if not self.changeSize:
             itemsA.append(A.display_val)
             itemsB.append(B.display_val)            
-        upDelta = (0, - self.CELL_SIZE * 4 // 3)
-        downDelta = multiply_vector(upDelta, -1)
+        downDelta = (0, (coordsA[3] - coordsA[1]) * 3 // 4)
+        upDelta = multiply_vector(downDelta, -1)
         if a == b:  # Swapping with self - just move up & down
-            self.moveItemsBy(itemsA, upDelta, sleepTime=0.02)
             self.moveItemsBy(itemsA, downDelta, sleepTime=0.02)
+            self.moveItemsBy(itemsA, upDelta, sleepTime=0.02)
             return
     
         # make a and b cells plus their associated items switch places
