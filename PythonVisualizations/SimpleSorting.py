@@ -176,14 +176,6 @@ def selectionSort(self):
             min = inner
       self.swap(outer, min)
 """
-    selectionSortCodeSnippets = {
-        'outer_loop_increment': ('2.7', '2.44'),
-        'outer_min_assignment': ('3.6', '3.end'),
-        'inner_loop_increment': ('4.10', '4.48'),
-        'inner_loop_comparison': ('5.12', '5.43'),
-        'inner_min_assignment': ('6.12', '6.end'),
-        'outer_loop_swap': ('7.6', '7.end'),
-    }
 
     def selectionSort(self):
         self.startAnimations()
