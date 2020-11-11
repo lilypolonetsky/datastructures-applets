@@ -7,14 +7,13 @@ try:
 except ModuleNotFoundError:
     from .drawable import *
     from .VisualizationApp import *
- 
 
 class SortingBase(VisualizationApp):
     CELL_SIZE = 50
     CELL_BORDER = 2
     CELL_BORDER_COLOR = 'black'
-    ARRAY_X0 = 100
-    ARRAY_Y0 = 100
+    ARRAY_X0 = 80
+    ARRAY_Y0 = 80
     FOUND_COLOR = 'brown4'
     nextColor = 0
     CELL_WIDTH = CELL_SIZE
@@ -69,13 +68,79 @@ class SortingBase(VisualizationApp):
         
         # update the window
         self.window.update()  
+
+    def tempCoords(self, index):  # Determine coordinates for a temporary
+        cellCoords = self.cellCoords(index) # variable aligned below an array
+        height = cellCoords[3] - cellCoords[1] # cell
+        return add_vector(cellCoords, (0, int(height * 1.4)) * 2)
+    
+    def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
+        """Assign indexed cell to a temporary variable named varName.
+        Animate value moving to the temporary variable above the array.
+        Return a drawable for the new temporary value and a text item for
+        its name.  The existing name item can be passed to avoid creating
+        a new one and for moving the value to that location
+        """
+        fromDraw = self.list[index]
+        fromCell = fromDraw.display_shape
+        fromCellVal = fromDraw.display_val
+        posCell = self.canvas.coords(fromCell)
+        cellXCenter = (posCell[0] + posCell[2]) // 2
+
+        items = [self.copyCanvasItem(i) for i in (fromCell, fromCellVal)
+                 if i is not None]
+        
+        callEnviron |= set(items)
+        
+        tempPos = self.tempCoords(index)
+        if existing:
+            tempLabelPos = self.canvas.coords(existing)
+            templabel = existing
+        else:
+            tempLabelPos = add_vector(
+                tempPos, (self.CELL_WIDTH // 2, -abs(self.VARIABLE_FONT[1])))
+            templabel = self.canvas.create_text(
+                *tempLabelPos, text=varName, font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+
+        delta = (tempLabelPos[0] - cellXCenter, tempPos[1] - posCell[1])
+        self.moveItemsBy(items, delta, sleepTime=0.02)
+
+        return drawable(fromDraw.val, fromDraw.color, *items), templabel
+
+    def assignFromTemp(self, index, temp, templabel):
+
+        toCellCoords = self.fillCoords(temp.val, self.cellCoords(index))
+        toCellCenter = self.cellCenter(index)
+        tempCellCoords = self.canvas.coords(temp.display_shape)
+        deltaX = toCellCoords[0] - tempCellCoords[0]
+        startAngle = 45 * 500 / (500 + abs(deltaX)) * (-1 if deltaX < 0 else 1)
+
+        if temp.display_val:
+            self.moveItemsOnCurve(
+                (temp.display_shape, temp.display_val),
+                (toCellCoords, toCellCenter), sleepTime=0.04,
+                startAngle=startAngle)
+        else:
+            self.moveItemsOnCurve(
+                (temp.display_shape,), (toCellCoords,), sleepTime=0.04,
+                startAngle=startAngle)
+
+        if templabel:
+            self.canvas.delete(templabel)
+        self.canvas.delete(self.list[index].display_shape)
+        self.canvas.delete(self.list[index].display_val)
+        self.list[index] = temp
         
     def swap(self, a, b, aCellObjects=[], bCellObjects=[]):
-        itemsA = [self.list[a].display_shape] + aCellObjects 
-        itemsB = [self.list[b].display_shape] + bCellObjects
+        A, B = self.list[a], self.list[b]
+        itemsA = [A.display_shape] + aCellObjects 
+        itemsB = [B.display_shape] + bCellObjects
+        coordsA = self.fillCoords(B.val, self.cellCoords(a))
+        coordsB = self.fillCoords(A.val, self.cellCoords(b))
         if not self.changeSize:
-            itemsA.append(self.list[a].display_val)
-            itemsB.append(self.list[b].display_val)            
+            itemsA.append(A.display_val)
+            itemsB.append(B.display_val)            
         upDelta = (0, - self.CELL_SIZE * 4 // 3)
         downDelta = multiply_vector(upDelta, -1)
         if a == b:  # Swapping with self - just move up & down
@@ -85,7 +150,10 @@ class SortingBase(VisualizationApp):
     
         # make a and b cells plus their associated items switch places
         self.moveItemsOnCurve(
-            itemsA + itemsB, [self.canvas.coords(i) for i in itemsB + itemsA],
+            itemsA + itemsB, 
+            [coordsA if i == A.display_shape else
+             coordsB if i == B.display_shape else self.canvas.coords(i)
+             for i in itemsB + itemsA],
             sleepTime=0.05, startAngle=90 * 11 / (10 + abs(a - b)))
     
         # perform the actual cell swap operation in the list
@@ -95,13 +163,14 @@ class SortingBase(VisualizationApp):
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
         level_space = abs(self.VARIABLE_FONT[1])
+        space = self.CELL_SIZE * 1 // 10
         x = cell_center[0]
         if level > 0:
-            y0 = cell_coords[1] - self.CELL_SIZE * 3 // 5 - level * level_space
-            y1 = cell_coords[1] - self.CELL_SIZE * 3 // 10
+            y0 = cell_coords[1] - 2 * space - level * level_space
+            y1 = cell_coords[1] - space
         else:
-            y0 = cell_coords[3] + self.CELL_SIZE * 3 // 5 - level * level_space
-            y1 = cell_coords[3] + self.CELL_SIZE * 3 // 10
+            y0 = cell_coords[3] + 2 * space - level * level_space
+            y1 = cell_coords[3] + space
         return x, y0, x, y1
         
     def createIndex(  # Create an index arrow to point at an indexed
@@ -141,7 +210,13 @@ class SortingBase(VisualizationApp):
         
         return True
 
-    def insert(self, val, allowGrowth=False):
+    insertCode = """
+def insert(self, item):
+   self.__a[self.__nItems] = item
+   self.__nItems += 1
+"""
+
+    def insert(self, val, allowGrowth=False, code=insertCode):
         canvasDims = self.widgetDimensions(self.canvas)
         # Check if inserted cell will be off of the canvas
         offCanvas = canvasDims[0] <= self.cellCoords(len(self.list))[2]
@@ -151,9 +226,6 @@ class SortingBase(VisualizationApp):
             self.CELL_WIDTH == self.CELL_MIN_WIDTH and offCanvas):
             self.setMessage('Array is full')
             return False
-        
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment()
         
         # Inserting when there is no room on the canvas
         redraw = False
@@ -166,7 +238,12 @@ class SortingBase(VisualizationApp):
             redraw = True
         if redraw:
             self.display()
-            
+        
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(code=code)
+
+        self.highlightCode('self.__a[self.__nItems] = item', callEnviron)
+
         # create new cell and cell value display objects
         toPositions = (self.fillCoords(val, self.cellCoords(len(self.list))),
                        self.cellCenter(len(self.list)))
@@ -181,18 +258,19 @@ class SortingBase(VisualizationApp):
 
         if len(cellPair) == 1 or cellPair[1] is None:
             cellPair, toPositions = cellPair[:1], toPositions[:1]
-
         callEnviron |= set(cellPair)
         self.moveItemsTo(cellPair, toPositions, sleepTime=0.01)
 
         # add a new Drawable with the new value, color, and display objects
         self.list.append(drawable(
             val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
-        callEnviron ^= set(cellPair) # Remove new cell from temp call environment
+        callEnviron ^= set(cellPair) # Remove new cell from temp call environ
 
         # advance nItems index
+        self.highlightCode('self.__nItems += 1', callEnviron)
         self.moveItemsBy(self.nItems, (self.CELL_WIDTH, 0), sleepTime=0.01)
 
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         return True
        
@@ -203,28 +281,123 @@ class SortingBase(VisualizationApp):
         
         self.display()         
         self.cleanUp(callEnviron)      
-        
-    def delete(self, val):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment()
+    
+    searchCode = """
+def search(self, item):
+   return self.get(self.find(item))
+"""
 
+    def search(self, item, code=searchCode):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(code=code)
+        self.highlightCode('self.find(item)', callEnviron)
+        n = self.find(item)
+        self.highlightCode('self.get(self.find(item))', callEnviron)
+        result = self.get(n)
+        self.highlightCode('return self.get(self.find(item))', callEnviron)
+        self.wait(0.2)
+        self.cleanUp(callEnviron)
+        return result
+
+    findCode = """
+def find(self, item):
+   for j in range(self.nItems):
+      if self.__a[j] == item:
+         return j
+   return -1
+"""
+
+    def find(self, val, code=findCode):
+        self.startAnimations()
+       
+        callEnviron = self.createCallEnvironment(code=code)
+        
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
         callEnviron |= set(indexDisplay)
-        
-        # go through each item in the list
-        # look for val to be deleted
-        for j, n in enumerate(self.list):
+
+        # show that we are starting the loop
+        self.highlightCode('j in range(self.nItems)', callEnviron)
+
+        # go through each Drawable in the list
+        for i in range(len(self.list)):
+            n = self.list[i]
+            
+            # if the value is found
+            self.highlightCode('self.__a[j] == item', callEnviron)
             self.wait(0.1)
             
             if n.val == val:
                 # get the position of the displayed cell
-                cellShape = self.cellCoords(j)
+                self.highlightCode('return j', callEnviron)
+                posShape = self.canvas.coords(n.display_shape)
+
+                # Highlight the found element with a circle
+                callEnviron.add(self.canvas.create_oval(
+                    *add_vector(
+                        posShape,
+                        multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
+                    outline=self.FOUND_COLOR))
+
+                # update the display
+                self.wait(0.1)
+
+                # Animation stops
+                self.highlightCode([], callEnviron)
+                self.cleanUp(callEnviron)
+                return i
+
+            # if not found, then move the index over one cell
+            self.highlightCode('j in range(self.nItems)', callEnviron)
+            self.moveItemsBy(indexDisplay, (self.CELL_SIZE, 0), sleepTime=0.01)
+            self.wait(0.1)
+
+        # key not found
+        self.highlightCode('return -1', callEnviron)
+        self.wait(0.1)
+
+        # Animation stops
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron)
+        return -1
+    
+    deleteCode = """
+def delete(self, item):
+   for j in range(self.__nItems):
+      if self.__a[j] == item:
+         self.__nItems -= 1
+         for k in range(j, self.__nItems):
+            self.__a[k] = self.__a[k+1]
+         return True
+   return False
+"""
+        
+    def delete(self, val, code=deleteCode):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(code=code)
+
+        # draw an index for variable j pointing to the first cell
+        Jindex = self.createIndex(0, 'j')
+        callEnviron |= set(Jindex)
+
+        # show that we are starting the loop
+        self.highlightCode('j in range(self.__nItems)', callEnviron, wait=0.1)
+        
+        # go through each Drawable in the list
+        # look for val to be deleted
+        for j, n in enumerate(self.list):
+
+            # if the value is found
+            self.highlightCode('self.__a[j] == item', callEnviron, wait=0.1)
+
+            if n.val == val:
+                # get the position of the displayed cell
+                posShape = self.canvas.coords(n.display_shape)
 
                 # Highlight the found element with a circle
                 foundCircle = self.canvas.create_oval(
                     *add_vector(
-                        cellShape,
+                        posShape,
                         multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
                     outline=self.FOUND_COLOR)
                 callEnviron.add(foundCircle)
@@ -235,26 +408,37 @@ class SortingBase(VisualizationApp):
                 # remove the found circle
                 callEnviron.remove(foundCircle)
                 self.canvas.delete(foundCircle)
+                
+                # decrement nItems
+                self.highlightCode('self.__nItems -= 1', callEnviron)
+
+                # Move nItems pointer
+                self.moveItemsBy(
+                    self.nItems, (-self.CELL_WIDTH, 0), sleepTime=0.01)
 
                 # Slide value rectangle up and off screen
-                items = (n.display_shape, n.display_val) if not self.changeSize else (n.display_shape,)
+                items = (n.display_shape, n.display_val)
                 self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
-                #move nItems pointer
-                self.moveItemsBy(self.nItems, (-self.CELL_WIDTH, 0),
-                                 sleepTime=0.01)
+                self.highlightCode('k in range(j, self.__nItems)', 
+                                   callEnviron, wait=0.1)
 
                 # Create an index for shifting the cells
                 kIndex = self.createIndex(j, 'k')
                 callEnviron |= set(kIndex)
-            
+                    
                 # Slide values from right to left to fill gap
-                for k in range(j+1, len(self.list)):
-                    self.assignElement(k, k - 1, callEnviron)
-                    self.moveItemsBy(kIndex, (self.CELL_WIDTH, 0),
-                                     sleepTime=0.01)
-                    self.wait(0.1)
+                for k in range(j, len(self.list) -1):
+                    self.highlightCode('self.__a[k] = self.__a[k+1]',
+                                       callEnviron)
+                    self.assignElement(k + 1, k, callEnviron)
+                    self.moveItemsBy(
+                        kIndex, (self.CELL_WIDTH, 0), sleepTime=0.01)
 
+                    self.highlightCode('k in range(j, self.__nItems)', 
+                                       callEnviron, wait=0.1)
+                
+                self.highlightCode('return True', callEnviron)
                 # remove the last item in the list
                 n = self.list.pop()
                 # delete the associated display objects
@@ -264,39 +448,55 @@ class SortingBase(VisualizationApp):
                 # update window
                 self.wait(0.3)
 
+                self.highlightCode([], callEnviron)
                 self.cleanUp(callEnviron)
                 return True
 
             # if not found, then move the index over one cell
-            self.moveItemsBy(indexDisplay, (self.CELL_WIDTH, 0), sleepTime=0.01)
+            self.highlightCode('j in range(self.__nItems)', callEnviron)
+            self.moveItemsBy(
+                Jindex, (self.CELL_WIDTH, 0), sleepTime=0.01)
+        
+        # key not found
+        self.highlightCode('return False', callEnviron, wait=0.3)
 
         # Animation stops
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         return None
 
-    def removeFromEnd(self):
+    deleteLastCode = '''
+def deleteLast(self):
+   self.__nItems -= 1
+   self.__a[self.__nItems] = None
+'''
+
+    def deleteLast(self, code=deleteLastCode):
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
             return
     
         self.startAnimations()
-        callEnviron = self.createCallEnvironment()
+        callEnviron = self.createCallEnvironment(code=code)
 
-        #move nItems pointer
-        self.moveItemsBy(self.nItems, (-self.CELL_WIDTH, 0), sleepTime=0.01)
-        
         # pop an Element from the list
         n = self.list.pop()
         
+        #move nItems pointer
+        self.highlightCode('self.__nItems -= 1', callEnviron)
+        self.moveItemsBy(self.nItems, (-self.CELL_WIDTH, 0), sleepTime=0.01)
+    
         # Slide value rectangle up and off screen
         if not self.changeSize:
             items = (n.display_shape, n.display_val)
         else:
             items = (n.display_shape, )
         callEnviron |= set(items)
+        self.highlightCode('self.__a[self.__nItems] = None', callEnviron)
         self.moveItemsOffCanvas(items, N, sleepTime=0.02)
-    
+
         # Finish animation
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
     def isSorted(self):
@@ -392,9 +592,8 @@ class SortingBase(VisualizationApp):
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
             # create display objects for the associated Drawables
-            cell = self.createCellValue(i, n.val, n.color)
-            n.display_shape = cell[0]
-            n.display_val = cell[1] if len(cell) > 1 else None
+            n.display_shape, n.display_val = self.createCellValue(
+                i, n.val, n.color)
             n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
     
         self.window.update()
@@ -523,7 +722,7 @@ class SortingBase(VisualizationApp):
             "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
             helpText='Shuffle position of all items')
         deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.removeFromEnd(), maxRows=maxRows,
+            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
             helpText='Delete last array item')
         buttons = [newButton, insertButton, deleteButton,
                    randomFillButton, shuffleButton, deleteRightmostButton]
@@ -535,7 +734,7 @@ class SortingBase(VisualizationApp):
             val = int(entered_text)
             if valMax is None:
                 valMax = self.valMax
-            if val < valMax:
+            if val <= valMax:
                 return val
     
     # Button functions
@@ -545,14 +744,31 @@ class SortingBase(VisualizationApp):
             self.setMessage(
                 "Input value must be an integer from 0 to {}".format(
                     self.valMax))
+            self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
         elif self.insert(val, allowGrowth=True):
             self.setMessage("Value {} inserted".format(val))
+            self.clearArgument() 
+     
+    def clickSearch(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage(
+                "Input value must be an integer from 0 to {}".format(
+                    self.valMax))
+            self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
+        else:
+            found = self.search(val)
+            self.setMessage(
+                "Value {} {}found".format(val, "" if found else "not "))
             self.clearArgument() 
      
     def clickDelete(self):
         val = self.validArgument()
         if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99")
+            self.setMessage(
+                "Input value must be an integer from 0 to {}".format(
+                    self.valMax))
+            self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
         else:
             result = self.delete(val)
             msg = "Value {} {}".format(
