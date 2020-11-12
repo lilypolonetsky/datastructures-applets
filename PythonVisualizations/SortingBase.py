@@ -311,6 +311,8 @@ def search(self, item={item}):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.highlightCode('self.find(item)', callEnviron)
         n = self.find(item)
+        if n is not None:
+            callEnviron.add(self.createFoundCircle(n))
         self.highlightCode('self.get(self.find(item))', callEnviron)
         result = self.get(n)
         self.highlightCode('return self.get(self.find(item))', callEnviron)
@@ -346,11 +348,7 @@ def find(self, item={val}):
                 self.highlightCode('return j', callEnviron)
 
                 # Highlight the found element with a circle
-                callEnviron.add(self.canvas.create_oval(
-                    *add_vector(
-                        self.cellCoords(j),
-                        multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
-                    outline=self.FOUND_COLOR))
+                callEnviron.add(self.createFoundCircle(j))
 
                 # update the display and pause to show circle
                 self.wait(0.1)
@@ -644,6 +642,12 @@ def traverse(self, function=print):
         y2 = round(midY + prop * (y2-midY))
         
         return (x1, y1, x2, y2)
+    
+    def createFoundCircle(self, index):
+        return self.canvas.create_oval(
+            *add_vector(self.cellCoords(index), 
+                        multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
+            outline=self.FOUND_COLOR)
     
     def redrawArrayCells(self):        
         self.canvas.delete("arrayBox")
