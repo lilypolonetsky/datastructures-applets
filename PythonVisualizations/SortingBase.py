@@ -210,16 +210,20 @@ def __init__(self, initialSize={val}):
 
         self.startAnimations()
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-
+        self.canvas.delete('all')
+        
         self.size = val
         self.highlightCode('self.__a = [None] * initialSize', callEnviron, 
                            wait=0.1)
         self.list = []
         self.changeSize = (self.size + 2) * self.CELL_SIZE > canvasDims[0]
         self.CELL_WIDTH = self.CELL_MIN_WIDTH if self.changeSize else self.CELL_SIZE
-        self.display()
+        self.display(showNItems=False)
+        self.wait(0.1)
 
-        self.highlightCode('self.__nItems = 0', callEnviron, wait=0.2)
+        self.highlightCode('self.__nItems = 0', callEnviron, wait=0.1)
+        self.display()
+        self.wait(0.1)
 
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
@@ -669,15 +673,11 @@ def traverse(self, function=print):
         for i in range(self.size):
             self.createArrayCell(i)    
     
-    def display(self):
+    def display(self, showNItems=True):
         self.canvas.delete("all")
     
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
-
-        # draw an index pointing to the last item in the list
-        self.nItems = self.createIndex(
-            len(self.list), 'nItems', level = -1, color = 'black')
     
         # go through each Drawable in the list
         for i, n in enumerate(self.list):
@@ -685,6 +685,11 @@ def traverse(self, function=print):
             n.display_shape, n.display_val = self.createCellValue(
                 i, n.val, n.color)
             n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
+
+        # draw an index pointing to the last item in the list
+        if showNItems:
+            self.nItems = self.createIndex(
+                len(self.list), 'nItems', level = -1, color = 'black')
     
         self.window.update()
 
