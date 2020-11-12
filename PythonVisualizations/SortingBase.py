@@ -211,7 +211,7 @@ class SortingBase(VisualizationApp):
         return True
 
     insertCode = """
-def insert(self, item):
+def insert(self, item={val}):
    self.__a[self.__nItems] = item
    self.__nItems += 1
 """
@@ -240,7 +240,7 @@ def insert(self, item):
             self.display()
         
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code)
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
 
         self.highlightCode('self.__a[self.__nItems] = item', callEnviron)
 
@@ -283,14 +283,14 @@ def insert(self, item):
         self.cleanUp(callEnviron)
         
     getCode = """
-def get(self, n):
+def get(self, n={n}):
    if 0 <= n and n < self.__nItems:
       return self.__a[n]
 """
 
-    def get(self, n):
+    def get(self, n, code=getCode):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(self.getCode)
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.highlightCode('0 <= n and n < self.__nItems', 
                            callEnviron, wait=0.2)
         self.highlightCode('return self.__a[n]', callEnviron, wait=0.2)
@@ -302,13 +302,13 @@ def get(self, n):
         return result
     
     searchCode = """
-def search(self, item):
+def search(self, item={item}):
    return self.get(self.find(item))
 """
 
     def search(self, item, code=searchCode):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code)
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.highlightCode('self.find(item)', callEnviron)
         n = self.find(item)
         self.highlightCode('self.get(self.find(item))', callEnviron)
@@ -319,7 +319,7 @@ def search(self, item):
         return result
 
     findCode = """
-def find(self, item):
+def find(self, item={val}):
    for j in range(self.nItems):
       if self.__a[j] == item:
          return j
@@ -329,7 +329,7 @@ def find(self, item):
     def find(self, val, code=findCode):
         self.startAnimations()
        
-        callEnviron = self.createCallEnvironment(code=code)
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
@@ -375,7 +375,7 @@ def find(self, item):
         return -1
     
     deleteCode = """
-def delete(self, item):
+def delete(self, item={val}):
    for j in range(self.__nItems):
       if self.__a[j] == item:
          self.__nItems -= 1
@@ -387,10 +387,10 @@ def delete(self, item):
         
     def delete(self, val, code=deleteCode):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code)
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
 
         # draw an index for variable j pointing to the first cell
-        Jindex = self.createIndex(0, 'j')
+        Jindex = self.createIndex(0, 'j', level=2)
         callEnviron |= set(Jindex)
 
         # show that we are starting the loop
