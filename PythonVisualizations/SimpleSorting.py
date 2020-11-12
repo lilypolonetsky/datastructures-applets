@@ -247,16 +247,48 @@ def selectionSort(self):
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
-    def makeButtons(self):
+    def makeButtons(self, maxRows=3):
+        vcmd = (self.window.register(numericValidate),
+                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        insertButton = self.addOperation(
+            "Insert", lambda: self.clickInsert(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Insert item in array')
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Search for item in array')
+        deleteButton = self.addOperation(
+            "Delete", lambda: self.clickDelete(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Delete array item')
+        newButton = self.addOperation(
+            "New", lambda: self.clickNew(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows, 
+            argHelpText=['number of cells'],
+            helpText='Create new empty array')
+        randomFillButton = self.addOperation(
+            "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
+            helpText='Fill all array cells with random keys')
+        shuffleButton = self.addOperation(
+            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
+            helpText='Shuffle position of all items')
+        deleteRightmostButton = self.addOperation(
+            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
+            helpText='Delete last array item')
         bubbleSortButton = self.addOperation(
-            "Bubble Sort", lambda: self.bubbleSort())
+            "Bubble Sort", lambda: self.bubbleSort(), maxRows=maxRows,
+            helpText='Sort array using bubble sort')
         selectionSortButton = self.addOperation(
-            "Selection Sort", lambda: self.selectionSort())
+            "Selection Sort", lambda: self.selectionSort(), maxRows=maxRows,
+            helpText='Sort array using selelction sort')
         insertionSortButton = self.addOperation(
-            "Insertion Sort", lambda: self.insertionSort())
-        buttons, vcmd = super().makeButtons()
-        self.addAnimationButtons()
-        buttons += [bubbleSortButton, selectionSortButton, insertionSortButton]
+            "Insertion Sort", lambda: self.insertionSort(), maxRows=maxRows,
+            helpText='Sort array using insertion sort')
+        self.addAnimationButtons(maxRows=maxRows)
+        buttons = [insertButton, searchButton, deleteButton, newButton, 
+                   randomFillButton, shuffleButton, deleteRightmostButton,
+                   bubbleSortButton, selectionSortButton, insertionSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
 
 if __name__ == '__main__':
