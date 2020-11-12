@@ -504,7 +504,72 @@ def deleteLast(self):
         # Finish animation
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
+        
+    traverseCode = """
+def traverse(self, function=print):
+   for j in range(self.nItems):
+      function(self.__a[j])
+"""
 
+    def traverse(self, code=traverseCode):
+        self.startAnimations()
+     
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        
+        # draw an index pointing to the first cell
+        indexDisplay = self.createIndex(0, 'j')
+        callEnviron |= set(indexDisplay)
+
+        # draw output box
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        outputFont = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
+        spacing = self.outputBoxSpacing(outputFont)
+        padding = 10
+        outputBoxCoords = self.outputBoxCoords(outputFont, padding=padding)
+        midOutputBox = (outputBoxCoords[3] + outputBoxCoords[1]) // 2
+        outputBox = self.canvas.create_rectangle(
+            *outputBoxCoords, fill=self.OPERATIONS_BG)
+        callEnviron.add(outputBox)
+
+        self.highlightCode('j in range(self.nItems)', callEnviron)
+        self.wait(0.3)
+        for j, n in enumerate(self.list):
+            # create the value to move to output box
+            valueOutput = (
+                self.copyCanvasItem(n.display_val) if n.display_val else
+                self.canvas.create_text(
+                    *self.cellCenter(j), text=n.val, font=outputFont))
+            callEnviron.add(valueOutput)
+
+            # move value to output box
+            self.highlightCode('function(self.__a[j])', callEnviron)
+            toPositions = (outputBoxCoords[0] + padding/2 + (j + 1/2)*spacing, 
+                           midOutputBox)
+            self.moveItemsTo((valueOutput,), (toPositions,), sleepTime=.02)
+
+            # Make sure the final value is in the output font
+            self.canvas.itemconfig(valueOutput, font=outputFont)
+
+            # wait and then move the index pointer over
+            self.wait(0.2)
+            self.highlightCode('j in range(self.nItems)', callEnviron)
+            self.moveItemsBy(indexDisplay, (self.CELL_WIDTH, 0), sleepTime=0.03)
+
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron)
+
+    def outputBoxSpacing(self, outputFont):
+        return self.textWidth(outputFont, self.valMax) + abs(outputFont[1])
+    
+    def outputBoxCoords(self, outputFont, padding=10, n=None):
+        if n is None:
+            n = len(self.list)
+        spacing = self.outputBoxSpacing(outputFont)
+        canvasDims = self.widgetDimensions(self.canvas)
+        left = max(0, canvasDims[0] - n * spacing - padding) // 2
+        return (left, canvasDims[1] - abs(outputFont[1]) * 3 - padding,
+                left + n * spacing + padding, canvasDims[1] - padding)
+       
     def isSorted(self):
         return all(self.list[i-1] <= self.list[i] 
                    for i in range(1, len(self.list)))
@@ -582,7 +647,7 @@ def deleteLast(self):
     
     def redrawArrayCells(self):        
         self.canvas.delete("arrayBox")
-        for i in range(len(self.list)):
+        for i in range(self.size):
             self.createArrayCell(i)    
     
     def display(self):
@@ -725,6 +790,9 @@ def deleteLast(self):
             validationCmd=vcmd, maxRows=maxRows, 
             argHelpText=['number of cells'],
             helpText='Create new empty array')
+        traverseButton = self.addOperation(
+            "Traverse", lambda: self.traverse(), maxRows=maxRows,
+            helpText='Traverse all array cells once')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
             helpText='Fill all array cells with random keys')
@@ -734,8 +802,9 @@ def deleteLast(self):
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
             helpText='Delete last array item')
-        buttons = [newButton, insertButton, searchButton, deleteButton,
-                   randomFillButton, shuffleButton, deleteRightmostButton]
+        buttons = [insertButton, searchButton, deleteButton, newButton, 
+                   traverseButton, randomFillButton, shuffleButton,
+                   deleteRightmostButton]
         return buttons, vcmd  # Buttons managed by play/pause/stop controls    
     
     def validArgument(self, valMax=None):
