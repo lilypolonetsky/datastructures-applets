@@ -190,7 +190,13 @@ class SortingBase(VisualizationApp):
         return (arrow, label) if name else (arrow,)  
 
     # ARRAY FUNCTIONALITY
-    def new(self, val):
+    newCode = '''
+def __init__(self, initialSize={val}):
+   self.__a = [None] * initialSize
+   self.__nItems = 0
+'''
+    
+    def new(self, val, code=newCode):
         canvasDims = self.widgetDimensions(self.canvas)
         maxCells = min(self.maxCells, 
                        (canvasDims[0] - self.ARRAY_X0) // self.CELL_MIN_WIDTH)
@@ -201,13 +207,22 @@ class SortingBase(VisualizationApp):
         elif val < 1:
             self.setMessage('Too few cells; must be 1 or more')
             return
-            
+
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+
         self.size = val
+        self.highlightCode('self.__a = [None] * initialSize', callEnviron, 
+                           wait=0.1)
         self.list = []
         self.changeSize = (self.size + 2) * self.CELL_SIZE > canvasDims[0]
         self.CELL_WIDTH = self.CELL_MIN_WIDTH if self.changeSize else self.CELL_SIZE
         self.display()
-        
+
+        self.highlightCode('self.__nItems = 0', callEnviron, wait=0.2)
+
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron)
         return True
 
     insertCode = """
