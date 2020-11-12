@@ -97,6 +97,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_FONT = ('Courier', -12)
     SMALL_FONT = ('Helvetica', -9)
     CODE_HIGHLIGHT = 'yellow'
+    EXCEPTION_HIGHLIGHT = 'orange'
     CONTROLS_FONT = ('Helvetica', -12)
     HINT_FONT = CONTROLS_FONT + ('italic',)
     HINT_FG = 'blue'
@@ -534,7 +535,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if not skip and desired != nCharsWide:
             ct['width'] = desired
 
-    def highlightCode(self, fragments, callEnviron, wait=0):
+    def highlightCode(
+            self, fragments, callEnviron, wait=0, color=CODE_HIGHLIGHT):
         '''Highlight a code fragment for a particular call environment.
         Multiple fragments can be highlighted.  Each fragment can be
         either a string of code, or a (string, int) tuple where the int
@@ -560,7 +562,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 continue  # Only change tags for this call environment
             highlight = tagName in tags
             self.codeText.tag_config(
-                tagName, background=self.CODE_HIGHLIGHT if highlight else '',
+                tagName, background=color if highlight else '',
                 underline=1 if highlight else 0)
             if highlight:
                 found = True
