@@ -272,12 +272,9 @@ class Queue(VisualizationApp):
 
     # calculate the coordinates of the output box
     def outputBoxCoords(self):
-        size = 20
         padding = 30
-        return (padding,
-                padding,
-                padding+size*2,
-                padding+size*2)
+        widest = self.textWidth(self.valueFont, 'W' * self.maxArgWidth)
+        return (padding, padding, padding * 2 + widest, padding + 2 * abs(self.valueFont[1]))
 
     #disable insert if queue if full, disable delete if empty
     #enable everything else without overriding queue/deque functionality
@@ -317,7 +314,7 @@ class Queue(VisualizationApp):
     def clickPeek(self):
         val = self.peek()
         
-        if val: self.setMessage("Value {} is at the front of the queue!".format(val))
+        if val: self.setMessage("Value {} is at the front of the queue".format(val))
         else: self.setMessage("Error! Queue is empty.")  
 
     def startAnimations(self):
