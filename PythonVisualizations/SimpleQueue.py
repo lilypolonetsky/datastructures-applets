@@ -213,6 +213,40 @@ class Queue(VisualizationApp):
 
         self.cleanUp(callEnviron)
 
+    def peek(self):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
+        if self.nItems == 0:
+            self.cleanUp(callEnviron)
+            return None
+
+        # create the output box
+        outputBox = self.canvas.create_rectangle(
+            *self.outputBoxCoords(), fill=self.OPERATIONS_BG)
+        callEnviron.add(outputBox)
+
+        # calculate where the value will need to move to
+        outputBoxCoords = self.canvas.coords(outputBox)
+        midOutputBoxY = (outputBoxCoords[3] + outputBoxCoords[1]) // 2
+        midOutputBoxX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
+
+        # create the value to move to output box
+        valueOutput = self.copyCanvasItem(self.list[self.front].display_val)
+        valueList = (valueOutput,)
+        callEnviron.add(valueOutput)
+
+        # move value to output box
+        toPositions = (midOutputBoxX, midOutputBoxY)
+        self.moveItemsTo(valueList, (toPositions,), sleepTime=.02)
+
+        # make the value 25% smaller
+        newFont = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
+        self.canvas.itemconfig(valueOutput, font=newFont)
+
+        self.cleanUp(callEnviron)
+        return self.list[self.front].val
+
     def display(self):
         self.canvas.delete("all")
 
@@ -235,6 +269,12 @@ class Queue(VisualizationApp):
         self.nItems = newNItems
         self.canvas.itemconfigure(
             self.nItemsDisplay, text='nItems: {}'.format(self.nItems))
+
+    # calculate the coordinates of the output box
+    def outputBoxCoords(self):
+        padding = 30
+        widest = self.textWidth(self.valueFont, 'W' * self.maxArgWidth)
+        return (padding, padding, padding * 2 + widest, padding + 2 * abs(self.valueFont[1]))
 
     #disable insert if queue if full, disable delete if empty
     #enable everything else without overriding queue/deque functionality
@@ -271,6 +311,12 @@ class Queue(VisualizationApp):
             self.insertRear(entered_text)
             self.clearArgument()
 
+    def clickPeek(self):
+        val = self.peek()
+        
+        if val: self.setMessage("Value {} is at the front of the queue".format(val))
+        else: self.setMessage("Error! Queue is empty.")  
+
     def startAnimations(self):
         self.onOffButtons()
         super().startAnimations()
@@ -286,6 +332,8 @@ class Queue(VisualizationApp):
 
         self.deleteButton = self.addOperation(
             "Delete", lambda: self.removeFront())
+        self.peekButton = self.addOperation(
+            "Peek", lambda: self.clickPeek())
         self.addAnimationButtons()
 
     def createCells(self, nCells):  # Create a set of array cells in a circle
