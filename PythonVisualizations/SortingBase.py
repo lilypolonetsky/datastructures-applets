@@ -280,7 +280,26 @@ def insert(self, item):
         self.list = [drawable(random.randrange(90)) for i in range(self.size)]
         
         self.display()         
-        self.cleanUp(callEnviron)      
+        self.cleanUp(callEnviron)
+        
+    getCode = """
+def get(self, n):
+   if 0 <= n and n < self.__nItems:
+      return self.__a[n]
+"""
+
+    def get(self, n):
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(self.getCode)
+        self.highlightCode('0 <= n and n < self.__nItems', 
+                           callEnviron, wait=0.2)
+        self.highlightCode('return self.__a[n]', callEnviron, wait=0.2)
+        if 0 <= n and n < len(self.list):
+            result = self.list[n]
+        else:
+            result = None
+        self.cleanUp(callEnviron)
+        return result
     
     searchCode = """
 def search(self, item):
@@ -320,32 +339,26 @@ def find(self, item):
         self.highlightCode('j in range(self.nItems)', callEnviron)
 
         # go through each Drawable in the list
-        for i in range(len(self.list)):
-            n = self.list[i]
-            
-            # if the value is found
-            self.highlightCode('self.__a[j] == item', callEnviron)
-            self.wait(0.1)
-            
+        for j, n in enumerate(self.list):
+            # Test if the value is found
+            self.highlightCode('self.__a[j] == item', callEnviron, wait=0.1)
             if n.val == val:
-                # get the position of the displayed cell
                 self.highlightCode('return j', callEnviron)
-                posShape = self.canvas.coords(n.display_shape)
 
                 # Highlight the found element with a circle
                 callEnviron.add(self.canvas.create_oval(
                     *add_vector(
-                        posShape,
+                        self.cellCoords(j),
                         multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
                     outline=self.FOUND_COLOR))
 
-                # update the display
+                # update the display and pause to show circle
                 self.wait(0.1)
 
                 # Animation stops
                 self.highlightCode([], callEnviron)
                 self.cleanUp(callEnviron)
-                return i
+                return j
 
             # if not found, then move the index over one cell
             self.highlightCode('j in range(self.nItems)', callEnviron)
@@ -387,28 +400,21 @@ def delete(self, item):
         # look for val to be deleted
         for j, n in enumerate(self.list):
 
-            # if the value is found
+            # Test if the value is found
             self.highlightCode('self.__a[j] == item', callEnviron, wait=0.1)
-
             if n.val == val:
-                # get the position of the displayed cell
-                posShape = self.canvas.coords(n.display_shape)
 
                 # Highlight the found element with a circle
                 foundCircle = self.canvas.create_oval(
                     *add_vector(
-                        posShape,
+                        self.cellCoords(j),
                         multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
                     outline=self.FOUND_COLOR)
                 callEnviron.add(foundCircle)
 
-                # update the display
+                # Pause to show circle
                 self.wait(0.3)
 
-                # remove the found circle
-                callEnviron.remove(foundCircle)
-                self.canvas.delete(foundCircle)
-                
                 # decrement nItems
                 self.highlightCode('self.__nItems -= 1', callEnviron)
 
@@ -417,7 +423,7 @@ def delete(self, item):
                     self.nItems, (-self.CELL_WIDTH, 0), sleepTime=0.01)
 
                 # Slide value rectangle up and off screen
-                items = (n.display_shape, n.display_val)
+                items = (n.display_shape, n.display_val, foundCircle)
                 self.moveItemsOffCanvas(items, N, sleepTime=0.02)
 
                 self.highlightCode('k in range(j, self.__nItems)', 
@@ -706,6 +712,10 @@ def deleteLast(self):
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd, maxRows=maxRows,
             argHelpText=['item key'], helpText='Insert item in array')
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Search for item in array')
         deleteButton = self.addOperation(
             "Delete", lambda: self.clickDelete(), numArguments=1,
             validationCmd=vcmd, maxRows=maxRows,
@@ -724,7 +734,7 @@ def deleteLast(self):
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
             helpText='Delete last array item')
-        buttons = [newButton, insertButton, deleteButton,
+        buttons = [newButton, insertButton, searchButton, deleteButton,
                    randomFillButton, shuffleButton, deleteRightmostButton]
         return buttons, vcmd  # Buttons managed by play/pause/stop controls    
     
@@ -747,7 +757,7 @@ def deleteLast(self):
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
         elif self.insert(val, allowGrowth=True):
             self.setMessage("Value {} inserted".format(val))
-            self.clearArgument() 
+            self.clearArgument()
      
     def clickSearch(self):
         val = self.validArgument()
