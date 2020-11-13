@@ -157,6 +157,7 @@ def find(self, item={val}):
                                  sleepTime=0.01)
             else:
                 midIndex = self.createIndex(mid, 'mid', level=2)
+                callEnviron |= set(midIndex)
                 self.wait(0.1)
                 
             self.highlightCode('self.__a[mid] == item', callEnviron, wait=0.1)
@@ -197,13 +198,14 @@ def search(self, item={item}):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.highlightCode('self.find(item)', callEnviron, wait=0.1)
         nIndex = self.find(item)
+        if nIndex < len(self.list) and self.list[nIndex].val == item:
+            callEnviron.add(self.createFoundCircle(nIndex))
 
         result = None
         self.highlightCode('index < self.__nItems', callEnviron, wait=0.1)
         if nIndex < len(self.list):
             self.highlightCode('self.__a[index] == item', callEnviron, wait=0.1)
             if self.list[nIndex].val == item:
-                callEnviron.add(self.createFoundCircle(nIndex))
                 self.highlightCode('return self.__a[index]', callEnviron,
                                    wait=0.1)
                 result = self.list[nIndex].val
@@ -243,16 +245,18 @@ def delete(self, item):
 
         self.highlightCode('self.find(item)', callEnviron, wait=0.1)
         j = self.find(val)
+        found = j < len(self.list) and self.list[j].val == val
+        if found:
+            foundCircle = self.createFoundCircle(j)
+            callEnviron.add(foundCircle)
 
         jIndex = self.createIndex(j, 'j')
+        callEnviron |= set(jIndex)
         self.highlightCode('j < self.__nItems', callEnviron, wait=0.1)
-        found = False
+
         if j < len(self.list):
             self.highlightCode('self.__a[j] == item', callEnviron, wait=0.1)
             if self.list[j].val == val:
-                found = True
-                foundCirlce = self.createFoundCircle(nIndex)
-                callEnviron.add(foundCircle)
                 self.wait(0.2)  # Pause to show circle
                 
                 self.highlightCode('self.__nItems -= 1', callEnviron)
@@ -269,6 +273,7 @@ def delete(self, item):
                 self.highlightCode('k in range(j, self.__nItems)', callEnviron)
                 k = j
                 kIndex = self.createIndex(k, 'k', level=2)
+                callEnviron |= set(kIndex)
                 while k < len(self.list) - 1:
 
                     self.highlightCode('self.__a[k] = self.__a[k+1]',
@@ -277,6 +282,9 @@ def delete(self, item):
 
                     self.highlightCode('k in range(j, self.__nItems)', 
                                        callEnviron, wait=0.1)
+                    self.moveItemsBy(kIndex, (self.CELL_WIDTH, 0), 
+                                     sleepTime=0.01)
+                    k += 1
                     
                 self.wait(0.1) # Pause for final loop comparison
                 
@@ -295,10 +303,39 @@ def delete(self, item):
         return found
             
     # Button functions
-    def makeButtons(self, maxRows=4):
-        buttons, vcmd = super().makeButtons(maxRows=maxRows)
+    def makeButtons(self, maxRows=3):
+        vcmd = (self.window.register(numericValidate),
+                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        insertButton = self.addOperation(
+            "Insert", lambda: self.clickInsert(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Insert item in array')
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Search for item in array')
+        deleteButton = self.addOperation(
+            "Delete", lambda: self.clickDelete(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows,
+            argHelpText=['item key'], helpText='Delete array item')
+        newButton = self.addOperation(
+            "New", lambda: self.clickNew(), numArguments=1,
+            validationCmd=vcmd, maxRows=maxRows, 
+            argHelpText=['number of cells'],
+            helpText='Create new empty array')
+        traverseButton = self.addOperation(
+            "Traverse", lambda: self.traverse(), maxRows=maxRows,
+            helpText='Traverse all array cells once')
+        randomFillButton = self.addOperation(
+            "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
+            helpText='Fill all array cells with random keys')
+        deleteRightmostButton = self.addOperation(
+            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
+            helpText='Delete last array item')
         self.addAnimationButtons(maxRows=maxRows)
-        return buttons
+        buttons = [insertButton, searchButton, deleteButton, newButton, 
+                   traverseButton, randomFillButton, deleteRightmostButton]
+        return buttons  # Buttons managed by play/pause/stop controls
         
     def clickInsert(self):
         val = self.validArgument()
