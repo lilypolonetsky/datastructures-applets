@@ -4,142 +4,185 @@ from tkinter import *
 try:
     from drawable import *
     from VisualizationApp import *
+    from SortingBase import *
 except ModuleNotFoundError:
     from .drawable import *
     from .VisualizationApp import *
+    from .SortingBase import *
 
+class OrderedArray(SortingBase):
 
-class OrderedArray(VisualizationApp):
-    CELL_SIZE = 50
-    CELL_BORDER = 2
-    CELL_BORDER_COLOR = 'black'
-    ARRAY_X0 = 100
-    ARRAY_Y0 = 100
-    FOUND_COLOR = 'brown4'
-    nextColor = 0
-
-    def __init__(self, size=10, title="Ordered Array", **kwargs):
+    def __init__(self, title="Ordered Array", **kwargs):
         super().__init__(title=title, **kwargs)
-        self.size = size
-        self.title = title
-        self.list = []
-        self.buttons = self.makeButtons()
-        self.nItems = 0
 
-        #Fill in initial array values with random integers
+        # Fill in initial array values with random but ordered integers
         # The display items representing these array cells are created later
-        a = [random.randrange(90) for i in range(size-1)]
-        a.sort()
-                
-        # Append and draw them to the list and draw them
-        for i in a:
+        for i in sorted([random.randrange(self.valMax) 
+                         for i in range(self.size-1)]):
             self.list.append(drawable(i))
         
         self.display()
 
-    def __str__(self):
-        return str(self.list)
+        self.buttons = self.makeButtons()
 
     # ARRAY FUNCTIONALITY
 
-    def createIndex(self, index,  # cell
-                    name=None,  # with an optional name label
-                    level=1,  # at a particular level away from the cells
-                    color=None):  # (negative are below)
-        if not color: color = self.VARIABLE_COLOR
+    insertCode = '''
+def insert(self, item={val}):
+   if self.__nItems >= len(self.__a):
+      raise Exception("Array overflow")
 
-        cell_coords = self.cellCoords(index)
-        cell_center = self.cellCenter(index)
-        level_spacing = abs(self.VARIABLE_FONT[1])
-        x = cell_center[0]
-        if level > 0:
-            y0 = cell_coords[1] - self.CELL_SIZE * 3 // 5 - level * level_spacing
-            y1 = cell_coords[1] - self.CELL_SIZE * 3 // 10
-        else:
-            y0 = cell_coords[3] + self.CELL_SIZE * 3 // 5 - level * level_spacing
-            y1 = cell_coords[3] + self.CELL_SIZE * 3 // 10
-        arrow = self.canvas.create_line(
-            x, y0, x, y1, arrow="last", fill=color)
-        if name:
-            label = self.canvas.create_text(
-                x + 2, y0, text=name, anchor=SW if level > 0 else NW,
-                font=self.VARIABLE_FONT, fill=color)
-        return (arrow, label) if name else (arrow,)
+   j = self.__nItems
+   while 0 < j and self.__a[j - 1] > item:
+      self.__a[j] = self.__a[j-1]
+      j -= 1
 
-    def insert(self, val):
+   self.__a[j] = item
+   self.__nItems += 1
+'''
 
-        callEnviron = self.createCallEnvironment()
-        self.startAnimations()
-
-        k=len(self.list)
-
-        self.list.append(drawable(None))
+    def insert(self, val, code=insertCode):
+        canvasDims = self.widgetDimensions(self.canvas)
         
-        indexK = self.createIndex(len(self.list) -1, 'k', level=-2) # create "k" arrow
-        callEnviron |= set(indexK)  
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
 
-       # for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
-        while 0 < k and self.list[k-1].val > val: # over items
-            self.moveItemsBy(indexK, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "k" arrow
+        self.highlightCode('self.__nItems >= len(self.__a)', 
+                           callEnviron, wait=0.1)
+        if len(self.list) >= self.size:
+            self.highlightCode(
+                'raise Exception("Array overflow")', callEnviron, wait=0.2,
+                color=self.EXCEPTION_HIGHLIGHT)
+            self.cleanUp(callEnviron)
+            return
 
-            self.list[k].val = self.list[k - 1].val # Move larger item to right
-            self.assignElement(k - 1, k, callEnviron)
-            k -= 1  # Advance left among items
-        # Location of the new cell in the array
-        toPositions = (self.cellCoords(k),
-                       self.cellCenter(k))
+        self.highlightCode('j = self.__nItems', callEnviron, wait=0.1)
+        j = len(self.list)
+        indexJ = self.createIndex(j, 'j')
+        callEnviron |= set(indexJ)
 
-        # Animate arrival of new value from operations panel area
-        canvasDimensions = self.widgetDimensions(self.canvas)
-        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
-        startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
-        cellPair = self.createCellValue(startPosition, val)
-        callEnviron |= set(cellPair)  # Mark the new items as temporary
-        self.moveItemsTo(cellPair, toPositions, steps= self.CELL_SIZE, sleepTime=0.01)
+        startPosition = self.tempCoords(j)
+        cell = self.createCellValue(startPosition, val)
+        if cell[1] is None:
+            cell = cell[:1]
+        itemLabel = self.canavas.create_text(
+            *self.tempLabelCoords(j, self.VARIABLE_FONT), text='item', 
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        newItem = cell + (itemLabel,)
+        callEnviron += set(newItem)
+        
+        self.list.append(drawable(None))
+        self.highlightCode('0 < j and self.__a[j - 1] > item', callEnviron)
+        
+        #  Move bigger items right
+        while 0 < j and self.list[j-1].val > val:
+            self.wait(0.1) # Pause to compare values
 
-        self.canvas.delete(self.list[k].display_shape)  # These are now covered by the temporary items
-        self.canvas.delete(self.list[k].display_val)
-        self.list[k]= (drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
-        callEnviron ^= set(cellPair)  # New item is no longer temporary
+            self.highlightCode('self.__a[j] = self.__a[j-1]', callEnviron)
+            self.assignElement(j - 1, j, callEnviron, sleepTime=0.01)
+            
+            self.highlightCode('j -= 1', callEnviron)
+            self.moveItemsBy((indexJ,) + newItem, (-self.CELL_WIDTH, 0), 
+                             sleepTime=0.01)
+            
+        self.wait(0.1) # Pause for last loop comparison
+        
+        self.highlightCode('self.__a[j] = item', callEnviron, wait=0.1)
+        
+        # Move the new cell into the array
+        toPositions = (self.cellCoords(j),)
+        if len(cell) > 1:
+            toPositions += (self.cellCenter(j),)
+        self.moveItemsTo(cell, toPositions, sleepTime=0.01)
+
+        self.canvas.delete(self.list[j].display_shape) # Delete items covered
+        if self.list[j].display_val:   # by the new item
+            self.canvas.delete(self.list[j].display_val)
+        self.list[k] = drawable(
+            val, self.canvas.itemconfigure(cell[0], 'fill')[-1], *cell)
+        callEnviron ^= set(cell)  # New item is no longer temporary
         
         # Move nItems pointer
-        self.moveItemsBy(self.nItems, (self.CELL_SIZE, 0))
+        self.highlightCode('self.__nItems += 1', callEnviron)
+        self.moveItemsBy(self.nItems, (self.CELL_WIDTH, 0))
         self.wait(0.1)        
 
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron) 
-        
-    def insertBinarySearch(self,val):
-        callEnviron = self.createCallEnvironment()
+
+    findCode = '''
+def find(self, item={val}):
+   lo = 0
+   hi = self.__nItems-1
+   
+   while lo <= hi:
+      mid = (lo + hi) // 2
+      if self.__a[mid] == item:
+         return mid
+      elif self.__a[mid] < item:
+         lo = mid + 1
+      else: 
+         hi = mid - 1
+         
+   return lo
+'''
+    
+    def find(self, val, code=findCode):
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.startAnimations()
-        j = self.search(val)  # Find where item should go
 
-        self.list.append(drawable(None))
+        self.highlightCode('lo = 0', callEnviron)
+        lo = 0
+        loIndex = self.createIndex(lo, 'lo', level=1)
+        callEnviron |= set(loIndex)
+        self.wait(0.1)
 
-        indexK = self.createIndex(len(self.list) - 1, 'k', level=-1)  # create "k" arrow
-        callEnviron |= set(indexK)
+        self.highlightCode('hi = self.__nItems-1', callEnviron)
+        hi = len(self.list) - 1
+        hiIndex = self.createIndex(hi, 'hi', level=3)
+        callEnviron |= set(hiIndex)
+        self.wait(0.1)
 
-        for k in range(len(self.list) - 1, j, -1):  # Move bigger items right
+        midIndex = None
 
-            self.moveItemsBy(indexK, (-self.CELL_SIZE, 0), sleepTime=0.1)  # Move "k" arrow
+        while lo <= hi:
+            self.highlightCode('lo <= hi', callEnviron, wait=0.1)
 
-            self.list[k].val = self.list[k - 1].val
-            self.assignElement(k - 1, k, callEnviron)
+            self.highlightCode('mid = (lo + hi) // 2', callEnviron)
+            mid = (lo + hi) // 2
+            if midIndex:
+                midCoords = self.indexCoords(mid, level=2)
+                self.moveItemsTo(midIndex, (midCoords, midCoords[:2]),
+                                 sleepTime=0.01)
+            else:
+                midIndex = self.createIndex(mid, 'mid', level=2)
+                self.wait(0.1)
+                
+            self.highlightCode('self.__a[mid] == item', callEnviron, wait=0.1)
+            if self.list[mid].val == val:
+                callEnviron.add(self.createFoundCircle(mid))
+                self.highlightCode('return mid', callEnviron, wait=0.1)
+                self.cleanUp(callEnviron)
+                return mid
 
-            # Location of the new cell in the array
-        toPositions = (self.cellCoords(j),
-                       self.cellCenter(j))
-
-        # Animate arrival of new value from operations panel area
-        canvasDimensions = self.widgetDimensions(self.canvas)
-        startPosition = [canvasDimensions[0] // 2, canvasDimensions[1]] * 2
-        startPosition = add_vector(startPosition, (0, 0, self.CELL_SIZE, self.CELL_SIZE))
-        cellPair = self.createCellValue(startPosition, val)
-        self.moveItemsTo(cellPair, toPositions, steps=self.CELL_SIZE, sleepTime=0.01)
-        self.list[j] = (drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair))
-
+            self.highlightCode('self.__a[mid] < item', callEnviron, wait=0.1)
+            if self.list[mid].val < val:
+                self.highlightCode('lo = mid + 1', callEnviron)
+                lo = mid + 1
+                loCoords = self.indexCoords(lo, level=1)
+                self.moveItemsTo(loIndex, (loCoords, loCoords[:2]),
+                                 sleepTime=0.01)
+            else:
+                self.highlightCode('hi = mid - 1', callEnviron)
+                hi = mid - 1
+                hiCoords = self.indexCoords(hi, level=3)
+                self.moveItemsTo(hiIndex, (hiCoords, hiCoords[:2]),
+                                 sleepTime=0.01)
+                
+        self.wait(0.1)        # Pause for final loop comparison
+        self.highlightCode('return lo', callEnviron)
         self.cleanUp(callEnviron)
+        return lo
 
     def removeFromEnd(self):
         
@@ -437,11 +480,9 @@ class OrderedArray(VisualizationApp):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            if len(self.list) >= self.size:
-                self.setMessage("Error! Array is already full.")
-            else:
-                self.insert(val)
-                self.setMessage("Value {} inserted".format(val))
+            result = self.insert(val)
+            self.setMessage("Value {} inserted".format(val) if result else
+                            "Array overflow")
         self.clearArgument()
 
     def clickDelete(self):

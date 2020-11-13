@@ -456,14 +456,15 @@ def delete(self, item={val}):
                     self.highlightCode('k in range(j, self.__nItems)', 
                                        callEnviron, wait=0.1)
                 
-                self.highlightCode('return True', callEnviron)
                 # remove the last item in the list
                 n = self.list.pop()
                 # delete the associated display objects
                 self.canvas.delete(n.display_shape)
-                self.canvas.delete(n.display_val)
+                if n.display_val:
+                    self.canvas.delete(n.display_val)
                 
                 # update window
+                self.highlightCode('return True', callEnviron)
                 self.wait(0.3)
 
                 self.highlightCode([], callEnviron)
@@ -479,7 +480,6 @@ def delete(self, item={val}):
         self.highlightCode('return False', callEnviron, wait=0.3)
 
         # Animation stops
-        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         return None
 
