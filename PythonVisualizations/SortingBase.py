@@ -72,7 +72,11 @@ class SortingBase(VisualizationApp):
     def tempCoords(self, index):  # Determine coordinates for a temporary
         cellCoords = self.cellCoords(index) # variable aligned below an array
         height = cellCoords[3] - cellCoords[1] # cell
-        return add_vector(cellCoords, (0, int(height * 1.4)) * 2)
+        return add_vector(cellCoords, (0, int(height * 1.6)) * 2)
+
+    def tempLabelCoords(self, index, font):
+        tempPos = self.tempCoords(index)
+        return (tempPos[0] + tempPos[2]) // 2, tempPos[1] - abs(font[1])
     
     def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
         """Assign indexed cell to a temporary variable named varName.
@@ -97,8 +101,7 @@ class SortingBase(VisualizationApp):
             tempLabelPos = self.canvas.coords(existing)
             templabel = existing
         else:
-            tempLabelPos = add_vector(
-                tempPos, (self.CELL_WIDTH // 2, -abs(self.VARIABLE_FONT[1])))
+            tempLabelPos = self.tempLabelCoords(index, self.VARIABLE_FONT)
             templabel = self.canvas.create_text(
                 *tempLabelPos, text=varName, font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
@@ -268,11 +271,7 @@ def insert(self, item={val}):
                        self.cellCenter(len(self.list)))
 
         # Animate arrival of new value from operations panel area
-        startPosition = add_vector(
-            [canvasDims[0] // 2 - self.CELL_WIDTH, canvasDims[1]] * 2,
-            (0, 0) + (self.CELL_WIDTH - self.CELL_BORDER, 
-                      2.5*self.CELL_SIZE - self.CELL_BORDER))
-        
+        startPosition = self.newValueCoords()
         cellPair = self.createCellValue(startPosition, val)
 
         if len(cellPair) == 1 or cellPair[1] is None:
@@ -600,8 +599,15 @@ def traverse(self, function=print):
         x1, y1, x2, y2 = self.cellCoords(cell_index)
         midX = (x1 + x2) // 2 
         midY = (y1 + y2) // 2
-        return midX, midY    
-    
+        return midX, midY
+
+    def newValueCoords(self):
+        cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
+        canvasDims = self.widgetDimensions(self.canvas)
+        return add_vector(
+            cell0,
+            (canvasDims[0] // 2 - cell0[0], canvasDims[1] - cell0[1]) * 2)
+
     def createArrayCell(self, index):  # Create a box representing an array cell
         cell_coords = self.cellCoords(index)
         half_border = self.CELL_BORDER // 2
