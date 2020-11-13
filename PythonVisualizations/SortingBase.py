@@ -421,11 +421,7 @@ def delete(self, item={val}):
             if n.val == val:
 
                 # Highlight the found element with a circle
-                foundCircle = self.canvas.create_oval(
-                    *add_vector(
-                        self.cellCoords(j),
-                        multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
-                    outline=self.FOUND_COLOR)
+                foundCircle = self.createFoundCircle(j)
                 callEnviron.add(foundCircle)
 
                 # Pause to show circle
