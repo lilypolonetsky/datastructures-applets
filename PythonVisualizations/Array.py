@@ -25,6 +25,11 @@ class Array(SortingBase):
         self.buttons = self.makeButtons()
 
     # Button functions
+    def makeButtons(self, maxRows=4):
+        buttons, vcmd = super().makeButtons(maxRows=maxRows)
+        self.addAnimationButtons()
+        return buttons
+        
     def clickInsert(self):
         val = self.validArgument()
         if val is None:
