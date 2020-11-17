@@ -102,6 +102,8 @@ def insert(self, item={val}):
         self.list[j] = drawable(
             val, self.canvas.itemconfigure(cell[0], 'fill')[-1], *cell)
         callEnviron ^= set(cell)  # New item is no longer temporary
+        self.canvas.delete(itemLabel)
+        callEnviron.discard(itemLabel)
         
         # Move nItems pointer
         self.highlightCode('self.__nItems += 1', callEnviron)
@@ -109,7 +111,8 @@ def insert(self, item={val}):
         self.wait(0.1)        
 
         self.highlightCode([], callEnviron)
-        self.cleanUp(callEnviron) 
+        self.cleanUp(callEnviron)
+        return True
 
     findCode = '''
 def find(self, item={val}):
