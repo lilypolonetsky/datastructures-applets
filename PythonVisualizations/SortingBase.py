@@ -329,7 +329,7 @@ def search(self, item={item}):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.highlightCode('self.find(item)', callEnviron)
         n = self.find(item)
-        if n is not None:
+        if n > -1:
             callEnviron.add(self.createFoundCircle(n))
         self.highlightCode('self.get(self.find(item))', callEnviron)
         result = self.get(n)
