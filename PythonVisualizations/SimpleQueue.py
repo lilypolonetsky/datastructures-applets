@@ -156,30 +156,68 @@ class Queue(VisualizationApp):
             *add_vector(self.center, textDelta), text=value,
             font=self.valueFont, fill=self.valueColor)
         return (arc, text)
-            
+
+    def isEmpty(self):
+        return self.nItems == 0
+
+    def isFull(self):
+        return self.nItems >= self.size
+    
+    insertCode = '''
+def insert(self, item={val!r}):
+   if self.isFull():
+      raise Exception("Queue overflow")
+   self.__rear += 1
+   if self.__rear == self.__maxSize:
+      self.__rear = 0
+   self.__que[self.__rear] = item
+   self.__nItems += 1
+   return True
+'''
+    
     # insert item at rear of queue   
-    def insertRear(self, val):
-        callEnviron = self.createCallEnvironment()
+    def insertRear(self, val, code=insertCode):
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.startAnimations()
 
+        self.highlightCode('self.isFull()', callEnviron, wait=0.1)
+        if self.isFull():
+            self.highlightCode(
+                'raise Exception("Queue overflow")', callEnviron, wait=0.1,
+                color=self.EXCEPTION_HIGHLIGHT)
+            self.cleanUp(callEnviron)
+            return False
+
         # increment rear
-        self.rear += 1
+        self.highlightCode('self.__rear += 1', callEnviron, wait=0.1)
+        nextRear = (self.rear + 1) % self.size
+        if self.rearArrow:
+            self.moveIndexTo(self.rearArrow, nextRear, self.rearLevel)
+        
         # deal with wraparound
-        self.rear %= self.size
+        self.highlightCode(
+            'self.__rear == self.__maxSize', callEnviron, wait=0.1)
+        if nextRear == 0:
+            self.highlightCode('self.__rear = 0', callEnviron, wait=0.1)
 
         # create new cell and cell value display objects
         # Start drawing new one at rear
-        cellValue = self.newCellValue(self.rear, val)
+        cellValue = self.newCellValue(nextRear, val)
 
-       # insert the item
-        self.list[self.rear] = drawable(val, 'color?', *cellValue)
-        #increment number of items
+        # insert the item
+        self.rear = nextRear
+        self.highlightCode(
+            'self.__que[self.__rear] = item', callEnviron, wait=0.1)
+        self.list[self.rear] = drawable(
+            val, self.canvas.itemconfigure(cellValue[0], 'fill')[-1],
+            *cellValue)
+        self.highlightCode('self.__nItems += 1', callEnviron, wait=0.1)
         self.updateNItems(self.nItems + 1)
-        if self.rearArrow:
-            self.moveIndexTo(self.rearArrow, self.rear, self.rearLevel)
 
         # update window
+        self.highlightCode('return True', callEnviron, wait=0.1)
         self.cleanUp(callEnviron)
+        return True
 
     # remove the left element of the queue, or None if empty
     def removeFront(self):
@@ -264,7 +302,7 @@ class Queue(VisualizationApp):
         self.frontLevel = 2
         self.frontArrow = self.createIndex(
             self.front, "front", level=self.frontLevel, color=self.frontIndexColor)
-
+            
     def updateNItems(self, newNItems):
         self.nItems = newNItems
         self.canvas.itemconfigure(
@@ -304,12 +342,11 @@ class Queue(VisualizationApp):
         
     def clickInsertRear(self):
         entered_text = self.getArgument()
-        if self.nItems == self.size:
-            self.setMessage('Queue is full!')
-            self.clearArgument()
-        elif entered_text:
-            self.insertRear(entered_text)
-            self.clearArgument()
+        if entered_text:
+            if self.insertRear(entered_text):
+                self.clearArgument()
+            else:
+                self.setMessage('Queue is full!')
 
     def clickPeek(self):
         val = self.peek()
