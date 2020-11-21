@@ -227,16 +227,22 @@ def insert(self, item={val!r}):
         # create new cell and cell value display objects
         # Start drawing new one at rear
         cellValue = self.newCellValue(nextRear, val)
+        callEnviron |= set(cellValue)
 
         # insert the item
-        self.rear = nextRear
         self.highlightCode(
             'self.__que[self.__rear] = item', callEnviron, wait=0.1)
+        # Show nItems being incremented
+
+        # Now make internal changes
+        self.highlightCode('self.__nItems += 1', callEnviron)
+        self.updateNItems(self.nItems + 1)
+        self.rear = nextRear
         self.list[self.rear] = drawable(
             val, self.canvas.itemconfigure(cellValue[0], 'fill')[-1],
             *cellValue)
-        self.highlightCode('self.__nItems += 1', callEnviron, wait=0.1)
-        self.updateNItems(self.nItems + 1)
+        callEnviron -= set(cellValue)
+        self.wait(0.1)
 
         # update window
         self.highlightCode('return True', callEnviron, wait=0.1)
@@ -312,15 +318,24 @@ def remove(self):
         self.cleanUp(callEnviron)
         return n.val
 
-    def peek(self):
-        callEnviron = self.createCallEnvironment()
+    peekCode = '''
+def peek(self):
+   return None if self.isEmpty() else self.__que[self.__front]
+'''
+    
+    def peek(self, code=peekCode):
+        callEnviron = self.createCallEnvironment(code.format(**locals()))
         self.startAnimations()
 
-        if self.nItems == 0:
+        self.highlightCode('self.isEmpty()', callEnviron, wait=0.1)
+        if self.isEmpty():
+            self.highlightCode('None', callEnviron, wait=0.1)
             self.cleanUp(callEnviron)
             return None
 
         # create the output box
+        self.highlightCode('self.__que[self.__front]', callEnviron)
+        font, pad = self.outputBoxFontAndPadding()
         outputBox = self.createOutputBox()
         callEnviron.add(outputBox)
 
@@ -335,8 +350,7 @@ def remove(self):
         self.moveItemsTo(valueOutput, peekValCoords, sleepTime=.02)
 
         # make the value 25% smaller
-        newFont = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
-        self.canvas.itemconfig(valueOutput, font=newFont)
+        self.canvas.itemconfig(valueOutput, font=font)
 
         self.cleanUp(callEnviron)
         return self.list[self.front].val
@@ -392,9 +406,9 @@ def remove(self):
 
     def clickPeek(self):
         val = self.peek()
-        
-        if val: self.setMessage("Value {} is at the front of the queue".format(val))
-        else: self.setMessage("Error! Queue is empty.")  
+        self.setMessage(
+            "Value {} is at the front of the queue".format(repr(val)) if val
+            else "Queue is empty")
 
     def clickRemove(self):
         front = self.removeFront()
