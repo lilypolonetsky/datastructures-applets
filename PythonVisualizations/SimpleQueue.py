@@ -346,35 +346,86 @@ def peek(self):
         valueOutput = self.copyCanvasItem(self.list[self.front].display_val)
         callEnviron.add(valueOutput)
 
-        # move value to output box
+        # move value to output box and use its font
         self.moveItemsTo(valueOutput, peekValCoords, sleepTime=.02)
-
-        # make the value 25% smaller
         self.canvas.itemconfig(valueOutput, font=font)
 
         self.cleanUp(callEnviron)
         return self.list[self.front].val
 
-    def display(self):
-        self.canvas.delete("all")
+    newCode = '''
+def __init__(self, size={newSize}):
+   self.__maxSize = size
+   self.__que = [None] * size
+   self.__front = 1
+   self.__rear = 0
+   self.__nItems = 0
+'''
+    def display(self, newSize=None, code=newCode):
+        callEnviron = None
+        if newSize is not None:
+            callEnviron = self.createCallEnvironment(code.format(**locals()))
+            self.startAnimations()
 
+        self.canvas.delete("all")
+        if callEnviron:
+            wait=0.1
+            try:
+                sizeRequest = self.canvas.create_text(
+                    *divide_vector(self.widgetDimensions(self.canvas), 2),
+                    text=str(newSize), 
+                    font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+                callEnviron.add(sizeRequest)
+                self.highlightCode(
+                    'self.__maxSize = size', callEnviron, wait=wait)
+                self.highlightCode(
+                    'self.__que = [None] * size', callEnviron, wait=wait)
+            except UserStop:
+                wait = 0
+                self.size = newSize
+            self.list = [None] * self.size
+            self.canvas.delete(sizeRequest)
+            callEnviron.discard(sizeRequest)
+        self.createCells(self.size)  # Draw grid of cells
+
+        self.front = 1
+        self.frontLevel = 2
+        if callEnviron and wait:
+            try:
+                self.highlightCode('self.__front = 1', callEnviron, wait=wait)
+            except UserStop:
+                wait = 0
+        self.frontArrow = self.createIndex(
+            self.front, "_front", level=self.frontLevel,
+            color=self.frontIndexColor)
+            
+        self.rear = 0
+        self.rearLevel = 1
+        if callEnviron and wait:
+            try:
+                self.highlightCode('self.__rear = 0', callEnviron, wait=wait)
+            except UserStop:
+                wait = 0
+        self.rearArrow = self.createIndex(
+            self.rear, "_rear", level=self.rearLevel,
+            color=self.rearIndexColor)
+
+        self.nItems = 0
+        if callEnviron and wait:
+            try:
+                self.highlightCode('self.__nItems = 0', callEnviron, wait=wait)
+            except UserStop:
+                wait = 0
         self.nItemsDisplay = self.canvas.create_text(
             self.center[0] - self.outerRadius, 
             self.center[1] - self.outerRadius,
             text='nItems: {}'.format(self.nItems), anchor=NW,
             font=self.variableFont, fill=self.variableColor)
+        
+        if callEnviron:
+            self.highlightCode([], callEnviron)
+            self.cleanUp(callEnviron)
 
-        self.createCells(self.size)  # Draw grid of cells
-
-        self.rearLevel = 1
-        self.rearArrow = self.createIndex(
-            self.rear, "_rear", level=self.rearLevel,
-            color=self.rearIndexColor)
-        self.frontLevel = 2
-        self.frontArrow = self.createIndex(
-            self.front, "_front", level=self.frontLevel,
-            color=self.frontIndexColor)
-            
     def updateNItems(self, newNItems):
         self.nItems = newNItems
         self.canvas.itemconfigure(
@@ -388,12 +439,7 @@ def peek(self):
             self.setMessage('New queue must have 2 - {} cells'.format(
                 self.MAX_CELLS))
             return
-        self.size = int(entered_text)
-        self.list = [None] * self.size
-        self.front = 1
-        self.rear = 0
-        self.nItems = 0
-        self.display()
+        self.display(newSize=int(entered_text))
         
     def clickInsertRear(self):
         entered_text = self.getArgument()
@@ -415,7 +461,7 @@ def peek(self):
         self.setMessage('Value {} removed'.format(repr(front)) if front else
                         'Queue is empty!')
 
-    def makeButtons(self):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(makeWidthValidate(self.maxArgWidth)), '%P')
         self.insertButton = self.addOperation(
             "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd)
@@ -424,11 +470,11 @@ def peek(self):
             "Insert", lambda: self.clickInsertRear(), numArguments=1,
             validationCmd=vcmd)
 
-        self.peekButton = self.addOperation(
-            "Peek", lambda: self.clickPeek())
         self.removeButton = self.addOperation(
-            "Remove", lambda: self.clickRemove())
-        self.addAnimationButtons()
+            "Remove", lambda: self.clickRemove(), maxRows=maxRows)
+        self.peekButton = self.addOperation(
+            "Peek", lambda: self.clickPeek(), maxRows=maxRows)
+        self.addAnimationButtons(maxRows=maxRows)
 
     def createCells(self, nCells):  # Create a set of array cells in a circle
         self.sliceAngle = 360 / nCells
