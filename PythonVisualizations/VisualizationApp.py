@@ -486,12 +486,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.insert('1.0', code + '\n')
         if self.codeText:
             self.codeText.see('1.0')
-        self.window.update()
-        self.makeTimer(       # Prevent resizing codeText for a short time
-            self.codeText, delay=500)(None)
-        print('Initial codeText resize timer set')
+        # Doing a window update here causes multiple resize events
+        # self.window.update()
         self.resizeCodeText() # Set up initial codeText size
-       
+        self.window.update()  # Doing the update here is OK
+        
         # Tag the snippets with unique tag name
         if self.codeText:
             for tagName in snippets:
@@ -507,12 +506,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
         available = (self.window.winfo_width() -
                      max(self.operationsUpper.winfo_width(),
                          self.operationsLower.winfo_width()) -
-                          self.codeVScroll.winfo_width() - padX * 3)
+                          self.codeVScroll.winfo_width() - padX * 2)
         desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
                               available // self.codeTextCharWidth))
         timeout_ID = getattr(self.codeText, 'timeout_ID', None)
         skip = event is not None and timeout_ID is not None
-        if True:     # Set true for debugging printout
+        if False:     # Set true for debugging printout
             print('Resize codeText request based on', event,
                   'window width =', self.window.winfo_width(),
                   '\noperationsUpper width =',
