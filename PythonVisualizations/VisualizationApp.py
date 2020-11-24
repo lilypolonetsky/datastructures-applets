@@ -245,7 +245,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 helpTexts.add(help)
                 setattr(textEntry, 'helpTexts', helpTexts)
             if argHelpText: # Make a label if there are hints on what to enter
-                self.makeEntryHints()
+                self.setHint()
 
             # Place button in grid of buttons
             buttonRow = len(withArgument) + 1
@@ -299,21 +299,26 @@ class VisualizationApp(object):  # Base class for Python visualizations
         entry.bind('<KeyRelease>', self.makeDisarmHandler(entry), '+')
         return entry
 
-    def makeEntryHints(self):
-        if self.entryHint: # Remove past hints
-            self.entryHint.destroy()
-        hintText = 'Click to enter {}'.format(
-            ',\n'.join([
-                ' or '.join(hint for hint in getattr(entry, 'helpTexts', set()))
-                for entry in self.textEntries]))
-        hint = Label(
-            self.operations, text=hintText,
-            font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
-        hint.bind('<Button>', # Remove the hint when first clicked
-                  deleteInitialHintHandler(hint, self.textEntries[0]))
-        for entry in self.textEntries: # and when entries get focus
-            entry.bind('<FocusIn>', deleteInitialHintHandler(hint, entry))
-        self.entryHint = hint
+    def setHint(self, hintText=None):
+        if hintText is None:    # Default hint is description of all arguments
+            hintText = 'Click to enter {}'.format(
+                ',\n'.join([
+                    ' or '.join(hint for hint in 
+                                getattr(entry, 'helpTexts', set()))
+                    for entry in self.textEntries]))
+        if self.entryHint is None: # Create hint if not present
+            self.entryHint = Label(
+                self.operations, text=hintText,
+                font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
+            self.entryHint.bind(
+                '<Button>', # Clear the hint when label clicked
+                clearHintHandler(self.entryHint, self.textEntries[0]))
+        else:                      # Update hint text if already present
+            self.entryHint['text'] = hintText
+        for entry in self.textEntries:      # Clear hint when entries get focus
+            if not entry.bind('<FocusIn>'): # if handler not already set up 
+                entry.bind('<FocusIn>', 
+                           clearHintHandler(self.entryHint, entry))
         
     def makeArmHintHandler(self, widget, helpText=None):
         def handler(event):
@@ -322,7 +327,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             setattr(widget, 'timeout_ID',
                     widget.after(
                         self.HOVER_DELAY, 
-                        lambda: self.setMessage(hint) or
+                        lambda: self.setHint(hint) or
                         setattr(widget, 'timeout_ID', None)))
         return handler
 
@@ -996,19 +1001,10 @@ class UserStop(Exception):   # Exception thrown when user stops animation
 
 # Tk widget utilities
 
-# Tkinter returns a string with a large integer followed by <lambda>
-# as a handler ID.  The calls to .bind() without a handler function
-# return an executable Python string containing handler IDs.  This
-# regular expression extracts the identifier from the executable
-# Python string.  The re.sub function is used on the compiled regex to
-# run a function on each handler ID in the the binding string.
-bindingID = re.compile(r'\d+<lambda>', re.IGNORECASE)
-
-def deleteInitialHintHandler(hint, textEntry):
-    "Remove a hint when clicked or when text is first entered in textEntry"
+    
+def clearHintHandler(hintLabel, textEntry=None):
+    'Clear the hint text and set focus to textEntry, if provided'
     return lambda event: (
-        textEntry.focus_set() if event.widget == hint else 0) or (
-            hint.destroy() or
-            # Remove any bound handlers the textEntry has for <FocusIn> events
-            bindingID.sub(lambda ID: textEntry.unbind(ID),
-                          textEntry.bind('<FocusIn>')))
+        textEntry.focus_set() if event.widget == hintLabel and textEntry
+        else 0) or hintLabel.config(text='')
+
