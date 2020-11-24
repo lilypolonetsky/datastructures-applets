@@ -56,7 +56,7 @@ class drawnValue(object):
             self.items = tuple(
                 val if i == pos else v for i, v in enumerate(self.items))
             return 
-        raise AttributeError('drawnValue has no attribute {}'.format(
+        raise AttributeError('drawnValue has no attribute {} to set'.format(
             repr(name)))
 
     def __eq__(self, other):  # Equality test between drawnValues
@@ -136,6 +136,13 @@ if __name__ == '__main__':
     try:
         print('Attempting to access an invalid attribute...')
         print('The foo attribute of the first item is', items[0].foo)
+    except Exception as e:
+        print('Caught exception:', e)
+    
+    try:
+        print('Attempting to set an invalid attribute...')
+        items[0].foo = 'bar'
+        print('The foo attribute of the first item was set to', items[0].foo)
     except Exception as e:
         print('Caught exception:', e)
 
