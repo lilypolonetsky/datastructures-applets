@@ -280,8 +280,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
                             self.entryHintRow if self.entryHint else 1))
         if helpText:
             button.bind('<Enter>', self.makeArmHintHandler(button, helpText))
-            button.bind('<Leave>', self.makeDisarmHintHandler(button))
-            button.bind('<Button>', self.makeDisarmHintHandler(button), '+')
+            button.bind('<Leave>', self.makeDisarmHandler(button))
+            button.bind('<Button>', self.makeDisarmHandler(button), '+')
         return button
 
     def makeArgumentEntry(self, validationCmd):
@@ -295,8 +295,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
             entry.bind('<KeyPress-{}>'.format(key),
                        lambda ev: self.returnPressed(ev), '+')
         entry.bind('<Enter>', self.makeArmHintHandler(entry))
-        entry.bind('<Leave>', self.makeDisarmHintHandler(entry))
-        entry.bind('<KeyRelease>', self.makeDisarmHintHandler(entry), '+')
+        entry.bind('<Leave>', self.makeDisarmHandler(entry))
+        entry.bind('<KeyRelease>', self.makeDisarmHandler(entry), '+')
         return entry
 
     def makeEntryHints(self):
@@ -326,13 +326,19 @@ class VisualizationApp(object):  # Base class for Python visualizations
                         setattr(widget, 'timeout_ID', None)))
         return handler
 
-    def makeDisarmHintHandler(self, widget):
-        def handler(event):
+    def makeDisarmHandler(self, widget):
+        def Dhandler(event):
             if event.widget == widget and getattr(widget, 'timeout_ID', None):
                 widget.after_cancel(getattr(widget, 'timeout_ID'))
             setattr(widget, 'timeout_ID', None)
-        return handler
+        return Dhandler
 
+    def makeTimer(self, widget, delay=300, attrName='timeout_ID'):
+        'Make a handler that sets a timeout that clears itself after a delay'
+        return lambda event: setattr(
+            widget, attrName,
+            widget.after(delay, lambda: setattr(widget, attrName, None)))
+    
     def returnPressed(self, event):  # Handle press of Return/Enter in text
         if hasattr(event.widget, 'last_button'): # entry argument widget
             button = getattr(event.widget, 'last_button')
@@ -468,7 +474,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if addBoundary and currentCode and not currentCode.isspace():
             self.codeText.insert('1.0',
                                  self.codeText.config('width')[-1] * '-' + '\n')
-            self.codeText.tag_add('call_stack_boundary', '1.0', '1.end')
+            self.codetext.tag_add('call_stack_boundary', '1.0', '1.end')
         
         # Add code at top of text widget (above stack boundary, if any)
         if sleepTime > 0:
@@ -480,9 +486,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.insert('1.0', code + '\n')
         if self.codeText:
             self.codeText.see('1.0')
-        self.window.update()
-        self.resizeCodeText()
-       
+        # Doing a window update here causes multiple resize events
+        # self.window.update()
+        self.resizeCodeText() # Set up initial codeText size
+        self.window.update()  # Doing the update here is OK
+        
         # Tag the snippets with unique tag name
         if self.codeText:
             for tagName in snippets:
@@ -490,18 +498,34 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.configure(state=DISABLED)
 
     def resizeCodeText(self, event=None):
-        if self.codeText and self.codeText.winfo_ismapped():
-            ct = self.codeText
-            nCharsWide = ct['width']
-            padX = ct['padx']
-            available = (self.window.winfo_width() -
+        if self.codeText is None or not self.codeText.winfo_ismapped():
+            return
+        ct = self.codeText
+        nCharsWide = ct['width']
+        padX = ct['padx']
+        available = (self.window.winfo_width() -
                      max(self.operationsUpper.winfo_width(),
                          self.operationsLower.winfo_width()) -
-                          self.codeVScroll.winfo_width() - padX * 3)
-            desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
-                                  available // self.codeTextCharWidth))
-            if desired != nCharsWide:
-                ct['width'] = desired
+                          self.codeVScroll.winfo_width() - padX * 2)
+        desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
+                              available // self.codeTextCharWidth))
+        timeout_ID = getattr(self.codeText, 'timeout_ID', None)
+        skip = event is not None and timeout_ID is not None
+        if False:     # Set true for debugging printout
+            print('Resize codeText request based on', event,
+                  'window width =', self.window.winfo_width(),
+                  '\noperationsUpper width =',
+                  self.operationsUpper.winfo_width(), 
+                  'operationsLower width =', self.operationsLower.winfo_width(),
+                  '\nVScroll width =', self.codeVScroll.winfo_width(),
+                  'padX =', padX, 'available pixels =', available,
+                  '\ncurrent width in characters =', nCharsWide,
+                  'desired width in characters =', desired)
+            if skip:
+                print('Skipping resize whiler timer {} running'.format(
+                    timeout_ID))
+        if not skip and desired != nCharsWide:
+            ct['width'] = desired
 
     def highlightCodeTags(self, tags, callEnviron, wait=0):
         codeHighlightBlock = self.getCodeHighlightBlock(callEnviron)
