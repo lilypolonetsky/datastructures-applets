@@ -64,22 +64,16 @@ class Stack(VisualizationApp):
 
     pushCode = """
 def push(self, item):
-    self.__top += 1
-    self.__stackList[self.__top] = item
-    """
-
-    pushCodeSnippets = {
-        'increment_top':('2.4','2.end'),
-        'add_item':('3.4','3.end')
-    }
+   self.__top += 1
+   self.__stackList[self.__top] = item
+"""
 
     def push(self, val):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(
-            self.pushCode.strip(), self.pushCodeSnippets)
+        callEnviron = self.createCallEnvironment(self.pushCode)
 
         #move arrow up when new cell is inserted
-        self.highlightCodeTags('increment_top', callEnviron)
+        self.highlightCode('self.__top += 1', callEnviron)
         self.moveItemsBy(self.indexDisplay, (0, - (self.CELL_HEIGHT)))
 
         cellCoords = self.cellCoords(len(self.list))
@@ -95,7 +89,7 @@ def push(self, item):
         cellPair = self.createCellValue(startPosition, val)
         callEnviron |= set(cellPair)
 
-        self.highlightCodeTags('add_item', callEnviron)
+        self.highlightCode('self.__stackList[self.__top] = item', callEnviron)
         self.moveItemsTo(cellPair, toPositions, steps=self.CELL_HEIGHT, sleepTime=0.01)
 
         # add a new DrawnValue with the new value, and display objects
@@ -103,23 +97,16 @@ def push(self, item):
         callEnviron ^= set(cellPair)
 
         # finish the animation
-        self.highlightCodeTags([], callEnviron)
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
     popCode = """
 def pop(self):
-    top = self.__stackList[self.__top]
-    self.__stackList[self.__top] = None
-    self.__top -= 1
-    return top
-    """
-
-    popCodeSnippets = {
-        'get_top':('2.4','2.end'),
-        'empty_top':('3.4','3.end'),
-        'decrement_top':('4.4', '4.end'),
-        'return_top':('5.4', '5.end'),
-    }
+   top = self.__stackList[self.__top]
+   self.__stackList[self.__top] = None
+   self.__top -= 1
+   return top
+"""
 
     def pop(self):
 
@@ -128,11 +115,10 @@ def pop(self):
             return
 
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(
-            self.popCode.strip(), self.popCodeSnippets)
+        callEnviron = self.createCallEnvironment(self.popCode)
         n = self.list.pop()
 
-        self.highlightCodeTags('get_top', callEnviron)
+        self.highlightCode('top = self.__stackList[self.__top]', callEnviron)
 
         # Mark associated display objects as temporary
         callEnviron |= set(n.items)
@@ -153,17 +139,17 @@ def pop(self):
         self.moveItemsTo(newItems, (itemPos, (labelPos[0], itemPos[1]+self.CELL_HEIGHT//2)))
 
         # move item out of stack
-        self.highlightCodeTags('empty_top', callEnviron)
+        self.highlightCode('self.__stackList[self.__top] = None', callEnviron)
         self.moveItemsBy(
             n.items,
-            delta=(0, -max(400, self.canvas.coords(n.display_shape)[3])),
+            delta=(0, -max(400, self.canvas.coords(n.items[0])[3])),
             steps=self.CELL_HEIGHT, sleepTime=.01)
 
         # decrement index pointing to the last cell
-        self.highlightCodeTags('decrement_top', callEnviron)
+        self.highlightCode('self.__top -= 1', callEnviron)
         self.moveItemsBy(self.indexDisplay, (0, (self.CELL_HEIGHT)))
 
-        self.highlightCodeTags('return_top', callEnviron)
+        self.highlightCode('return top', callEnviron)
         # draw output box
         outputBox = self.canvas.create_rectangle(
             self.STACK_X0 + self.CELL_WIDTH * 1.5,
@@ -192,36 +178,30 @@ def pop(self):
         self.canvas.itemconfig(valueOutput, font=newFont)
 
         # Finish animation
-        self.highlightCodeTags([], callEnviron)
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
         return n.val  # returns value displayed in the cell
 
     peekCode = """
 def peek(self):
-    if not self.isEmpty():
-        return self.__stackList[self.__top]
-    """
-
-    peekCodeSnippets = {
-        'check_empty':('2.4','2.end'),
-        'return_top':('3.8','3.end'),
-    }
+   if not self.isEmpty():
+      return self.__stackList[self.__top]
+"""
 
     # displays the top val of the stack in a small cell on the bottom right of the window
     def peek(self):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(
-            self.peekCode.strip(), self.peekCodeSnippets)
+        callEnviron = self.createCallEnvironment(self.peekCode)
 
         if self.isEmpty():
             self.cleanUp(callEnviron)
             return None
 
-        self.highlightCodeTags('check_empty', callEnviron)
+        self.highlightCode('not self.isEmpty()', callEnviron)
         self.wait(0.2)
 
-        self.highlightCodeTags('return_top', callEnviron)
+        self.highlightCode('return self.__stackList[self.__top]', callEnviron)
 
         # draw output box
         outputBox = self.canvas.create_rectangle(
@@ -249,7 +229,7 @@ def peek(self):
         self.canvas.itemconfig(valueOutput, font=newFont)
 
         # Finish animation
-        self.highlightCodeTags([], callEnviron)
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
         return self.list[pos].val
@@ -280,16 +260,11 @@ def isEmpty(self):
     return self.__top < 0
     """
 
-    isEmptyCodeSnippets = {
-        'return':('2.4','2.end'),
-    }
-
     def isEmpty(self):
-        callEnviron = self.createCallEnvironment(
-            self.isEmptyCode.strip(), self.isEmptyCodeSnippets)
+        callEnviron = self.createCallEnvironment(self.isEmptyCode)
         
         callEnviron |= set(self.createIndex(-.5, name = "0"))
-        self.highlightCodeTags('return', callEnviron)
+        self.highlightCode('return self.__top < 0', callEnviron)
         self.wait(0.3)
         
         self.cleanUp(callEnviron)

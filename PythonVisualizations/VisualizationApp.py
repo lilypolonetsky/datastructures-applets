@@ -18,8 +18,10 @@ import tkinter.font as tkfont
 
 try:
     from coordinates import *
+    from TextHighlight import *
 except ModuleNotFoundError:
     from .coordinates import *
+    from .TextHighlight import *
     
 # Utilities for vector math; used for canvas item coordinates
 V = vector
@@ -95,6 +97,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_FONT = ('Courier', -12)
     SMALL_FONT = ('Helvetica', -9)
     CODE_HIGHLIGHT = 'yellow'
+    EXCEPTION_HIGHLIGHT = 'orange'
     CONTROLS_FONT = ('Helvetica', -12)
     HINT_FONT = CONTROLS_FONT + ('italic',)
     HINT_FG = 'blue'
@@ -419,7 +422,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.setArgument(str(values[index], index))
         self.argumentChanged()
 
-    def setArgumentHighlight(self, index, color=ENTRY_BG):
+    def setArgumentHighlight(self, index=0, color=ENTRY_BG):
         self.textEntries[index].configure(bg=color)
             
     def argumentChanged(self, widget=None):
@@ -479,7 +482,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if addBoundary and currentCode and not currentCode.isspace():
             self.codeText.insert('1.0',
                                  self.codeText.config('width')[-1] * '-' + '\n')
-            self.codetext.tag_add('call_stack_boundary', '1.0', '1.end')
+            self.codeText.tag_add('call_stack_boundary', '1.0', '1.end')
         
         # Add code at top of text widget (above stack boundary, if any)
         if sleepTime > 0:
@@ -532,20 +535,34 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if not skip and desired != nCharsWide:
             ct['width'] = desired
 
-    def highlightCodeTags(self, tags, callEnviron, wait=0):
-        codeHighlightBlock = self.getCodeHighlightBlock(callEnviron)
-        if codeHighlightBlock is None:  # This shouldn't happen, but...
+    def highlightCode(
+            self, fragments, callEnviron, wait=0, color=CODE_HIGHLIGHT):
+        '''Highlight a code fragment for a particular call environment.
+        Multiple fragments can be highlighted.  Each fragment can be
+        either a string of code, or a (string, int) tuple where the int
+        is 1 for the first instance of the string, 2 for the second, etc.
+        '''
+        codeBlock = self.getCodeHighlightBlock(callEnviron)
+        if codeBlock is None:  # This shouldn't happen, but...
             return
-        if not isinstance(tags, (list, tuple, set)):
-            tags = [tags]
+        if isinstance(fragments, (list, tuple, set)):
+            if (len(fragments) == 2 and
+                isinstance(fragments[0], str) and
+                isinstance(fragments[1], int)):
+                tags = [ codeBlock[fragments[0], fragments[1]] ]
+            else:
+                tags = [
+                    codeBlock[tuple(frag)] if isinstance(frag, (list, tuple))
+                    else codBlock.tag(fragment) for frag in fragments]
+        else:
+            tags = [codeBlock[fragments]]
         found = False       # Assume tag not found
         for tagName in self.codeText.tag_names() if self.codeText else []:
-            if not tagName.startswith(codeHighlightBlock.prefix):
+            if not tagName.startswith(codeBlock.prefix):
                 continue  # Only change tags for this call environment
-            highlight = tagName[len(codeHighlightBlock.prefix):] in tags
+            highlight = tagName in tags
             self.codeText.tag_config(
-                tagName,
-                background=self.CODE_HIGHLIGHT if highlight else '',
+                tagName, background=color if highlight else '',
                 underline=1 if highlight else 0)
             if highlight:
                 found = True
@@ -554,10 +571,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     self.codeText.see(ranges[0])
         if not found and len(tags) > 0:  # This shouldn't happen so log bug
             print('Unable to find highlight tag(s) {} among {}'.format(
-                ', '.join(tags), ', '.join(codeHighlightBlock.snippets.keys())))
+                ', '.join(tags), ', '.join(codeBlock.cache.keys())))
         if wait > 0:              # Optionally weit for highlight to show
             self.wait(wait)
-        
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
@@ -601,7 +617,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
                 last_line = int(float(self.codeText.index(END)))
-                for i in range(1, min(last_line, thing.lines + 2)):
+                for i in range(1, min(last_line, len(thing.lines) + 2)):
                     if self.codeText:
                         self.codeText.delete('1.0', '2.0')
                         if sleepTime > 0:
@@ -612,15 +628,15 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def createCallEnvironment( # Create a call environment on the call stack
             self,              # for animating a particular call
             code='',           # code for this call, if any
-            snippets={},       # code snippet dictionary, if any
             sleepTime=0):      # Wait time between inserting lines of code
         # The call environment is a set for local variables represented by
         # canvas items plus a codeHighlightBlock that controls code highlights
-        codeHighlightBlock = CodeHighlightBlock(code, snippets)
+        self.showCode(code, addBoundary=True, sleepTime=sleepTime)
+        codeHighlightBlock = CodeHighlightBlock(code, self.codeText)
+        if self.codeText:
+            codeHighlightBlock.markStart()
         callEnviron = set([codeHighlightBlock])
         self.callStack.append(callEnviron) # Push environment on stack
-        self.showCode(code, addBoundary=True, prefix=codeHighlightBlock.prefix,
-                      snippets=snippets, sleepTime=sleepTime)
         return callEnviron
         
     # General Tk widget methods
@@ -981,20 +997,6 @@ class VisualizationApp(object):  # Base class for Python visualizations
     
     def runVisualization(self):
         self.window.mainloop()
-
-# Class to hold information about visualizing the code during animation
-# of a particular call on the call stack
-class CodeHighlightBlock(object):
-    counter = 1
-    
-    def __init__(self,       # Constructor takes code block and snippets
-                 code,       # and makes a unique prefix for snippet keys
-                 snippets):  # to translate them into a unique tag name
-        self.code = code.strip()
-        self.lines = len(self.code.split('\n')) if len(code) > 0 else 0
-        self.snippets = snippets
-        self.prefix = '{:04d}-'.format(self.counter)
-        CodeHighlightBlock.counter += 1
 
 class UserStop(Exception):   # Exception thrown when user stops animation
     pass
