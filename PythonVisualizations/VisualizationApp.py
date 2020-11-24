@@ -316,6 +316,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.entryHint.bind(
                 '<Button>', # Clear the hint when label clicked
                 clearHintHandler(self.entryHint, self.textEntries[0]))
+            self.entryHint.bind(
+                '<Shift-Button>', # Extend hint activation delay
+                self.extendHintActivationHandler())
         else:                      # Update hint text if already present
             self.entryHint['text'] = hintText
             if hintText == '':
@@ -350,6 +353,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
         return lambda event: setattr(
             widget, attrName,
             widget.after(delay, lambda: setattr(widget, attrName, None)))
+
+    def extendHintActivationHandler(self):
+        def Ehandler(event):
+            self.HOVER_DELAY += self.HOVER_DELAY
+            msg = 'Show hints after {} seconds'.format(self.HOVER_DELAY / 1000)
+            self.setHint(msg)
+        return Ehandler
     
     def returnPressed(self, event):  # Handle press of Return/Enter in text
         if hasattr(event.widget, 'last_button'): # entry argument widget
