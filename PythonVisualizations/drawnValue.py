@@ -13,7 +13,7 @@ class drawnValue(object):
     __fields = ('val', 'items')
     __legacy_fields = ('display_shape', 'display_val')
 
-    def __getitem__(self, key): # Implement posititional field access
+    def __getitem__(self, key): # Implement positIonal access
         if isinstance(key, int):
             if 0 == key:        # Index 0 is value
                 return self.val
@@ -76,18 +76,21 @@ class drawnValue(object):
         return 1 + len(self.items)
 
     def __str__(self):
-        return '<drawnValue: {}>'.format(', '.join(repr(attr) for attr in self))
+        return '<drawnValue: {}>'.format(', '.join(
+            '{}: {}'.format(attr, repr(getattr(self, attr))) 
+            for attr in self.__fields))
         
     def copy(self):          # Retun a copy of this drawnValue
         return drawnValue(*(attr for attr in self))
 
     def color(self, canvas): # Get fill color of first canvas item
-        mainItem = None      # Use first non-text item or
-        for item in self.items: # first text item if all are text
-            if canvas.type(item) != 'text':
-                return canvas.itemconfigure(item, 'fill')[-1]
-            if mainItem is None:
-                mainItem = item
+        mainItem = None      # Look for canvas item IDs among items and get
+        for item in self.items: # fill attribute of first one, with a
+            if isinstance(item, int) and item > 0: # preference for non-text
+                if canvas.type(item) != 'text':
+                    return canvas.itemconfigure(item, 'fill')[-1]
+                if mainItem is None:
+                    mainItem = item
         if mainItem is not None:
             return canvas.itemconfigure(mainItem, 'fill')[-1]
         
@@ -101,7 +104,7 @@ if __name__ == '__main__':
     canvas = Canvas(window, width=800, height=400)
     canvas.pack()
 
-    side = 40
+    side = 50
     items = [drawnValue(
         val,
         canvas.create_rectangle(
@@ -112,7 +115,7 @@ if __name__ == '__main__':
             fill=drawnValue.palette[i], outline='', width=0),
         canvas.create_text(
             side*1.75 + i*3*side, side*1.5, text=str(val),
-            font=('Helvetica', 20)))
+            font=('Helvetica', -side // 2)))
              for i, val in enumerate([3, 1, 3, 7, 1])
     ]
     print('Integer drawn values:')
@@ -134,16 +137,17 @@ if __name__ == '__main__':
     print("After setting the first drawn value's index 1:", items[0])
     
     try:
-        print('Attempting to access an invalid attribute...')
+        print('Attempting to access an invalid foo attribute...')
         print('The foo attribute of the first item is', items[0].foo)
     except Exception as e:
         print('Caught exception:', e)
     
     try:
-        print('Attempting to set an invalid attribute...')
+        print('Attempting to set an invalid foo attribute...')
         items[0].foo = 'bar'
         print('The foo attribute of the first item was set to', items[0].foo)
     except Exception as e:
         print('Caught exception:', e)
 
+    print('All tests complete')
     window.mainloop()
