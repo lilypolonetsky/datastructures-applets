@@ -318,6 +318,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 clearHintHandler(self.entryHint, self.textEntries[0]))
         else:                      # Update hint text if already present
             self.entryHint['text'] = hintText
+            if hintText == '':
+                self.entryHint.grid_remove()
+            else:
+                self.entryHint.grid()
         for entry in self.textEntries:      # Clear hint when entries get focus
             if not entry.bind('<FocusIn>'): # if handler not already set up 
                 entry.bind('<FocusIn>', 
@@ -401,8 +405,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def clearArgument(self, index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
-            if self.entryHint:
-                self.entryHint.config(text='')
+            self.setHint('')
             self.argumentChanged()
 
     def setArgument(self, val='', index=0):
@@ -411,8 +414,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             if str(val):
                 self.textEntries[index].insert(0, str(val))
             self.setArgumentHighlight(index)
-            if self.entryHint:
-                self.entryHint.config(text='')
+            self.setHint('')
             self.argumentChanged()
 
     def setArguments(self, *values):
@@ -1005,9 +1007,8 @@ class UserStop(Exception):   # Exception thrown when user stops animation
 
 # Tk widget utilities
 
-    
 def clearHintHandler(hintLabel, textEntry=None):
     'Clear the hint text and set focus to textEntry, if provided'
     return lambda event: (
         textEntry.focus_set() if event.widget == hintLabel and textEntry
-        else 0) or hintLabel.config(text='')
+        else 0) or hintLabel.config(text='') or hintLabel.grid_remove()
