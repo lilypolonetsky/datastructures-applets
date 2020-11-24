@@ -482,7 +482,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if addBoundary and currentCode and not currentCode.isspace():
             self.codeText.insert('1.0',
                                  self.codeText.config('width')[-1] * '-' + '\n')
-            self.codetext.tag_add('call_stack_boundary', '1.0', '1.end')
+            self.codeText.tag_add('call_stack_boundary', '1.0', '1.end')
         
         # Add code at top of text widget (above stack boundary, if any)
         if sleepTime > 0:
