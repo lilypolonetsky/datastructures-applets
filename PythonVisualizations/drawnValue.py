@@ -11,6 +11,7 @@ class drawnValue(object):
         self.items = items
 
     __fields = ('val', 'items')
+    __legacy_fields = ('display_shape', 'display_val')
 
     def __getitem__(self, key): # Implement posititional field access
         if isinstance(key, int):
@@ -27,6 +28,12 @@ class drawnValue(object):
             return getattr(self, key)
         raise ValueError
 
+    def __getattr__(self, name):
+        if name in self.__legacy_fields:
+            return self[self.__legacy_fields.index(name) + 1]
+        raise AttributeError('drawnValue has no attribute {}'.format(
+            repr(name)))
+
     def __setitem__(self, key, val): # Implement posititional field access
         if isinstance(key, int):
             if 0 == key:
@@ -34,11 +41,23 @@ class drawnValue(object):
                 return self
             if 1 <= key and key < 1 + len(self.items):
                 self.items = tuple(
-                    val if i == key-1 else v for i, v in ennumerate(self.items))
+                    val if i == key-1 else v for i, v in enumerate(self.items))
+                return self
             raise IndexError
         elif isinstance(key, str):
             return setattr(self, key, val)
         raise ValueError
+
+    def __setattr__(self, name, val):
+        if name in self.__fields:
+            return object.__setattr__(self, name, val)
+        if name in self.__legacy_fields:
+            pos = self.__legacy_fields.index(name)
+            self.items = tuple(
+                val if i == pos else v for i, v in enumerate(self.items))
+            return 
+        raise AttributeError('drawnValue has no attribute {}'.format(
+            repr(name)))
 
     def __eq__(self, other):  # Equality test between drawnValues
         if self._is_valid_operand(other): # Only test value to preserve
@@ -65,7 +84,7 @@ class drawnValue(object):
     def color(self, canvas): # Get fill color of first canvas item
         mainItem = None      # Use first non-text item or
         for item in self.items: # first text item if all are text
-            if canvas.type(item) is not 'text':
+            if canvas.type(item) != 'text':
                 return canvas.itemconfigure(item, 'fill')[-1]
             if mainItem is None:
                 mainItem = item
@@ -102,9 +121,22 @@ if __name__ == '__main__':
 
     print('List of drawn values:', 
           [str(i) + ' ' + i.color(canvas) for i in items])
+    print('Display_shapes:', [i.display_shape for i in items])
     items.sort()
     print('After sorting the list:',
           [str(i) + ' ' + i.color(canvas) for i in items])
+    items[0].display_val = 'replaced'
+    print("Geting the first drawn value's display_shape:", 
+          items[0].display_shape)
+    print("Geting the first drawn value's index 1:", items[0][1])
+    print('After replacing display_val in first item it is', items[0])
+    items[0][1] = 'replaced'
+    print("After setting the first drawn value's index 1:", items[0])
+    
+    try:
+        print('Attempting to access an invalid attribute...')
+        print('The foo attribute of the first item is', items[0].foo)
+    except Exception as e:
+        print('Caught exception:', e)
 
     window.mainloop()
-    
