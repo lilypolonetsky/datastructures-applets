@@ -2,10 +2,10 @@ import time
 from tkinter import *
 
 try:
-    from drawable import *
+    from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
-    from .drawable import *
+    from .drawnValue import *
     from .VisualizationApp import *
 
 class Stack(VisualizationApp):
@@ -98,10 +98,8 @@ def push(self, item):
         self.highlightCodeTags('add_item', callEnviron)
         self.moveItemsTo(cellPair, toPositions, steps=self.CELL_HEIGHT, sleepTime=0.01)
 
-        # add a new Drawable with the new value, color, and display objects
-        d = drawable(
-            val, self.canvas.itemconfigure(cellPair[0], 'fill')[-1], *cellPair)
-        self.list.append(d)
+        # add a new DrawnValue with the new value, color, and display objects
+        self.list.append(drawnValue(val, *cellPair))
         callEnviron ^= set(cellPair)
 
         # finish the animation
@@ -125,7 +123,7 @@ def pop(self):
 
     def pop(self):
 
-        # pop a Drawable from the list
+        # pop a DrawnValue from the list
         if len(self.list) == 0:
             return
 
@@ -136,14 +134,12 @@ def pop(self):
 
         self.highlightCodeTags('get_top', callEnviron)
 
-        # delete the associated display objects
-        items = (n.display_shape, n.display_val)
-        callEnviron |= set(items)
+        # Mark associated display objects as temporary
+        callEnviron |= set(n.items)
 
-        # move item to be deleted to top area
-        shape = self.copyCanvasItem(n.display_shape)
-        val = self.copyCanvasItem(n.display_val)
-        callEnviron |= set((shape, val))
+        # move copies of item to be deleted to top area
+        newItems = [self.copyCanvasItem(i) for i in n.items]
+        callEnviron |= set(newItems)
 
         itemPos = self.topBoxCoords()
         labelPos = ((itemPos[0] + itemPos[2]) / 2, 
@@ -154,11 +150,14 @@ def pop(self):
                 fill=self.VARIABLE_COLOR)
         callEnviron.add(topLabel)
 
-        self.moveItemsTo([shape, val], (itemPos, (labelPos[0], itemPos[1]+self.CELL_HEIGHT//2)))
+        self.moveItemsTo(newItems, (itemPos, (labelPos[0], itemPos[1]+self.CELL_HEIGHT//2)))
 
         # move item out of stack
         self.highlightCodeTags('empty_top', callEnviron)
-        self.moveItemsBy(items, delta=(0, -max(400, self.canvas.coords(n.display_shape)[3])), steps=self.CELL_HEIGHT, sleepTime=.01)
+        self.moveItemsBy(
+            n.items,
+            delta=(0, -max(400, self.canvas.coords(n.display_shape)[3])),
+            steps=self.CELL_HEIGHT, sleepTime=.01)
 
         # decrement index pointing to the last cell
         self.highlightCodeTags('decrement_top', callEnviron)
@@ -180,7 +179,7 @@ def pop(self):
         midOutputBoxX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
 
         # create the value to move to output box
-        valueOutput = self.copyCanvasItem(val)
+        valueOutput = self.copyCanvasItem(newItems[1])
         valueList = (valueOutput,)
         callEnviron.add(valueOutput)
 
@@ -340,8 +339,8 @@ def isEmpty(self):
 
         if color is None:
             # Take the next color from the palette
-            color = drawable.palette[Stack.nextColor]
-            Stack.nextColor = (Stack.nextColor + 1) % len(drawable.palette)
+            color = drawnValue.palette[Stack.nextColor]
+            Stack.nextColor = (Stack.nextColor + 1) % len(drawnValue.palette)
         cell_rect = self.canvas.create_rectangle(
             *rectPos, fill=color, outline='', width=0)
         cell_val = self.canvas.create_text(
@@ -358,13 +357,10 @@ def isEmpty(self):
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
 
-
-        # go through each Drawable in the list
+        # go through each DrawnValue in the list & create any missing items
         for i, n in enumerate(self.list):
-            # create display objects for the associated Drawables
-            n.display_shape, n.display_val = self.createCellValue(
-                i, n.val, n.color)
-            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')
+            if not n.items:
+                n.items = self.createCellValue(i, n.val)
 
         self.window.update()
 
