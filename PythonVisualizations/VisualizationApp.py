@@ -402,8 +402,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
             if self.entryHint:
-                self.entryHint.destroy()
-                self.entryHint = None
+                self.entryHint.config(text='')
             self.argumentChanged()
 
     def setArgument(self, val='', index=0):
@@ -413,8 +412,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.textEntries[index].insert(0, str(val))
             self.setArgumentHighlight(index)
             if self.entryHint:
-                self.entryHint.destroy()
-                self.entryHint = None
+                self.entryHint.config(text='')
             self.argumentChanged()
 
     def setArguments(self, *values):
@@ -506,6 +504,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.configure(state=DISABLED)
 
     def resizeCodeText(self, event=None):
+        if False:      # Set true for debugging printout
+            print('Call to resizeCodeText, codeText =', self.codeText,
+                  'which {} mapped'.format(
+                      'is' if self.codeText.winfo_ismapped() else 'is not'))
         if self.codeText is None or not self.codeText.winfo_ismapped():
             return
         ct = self.codeText
@@ -1009,4 +1011,3 @@ def clearHintHandler(hintLabel, textEntry=None):
     return lambda event: (
         textEntry.focus_set() if event.widget == hintLabel and textEntry
         else 0) or hintLabel.config(text='')
-
