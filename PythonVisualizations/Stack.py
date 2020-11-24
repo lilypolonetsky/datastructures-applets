@@ -98,7 +98,7 @@ def push(self, item):
         self.highlightCodeTags('add_item', callEnviron)
         self.moveItemsTo(cellPair, toPositions, steps=self.CELL_HEIGHT, sleepTime=0.01)
 
-        # add a new DrawnValue with the new value, color, and display objects
+        # add a new DrawnValue with the new value, and display objects
         self.list.append(drawnValue(val, *cellPair))
         callEnviron ^= set(cellPair)
 
