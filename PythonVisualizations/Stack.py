@@ -28,37 +28,31 @@ class Stack(VisualizationApp):
         self.maxArgWidth = maxArgWidth
         self.buttons = self.makeButtons()
         self.display()
-        self.indexDisplay = self.createIndex(len(self.list)-1)
 
     def __str__(self):
         return str(self.list)
 
     # Create an index arrow to point at an indexed cell with an optional name label
-    def createIndex(self, index, name=None):
+    def indexCoords(self, index):
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
-        x0 = self.STACK_X0 - self.CELL_WIDTH * 4 // 5
-        x1 = self.STACK_X0 - self.CELL_WIDTH * 3 // 10
-        y0 = y1 = cell_coords[1] + self.CELL_HEIGHT // 2
-        if not name:
-            label = "top" #labels the top of the stack "top" with the pointer arrow
-        else:
-            label = name
-
-        return self.drawArrow(
-            x0, y0, x1, y1, self.VARIABLE_COLOR, self.VARIABLE_FONT, name=label)
-
-    # draw the actual arrow
-    def drawArrow(
-            self, x0, y0, x1, y1, color, font, name=None):
+        x0 = cell_coords[0] - self.CELL_WIDTH // 2
+        x1 = cell_coords[0] - self.CELL_HEIGHT // 2
+        y0 = cell_center[1]
+        return x0, y0, x1, y0
+        
+    def createIndex(self, index, name="__top"):
+        arrowCoords = self.indexCoords(index)
         arrow = self.canvas.create_line(
-            x0, y0, x1, y1, arrow="last", fill=color)
+            *arrowCoords, arrow="last", fill=self.VARIABLE_COLOR)
         if name:
             label = self.canvas.create_text(
-                x0 - self.CELL_WIDTH / 2, y0 + self.CELL_HEIGHT / 5, text=name, anchor=SW,
-                font=font, fill=color)
+                arrowCoords[0] - abs(self.VARIABLE_FONT[1]), arrowCoords[1],
+                text=name, anchor=E, font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+            return (arrow, label)
 
-        return (arrow, label) if name else (arrow,)
+        return (arrow,)
 
     # STACK FUNCTIONALITY
 
@@ -74,7 +68,7 @@ def push(self, item):
 
         #move arrow up when new cell is inserted
         self.highlightCode('self.__top += 1', callEnviron)
-        self.moveItemsBy(self.indexDisplay, (0, - (self.CELL_HEIGHT)))
+        self.moveItemsBy(self.topIndex, (0, -self.CELL_HEIGHT), sleepTime=0.02)
 
         cellCoords = self.cellCoords(len(self.list))
         cellCenter = self.cellCenter(len(self.list))
@@ -84,13 +78,18 @@ def push(self, item):
         toPositions = (cellCoords, cellCenter)
 
         # determine the top left and bottom right positions
-        startPosition = [self.STACK_X0, 0, self.STACK_X0, 0]
-        startPosition = add_vector(startPosition, (0, 0, self.CELL_WIDTH, self.CELL_HEIGHT))
+        canvasDims = self.widgetDimensions(self.canvas)
+        left = int(canvasDims[0] * 0.4)
+        startPosition = [left - self.CELL_WIDTH, canvasDims[1],
+                         left, canvasDims[1] + self.CELL_HEIGHT]
         cellPair = self.createCellValue(startPosition, val)
         callEnviron |= set(cellPair)
 
         self.highlightCode('self.__stackList[self.__top] = item', callEnviron)
-        self.moveItemsTo(cellPair, toPositions, steps=self.CELL_HEIGHT, sleepTime=0.01)
+        yDelta = abs(cellCoords[1] - startPosition[1])
+        self.moveItemsOnCurve(
+            cellPair, toPositions, steps=max(10, yDelta // 4),
+            startAngle=-75, sleepTime=0.01)
 
         # add a new DrawnValue with the new value, and display objects
         self.list.append(drawnValue(val, *cellPair))
@@ -136,49 +135,21 @@ def pop(self):
                 fill=self.VARIABLE_COLOR)
         callEnviron.add(topLabel)
 
-        self.moveItemsTo(newItems, (itemPos, (labelPos[0], itemPos[1]+self.CELL_HEIGHT//2)))
+        self.moveItemsTo(
+            newItems, (itemPos, (labelPos[0], itemPos[1]+self.CELL_HEIGHT//2)),
+            sleepTime=0.02)
 
         # move item out of stack
         self.highlightCode('self.__stackList[self.__top] = None', callEnviron)
-        self.moveItemsBy(
-            n.items,
-            delta=(0, -max(400, self.canvas.coords(n.items[0])[3])),
-            steps=self.CELL_HEIGHT, sleepTime=.01)
+        self.moveItemsOffCanvas(n.items, W, sleepTime=.02)
 
         # decrement index pointing to the last cell
         self.highlightCode('self.__top -= 1', callEnviron)
-        self.moveItemsBy(self.indexDisplay, (0, (self.CELL_HEIGHT)))
+        self.moveItemsBy(self.topIndex, (0, (self.CELL_HEIGHT)), sleepTime=0.02)
 
         self.highlightCode('return top', callEnviron)
-        # draw output box
-        outputBox = self.canvas.create_rectangle(
-            self.STACK_X0 + self.CELL_WIDTH * 1.5,
-            self.STACK_Y0,
-            self.STACK_X0 + self.CELL_WIDTH * 2.5,
-            self.STACK_Y0 - self.CELL_HEIGHT,
-            fill=self.OPERATIONS_BG)
-        callEnviron.add(outputBox)
-
-        # calculate where the value will need to move to
-        outputBoxCoords = self.canvas.coords(outputBox)
-        midOutputBoxY = (outputBoxCoords[3] + outputBoxCoords[1]) // 2
-        midOutputBoxX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
-
-        # create the value to move to output box
-        valueOutput = self.copyCanvasItem(newItems[1])
-        valueList = (valueOutput,)
-        callEnviron.add(valueOutput)
-
-        # move value to output box
-        toPositions = (midOutputBoxX, midOutputBoxY)
-        self.moveItemsTo(valueList, (toPositions,), sleepTime=.02)
-
-        # make the value 25% smaller
-        newFont = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
-        self.canvas.itemconfig(valueOutput, font=newFont)
 
         # Finish animation
-        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
         return n.val  # returns value displayed in the cell
@@ -216,7 +187,7 @@ def peek(self):
         midOutputBoxX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
 
         # create the value to move to output box
-        valueOutput = self.copyCanvasItem(self.list[pos].display_val)
+        valueOutput = self.copyCanvasItem(self.list[pos].items[1])
         valueList = (valueOutput,)
         callEnviron.add(valueOutput)
 
@@ -229,7 +200,6 @@ def peek(self):
         self.canvas.itemconfig(valueOutput, font=newFont)
 
         # Finish animation
-        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
         return self.list[pos].val
@@ -251,9 +221,6 @@ def peek(self):
         del self.list[:]
         self.size = size
         self.display()
-
-        #make a new arrow pointing to the top of the stack
-        self.indexDisplay = self.createIndex(len(self.list)-1)
 
     isEmptyCode = """
 def isEmpty(self):
@@ -336,6 +303,9 @@ def isEmpty(self):
         for i, n in enumerate(self.list):
             if not n.items:
                 n.items = self.createCellValue(i, n.val)
+
+        # Make an arrow pointing to the top of the stack
+        self.topIndex = self.createIndex(len(self.list)-1)
 
         self.window.update()
 
