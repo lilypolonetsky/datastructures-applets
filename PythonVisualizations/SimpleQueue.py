@@ -1,9 +1,9 @@
 from tkinter import *
 try:
-    from drawable import *
+    from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
-    from .drawable import *
+    from .drawnValue import *
     from .VisualizationApp import *
 
 class Queue(VisualizationApp):
@@ -160,26 +160,34 @@ class Queue(VisualizationApp):
         
     def newCellValue(self, index, value, color=None):
         if color is None:
-            color = drawable.palette[self.nextColor]
+            color = drawnValue.palette[self.nextColor]
             # increment nextColor
-            self.nextColor = (self.nextColor + 1) % len(drawable.palette)
+            self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
 
         sliceRange = self.sliceRange(index)
-        outerDelta = (self.outerRadius, self.outerRadius)
+        outerDelta = (self.outerRadius, ) * 2
+        innerDelta = (self.innerRadius, ) * 2
         arc = self.canvas.create_arc(
-                *subtract_vector(self.center, outerDelta),
-                *add_vector(self.center, outerDelta),
-                start=sliceRange[0], extent = sliceRange[1],
-                fill=color, width=0, outline='',
-                style=PIESLICE, tags='value background')
+            *subtract_vector(self.center, outerDelta),
+            *add_vector(self.center, outerDelta),
+            start=sliceRange[0], extent = sliceRange[1],
+            fill=color, width=0, outline='',
+            style=PIESLICE, tags='value background')
         self.canvas.tag_lower(arc, 'cell')
+        cover = self.canvas.create_arc(
+            *subtract_vector(self.center, innerDelta),
+            *add_vector(self.center, innerDelta),
+            start=sliceRange[0], extent = sliceRange[1],
+            fill=self.canvas.itemconfigure(self.sliceCover, 'fill')[-1],
+            width=0, outline='', style=PIESLICE, tags='value background')
+        self.canvas.tag_lower(cover, 'cell')
         textDelta = rotate_vector(
             ((self.innerRadius + self.outerRadius) / 2, 0),
             (index + 0.5) * -self.sliceAngle)
         text = self.canvas.create_text(
             *add_vector(self.center, textDelta), text=value,
             font=self.valueFont, fill=self.valueColor)
-        return (arc, text)
+        return (arc, text, cover)
 
     def isEmpty(self):
         return self.nItems == 0
@@ -238,9 +246,7 @@ def insert(self, item={val!r}):
         self.highlightCode('self.__nItems += 1', callEnviron)
         self.updateNItems(self.nItems + 1)
         self.rear = nextRear
-        self.list[self.rear] = drawable(
-            val, self.canvas.itemconfigure(cellValue[0], 'fill')[-1],
-            *cellValue)
+        self.list[self.rear] = drawnValue(val, *cellValue)
         callEnviron -= set(cellValue)
         self.wait(0.1)
 
@@ -283,7 +289,7 @@ def remove(self):
             
         #get the value at front
         n = self.list[self.front]
-        val = self.copyCanvasItem(n.display_val)
+        val = self.copyCanvasItem(n.items[1])
         callEnviron.add(val)
         self.moveItemsTo(val, self.outputBoxLineCoords(), sleepTime=0.01)
         self.canvas.itemconfigure(val, font=outFont)
@@ -292,12 +298,11 @@ def remove(self):
         self.highlightCode('self.__que[self.__front] = None', callEnviron)
         quadrant = [E, N, W, S][
             ((self.front + self.size // 4) * 4 // self.size) % 4]
-        callEnviron |= set((n.display_shape, n.display_val))
-        self.moveItemsOffCanvas(
-            (n.display_shape, n.display_val), quadrant, sleepTime=0.01)
+        callEnviron |= set(n.items)
+        self.moveItemsOffCanvas(n.items, quadrant, sleepTime=0.01)
         self.list[self.front] = None
-        self.canvas.delete(n.display_shape)
-        self.canvas.delete(n.display_val)
+        for i in n.items:
+            self.canvas.delete(i)
         
         #increment front
         self.highlightCode('self.__front += 1', callEnviron)
@@ -343,7 +348,7 @@ def peek(self):
         peekValCoords = self.outputBoxLineCoords()
 
         # create the value to move to output box
-        valueOutput = self.copyCanvasItem(self.list[self.front].display_val)
+        valueOutput = self.copyCanvasItem(self.list[self.front].items[1])
         callEnviron.add(valueOutput)
 
         # move value to output box and use its font
@@ -497,7 +502,7 @@ def __init__(self, size={newSize}):
         innerDelta = (self.innerRadius, self.innerRadius)
         self.sliceCover = self.canvas.create_oval(
             *subtract_vector(self.center, innerDelta),
-            *add_vector(self.center, innerDelta), fill='white', 
+            *add_vector(self.center, innerDelta), fill=self.DEFAULT_BG, 
             width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR)
 
     def restoreIndices(self):
