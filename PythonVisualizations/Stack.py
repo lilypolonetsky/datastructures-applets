@@ -339,20 +339,26 @@ def isEmpty(self):
 
         self.window.update()
 
-    def makeButtons(self):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
 
         # numArguments decides the side where the button appears in the operations grid
         pushButton = self.addOperation(
-            "Push", lambda: self.clickPush(), numArguments=1)
-        popButton = self.addOperation(
-            "Pop", lambda: self.clickPop())
-        peekButton = self.addOperation(
-            "Peek", lambda: self.clickPeek())
+            "Push", lambda: self.clickPush(), numArguments=1,
+            argHelpText=['item'], helpText='Push item on stack')
         newStackButton = self.addOperation(
-            "New", lambda: self.clickNewStack(), numArguments=1, validationCmd=vcmd)
+            "New", lambda: self.clickNewStack(), numArguments=1,
+            argHelpText=['number of items'], validationCmd=vcmd,
+            helpText='Create stack to hold N items')
 
+        popButton = self.addOperation(
+            "Pop", lambda: self.clickPop(), helpText='Pop item from stack', 
+            maxRows=maxRows)
+        peekButton = self.addOperation(
+            "Peek", lambda: self.clickPeek(), helpText='Peek at top stack item',
+            maxRows=maxRows)
+        self.addAnimationButtons(maxRows=maxRows)
         return [pushButton, popButton, peekButton, newStackButton]
 
     def validArgument(self):
