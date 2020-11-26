@@ -367,7 +367,7 @@ def __init__(self, size={newSize}):
    self.__nItems = 0
 '''
     def display(self, newSize=None, code=newCode):
-        callEnviron = None
+        callEnviron, wait = None, 0
         if newSize is not None:
             callEnviron = self.createCallEnvironment(code.format(**locals()))
             self.startAnimations()
@@ -387,11 +387,11 @@ def __init__(self, size={newSize}):
                     'self.__que = [None] * size', callEnviron, wait=wait)
             except UserStop:
                 wait = 0
-                self.size = newSize
+            self.size = newSize
             self.list = [None] * self.size
             self.canvas.delete(sizeRequest)
             callEnviron.discard(sizeRequest)
-        self.createCells(self.size)  # Draw grid of cells
+        self.createCells(self.size, wait/10)  # Draw grid of cells
 
         self.front = 1
         self.frontLevel = 2
@@ -469,41 +469,51 @@ def __init__(self, size={newSize}):
     def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(makeWidthValidate(self.maxArgWidth)), '%P')
         self.insertButton = self.addOperation(
-            "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd)
-
-        self.insertButton = self.addOperation(
             "Insert", lambda: self.clickInsertRear(), numArguments=1,
-            validationCmd=vcmd)
+            validationCmd=vcmd, argHelpText=['item'],
+            helpText='Insert item at rear of queue')
+        self.insertButton = self.addOperation(
+            "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd,
+            argHelpText=['number of items'], 
+            helpText='Create queue to hold N items')
 
         self.removeButton = self.addOperation(
-            "Remove", lambda: self.clickRemove(), maxRows=maxRows)
+            "Remove", lambda: self.clickRemove(), maxRows=maxRows,
+            helpText='Remove item at front of queue')
         self.peekButton = self.addOperation(
-            "Peek", lambda: self.clickPeek(), maxRows=maxRows)
+            "Peek", lambda: self.clickPeek(), maxRows=maxRows,
+            helpText='Peek at front of queue item')
         self.addAnimationButtons(maxRows=maxRows)
 
-    def createCells(self, nCells):  # Create a set of array cells in a circle
+    def createCells(self, nCells, wait=0): # Create array cells in a circle
         self.sliceAngle = 360 / nCells
-        outerDelta = (self.outerRadius, self.outerRadius)
-        self.slices = [
-            self.canvas.create_arc(
-                *subtract_vector(self.center, outerDelta),
-                *add_vector(self.center, outerDelta),
-                start=self.sliceAngle * sliceI, extent = self.sliceAngle,
-                fill='', width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR,
-                style=PIESLICE, tags='cell')
-            for sliceI in range(nCells)]
-        if self.numericIndexColor and self.numericIndexFont:
-            self.numericIndices = [
-                self.canvas.create_text(
-                    *self.arrowCoords(sliceI, -0.3)[:2], text=sliceI,
-                    font=self.numericIndexFont, fill=self.numericIndexColor)
-                for sliceI in range(nCells)]
                     
         innerDelta = (self.innerRadius, self.innerRadius)
         self.sliceCover = self.canvas.create_oval(
             *subtract_vector(self.center, innerDelta),
             *add_vector(self.center, innerDelta), fill=self.DEFAULT_BG, 
-            width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR)
+            width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR,
+            tags='cover')
+
+        outerDelta = (self.outerRadius, self.outerRadius)
+        self.slices, self.numericIndices = [], []
+        for sliceI in range(nCells):
+            self.slices.append(self.canvas.create_arc(
+                *subtract_vector(self.center, outerDelta),
+                *add_vector(self.center, outerDelta),
+                start=self.sliceAngle * sliceI, extent = self.sliceAngle,
+                fill='', width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR,
+                style=PIESLICE, tags='cell'))
+            self.canvas.tag_lower(self.slices[-1], 'cover')
+            if self.numericIndexColor and self.numericIndexFont:
+                self.numericIndices.append(self.canvas.create_text(
+                    *self.arrowCoords(sliceI, -0.3)[:2], text=str(sliceI),
+                    font=self.numericIndexFont, fill=self.numericIndexColor))
+            if wait:
+                try:
+                    self.wait(wait)
+                except UserStop:
+                    wait = 0
 
     def restoreIndices(self):
         if self.frontArrow:
