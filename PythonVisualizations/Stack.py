@@ -362,6 +362,25 @@ def __init__(self, max={newSize}):
             self.highlightCode([], callEnviron)
             self.cleanUp(callEnviron)
 
+    def fixCells(self):
+        if self.topIndex:
+            coords = self.indexCoords(len(self.list) - 1)
+            self.canvas.coords(self.topIndex[0], *coords)
+            if len(self.topIndex) > 1:
+                self.canvas.coords(
+                    self.topIndex[1], 
+                    coords[0] - abs(self.VARIABLE_FONT[1]), coords[1])
+        for i, dValue in enumerate(self.list):
+            cell = self.cellCoords(i)
+            center = self.cellCenter(i)
+            for item, coords in zip(dValue.items, (cell, center)):
+                self.canvas.coords(item, *coords)
+                
+    def cleanUp(self, *args, **kwargs): # Customize clean up for stack
+        super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
+        if len(self.callStack) == 0:
+            self.fixCells()
+                
     def makeButtons(self, maxRows=4):
         width_vcmd = (self.window.register(makeWidthValidate(self.maxArgWidth)),
                       '%P')
