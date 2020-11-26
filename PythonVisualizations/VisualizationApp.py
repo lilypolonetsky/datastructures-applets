@@ -413,10 +413,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 for i in range(len(self.textEntries))]
 
     def clearArgument(self, index=0):
-        if 0 <= index and index < len(self.textEntries):
-            self.textEntries[index].delete(0, END)
-            self.setHint('')
-            self.argumentChanged()
+        self.setArgument('', index)
 
     def setArgument(self, val='', index=0):
         if 0 <= index and index < len(self.textEntries):
