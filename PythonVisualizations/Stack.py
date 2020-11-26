@@ -10,37 +10,50 @@ except ModuleNotFoundError:
 
 class Stack(VisualizationApp):
     nextColor = 0
-    MAX_ARG_WIDTH = 8
-    MAX_SIZE = 8
-    CELL_WIDTH = 20 * MAX_ARG_WIDTH
+    MAX_ARG_WIDTH = 10
+    MAX_CELL_HEIGHT = 40
+    MAX_FONT_SIZE = 20
+    MIN_FONT_SIZE = 9
+    FONT_RATIO = 0.7
     CELL_HEIGHT = 40
     CELL_BORDER = 2
     CELL_BORDER_COLOR = 'black'
-    STACK_X0 = 300
-    STACK_Y0 = 350
+    STACK_X0 = 200
 
-    def __init__(self, size=MAX_SIZE, maxArgWidth=MAX_ARG_WIDTH, title="Stack", **kwargs):
+    def __init__(                       # Constructor
+            self,
+            title="Stack",              # Title of visualization window
+            size=8,                     # Initial stack capacity
+            maxArgWidth=MAX_ARG_WIDTH,  # Maximum string length for items
+            numericIndexColor='gray40', # Color and font for numeric indices
+            numericIndexFont=('Courier', -11), # by cells
+            **kwargs):
         kwargs['title'] = title
         kwargs['maxArgWidth'] = maxArgWidth
         super().__init__(**kwargs)
+        self.CELL_WIDTH = self.textWidth(
+            self.VALUE_FONT, '▢' * (maxArgWidth + 2))
         self.size = size
         self.list = []
-        self.maxArgWidth = maxArgWidth
+        self.numericIndexColor = numericIndexColor
+        self.numericIndexFont = numericIndexFont
+
         self.buttons = self.makeButtons()
         self.display()
 
     def __str__(self):
         return str(self.list)
 
-    # Create an index arrow to point at an indexed cell with an optional name label
     def indexCoords(self, index):
         cell_coords = self.cellCoords(index)
         cell_center = self.cellCenter(index)
-        x0 = cell_coords[0] - self.CELL_WIDTH // 2
-        x1 = cell_coords[0] - self.CELL_HEIGHT // 2
+        gap = 3 * abs(self.numericIndexFont[1])
+        x0 = cell_coords[0] - gap - 50
+        x1 = cell_coords[0] - gap
         y0 = cell_center[1]
         return x0, y0, x1, y0
         
+    # Create an index arrow pointing at a cell with an optional name label
     def createIndex(self, index, name="__top"):
         arrowCoords = self.indexCoords(index)
         arrow = self.canvas.create_line(
@@ -57,14 +70,14 @@ class Stack(VisualizationApp):
     # STACK FUNCTIONALITY
 
     pushCode = """
-def push(self, item):
+def push(self, item={val}):
    self.__top += 1
    self.__stackList[self.__top] = item
 """
 
-    def push(self, val):
+    def push(self, val, code=pushCode):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(self.pushCode)
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
 
         #move arrow up when new cell is inserted
         self.highlightCode('self.__top += 1', callEnviron)
@@ -74,14 +87,14 @@ def push(self, item):
         cellCenter = self.cellCenter(len(self.list))
 
         # create new cell and cell value display objects
-        cellCoords = add_vector(cellCoords, (0, 0, 0, self.CELL_BORDER))
         toPositions = (cellCoords, cellCenter)
 
         # determine the top left and bottom right positions
         canvasDims = self.widgetDimensions(self.canvas)
-        left = int(canvasDims[0] * 0.4)
-        startPosition = [left - self.CELL_WIDTH, canvasDims[1],
-                         left, canvasDims[1] + self.CELL_HEIGHT]
+        left = int(self.cell0()[0] * 0.75)
+        startPosition = [left, canvasDims[1],
+                         left + self.CELL_WIDTH - self.CELL_BORDER,
+                         canvasDims[1] + self.CELL_HEIGHT - self.CELL_BORDER]
         cellPair = self.createCellValue(startPosition, val)
         callEnviron |= set(cellPair)
 
@@ -107,14 +120,14 @@ def pop(self):
    return top
 """
 
-    def pop(self):
+    def pop(self, code=popCode):
 
         # pop a DrawnValue from the list
         if len(self.list) == 0:
             return
 
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(self.popCode)
+        callEnviron = self.createCallEnvironment(code=code)
         n = self.list.pop()
 
         self.highlightCode('top = self.__stackList[self.__top]', callEnviron)
@@ -161,9 +174,9 @@ def peek(self):
 """
 
     # displays the top val of the stack in a small cell on the bottom right of the window
-    def peek(self):
+    def peek(self, code=peekCode):
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(self.peekCode)
+        callEnviron = self.createCallEnvironment(code=code)
 
         if self.isEmpty():
             self.cleanUp(callEnviron)
@@ -195,40 +208,33 @@ def peek(self):
         toPositions = (midOutputBoxX, midOutputBoxY)
         self.moveItemsTo(valueList, (toPositions,), sleepTime=.02)
 
-        # make the value 25% smaller
-        newFont = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
+        # make the value fit the output box
+        newFont = (self.VALUE_FONT[0], -14)
         self.canvas.itemconfig(valueOutput, font=newFont)
 
         # Finish animation
         self.cleanUp(callEnviron)
 
         return self.list[pos].val
-
+        
     def outputBoxCoords(self):
-        return (self.STACK_X0 + self.CELL_WIDTH * 1.5,
-                self.STACK_Y0,
-                self.STACK_X0 + self.CELL_WIDTH * 2.5,
-                self.STACK_Y0 - self.CELL_HEIGHT)
+        x0, y0 = self.cell0()
+        return (x0 + self.CELL_WIDTH * 3 // 2, y0 - 30,
+                x0 + self.CELL_WIDTH * 5 // 2, y0)
 
     def topBoxCoords(self):
         outputBox = self.outputBoxCoords()
         return (outputBox[0], self.CELL_HEIGHT * 2,
                 outputBox[2], self.CELL_HEIGHT * 3)
 
-    # lets user input an int argument that determines max size of the stack
-    def newStack(self, size):
-        #gets rid of old elements in the list
-        del self.list[:]
-        self.size = size
-        self.display()
-
     isEmptyCode = """
 def isEmpty(self):
     return self.__top < 0
     """
 
-    def isEmpty(self):
-        callEnviron = self.createCallEnvironment(self.isEmptyCode)
+    def isEmpty(self, code=isEmptyCode):
+        callEnviron = self.createCallEnvironment(code=code)
+        self.startAnimations()
         
         callEnviron |= set(self.createIndex(-.5, name = "0"))
         self.highlightCode('return self.__top < 0', callEnviron)
@@ -237,29 +243,43 @@ def isEmpty(self):
         self.cleanUp(callEnviron)
         return len(self.list) == 0
 
+    __cell0 = None
+    
+    def cell0(self):
+        if self.__cell0 is None: 
+            canvasDims = self.widgetDimensions(self.canvas)
+            self.__cell0 = (self.STACK_X0,
+                            canvasDims[1] - self.CELL_HEIGHT - self.CELL_BORDER)
+        return self.__cell0
+
     def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
-        return (self.STACK_X0 + self.CELL_BORDER,
-                (self.STACK_Y0 - self.CELL_HEIGHT * (cell_index + 1)) + self.CELL_BORDER,
-                self.STACK_X0 + self.CELL_WIDTH - self.CELL_BORDER,
-                self.STACK_Y0 - self.CELL_HEIGHT * cell_index - self.CELL_BORDER)
+        x0, y0 = self.cell0()
+        return (x0, y0 - self.CELL_HEIGHT * (cell_index + 1),
+                x0 + self.CELL_WIDTH - self.CELL_BORDER,
+                y0 - self.CELL_HEIGHT * cell_index - self.CELL_BORDER)
 
     def cellCenter(self, index):  # Center point for array cell at index
-        half_cell_x = (self.CELL_WIDTH - self.CELL_BORDER) // 2
-        half_cell_y = (self.CELL_HEIGHT - self.CELL_BORDER) // 2
-
+        half_cell_x = self.CELL_WIDTH // 2 - self.CELL_BORDER
+        half_cell_y = self.CELL_HEIGHT // 2 - self.CELL_BORDER
         return add_vector(self.cellCoords(index), (half_cell_x, half_cell_y))
 
     def createArrayCell(self, index):  # Create a box representing an array cell
         cell_coords = self.cellCoords(index)
         half_border = self.CELL_BORDER // 2
-        arrayCoords = add_vector(cell_coords,
-                                 (-half_border, -half_border,
-                                  self.CELL_BORDER - half_border, self.CELL_BORDER - half_border + 2))
-        rect = self.canvas.create_rectangle(arrayCoords,
-                                            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER)
+        other_half = self.CELL_BORDER - half_border
+        cell = add_vector(cell_coords,
+                          (-half_border, -half_border, other_half, other_half))
+        rect = self.canvas.create_rectangle(
+            cell, fill=None, outline=self.CELL_BORDER_COLOR,
+            width=self.CELL_BORDER)
         self.canvas.lower(rect)
+        label = self.canvas.create_text(
+            cell[0] - abs(self.numericIndexFont[1]), (cell[1] + cell[3]) // 2,
+            text=str(index), 
+            fill=self.numericIndexColor, font=self.numericIndexFont)
+        self.canvas.lower(label)
 
-        return rect
+        return rect, label
 
     def createCellValue(self, indexOrCoords, key, color=None):
         """Create new canvas items to represent a cell value.  A square
@@ -293,33 +313,65 @@ def isEmpty(self):
 
         return cell_rect, cell_val
 
-    def display(self):
+    newCode = '''
+def __init__(self, max={newSize}):
+   self.__stackList = [None] * max
+   self.__top = -1
+'''
+    
+    def display(self, newSize=None, code=newCode):
         self.canvas.delete("all")
 
+        callEnviron, wait = None, 0
+        if newSize is not None:
+            wait=0.1
+            callEnviron = self.createCallEnvironment(
+                code=code.format(**locals()))
+            self.startAnimations()
+            canvasDims = self.widgetDimensions(self.canvas)
+            try:
+                self.highlightCode(
+                    'self.__stackList = [None] * max', callEnviron, wait=wait)
+            except UserStop:
+                wait = 0
+            self.size = newSize
+            self.CELL_HEIGHT = min(self.MAX_CELL_HEIGHT,
+                                   canvasDims[1] // max(6, newSize + 2))
+            self.VALUE_FONT = (self.VALUE_FONT[0], 
+                               -int(self.CELL_HEIGHT * self.FONT_RATIO))
+                
         for i in range(self.size):  # Draw grid of cells
             self.createArrayCell(i)
+            if wait > 0:
+                try:
+                    self.wait(wait / 10)
+                except UserStop:
+                    wait = 0
+        del self.list[:]
+        
+        # Make an arrow pointing to the top of the empty stack
+        if callEnviron:
+            try:
+                self.highlightCode('self.__top = -1', callEnviron, wait=wait)
+            except UserStop:
+                wait = 0
+        self.topIndex = self.createIndex(-1)
 
-        # go through each DrawnValue in the list & create any missing items
-        for i, n in enumerate(self.list):
-            if not n.items:
-                n.items = self.createCellValue(i, n.val)
-
-        # Make an arrow pointing to the top of the stack
-        self.topIndex = self.createIndex(len(self.list)-1)
-
-        self.window.update()
+        if callEnviron:
+            self.wait(wait / 10)
+            self.highlightCode([], callEnviron)
+            self.cleanUp(callEnviron)
 
     def makeButtons(self, maxRows=4):
-        vcmd = (self.window.register(numericValidate),
-                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-
-        # numArguments decides the side where the button appears in the operations grid
+        width_vcmd = (self.window.register(makeWidthValidate(self.maxArgWidth)),
+                      '%P')
         pushButton = self.addOperation(
             "Push", lambda: self.clickPush(), numArguments=1,
-            argHelpText=['item'], helpText='Push item on stack')
+            argHelpText=['item'], validationCmd=width_vcmd,
+            helpText='Push item on stack')
         newStackButton = self.addOperation(
             "New", lambda: self.clickNewStack(), numArguments=1,
-            argHelpText=['number of items'], validationCmd=vcmd,
+            argHelpText=['number of items'], validationCmd=width_vcmd,
             helpText='Create stack to hold N items')
 
         popButton = self.addOperation(
@@ -362,8 +414,9 @@ def isEmpty(self):
     def clickPeek(self):
         val = self.peek()
         
-        if val: self.setMessage("Value {} is at the top of the stack!".format(val))
-        else: self.setMessage("Error! Stack is empty.")       
+        self.setMessage(
+            "Value {} is at the top of the stack!".format(val) if val else
+            "Error! Stack is empty.")
 
     def clickNewStack(self):
         val = self.validArgument()
@@ -371,19 +424,25 @@ def isEmpty(self):
             return
         if not val.isdigit():
             self.setMessage("New stack size must be a number")
+            self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
             return
-        val = int(val)
-        if 1 > val or val > self.MAX_SIZE:
-            self.setMessage("Error! Stack size must be an int between 1 and {}.".format(self.MAX_SIZE))
+        newSize = int(val)
+        cell0 = self.cell0()
+        maxCells = 10
+        while (int((cell0[1] // (maxCells + 2)) * self.FONT_RATIO) > 
+               self.MIN_FONT_SIZE):
+            maxCells += 1
 
+        if 1 <= newSize and newSize <= maxCells:
+            self.display(newSize)
+            self.setMessage("New stack of size {} created. ".format(newSize))
         else:
-            self.newStack(val)
-            self.setMessage("New stack created of size {}. ".format(val))
+            self.setMessage(
+                "Error! Stack size must be between 1 and {}.".format(maxCells))
+            self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
         self.clearArgument()
-
 
 if __name__ == '__main__':
     # random.seed(3.14159)    # Use fixed seed for testing consistency
     stack = Stack()
     stack.runVisualization()
-
