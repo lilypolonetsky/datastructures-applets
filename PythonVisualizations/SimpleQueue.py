@@ -134,12 +134,14 @@ class Queue(VisualizationApp):
         return font, pad
         
     def outputBoxCoords(self, nItems=1, font=None):
+        canvasDims = self.widgetDimensions(self.canvas)
         font, pad = self.outputBoxFontAndPadding(font)
         lineHeight = self.textHeight(font)
-        lineWidth = self.textWidth(font, 'W' * self.maxArgWidth) + pad * 2
-        y0 = max(lineHeight, self.center[1] - self.outerRadius)
-        x0 = y0
-        return x0, y0, x0 + lineWidth, x0 + lineHeight * nItems + pad * 2
+        lineWidth = self.textWidth(font, '▢' * self.maxArgWidth) + pad * 2
+        y1 = self.center[1] + self.outerRadius
+        y0 = y1 - lineHeight * nItems - pad * 2
+        x0 = canvasDims[0] - lineHeight - lineWidth
+        return x0, y0, x0 + lineWidth, y1 
 
     def createOutputBox(self, nItems=1, label=None, font=None):
         font, pad = self.outputBoxFontAndPadding(font)
@@ -155,8 +157,9 @@ class Queue(VisualizationApp):
     def outputBoxLineCoords(self, line=0, font=None):
         font, pad = self.outputBoxFontAndPadding(font)
         boxCoords = self.outputBoxCoords(line + 1, font)
+        lineHeight = self.textHeight(font)
         return ((boxCoords[0] + boxCoords[2]) // 2, 
-                boxCoords[3] - pad - abs(font[1]) // 2)
+                boxCoords[3] - pad - lineHeight // 2)
         
     def newCellValue(self, index, value, color=None):
         if color is None:
