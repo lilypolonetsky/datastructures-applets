@@ -60,7 +60,7 @@ class SortingBase(VisualizationApp):
 
         # update value and display value in "to" position in the list
         toItem.val = fromItem.val
-        toItem.color = fromItem.color
+        # toItem.color = fromItem.color
         toItem.display_shape = items[0]
         toItem.display_val = items[1] if len(items) > 1 else None
         

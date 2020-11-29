@@ -3,13 +3,13 @@ from tkinter import *
 
 try:
     from drawable import *
-    from VisualizationApp import *
+    from SortingBase import *
 except ModuleNotFoundError:
     from .drawable import *
-    from .VisualizationApp import *
+    from .SortingBase import *
 
 
-class PriorityQueue(VisualizationApp):
+class PriorityQueue(SortingBase):
     CELL_SIZE = 50
     CELL_BORDER = 2
     CELL_BORDER_COLOR = 'black'
