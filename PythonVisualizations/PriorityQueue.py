@@ -23,24 +23,77 @@ class PriorityQueue(SortingBase):
 
     # ARRAY FUNCTIONALITY
 
-    def insert(self, val):
-        callEnviron = self.createCallEnvironment()
+    isFullCode = '''
+def isFull(self):
+   return self.__nItems == self.__maxSize
+'''
+
+    def isFull(self, code=isFullCode, wait=0.2):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()))
         self.startAnimations()
+    
+        self.highlightCode(
+            'self.__nItems == self.__maxSize', callEnviron, wait=wait)
+        self.cleanUp(callEnviron)
+        return len(self.list) == self.size
+
+    insertCode = '''
+def insert(self, item={val}):
+   if self.isFull():
+      raise Exception("Queue overflow")
+   j = self.__nItems - 1
+   while j >= 0 and (
+         self.__pri(item) >= self.__pri(self.__que[j])):
+      self.__que[j+1] = self.__que[j]
+      j -= 1
+   self.__que[j+1] = item
+   self.__nItems += 1
+   return True
+'''
+    
+    def insert(self, val, code=insertCode):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()))
+        self.startAnimations()
+
+        wait=0.2
+        self.highlightCode('self.isFull()', callEnviron)
+        if self.isFull():
+            self.highlightCode(
+                'raise Exception("Queue overflow")', callEnviron, 
+                color=self.EXCEPTION_HIGHLIGHT)
+            self.cleanUp(callEnviron)
+            return
+        
+        self.highlightCode('j = self.__nItems - 1', callEnviron, wait=wait)
         j = len(self.list) - 1  # Start at front
 
         indexJ = self.createIndex(j, 'j', level=-2)
         callEnviron |= set(indexJ)
 
-        self.wait(0.2)
+        self.highlightCode('j >= 0', callEnviron, wait=wait)
+        if j >= 0:
+            self.highlightCode('self.__pri(item) >= self.__pri(self.__que[j])',
+                               callEnviron, wait=wait)
             
         self.list.append(drawnValue(None, None, None))
         while j >= 0 and val >= self.list[j].val:  # Move bigger items right
 
+            self.highlightCode('self.__que[j+1] = self.__que[j]', callEnviron)
             self.assignElement(j, j+1, callEnviron)
-            self.list[j+1].val = self.list[j].val
+
+            self.highlightCode('j -= 1', callEnviron)
             j -= 1
-            self.moveItemsBy(indexJ, (-self.CELL_SIZE, 0), sleepTime=0.02)  # Move "j" arrow
+            self.moveItemsBy(indexJ, (-self.CELL_SIZE, 0), sleepTime=0.02)
+
+            self.highlightCode('j >= 0', callEnviron, wait=wait)
+            if j >= 0:
+                self.highlightCode(
+                    'self.__pri(item) >= self.__pri(self.__que[j])',
+                    callEnviron, wait=wait)
             
+        self.highlightCode('self.__que[j+1] = item', callEnviron, wait=wait)
         # Location of the new cell in the array
         toPositions = (self.fillCoords(val, self.cellCoords(j+1)),
                        self.cellCenter(j+1))
@@ -57,9 +110,12 @@ class PriorityQueue(SortingBase):
         self.list[j+1] = drawnValue(val, *cellPair)
         callEnviron -= set(cellPair)  # New cell is no longer temporary
 
+        self.highlightCode('self.__nItems += 1', callEnviron)
         self.moveItemsBy(self.nItems, (self.CELL_SIZE, 0), sleepTime=0.01)
 
-        self.cleanUp(callEnviron) 
+        self.highlightCode('return True', callEnviron)
+        self.cleanUp(callEnviron)
+        return True
 
     def peek(self):
         callEnviron = self.createCallEnvironment()
@@ -175,14 +231,11 @@ class PriorityQueue(SortingBase):
     
     def clickInsert(self):
         val = self.validArgument()
-        if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
-        else:
-            if len(self.list) >= self.size:
-                self.setMessage("Error! Queue is already full.")
-            else:
-                self.insert(val)
-                self.setMessage("Value {} inserted".format(val))
+        self.setMessage(
+            "Input value must be an integer from 0 to 99." if val is None else
+            "Value {} inserted".format(val) if self.insert(val) else
+            "Error! Queue is already full.")
+                
         self.clearArgument()
     
     def clickRemove(self):
