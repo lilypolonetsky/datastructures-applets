@@ -80,7 +80,7 @@ class SortingBase(VisualizationApp):
     
     def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
         """Assign indexed cell to a temporary variable named varName.
-        Animate value moving to the temporary variable above the array.
+        Animate value moving to the temporary variable below the array.
         Return a drawable for the new temporary value and a text item for
         its name.  The existing name item can be passed to avoid creating
         a new one and for moving the value to that location
@@ -99,17 +99,18 @@ class SortingBase(VisualizationApp):
         tempPos = self.tempCoords(index)
         if existing:
             tempLabelPos = self.canvas.coords(existing)
-            templabel = existing
+            tempLabel = existing
         else:
             tempLabelPos = self.tempLabelCoords(index, self.VARIABLE_FONT)
-            templabel = self.canvas.create_text(
+            tempLabel = self.canvas.create_text(
                 *tempLabelPos, text=varName, font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
+            callEnviron.add(tempLabel)
 
         delta = (tempLabelPos[0] - cellXCenter, tempPos[1] - posCell[1])
         self.moveItemsBy(items, delta, sleepTime=0.02)
 
-        return drawable(fromDraw.val, fromDraw.color, *items), templabel
+        return drawable(fromDraw.val, fromDraw.color, *items), tempLabel
 
     def assignFromTemp(self, index, temp, templabel):
 
