@@ -685,8 +685,8 @@ def traverse(self, function=print):
         for i, n in enumerate(self.list):
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
-                i, n.val, n.color)
-            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
+                i, n.val)   # , n.color)
+            # n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
 
         # draw an index pointing to the last item in the list
         if showNItems:
