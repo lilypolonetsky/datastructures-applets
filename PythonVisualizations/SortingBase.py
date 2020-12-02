@@ -60,7 +60,7 @@ class SortingBase(VisualizationApp):
 
         # update value and display value in "to" position in the list
         toItem.val = fromItem.val
-        toItem.color = fromItem.color
+        # toItem.color = fromItem.color
         toItem.display_shape = items[0]
         toItem.display_val = items[1] if len(items) > 1 else None
         
@@ -80,7 +80,7 @@ class SortingBase(VisualizationApp):
     
     def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
         """Assign indexed cell to a temporary variable named varName.
-        Animate value moving to the temporary variable above the array.
+        Animate value moving to the temporary variable below the array.
         Return a drawable for the new temporary value and a text item for
         its name.  The existing name item can be passed to avoid creating
         a new one and for moving the value to that location
@@ -99,17 +99,18 @@ class SortingBase(VisualizationApp):
         tempPos = self.tempCoords(index)
         if existing:
             tempLabelPos = self.canvas.coords(existing)
-            templabel = existing
+            tempLabel = existing
         else:
             tempLabelPos = self.tempLabelCoords(index, self.VARIABLE_FONT)
-            templabel = self.canvas.create_text(
+            tempLabel = self.canvas.create_text(
                 *tempLabelPos, text=varName, font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
+            callEnviron.add(tempLabel)
 
         delta = (tempLabelPos[0] - cellXCenter, tempPos[1] - posCell[1])
         self.moveItemsBy(items, delta, sleepTime=0.02)
 
-        return drawable(fromDraw.val, fromDraw.color, *items), templabel
+        return drawable(fromDraw.val, fromDraw.color, *items), tempLabel
 
     def assignFromTemp(self, index, temp, templabel):
 
@@ -685,8 +686,8 @@ def traverse(self, function=print):
         for i, n in enumerate(self.list):
             # create display objects for the associated Drawables
             n.display_shape, n.display_val = self.createCellValue(
-                i, n.val, n.color)
-            n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
+                i, n.val)   # , n.color)
+            # n.color = self.canvas.itemconfigure(n.display_shape, 'fill')[-1]
 
         # draw an index pointing to the last item in the list
         if showNItems:
