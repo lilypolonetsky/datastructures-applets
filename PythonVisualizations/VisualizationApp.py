@@ -758,8 +758,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self, items, edge=N, steps=10):
         if not isinstance(items, (list, tuple, set)):
             items = (items,)
-        curPositions = [self.canvas.coords(i) for i in items]
-        bboxes = [self.canvas.bbox(i) for i in items]
+        curPositions = [self.canvas.coords(i) for i in items if i is not None]
+        bboxes = [self.canvas.bbox(i) for i in items if i is not None]
         bbox = bboxes[0]  # Get bounding box of all items
         for bb in bboxes[1:]:
             bbox = [min(bbox[0], bb[0]), min(bbox[1], bb[1]),
@@ -806,7 +806,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         moveBy = divide_vector(delta, steps)
         for step in range(steps):
             for item in items:
-                self.canvas.move(item, *moveBy)
+                if item is not None:
+                    self.canvas.move(item, *moveBy)
             yield (step, steps) # Yield step in sequence
 
     def moveItemsTo(         # Animate canvas items moving rigidly 

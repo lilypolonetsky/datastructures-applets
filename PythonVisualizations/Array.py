@@ -2,11 +2,11 @@ import random
 from tkinter import *
 
 try:
-    from drawable import *
+    from drawnValue import *
     from VisualizationApp import *
     from SortingBase import *
 except ModuleNotFoundError:
-    from .drawable import *
+    from .drawnValue import *
     from .VisualizationApp import *
     from .SortingBase import *
     
@@ -19,7 +19,7 @@ class Array(SortingBase):
         # Fill in initial array values with random integers
         # The display items representing these array cells are created later
         for i in range(self.size - 1):
-            self.list.append(drawable(random.randrange(self.valMax)))
+            self.list.append(drawnValue(random.randrange(self.valMax)))
         self.display()
 
         self.buttons = self.makeButtons()

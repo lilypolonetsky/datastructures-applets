@@ -2,11 +2,11 @@ import random
 from tkinter import *
 
 try:
-    from drawable import *
+    from drawnValue import *
     from VisualizationApp import *
     from SortingBase import *
 except ModuleNotFoundError:
-    from .drawable import *
+    from .drawnValue import *
     from .VisualizationApp import *
     from .SortingBase import *
 
@@ -19,7 +19,7 @@ class OrderedArray(SortingBase):
         # The display items representing these array cells are created later
         for i in sorted([random.randrange(self.valMax) 
                          for i in range(self.size-1)]):
-            self.list.append(drawable(i))
+            self.list.append(drawnValue(i))
         
         self.display()
 
@@ -71,7 +71,7 @@ def insert(self, item={val}):
         newItem = cell + (itemLabel,)
         callEnviron |= set(newItem)
         
-        self.list.append(drawable(None))
+        self.list.append(drawnValue(None))
         self.highlightCode('0 < j and self.__a[j - 1] > item', callEnviron)
         
         #  Move bigger items right
@@ -96,11 +96,10 @@ def insert(self, item={val}):
             toPositions += (self.cellCenter(j),)
         self.moveItemsTo(cell, toPositions, sleepTime=0.01)
 
-        self.canvas.delete(self.list[j].display_shape) # Delete items covered
-        if self.list[j].display_val:   # by the new item
-            self.canvas.delete(self.list[j].display_val)
-        self.list[j] = drawable(
-            val, self.canvas.itemconfigure(cell[0], 'fill')[-1], *cell)
+        for item in self.list[j].items: # Delete items covered by the new item
+            if item is not None:
+                self.canvas.delete(item)
+        self.list[j] = drawnValue(val, *cell)
         callEnviron ^= set(cell)  # New item is no longer temporary
         self.canvas.delete(itemLabel)
         callEnviron.discard(itemLabel)
@@ -223,7 +222,7 @@ def search(self, item={item}):
         callEnviron = self.createCallEnvironment()
         
         # Clear the list so new values can be entered
-        self.list = [drawable(i) for i in
+        self.list = [drawnValue(i) for i in
                      sorted([random.randrange(self.valMax) 
                              for i in range(self.size)])]
 
@@ -264,13 +263,11 @@ def delete(self, item):
                 
                 self.highlightCode('self.__nItems -= 1', callEnviron)
                 self.moveItemsBy(self.nItems,
-                                 (-self.CELL_SIZE, 0), sleepTime=0.01)
+                                 (-self.CELL_WIDTH, 0), sleepTime=0.01)
 
                 # Slide value rectangle up and off screen
-                items = (self.list[j].display_shape, foundCircle)
-                if self.list[j].display_val:
-                    items += (self.list[j].display_val,)
-                self.moveItemsOffCanvas(items, N, sleepTime=0.02)
+                self.moveItemsOffCanvas(
+                    self.list[j].items + (foundCircle,), N, sleepTime=0.02)
 
                 #  Move bigger items left
                 self.highlightCode('k in range(j, self.__nItems)', callEnviron)
@@ -294,9 +291,9 @@ def delete(self, item):
                 # remove the last item in the list
                 n = self.list.pop()
                 # delete the associated display objects
-                self.canvas.delete(n.display_shape)
-                if n.display_val:
-                    self.canvas.delete(n.display_val)
+                for item in n.items:
+                    if item is not None:
+                        self.canvas.delete(item)
                     
                 self.highlightCode('return True', callEnviron, wait=0.)
                 
