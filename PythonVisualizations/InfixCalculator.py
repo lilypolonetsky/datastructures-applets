@@ -275,7 +275,7 @@ class InfixCalculator(VisualizationApp):
     def updateInput(self, newText):
         valid = (self.validExpression(newText) and
                  len(newText) < self.MAX_EXPRESSION_LENGTH)
-        if valid:
+        if self.animationsStopped() and valid:
             if self.postfixInputString:
                 self.display(newText)
             else:
@@ -322,18 +322,23 @@ class InfixCalculator(VisualizationApp):
         self.startAnimations()
 
         token, infixExpression = self.nextToken(self.infixInputString)
+        tokenItem = self.extractToken(token, self.infixInputString,
+                                      callEnviron)
+        
         while token:
             prec = self.precedence(token)
             delim = self.delimiter(token)
             if delim:
                 if token == '(':
-                    self.pushToken(
-                        token, self.infixInputString, callEnviron, array=0,
-                        color=drawnValue.palette[prec - 1])
+                    self.pushToken(tokenItem, callEnviron, array=0,
+                                   color=drawnValue.palette[prec - 1])
                 else:
+                    self.canvas.delete(tokenItem)
                     while self.TRstack:
                         top = self.popToken(callEnviron, array=0)
                         if top.val == '(':
+                            for item in top.items:
+                                self.canvas.delete(item)
                             break
                         else:
                             self.insertToken(top, callEnviron)
@@ -342,26 +347,22 @@ class InfixCalculator(VisualizationApp):
                     top = self.popToken(callEnviron, array=0)
                     if top.val == '(':
                         # Just put drawnValue back in place
-                        self.TRstack.append(top)
-                        self.moveItemsBy(
-                            self.TRstackTopIndex, (0, - self.CELL_HEIGHT),
-                            sleepTime=0.001)
+                        self.pushToken(top, callEnviron, array=0)
                         break
                     else:
                         if self.precedence(top.val) >= prec:
                             self.insertToken(top, callEnviron)
                         else:
-                            self.TRstack.append(top)
-                            self.moveItemsBy(
-                                self.TRstackTopIndex, (0, - self.CELL_HEIGHT),
-                                sleepTime=0.001)
+                            self.pushToken(top, callEnviron, array=0)
                             break
-                self.pushToken(token, self.infixInputString, callEnviron,
+                self.pushToken(tokenItem, callEnviron,
                                array=0, color=drawnValue.palette[prec - 1])
             else:                     # Input token is an operand
-                self.insertToken(token, callEnviron, self.infixInputString)
+                self.insertToken(tokenItem, callEnviron, self.infixInputString)
 
             token, infixExpression = self.nextToken(self.infixInputString)
+            tokenItem = self.extractToken(token, self.infixInputString,
+                                          callEnviron)
 
         while self.TRstack:
             self.insertToken(self.popToken(callEnviron, array=0), callEnviron)
@@ -375,44 +376,68 @@ class InfixCalculator(VisualizationApp):
         self.cleanUp(callEnviron)
         return ans
     
-    def nextToken(self, displayString):
+    def nextToken(self, displayString, waitForStrip=0.1):
         text = self.canvas.itemconfigure(displayString, 'text')[-1]
         token = ''
         stripped = text.strip()
         if stripped != text:
             self.canvas.itemconfigure(displayString, text=stripped)
             text = stripped
-            self.wait(0.5)
+            if waitForStrip:
+                self.wait(waitForStrip)
         if len(text) > 0:
             if self.precedence(text[0]):
                 token = text[0]
                 text = text[1:]
-                self.canvas.itemconfigure(displayString, text=text)
             else:
                 while len(text) > 0 and not (   # to next operator or space
                         self.precedence(text[0]) or text[0].isspace()):
                     token += text[0]
                     text = text[1:]
-                    self.canvas.itemconfigure(displayString, text=text)
         return token, text  # Return the token, and remaining input string
 
-    def pushToken(self, token, displayString, callEnviron, array=0, color=None):
+    def extractToken(self, token, displayString, callEnviron, anchor=None,
+                     font=None, color=None):
+        '''Get a canvas text item to repesent a token extracted from the
+        beginning of a displayed string'''
+        text = self.canvas.itemconfigure(displayString, 'text')[-1]
+        if not text.startswith(token):
+            raise ValueError('Token does not match beginning of string')
+        coords = self.canvas.coords(displayString)
+        if font is None:
+            font = self.VALUE_FONT
+        if color is None:
+            color = self.VALUE_COLOR
+        tokenItem = self.canvas.create_text(
+            *coords, text=token, font=font, fill=color, anchor=W)
+        callEnviron.add(tokenItem)
+        self.moveItemsBy(tokenItem, (0, self.INPUT_BOX_HEIGHT), sleepTime=0.01)
+        self.canvas.itemconfigure(tokenItem, anchor=anchor)
+        self.canvas.itemconfigure(displayString, text=text[len(token):])
+        return tokenItem
+        
+    def pushToken(self, token, callEnviron, array=0, color=None):
+        '''Push a token on a stack.  The token can either be canvas text
+        item or a drawnValue.'''
         index = len(self.structures[array])
         if index >= self.ARRAY_SIZE:
             raise IndexError('Stack overflow')
-        coords = self.canvas.coords(displayString)
-        tokenItem = self.canvas.create_text(
-            *coords, text=token, font=self.VALUE_FONT, fill=self.VALUE_COLOR,
-            anchor=W)
-        callEnviron.add(tokenItem)
-        toCoords = subtract_vector(
-            self.cellCenter(index, array), 
-            (self.textWidth(self.VALUE_FONT, token) / 2, 0))
-        self.moveItemsTo(tokenItem, toCoords, sleepTime=0.01)
-        self.structures[array].append(drawnValue(
-            token, *self.createCellValue(index, token, array, color=color)))
-        self.canvas.delete(tokenItem)
-        callEnviron.discard(tokenItem)
+        toCoords = self.cellCoords(index, array)
+        toCenter = self.cellCenter(index, array)
+        if isinstance(token, int):
+            self.moveItemsTo(token, toCenter, sleepTime=0.01)
+            text = self.canvas.itemconfigure(token, 'text')[-1]
+            dValue = drawnValue(
+                text, *self.createCellValue(index, text, array, color=color))
+            self.canvas.delete(token)
+            callEnviron.discard(token)
+        else:
+            if vector_length2(subtract_vector(
+                    toCoords, self.canvas.coords(token.items[0]))) > 0.1:
+                self.moveItemsTo(token.items, (toCoords, toCenter),
+                                 sleepTime=0.01)
+            dValue = token
+        self.structures[array].append(dValue)
         self.moveItemsBy(
             self.indices[array], (0, - self.CELL_HEIGHT), sleepTime=0.01)
 
@@ -439,6 +464,8 @@ class InfixCalculator(VisualizationApp):
         return top
     
     def insertToken(self, token, callEnviron, displayString=None, color=None):
+        '''Insert a token at the rear of the queue.  Token can either be a
+        drawnValue on a stack, or a canvas text item ID (int)'''
         if self.TRqueueSize >= self.ARRAY_SIZE:
             raise IndexError('Queue overflow')
         index = (self.TRqueueRear + 1) % len(self.TRqueue)
@@ -447,13 +474,8 @@ class InfixCalculator(VisualizationApp):
                          sleepTime=0.01)
         toCoords = self.cellCoords(index, array=1)
         toCenter = self.cellCenter(index, array=1)
-        if isinstance(token, str) and displayString:
-            coords = self.canvas.coords(displayString)
-            tokenItem = self.canvas.create_text(
-                *coords, text=token, font=self.VALUE_FONT,
-                fill=self.VALUE_COLOR)
-            callEnviron.add(tokenItem)
-            items = (tokenItem,)
+        if isinstance(token, int) and displayString:
+            items = (token,)
             dValue = None
         elif isinstance(token, drawnValue) and displayString is None:
             items = token.items
@@ -462,9 +484,10 @@ class InfixCalculator(VisualizationApp):
             items, (toCoords, toCenter) if len(items) == 2 else (toCenter),
             sleepTime=0.01)
         if dValue is None:
+            text = self.canvas.itemconfigure(token, 'text')[-1]
             dValue = drawnValue(
-                token, 
-                *self.createCellValue(index, token, array=1, color=color))
+                text, 
+                *self.createCellValue(index, text, array=1, color=color))
             for item in items:
                 self.canvas.delete(item)
                 callEnviron.discard(item)
