@@ -21,9 +21,9 @@ class InfixCalculator(VisualizationApp):
     INPUT_BOX_WIDTH = 400
     INPUT_BOX_HEIGHT = 30
     INPUT_BOX_BG = 'powder blue'
-    OUTPUT_BOX_X0 = 600
+    OUTPUT_BOX_X0 = 570
     OUTPUT_BOX_Y0 = 350
-    OUTPUT_BOX_WIDTH = 180
+    OUTPUT_BOX_WIDTH = 210
     OUTPUT_BOX_HEIGHT = 30
     OUTPUT_BOX_BG = VisualizationApp.OPERATIONS_BG
     TR_STACK_X0 = INPUT_BOX_X0
@@ -33,7 +33,7 @@ class InfixCalculator(VisualizationApp):
     EV_STACK_X0 = TR_QUEUE_X0 + TR_QUEUE_X0 - TR_STACK_X0
     EV_STACK_Y0 = TR_STACK_Y0
     ARRAY_X0s = [TR_STACK_X0, TR_QUEUE_X0, EV_STACK_X0]
-    PRECEDENCE_X0 = 600
+    PRECEDENCE_X0 = OUTPUT_BOX_X0 + 10
     PRECEDENCE_Y0 = 30
     PRECEDENCE_SPACING = 25
     operators = ["|", "&", "+-", "*/%", "^", "()"]
@@ -78,16 +78,19 @@ class InfixCalculator(VisualizationApp):
     
     # Create an index arrow to point at a cell in one of the arrays
     def createIndex(
-            self, index, array=0, name=None, level=0, color=None, font=None):
+            self, index, array=0, name=None, level=0, color=None, font=None, 
+            tags=()):
         if color is None:
             color = self.VARIABLE_COLOR
         if font is None:
             font = self.VARIABLE_FONT
         arrowCoords = self.indexCoords(index, array, level)
-        arrow = self.canvas.create_line(*arrowCoords, arrow="last", fill=color)
+        arrow = self.canvas.create_line(
+            *arrowCoords, arrow="last", fill=color, tags=tags)
         if name:
             label = self.canvas.create_text(
-                *arrowCoords[:2], text=name, anchor=NE, font=font, fill=color)
+                *arrowCoords[:2], text=name, anchor=NE, font=font, fill=color, 
+                tags=tags)
             return (arrow, label)
 
         return (arrow,)
@@ -101,8 +104,15 @@ class InfixCalculator(VisualizationApp):
         return (self.OUTPUT_BOX_X0, self.OUTPUT_BOX_Y0,
                 self.OUTPUT_BOX_X0 + self.OUTPUT_BOX_WIDTH,
                 self.OUTPUT_BOX_Y0 + self.OUTPUT_BOX_HEIGHT)
+
+    def operandAndOperatorCoords(self):
+        oBox = self.outputBoxCoords()
+        y0 = oBox[1] - 3 * (oBox[3] - oBox[1])
+        return (((oBox[0] * 4 + oBox[2]) // 5, y0),
+                ((oBox[0] + oBox[2]) // 2, y0),
+                ((oBox[0] + oBox[2] * 4) // 5, y0))
     
-    def createArrayCell(self, index, array=0):
+    def createArrayCell(self, index, array=0, tags=()):
         'Create a box representing an array cell'
         cell_coords = self.cellCoords(index, array)
         half_border = self.CELL_BORDER // 2
@@ -111,7 +121,7 @@ class InfixCalculator(VisualizationApp):
                           (-half_border, -half_border, other_half, other_half))
         rect = self.canvas.create_rectangle(
             cell, fill=None, outline=self.CELL_BORDER_COLOR,
-            width=self.CELL_BORDER)
+            width=self.CELL_BORDER, tags=tags)
         self.canvas.lower(rect)
         return rect
 
@@ -203,8 +213,9 @@ class InfixCalculator(VisualizationApp):
             
         # Create array structured for PostfixTranslate
         for array in (0, 1):  # Draw cells for translation stack and queue
+            tag = 'array-{}'.format(array)
             for i in range(self.ARRAY_SIZE):
-                self.createArrayCell(i, array)
+                self.createArrayCell(i, array, tags=tag)
 
             for i, value in enumerate(self.structures[array]):
                 if value.val is not None:
@@ -213,12 +224,12 @@ class InfixCalculator(VisualizationApp):
 
         # Create index pointers for translation stack and queue
         self.TRstackTopIndex = self.createIndex(
-            len(self.TRstack), array=0, name='top')
+            len(self.TRstack), array=0, name='top', tags='index-0')
         self.indices[0] = self.TRstackTopIndex
         self.TRqueueRearIndex = self.createIndex(
-            self.TRqueueRear, array=1, name='rear')
+            self.TRqueueRear, array=1, name='rear', tags='index-1')
         self.TRqueueFrontIndex = self.createIndex(
-            self.TRqueueFront, array=1, name='front', level=1)
+            self.TRqueueFront, array=1, name='front', level=1, tags='index-1')
         self.indices[1] = (self.TRqueueRearIndex, self.TRqueueFrontIndex)
 
         inBoxCoords = self.inputBoxCoords()
@@ -236,8 +247,9 @@ class InfixCalculator(VisualizationApp):
             
         # Create array structured for Evaluate
         array = 2
+        tag = 'array-2'
         for i in range(self.ARRAY_SIZE):
-            cell = self.createArrayCell(i, array)
+            cell = self.createArrayCell(i, array, tags=tag)
             if callEnviron:
                 callEnviron.add(cell)
 
@@ -249,8 +261,9 @@ class InfixCalculator(VisualizationApp):
                     callEnviron |= set(value.items)
 
         # Create index pointers for translation stack and queue
+        tag = 'index-2'
         self.EVstackTopIndex = self.createIndex(
-            len(self.EVstack), array=2, name='top')
+            len(self.EVstack), array=2, name='top', tags=tag)
         self.indices[2] = self.EVstackTopIndex
         if callEnviron:
             callEnviron |= set(self.EVstackTopIndex)
@@ -304,10 +317,65 @@ class InfixCalculator(VisualizationApp):
         self.canvas.itemconfigure(self.infixInputString, text=infixExpression)
         
         del self.EVstack[:]
+        for array in (0, 1):         # Gray out arrays used by Translate
+            self.canvas.itemconfigure(
+                'array-{}'.format(array), outline='gray80')
+            self.canvas.itemconfigure('index-{}'.format(array), fill='gray80')
         self.createEvaluateStructues(postfixExpression, callEnviron=callEnviron)
+
+        left, operator, right = [
+            self.canvas.create_text(
+                *coords, text='', font=self.VALUE_FONT, fill=self.VALUE_COLOR)
+            for coords in self.operandAndOperatorCoords()]
+        operatorCoords = self.canvas.coords(operator)
+        
+        token, postfixExpression = self.nextToken(self.postfixInputString)
+        tokenItem = self.extractToken(token, self.postfixInputString,
+                                      callEnviron)
+        
+        while token:
+            prec = self.precedence(token)
+            if prec:
+                self.moveItemsTo(tokenItem, operatorCoords, sleepTime=0.01)
+                self.canvas.itemconfigure(operator, text=token)
+                self.canvas.delete(tokenItem)
+                rightDValue = self.popToken(callEnviron, array=2,
+                                            displayString=right)
+                leftDValue = self.popToken(callEnviron, array=2,
+                                           displayString=left)
+                self.moveItemsTo(
+                    (left, right), (operatorCoords, operatorCoords), 
+                    sleepTime=0.01)
+                op = token
+                L, R = eval(leftDValue.val), eval(rightDValue.val)
+                result = str(
+                    L|R if op == '|' else L&R if op == '&' else
+                    L+R if op == '+' else L-R if op == '-' else
+                    L*R if op == '*' else L/R if op == '/' else
+                    L%R if op == '%' else L^R if op == '^' else None)
+                tokenItem = self.canvas.create_text(
+                    *operatorCoords, text=result, font=self.VALUE_FONT,
+                    fill=self.VALUE_COLOR)
+                for displayString, coords in zip(
+                        (left, operator, right),
+                        self.operandAndOperatorCoords()):
+                    self.canvas.itemconfigure(displayString, text='')
+                    self.canvas.coords(displayString, *coords)
+            self.pushToken(tokenItem, callEnviron, array=2)
+                          
+            token, postfixExpression = self.nextToken(self.postfixInputString)
+            tokenItem = self.extractToken(token, self.postfixInputString,
+                                          callEnviron)
+
+        outputBox = self.outputBoxCoords()
+        self.canvas.itemconfigure(operator, text='')
+        self.canvas.coords(
+            operator, 
+            *divide_vector(add_vector(outputBox[:2], outputBox[2:]), 2))
+        dValue = self.popToken(callEnviron, array=2, displayString=operator)
         
         self.cleanUp(callEnviron)
-        return postfixExpression
+        return dValue.val
 
     def PostfixTranslate(self, infixExpression):
         del self.TRstack[:]
@@ -442,6 +510,8 @@ class InfixCalculator(VisualizationApp):
             self.indices[array], (0, - self.CELL_HEIGHT), sleepTime=0.01)
 
     def popToken(self, callEnviron, array=0, displayString=0):
+        '''Pop a drawnValue record from an array structure and optionally
+        move a copy of its value text to a displayString'''
         index = len(self.structures[array]) - 1
         if index < 0:
             raise IndexError('Stack underflow')
@@ -452,10 +522,11 @@ class InfixCalculator(VisualizationApp):
                 text += ' '
             copyItem = self.copyCanvasItem(top.items[1])
             callEnviron.add(copyItem)
-            self.canvas.itemconfigure(copyItem, anchor=W)
+            for item in top.items:
+                self.canvas.delete(item)
             toCoords = add_vector(
                 self.canvas.coords(displayString),
-                (self.textWidth(self.VALUE_FONT, text), 0))
+                (self.textWidth(self.VALUE_FONT, text + top.val) // 2, 0))
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
             self.canvas.itemconfigure(displayString, text=text + top.val)
             self.canvas.delete(copyItem)
