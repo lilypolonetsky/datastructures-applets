@@ -362,10 +362,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
         return Ehandler
     
     def returnPressed(self, event):  # Handle press of Return/Enter in text
-        if hasattr(event.widget, 'last_button'): # entry argument widget
-            button = getattr(event.widget, 'last_button')
+        button = getattr(            # entry argument widget.
+            event.widget, 'last_button', None)
+        if button:                   # If last_button attribute is defined
             if self.widgetState(button) == NORMAL:
-                self.widgetState(
+                self.widgetState(    # Re-do button press
                     button, 
                     'pressed' if isinstance(button, ttk.Button) else ACTIVE)
                 self.window.update()
@@ -375,7 +376,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     '!pressed' if isinstance(button, ttk.Button) else NORMAL)
                 button.invoke()
                 
-    def addAnimationButtons(self, maxRows=4):
+    def addAnimationButtons(self, maxRows=4, setDefaultButton=True):
         self.pauseButton = self.addOperation(
             "Pause", lambda: self.onClick(self.pause, self.pauseButton),
             cleanUpBefore=False, maxRows=maxRows,
@@ -386,6 +387,17 @@ class VisualizationApp(object):  # Base class for Python visualizations
             cleanUpBefore=False, maxRows=maxRows,
             helpText='Stop animation')
         self.widgetState(self.stopButton, DISABLED)
+        if setDefaultButton and self.textEntries:
+            if isinstance(setDefaultButton, self.buttonTypes):
+                setattr(self.textEntries[0], 'last_button', setDefaultButton)
+            else:
+                gridItems = gridDict(self.operations)
+                nColumns, nRows = self.operations.grid_size()
+                withArgument = [
+                    gridItems[0, row] for row in range(nRows)
+                    if isinstance(gridItems[0, row], self.buttonTypes)]
+                if len(withArgument) == 1:
+                    setattr(self.textEntries[0], 'last_button', withArgument[0])
         
     def runOperation(self, command, cleanUpBefore, button=None):
         def animatedOperation(): # If button that uses arguments is provided,
