@@ -448,6 +448,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
             self.highlightCode(('token', 2), callEnviron, wait=wait)
 
         outputBox = self.outputBoxCoords()
+        self.canvas.itemconfigure(precValue, text='')
         self.canvas.itemconfigure(operator, text='')
         self.canvas.coords(
             operator, 
