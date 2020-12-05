@@ -109,7 +109,7 @@ class InfixCalculator(VisualizationApp):
         oBox = self.outputBoxCoords()
         y0 = oBox[1] - 3 * (oBox[3] - oBox[1])
         return (((oBox[0] * 4 + oBox[2]) // 5, y0),
-                ((oBox[0] + oBox[2]) // 2, y0),
+                ((oBox[0] + oBox[2]) // 2, y0 + oBox[1] - oBox[3]),
                 ((oBox[0] + oBox[2] * 4) // 5, y0))
     
     def createArrayCell(self, index, array=0, tags=()):
@@ -389,7 +389,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
                                       callEnviron)
         labelCoords = self.canvas.coords(self.postfixLabel)
         precValue = self.canvas.create_text(
-            labelCoords[0] + 150, labelCoords[1], text='',
+            labelCoords[0] + 300, labelCoords[1], text='',
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
         
         self.highlightCode(('token', 2), callEnviron, wait=wait)
