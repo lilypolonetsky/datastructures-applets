@@ -177,19 +177,18 @@ class InfixCalculator(VisualizationApp):
             self.PRECEDENCE_X0, self.PRECEDENCE_Y0, text=tableTitle,
             anchor=W, font=self.VARIABLE_FONT, fill='black')
         nLevels = len(self.operators)
-        pad = 5
         x0, y0 = self.PRECEDENCE_X0, self.PRECEDENCE_Y0 
         dY = self.PRECEDENCE_SPACING
         width = self.textWidth(self.VARIABLE_FONT, tableTitle)
         for j, operatorString in enumerate(self.operators):
             self.canvas.create_rectangle(
-                x0 - pad,         y0 + int((nLevels - j - 0.5) * dY),
-                x0 + width + pad, y0 + int((nLevels - j + 0.5) * dY),
+                x0,         y0 + int((nLevels - j - 0.5) * dY),
+                x0 + width, y0 + int((nLevels - j + 0.5) * dY),
                 fill=drawnValue.palette[j], outline='', width=0)
             self.canvas.create_text(
-                x0, y0 + (nLevels - j) * dY,
-                text=', '.join(c for c in operatorString),
-                anchor=W, font=self.VARIABLE_FONT, fill='black')
+                x0 + width // 2, y0 + (nLevels - j) * dY,
+                text='  '.join(c for c in operatorString),
+                font=self.VARIABLE_FONT, fill='black')
             
         outBoxCoords = self.outputBoxCoords()
         self.outputBox = self.canvas.create_rectangle(
