@@ -572,14 +572,15 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if codeBlock is None:  # This shouldn't happen, but...
             return
         if isinstance(fragments, (list, tuple, set)):
-            if (len(fragments) == 2 and
+            if (len(fragments) == 2 and   # Look for (str, int) pair
                 isinstance(fragments[0], str) and
                 isinstance(fragments[1], int)):
-                tags = [ codeBlock[fragments[0], fragments[1]] ]
+                tags = [codeBlock[fragments]] # Look up by (str, int) pair
             else:
                 tags = [
                     codeBlock[tuple(frag)] if isinstance(frag, (list, tuple))
-                    else codBlock.tag(fragment) for frag in fragments]
+                    else codeBlock[frag] 
+                    for frag in fragments]
         else:
             tags = [codeBlock[fragments]]
         found = False       # Assume tag not found
