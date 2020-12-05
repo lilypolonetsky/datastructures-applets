@@ -221,6 +221,12 @@ class InfixCalculator(VisualizationApp):
                 if value.val is not None:
                     value.items = self.createCellValue(
                         i, value.val, array, color=colors[array][i])
+            tag = 'index-{}'.format(array)
+            self.canvas.create_text(
+                *self.indexCoords(self.ARRAY_SIZE, array, level=1)[:2],
+                text='Translate stack' if array == 0 else 'Translate queue',
+                anchor=SW,
+                font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, tags=tag)
 
         # Create index pointers for translation stack and queue
         self.TRstackTopIndex = self.createIndex(
@@ -235,7 +241,7 @@ class InfixCalculator(VisualizationApp):
         inBoxCoords = self.inputBoxCoords()
         self.postfixLabel = self.canvas.create_text(
             inBoxCoords[0] - 10, inBoxCoords[3] + self.INPUT_BOX_HEIGHT,
-            text='Postfix', anchor=E, font=self.VARIABLE_FONT,
+            text='token', anchor=E, font=self.VARIABLE_FONT,
             fill=self.VARIABLE_COLOR)
         self.postfixInputString = self.canvas.create_text(
             inBoxCoords[0] + 10, inBoxCoords[3] + self.INPUT_BOX_HEIGHT,
@@ -252,6 +258,11 @@ class InfixCalculator(VisualizationApp):
             cell = self.createArrayCell(i, array, tags=tag)
             if callEnviron:
                 callEnviron.add(cell)
+        tag = 'index-2'
+        self.canvas.create_text(
+            *self.indexCoords(self.ARRAY_SIZE, array, level=1)[:2],
+            text='Evaluate stack', anchor=SW,
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, tags=tag)
 
         for i, value in enumerate(self.structures[array]):
             if value.val is not None:
@@ -261,7 +272,6 @@ class InfixCalculator(VisualizationApp):
                     callEnviron |= set(value.items)
 
         # Create index pointers for translation stack and queue
-        tag = 'index-2'
         self.EVstackTopIndex = self.createIndex(
             len(self.EVstack), array=2, name='top', tags=tag)
         self.indices[2] = self.EVstackTopIndex
@@ -306,21 +316,65 @@ class InfixCalculator(VisualizationApp):
             self.setMessage('Error! {}'.format(e))
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
             raise e   # For debugging only
+        
+    postfixEvaluateCode = '''
+def PostfixEvaluate(formula={infixExpression!r}):
+   postfix = PostfixTranslate(formula)
+   s = Stack({ARRAY_SIZE})
+   
+   token, postfix = nextToken(postfix)
+   while token:
+      prec = precedence(token)
 
-    def PostfixEvaluate(self, infixExpression):
-        callEnviron = self.createCallEnvironment()
+      if prec:
+         right = s.pop()
+         left = s.pop()
+         if token == '|':
+            s.push(left | right)
+         elif token == '&':
+            s.push(left & right)
+         elif token == '+':
+            s.push(left + right)
+         elif token == '-':
+            s.push(left - right)
+         elif token == '*':
+            s.push(left * right)
+         elif token == '/':
+            s.push(left / right)
+         elif token == '%':
+            s.push(left % right)
+         elif token == '^':
+            s.push(left ^ right)
+             
+      else:
+         s.push(int(token))
+
+      token, postfix = nextToken(postfix)
+
+   return s.pop()
+'''
+    
+    def PostfixEvaluate(self, infixExpression, code=postfixEvaluateCode):
+        env = locals()
+        env['ARRAY_SIZE'] = self.ARRAY_SIZE
+        callEnviron = self.createCallEnvironment(code=code.format(**env))
         self.startAnimations()
+        wait=0.1
 
+        self.highlightCode('postfix = PostfixTranslate(formula)', callEnviron)
         postfixExpression = self.PostfixTranslate(infixExpression)
 
         # Restore infix expression that was parsed
         self.canvas.itemconfigure(self.infixInputString, text=infixExpression)
+        self.canvas.itemconfigure(self.postfixLabel, text='postfix')
         
         del self.EVstack[:]
         for array in (0, 1):         # Gray out arrays used by Translate
             self.canvas.itemconfigure(
                 'array-{}'.format(array), outline='gray80')
             self.canvas.itemconfigure('index-{}'.format(array), fill='gray80')
+            
+        self.highlightCode('s = Stack({ARRAY_SIZE})'.format(**env), callEnviron)
         self.createEvaluateStructues(postfixExpression, callEnviron=callEnviron)
 
         left, operator, right = [
@@ -329,30 +383,51 @@ class InfixCalculator(VisualizationApp):
             for coords in self.operandAndOperatorCoords()]
         operatorCoords = self.canvas.coords(operator)
         
+        self.highlightCode(('token, postfix = nextToken(postfix)', 1),
+                           callEnviron)
         token, postfixExpression = self.nextToken(self.postfixInputString)
         tokenItem = self.extractToken(token, self.postfixInputString,
                                       callEnviron)
+        labelCoords = self.canvas.coords(self.postfixLabel)
+        precValue = self.canvas.create_text(
+            labelCoords[0] + 150, labelCoords[1], text='',
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
         
+        self.highlightCode(('token', 2), callEnviron, wait=wait)
         while token:
+            
+            self.highlightCode('prec = precedence(token)', callEnviron,
+                               wait=wait)
             prec = self.precedence(token)
+            self.canvas.itemconfigure(precValue, text='prec = {}'.format(prec))
+            
+            self.highlightCode(('prec', 3), callEnviron, wait=wait)
             if prec:
+                
                 self.moveItemsTo(tokenItem, operatorCoords, sleepTime=0.01)
                 self.canvas.itemconfigure(operator, text=token)
                 self.canvas.delete(tokenItem)
-                rightDValue = self.popToken(callEnviron, array=2,
-                                            displayString=right)
-                leftDValue = self.popToken(callEnviron, array=2,
-                                           displayString=left)
+                
+                self.highlightCode('right = s.pop()', callEnviron)
+                rightDValue = self.popToken(callEnviron, array=2, 
+                                            toString=right)
+                self.highlightCode('left = s.pop()', callEnviron)
+                leftDValue = self.popToken(callEnviron, array=2, toString=left)
+                op = token
+                L, R = eval(leftDValue.val), eval(rightDValue.val)
+                check = lambda o: self.highlightOp(op, o, callEnviron, wait)
+                result = str(
+                    L|R if check('|') else
+                    L&R if check('&') else
+                    L+R if check('+') else
+                    L-R if check('-') else
+                    L*R if check('*') else
+                    L/R if check('/') else
+                    L%R if check('%') else
+                    L^R if check('^') else None)
                 self.moveItemsTo(
                     (left, right), (operatorCoords, operatorCoords), 
                     sleepTime=0.01)
-                op = token
-                L, R = eval(leftDValue.val), eval(rightDValue.val)
-                result = str(
-                    L|R if op == '|' else L&R if op == '&' else
-                    L+R if op == '+' else L-R if op == '-' else
-                    L*R if op == '*' else L/R if op == '/' else
-                    L%R if op == '%' else L^R if op == '^' else None)
                 tokenItem = self.canvas.create_text(
                     *operatorCoords, text=result, font=self.VALUE_FONT,
                     fill=self.VALUE_COLOR)
@@ -361,95 +436,242 @@ class InfixCalculator(VisualizationApp):
                         self.operandAndOperatorCoords()):
                     self.canvas.itemconfigure(displayString, text='')
                     self.canvas.coords(displayString, *coords)
+                    
+            else:
+                self.highlightCode('s.push(int(token))', callEnviron)
             self.pushToken(tokenItem, callEnviron, array=2)
                           
+            self.highlightCode(('token, postfix = nextToken(postfix)', 2),
+                               callEnviron)
             token, postfixExpression = self.nextToken(self.postfixInputString)
             tokenItem = self.extractToken(token, self.postfixInputString,
                                           callEnviron)
+            self.highlightCode(('token', 2), callEnviron, wait=wait)
 
         outputBox = self.outputBoxCoords()
         self.canvas.itemconfigure(operator, text='')
         self.canvas.coords(
             operator, 
             *divide_vector(add_vector(outputBox[:2], outputBox[2:]), 2))
-        dValue = self.popToken(callEnviron, array=2, displayString=operator)
+        self.highlightCode('return s.pop()', callEnviron)
+        dValue = self.popToken(callEnviron, array=2, toString=operator)
         
         self.cleanUp(callEnviron)
         return dValue.val
 
-    def PostfixTranslate(self, infixExpression):
+    def highlightOp(self, actual, target, callEnviron, wait=0.1):
+        self.highlightCode("token == '{}'".format(target), callEnviron, 
+                           wait=wait)
+        if actual == target:
+            self.highlightCode("s.push(left {} right)".format(target),
+                               callEnviron)
+            return True
+
+    postfixTranslateCode = '''
+def PostfixTranslate(formula={infixExpression!r}):
+   postfix = Queue({ARRAY_SIZE})
+   s = Stack({ARRAY_SIZE})
+    
+   token, formula = nextToken(formula)
+   while token:
+      prec = precedence(token)
+      delim = delimiter(token)
+      if delim:
+         if token == '(':
+            s.push(token)
+         else:
+            while not s.isEmpty():
+               top = s.pop()
+               if top == '(':
+                  break
+               else:
+                  postfix.insert(top)
+                        
+      elif prec:
+         while not s.isEmpty():
+            top = s.pop()
+            if top == '(':
+               s.push(top)
+               break
+            else:
+               if precedence(top) >= prec:
+                  postfix.insert(top)
+               else:
+                  s.push(top)
+                  break
+        s.push(token)
+
+     else:
+        postfix.insert(token)
+        
+     token, formula = nextToken(formula)
+    
+   while not s.isEmpty():
+      postfix.insert(s.pop())
+
+   ans = ""
+   while not postfix.isEmpty():
+      if len(ans) > 0:
+         ans += " "
+      ans += postfix.remove()
+   return ans
+'''
+
+    def PostfixTranslate(self, infixExpression, code=postfixTranslateCode):
         del self.TRstack[:]
         self.TRqueue = [drawnValue(None) for i in self.TRqueue]
         self.TRqueueRear = 0
         self.TRqueueFront = 1
         self.TRqueueSize = 0
+
+        env = locals()
+        env['ARRAY_SIZE'] = self.ARRAY_SIZE
+        callEnviron = self.createCallEnvironment(code=code.format(**env))
+        self.startAnimations()
+        wait = 0.1
+
+        self.highlightCode(
+            ['postfix = Queue({ARRAY_SIZE})'.format(**env),
+             's = Stack({ARRAY_SIZE})'.format(**env)], callEnviron)
         self.display(inputString=infixExpression)
         self.createTranslateStructues()
+        self.wait(wait)
 
-        callEnviron = self.createCallEnvironment()
-        self.startAnimations()
-
+        self.highlightCode('token, formula = nextToken(formula)', callEnviron)
         token, infixExpression = self.nextToken(self.infixInputString)
-        tokenItem = self.extractToken(token, self.infixInputString,
-                                      callEnviron)
+        tokenItem = self.extractToken(
+            token, self.infixInputString, callEnviron,
+            toString=self.postfixInputString)
+
+        labelCoords = self.canvas.coords(self.postfixLabel)
+        precValue = self.canvas.create_text(
+            labelCoords[0] + 150, labelCoords[1], text='',
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
+        delimValue = self.canvas.create_text(
+            labelCoords[0] + 300, labelCoords[1], text='',
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
         
+        self.highlightCode(' token:', callEnviron, wait=wait)
         while token:
+            self.highlightCode('prec = precedence(token)', callEnviron,
+                               wait=wait)
             prec = self.precedence(token)
+            self.canvas.itemconfigure(precValue, text='prec = {}'.format(prec))
+            self.highlightCode('delim = delimiter(token)', callEnviron,
+                               wait=wait)
             delim = self.delimiter(token)
+            self.canvas.itemconfigure(
+                delimValue, text='delim = {}'.format(delim))
+
+            self.highlightCode('delim:', callEnviron, wait=wait)
             if delim:
+                
+                self.highlightCode("token == '('", callEnviron, wait=wait)
                 if token == '(':
+                    
+                    self.highlightCode(('s.push(token)', 1), callEnviron)
                     self.pushToken(tokenItem, callEnviron, array=0,
                                    color=drawnValue.palette[prec - 1])
                 else:
                     self.canvas.delete(tokenItem)
+                    self.highlightCode(('not s.isEmpty()', 1), callEnviron, 
+                                       wait=wait)
                     while self.TRstack:
+                        self.highlightCode('top = s.pop()', callEnviron)
                         top = self.popToken(callEnviron, array=0)
+
+                        self.highlightCode(("top == '('", 1), callEnviron, 
+                                           wait=wait)
                         if top.val == '(':
                             for item in top.items:
                                 self.canvas.delete(item)
+                            self.highlightCode(('break', 1), callEnviron, 
+                                               wait=wait)
                             break
                         else:
+                            self.highlightCode(
+                                ('postfix.insert(top)', 1), callEnviron)
                             self.insertToken(top, callEnviron)
+                            
             elif prec:                # Input token is an operator
+                self.highlightCode('prec:', callEnviron, wait=wait)
+                
+                self.highlightCode(('not s.isEmpty()', 2), callEnviron,
+                                   wait=wait)
                 while self.TRstack:
+                    self.highlightCode(('top = s.pop()', 2), callEnviron)
                     top = self.popToken(callEnviron, array=0)
+
+                    self.highlightCode(("top == '('", 2), callEnviron,
+                                       wait=wait)
                     if top.val == '(':
                         # Just put drawnValue back in place
+                        self.highlightCode(("s.push(top)", 1), callEnviron)
                         self.pushToken(top, callEnviron, array=0)
+
+                        self.highlightCode(("break", 2), callEnviron, wait=wait)
                         break
                     else:
+                        self.highlightCode(
+                            'precedence(top) >= prec', callEnviron, wait=wait)
                         if self.precedence(top.val) >= prec:
+                            self.highlightCode(
+                                ('postfix.insert(top)', 2), callEnviron)
                             self.insertToken(top, callEnviron)
                         else:
+                            self.highlightCode(("s.push(top)", 2), callEnviron)
                             self.pushToken(top, callEnviron, array=0)
                             break
+                        
+                self.highlightCode(('s.push(token)', 2), callEnviron)
                 self.pushToken(tokenItem, callEnviron,
                                array=0, color=drawnValue.palette[prec - 1])
-            else:                     # Input token is an operand
-                self.insertToken(tokenItem, callEnviron, self.infixInputString)
-
-            token, infixExpression = self.nextToken(self.infixInputString)
-            tokenItem = self.extractToken(token, self.infixInputString,
-                                          callEnviron)
-
-        while self.TRstack:
-            self.insertToken(self.popToken(callEnviron, array=0), callEnviron)
-
-        ans = ""
-        while self.TRqueueSize > 0:
-            if len(ans) > 0:
-                ans += " "
-            ans += self.removeToken(callEnviron, self.postfixInputString)
                 
+            else:                     # Input token is an operand
+                self.highlightCode('prec:', callEnviron, wait=wait)
+                self.highlightCode('postfix.insert(token)', callEnviron)
+                self.insertToken(tokenItem, callEnviron)
+
+            self.highlightCode(('token, formula = nextToken(formula)', 2),
+                               callEnviron)
+            token, infixExpression = self.nextToken(self.infixInputString)
+            tokenItem = self.extractToken(
+                token, self.infixInputString, callEnviron,
+                toString=self.postfixInputString)
+            self.highlightCode(' token:', callEnviron, wait=wait)
+
+        self.highlightCode(('not s.isEmpty()', 3), callEnviron, wait=wait)
+        while self.TRstack:
+            self.highlightCode('postfix.insert(s.pop())', callEnviron)
+            self.insertToken(self.popToken(callEnviron, array=0), callEnviron)
+            self.highlightCode(('not s.isEmpty()', 3), callEnviron, wait=wait)
+
+        self.canvas.itemconfigure(self.postfixLabel, text='ans')
+        self.canvas.itemconfigure(precValue, text='')
+        self.canvas.itemconfigure(delimValue, text='')
+        ans = ""
+        self.highlightCode('ans = ""', callEnviron, wait=wait)
+        self.highlightCode('not postfix.isEmpty()', callEnviron, wait=wait)
+        while self.TRqueueSize > 0:
+            self.highlightCode('len(ans) > 0', callEnviron, wait=wait)
+            if len(ans) > 0:
+                self.highlightCode('ans += " "', callEnviron, wait=wait)
+                ans += " "
+            self.highlightCode('ans += postfix.remove()', callEnviron)
+            ans += self.removeToken(callEnviron, self.postfixInputString)
+            
+            self.highlightCode('not postfix.isEmpty()', callEnviron, wait=wait)
+                
+        self.highlightCode('return ans', callEnviron)
         self.cleanUp(callEnviron)
         return ans
     
-    def nextToken(self, displayString, waitForStrip=0.1):
-        text = self.canvas.itemconfigure(displayString, 'text')[-1]
+    def nextToken(self, fromString, waitForStrip=0.1):
+        text = self.canvas.itemconfigure(fromString, 'text')[-1]
         token = ''
         stripped = text.strip()
         if stripped != text:
-            self.canvas.itemconfigure(displayString, text=stripped)
+            self.canvas.itemconfigure(fromString, text=stripped)
             text = stripped
             if waitForStrip:
                 self.wait(waitForStrip)
@@ -464,14 +686,14 @@ class InfixCalculator(VisualizationApp):
                     text = text[1:]
         return token, text  # Return the token, and remaining input string
 
-    def extractToken(self, token, displayString, callEnviron, anchor=None,
-                     font=None, color=None):
+    def extractToken(self, token, fromString, callEnviron, anchor=None,
+                     font=None, color=None, toString=None):
         '''Get a canvas text item to repesent a token extracted from the
         beginning of a displayed string'''
-        text = self.canvas.itemconfigure(displayString, 'text')[-1]
+        text = self.canvas.itemconfigure(fromString, 'text')[-1]
         if not text.startswith(token):
             raise ValueError('Token does not match beginning of string')
-        coords = self.canvas.coords(displayString)
+        coords = self.canvas.coords(fromString)
         if font is None:
             font = self.VALUE_FONT
         if color is None:
@@ -479,9 +701,11 @@ class InfixCalculator(VisualizationApp):
         tokenItem = self.canvas.create_text(
             *coords, text=token, font=font, fill=color, anchor=W)
         callEnviron.add(tokenItem)
-        self.moveItemsBy(tokenItem, (0, self.INPUT_BOX_HEIGHT), sleepTime=0.01)
+        delta = ((0, self.INPUT_BOX_HEIGHT) if toString is None else
+                 subtract_vector(self.canvas.coords(toString), coords))
+        self.moveItemsBy(tokenItem, delta, sleepTime=0.01)
         self.canvas.itemconfigure(tokenItem, anchor=anchor)
-        self.canvas.itemconfigure(displayString, text=text[len(token):])
+        self.canvas.itemconfigure(fromString, text=text[len(token):])
         return tokenItem
         
     def pushToken(self, token, callEnviron, array=0, color=None):
@@ -509,15 +733,15 @@ class InfixCalculator(VisualizationApp):
         self.moveItemsBy(
             self.indices[array], (0, - self.CELL_HEIGHT), sleepTime=0.01)
 
-    def popToken(self, callEnviron, array=0, displayString=0):
+    def popToken(self, callEnviron, array=0, toString=0):
         '''Pop a drawnValue record from an array structure and optionally
-        move a copy of its value text to a displayString'''
+        move a copy of its value text to a toString'''
         index = len(self.structures[array]) - 1
         if index < 0:
             raise IndexError('Stack underflow')
         top = self.structures[array].pop()
-        if displayString:
-            text = self.canvas.itemconfigure(displayString, 'text')[-1]
+        if toString:
+            text = self.canvas.itemconfigure(toString, 'text')[-1]
             if len(text) > 0 and not text.endswith(' '):
                 text += ' '
             copyItem = self.copyCanvasItem(top.items[1])
@@ -525,16 +749,16 @@ class InfixCalculator(VisualizationApp):
             for item in top.items:
                 self.canvas.delete(item)
             toCoords = add_vector(
-                self.canvas.coords(displayString),
+                self.canvas.coords(toString),
                 (self.textWidth(self.VALUE_FONT, text + top.val) // 2, 0))
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
-            self.canvas.itemconfigure(displayString, text=text + top.val)
+            self.canvas.itemconfigure(toString, text=text + top.val)
             self.canvas.delete(copyItem)
         self.moveItemsBy(
             self.indices[array], (0, self.CELL_HEIGHT), sleepTime=0.01)
         return top
     
-    def insertToken(self, token, callEnviron, displayString=None, color=None):
+    def insertToken(self, token, callEnviron, color=None):
         '''Insert a token at the rear of the queue.  Token can either be a
         drawnValue on a stack, or a canvas text item ID (int)'''
         if self.TRqueueSize >= self.ARRAY_SIZE:
@@ -545,10 +769,10 @@ class InfixCalculator(VisualizationApp):
                          sleepTime=0.01)
         toCoords = self.cellCoords(index, array=1)
         toCenter = self.cellCenter(index, array=1)
-        if isinstance(token, int) and displayString:
+        if isinstance(token, int):
             items = (token,)
             dValue = None
-        elif isinstance(token, drawnValue) and displayString is None:
+        elif isinstance(token, drawnValue):
             items = token.items
             dValue = token
         self.moveItemsTo(
@@ -566,24 +790,26 @@ class InfixCalculator(VisualizationApp):
         self.TRqueueRear = index
         self.TRqueueSize += 1
 
-    def removeToken(self, callEnviron, displayString=None):
+    def removeToken(self, callEnviron, toString=None):
+        '''Remove a token from the front of the queue and optionally move it
+        to the end of a text item on the canvas, toString'''
         if self.TRqueueSize <= 0:
             raise IndexError('Queue underflow')
         dValue = self.TRqueue[self.TRqueueFront]
         removed = dValue.val
         index = (self.TRqueueFront + 1) % len(self.TRqueue)
-        if displayString:
-            text = self.canvas.itemconfigure(displayString, 'text')[-1]
+        if toString:
+            text = self.canvas.itemconfigure(toString, 'text')[-1]
             if len(text) > 0 and not text.endswith(' '):
                 text += ' '
             copyItem = self.copyCanvasItem(dValue.items[1])
             callEnviron.add(copyItem)
             self.canvas.itemconfigure(copyItem, anchor=W)
             toCoords = add_vector(
-                self.canvas.coords(displayString),
+                self.canvas.coords(toString),
                 (self.textWidth(self.VALUE_FONT, text), 0))
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
-            self.canvas.itemconfigure(displayString, text=text + removed)
+            self.canvas.itemconfigure(toString, text=text + removed)
             self.canvas.delete(copyItem)
         self.TRqueueFront = index
         self.TRqueueSize -= 1
