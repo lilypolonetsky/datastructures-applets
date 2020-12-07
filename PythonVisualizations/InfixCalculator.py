@@ -563,7 +563,7 @@ def PostfixTranslate(formula={infixExpression!r}):
             self.canvas.itemconfigure(
                 delimValue, text='delim = {}'.format(delim))
 
-            self.highlightCode('delim:', callEnviron, wait=wait)
+            self.highlightCode(('delim', 3), callEnviron, wait=wait)
             if delim:
                 
                 self.highlightCode("token == '('", callEnviron, wait=wait)
@@ -621,6 +621,8 @@ def PostfixTranslate(formula={infixExpression!r}):
                         else:
                             self.highlightCode(("s.push(top)", 2), callEnviron)
                             self.pushToken(top, callEnviron, array=0)
+                            self.highlightCode(("break", 3), callEnviron,
+                                               wait=wait)
                             break
                         
                 self.highlightCode(('s.push(token)', 2), callEnviron)
