@@ -490,21 +490,18 @@ def PostfixTranslate(formula={infixExpression!r}):
       elif prec:
          while not s.isEmpty():
             top = s.pop()
-            if top == '(':
-               s.push(top)
-               break
+            if (top == '(' or
+                precedence(top) < prec):
+                s.push(top)
+                break
             else:
-               if precedence(top) >= prec:
-                  postfix.insert(top)
-               else:
-                  s.push(top)
-                  break
-        s.push(token)
+                postfix.insert(top)
+         s.push(token)
 
-     else:
-        postfix.insert(token)
+      else:
+         postfix.insert(token)
         
-     token, formula = nextToken(formula)
+      token, formula = nextToken(formula)
     
    while not s.isEmpty():
       postfix.insert(s.pop())
@@ -551,7 +548,7 @@ def PostfixTranslate(formula={infixExpression!r}):
             labelCoords[0] + 300, labelCoords[1], text='',
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
         
-        self.highlightCode(' token:', callEnviron, wait=wait)
+        self.highlightCode(('token', 2), callEnviron, wait=wait)
         while token:
             self.highlightCode('prec = precedence(token)', callEnviron,
                                wait=wait)
@@ -593,8 +590,11 @@ def PostfixTranslate(formula={infixExpression!r}):
                                 ('postfix.insert(top)', 1), callEnviron)
                             self.insertToken(top, callEnviron)
                             
+                        self.highlightCode(('not s.isEmpty()', 1), callEnviron, 
+                                           wait=wait)
+                            
             elif prec:                # Input token is an operator
-                self.highlightCode('prec:', callEnviron, wait=wait)
+                self.highlightCode(('prec', 3), callEnviron, wait=wait)
                 
                 self.highlightCode(('not s.isEmpty()', 2), callEnviron,
                                    wait=wait)
@@ -604,7 +604,11 @@ def PostfixTranslate(formula={infixExpression!r}):
 
                     self.highlightCode(("top == '('", 2), callEnviron,
                                        wait=wait)
-                    if top.val == '(':
+                    if top.val != '(':
+                        self.highlightCode(
+                            'precedence(top) < prec', callEnviron, wait=wait)
+                        
+                    if top.val == '(' or self.precedence(top.val) < prec:
                         # Just put drawnValue back in place
                         self.highlightCode(("s.push(top)", 1), callEnviron)
                         self.pushToken(top, callEnviron, array=0)
@@ -612,25 +616,19 @@ def PostfixTranslate(formula={infixExpression!r}):
                         self.highlightCode(("break", 2), callEnviron, wait=wait)
                         break
                     else:
-                        self.highlightCode(
-                            'precedence(top) >= prec', callEnviron, wait=wait)
-                        if self.precedence(top.val) >= prec:
-                            self.highlightCode(
-                                ('postfix.insert(top)', 2), callEnviron)
-                            self.insertToken(top, callEnviron)
-                        else:
-                            self.highlightCode(("s.push(top)", 2), callEnviron)
-                            self.pushToken(top, callEnviron, array=0)
-                            self.highlightCode(("break", 3), callEnviron,
-                                               wait=wait)
-                            break
+                        self.highlightCode(('postfix.insert(top)', 2),
+                                           callEnviron)
+                        self.insertToken(top, callEnviron)
+                        
+                    self.highlightCode(('not s.isEmpty()', 2), callEnviron,
+                                       wait=wait)
                         
                 self.highlightCode(('s.push(token)', 2), callEnviron)
                 self.pushToken(tokenItem, callEnviron,
                                array=0, color=drawnValue.palette[prec - 1])
                 
             else:                     # Input token is an operand
-                self.highlightCode('prec:', callEnviron, wait=wait)
+                self.highlightCode(('prec', 3), callEnviron, wait=wait)
                 self.highlightCode('postfix.insert(token)', callEnviron)
                 self.insertToken(tokenItem, callEnviron)
 
@@ -640,7 +638,7 @@ def PostfixTranslate(formula={infixExpression!r}):
             tokenItem = self.extractToken(
                 token, self.infixInputString, callEnviron,
                 toString=self.postfixInputString)
-            self.highlightCode(' token:', callEnviron, wait=wait)
+            self.highlightCode(('token', 2), callEnviron, wait=wait)
 
         self.highlightCode(('not s.isEmpty()', 3), callEnviron, wait=wait)
         while self.TRstack:
