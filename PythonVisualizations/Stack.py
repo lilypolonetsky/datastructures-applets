@@ -454,11 +454,11 @@ def __init__(self, max={newSize}):
         if 1 <= newSize and newSize <= maxCells:
             self.display(newSize)
             self.setMessage("New stack of size {} created. ".format(newSize))
+            self.clearArgument()
         else:
             self.setMessage(
                 "Error! Stack size must be between 1 and {}.".format(maxCells))
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
-        self.clearArgument()
 
 if __name__ == '__main__':
     # random.seed(3.14159)    # Use fixed seed for testing consistency
