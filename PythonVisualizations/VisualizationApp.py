@@ -13,12 +13,15 @@ The control panel has containers for
 import time, math, operator, re, sys
 from collections import *
 from tkinter import *
+from tkinter import ttk
 import tkinter.font as tkfont
 
 try:
     from coordinates import *
+    from TextHighlight import *
 except ModuleNotFoundError:
     from .coordinates import *
+    from .TextHighlight import *
     
 # Utilities for vector math; used for canvas item coordinates
 V = vector
@@ -94,12 +97,19 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_FONT = ('Courier', -12)
     SMALL_FONT = ('Helvetica', -9)
     CODE_HIGHLIGHT = 'yellow'
+    EXCEPTION_HIGHLIGHT = 'orange'
     CONTROLS_FONT = ('Helvetica', -12)
     HINT_FONT = CONTROLS_FONT + ('italic',)
     HINT_FG = 'blue'
     HINT_BG = 'beige'
+    ENTRY_BG = 'white'
+    ERROR_HIGHLIGHT = 'tomato'
     CALL_STACK_BOUNDARY = 'gray60'
 
+    # Code text box
+    MIN_CODE_CHARACTER_WIDTH = 20
+    MIN_CODE_CHARACTER_HEIGHT = 12
+    
     # Speed control slider
     SPEED_SCALE_MIN = 10
     SPEED_SCALE_MAX = 500
@@ -135,8 +145,6 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
         self.HOVER_DELAY = hoverDelay
         self.setUpControlPanel()
-        self.minCodeCharacterWidth = 20
-        self.minCodeCharacterHeight = 12
 
         # Set up instance variables for managing animations and operations
         self.callStack = []    # Stack of local environments for visualziation
@@ -190,8 +198,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.message.grid(row=0, column=4, sticky=(E, W))
         self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
-        
-    buttonTypes = (Button, Checkbutton, Radiobutton)
+
+    buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
     
     def addOperation(  # Add a button to the operations control panel
             self,      # The button can require N arguments provided by text
@@ -202,9 +210,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
             helpText=None,  # Help text for overall operation
             argHelpText=[], # Help text for each argument
             maxRows=4,      # Operations w/o args beyond maxRows -> new columns
-            buttonType=Button, # Type of button (see buttonTypes)
+            buttonType=ttk.Button, # Type of button (see buttonTypes)
             cleanUpBefore=True, # Clean up all previous animations before Op
-            **kwargs):       # Tk button keyword args
+            bg=None,        # Background color, default is OPERATIONS_BG
+            **kwargs):      # Tk button keyword args
         gridItems = gridDict(self.operations) # Operations inserted in grid
         nColumns, nRows = self.operations.grid_size()
         withArgument = [
@@ -216,10 +225,18 @@ class VisualizationApp(object):  # Base class for Python visualizations
             if isinstance(gridItems[col, row], self.buttonTypes)]
         if buttonType not in self.buttonTypes:
             raise ValueError('Unknown button type: {}'.format(buttonType))
-        button = buttonType( # Create button based on type
-            self.operations, text=label, font=self.CONTROLS_FONT,
-            command=self.runOperation(callback, cleanUpBefore),
-            bg=self.OPERATIONS_BG, **kwargs)
+        if bg is None:
+            bg = self.OPERATIONS_BG
+        if buttonType in (ttk.Button,):
+            ttk.Style().configure('TButton', font=self.CONTROLS_FONT, 
+                                  background=bg)
+            button = buttonType(self.operations, text=label, **kwargs)
+        else:
+            button = buttonType( # Create button based on type
+                self.operations, text=label, font=self.CONTROLS_FONT, bg=bg,
+                **kwargs)
+        button['command'] = self.runOperation(
+            callback, cleanUpBefore, button if numArguments > 0 else None)
         setattr(button, 'required_args', numArguments)
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
@@ -231,12 +248,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 helpTexts.add(help)
                 setattr(textEntry, 'helpTexts', helpTexts)
             if argHelpText: # Make a label if there are hints on what to enter
-                self.makeEntryHints()
+                self.setHint()
 
             # Place button in grid of buttons
             buttonRow = len(withArgument) + 1
             button.grid(column=0, row=buttonRow, padx=8, sticky=(E, W))
-            button.config(state=DISABLED)
+            self.widgetState(button, DISABLED)
             nEntries = len(self.textEntries)
             rowSpan = max(1, (len(withArgument) + 1) // nEntries)
             
@@ -266,36 +283,52 @@ class VisualizationApp(object):  # Base class for Python visualizations
                             self.entryHintRow if self.entryHint else 1))
         if helpText:
             button.bind('<Enter>', self.makeArmHintHandler(button, helpText))
-            button.bind('<Leave>', self.makeDisarmHintHandler(button))
-            button.bind('<Button>', self.makeDisarmHintHandler(button), '+')
+            button.bind('<Leave>', self.makeDisarmHandler(button))
+            button.bind('<Button>', self.makeDisarmHandler(button), '+')
         return button
 
     def makeArgumentEntry(self, validationCmd):
         entry = Entry(
-            self.operations, width=self.maxArgWidth, bg='white',
+            self.operations, width=self.maxArgWidth, bg=self.ENTRY_BG,
             validate='key', validatecommand=validationCmd, 
             font=self.CONTROLS_FONT)
-        entry.bind('<KeyRelease>', lambda ev: self.argumentChanged(), '+')
+        entry.bind(
+            '<KeyRelease>', lambda ev: self.argumentChanged(ev.widget), '+')
+        for key in ('Return', 'KP_Enter'):
+            entry.bind('<KeyPress-{}>'.format(key),
+                       lambda ev: self.returnPressed(ev), '+')
         entry.bind('<Enter>', self.makeArmHintHandler(entry))
-        entry.bind('<Leave>', self.makeDisarmHintHandler(entry))
-        entry.bind('<KeyRelease>', self.makeDisarmHintHandler(entry), '+')
+        entry.bind('<Leave>', self.makeDisarmHandler(entry))
+        entry.bind('<KeyRelease>', self.makeDisarmHandler(entry), '+')
         return entry
 
-    def makeEntryHints(self):
-        if self.entryHint: # Remove past hints
-            self.entryHint.destroy()
-        hintText = 'Click to enter {}'.format(
-            ',\n'.join([' or '.join(
-                hint for entry in self.textEntries 
-                for hint in getattr(entry, 'helpTexts', set()))]))
-        hint = Label(
-            self.operations, text=hintText,
-            font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
-        hint.bind('<Button>', # Remove the hint when first clicked
-                  deleteInitialHintHandler(hint, self.textEntries[0]))
-        for entry in self.textEntries: # and when entries get focus
-            entry.bind('<FocusIn>', deleteInitialHintHandler(hint, entry))
-        self.entryHint = hint
+    def setHint(self, hintText=None):
+        if hintText is None:    # Default hint is description of all arguments
+            hintText = 'Click to enter {}'.format(
+                ',\n'.join([
+                    ' or '.join(hint for hint in 
+                                getattr(entry, 'helpTexts', set()))
+                    for entry in self.textEntries]))
+        if self.entryHint is None: # Create hint if not present
+            self.entryHint = Label(
+                self.operations, text=hintText,
+                font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
+            self.entryHint.bind(
+                '<Button>', # Clear the hint when label clicked
+                clearHintHandler(self.entryHint, self.textEntries[0]))
+            self.entryHint.bind(
+                '<Shift-Button>', # Extend hint activation delay
+                self.extendHintActivationHandler())
+        else:                      # Update hint text if already present
+            self.entryHint['text'] = hintText
+            if hintText == '':
+                self.entryHint.grid_remove()
+            else:
+                self.entryHint.grid()
+        for entry in self.textEntries:      # Clear hint when entries get focus
+            if not entry.bind('<FocusIn>'): # if handler not already set up 
+                entry.bind('<FocusIn>', 
+                           clearHintHandler(self.entryHint, entry))
         
     def makeArmHintHandler(self, widget, helpText=None):
         def handler(event):
@@ -304,31 +337,62 @@ class VisualizationApp(object):  # Base class for Python visualizations
             setattr(widget, 'timeout_ID',
                     widget.after(
                         self.HOVER_DELAY, 
-                        lambda: self.setMessage(hint) or
+                        lambda: self.setHint(hint) or
                         setattr(widget, 'timeout_ID', None)))
         return handler
 
-    def makeDisarmHintHandler(self, widget):
-        def handler(event):
+    def makeDisarmHandler(self, widget):
+        def Dhandler(event):
             if event.widget == widget and getattr(widget, 'timeout_ID', None):
                 widget.after_cancel(getattr(widget, 'timeout_ID'))
             setattr(widget, 'timeout_ID', None)
-        return handler
+        return Dhandler
 
+    def makeTimer(self, widget, delay=300, attrName='timeout_ID'):
+        'Make a handler that sets a timeout that clears itself after a delay'
+        return lambda event: setattr(
+            widget, attrName,
+            widget.after(delay, lambda: setattr(widget, attrName, None)))
+
+    def extendHintActivationHandler(self):
+        def Ehandler(event):
+            self.HOVER_DELAY += self.HOVER_DELAY
+            msg = 'Show hints after {} seconds'.format(self.HOVER_DELAY / 1000)
+            self.setHint(msg)
+        return Ehandler
+    
+    def returnPressed(self, event):  # Handle press of Return/Enter in text
+        if hasattr(event.widget, 'last_button'): # entry argument widget
+            button = getattr(event.widget, 'last_button')
+            if self.widgetState(button) == NORMAL:
+                self.widgetState(
+                    button, 
+                    'pressed' if isinstance(button, ttk.Button) else ACTIVE)
+                self.window.update()
+                time.sleep(0.05)
+                self.widgetState(
+                    button, 
+                    '!pressed' if isinstance(button, ttk.Button) else NORMAL)
+                button.invoke()
+                
     def addAnimationButtons(self, maxRows=4):
         self.pauseButton = self.addOperation(
             "Pause", lambda: self.onClick(self.pause, self.pauseButton),
             cleanUpBefore=False, maxRows=maxRows,
             helpText='Pause or resume playing animation')
-        self.pauseButton['state'] = DISABLED
+        self.widgetState(self.pauseButton, DISABLED)
         self.stopButton = self.addOperation(
             "Stop", lambda: self.onClick(self.stop, self.pauseButton),
             cleanUpBefore=False, maxRows=maxRows,
             helpText='Stop animation')
-        self.stopButton['state'] = DISABLED
+        self.widgetState(self.stopButton, DISABLED)
         
-    def runOperation(self, command, cleanUpBefore):
-        def animatedOperation():
+    def runOperation(self, command, cleanUpBefore, button=None):
+        def animatedOperation(): # If button that uses arguments is provided,
+            if button and hasattr(button, 'required_args'): # record it as the
+                for entry in self.textEntries[:getattr( # last button pressed
+                        button, 'required_args')]: # for all its required args
+                    setattr(entry, 'last_button', button)
             try:
                 if cleanUpBefore:
                     self.cleanUp()
@@ -349,39 +413,41 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 for i in range(len(self.textEntries))]
 
     def clearArgument(self, index=0):
-        if 0 <= index and index < len(self.textEntries):
-            self.textEntries[index].delete(0, END)
-            if self.entryHint:
-                self.entryHint.destroy()
-                self.entryHint = None
-            self.argumentChanged()
+        self.setArgument('', index)
 
     def setArgument(self, val='', index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
-            self.textEntries[index].insert(0, str(val))
-            if self.entryHint:
-                self.entryHint.destroy()
-                self.entryHint = None
+            if str(val):
+                self.textEntries[index].insert(0, str(val))
+            self.setArgumentHighlight(index)
+            self.setHint('')
             self.argumentChanged()
 
     def setArguments(self, *values):
         for index in range(min(len(values), len(self.textEntries))):
-            self.textEntries[index].delete(0, END)
-            self.textEntries[index].insert(0, str(values[index]))
+            self.setArgument(str(values[index], index))
         self.argumentChanged()
 
-    def argumentChanged(self):
+    def setArgumentHighlight(self, index=0, color=ENTRY_BG):
+        self.textEntries[index].configure(bg=color)
+            
+    def argumentChanged(self, widget=None):
         args = self.getArguments()
         gridItems = gridDict(self.operations)  # All operations
         nColumns, nRows = self.operations.grid_size()
         for button in [gridItems[0, row] for row in range(nRows)
                        if isinstance(gridItems[0, row], self.buttonTypes)]:
             nArgs = getattr(button, 'required_args')
-            button['state'] = (
+            self.widgetState(
+                button,
                 DISABLED if self.animationState != self.STOPPED or any(
                     arg == '' for arg in args[:nArgs]) else NORMAL)
 
+        for i, entry in enumerate(self.textEntries):
+            if widget == entry:  # For the entry widget that changed,
+                self.setArgumentHighlight(i) # clean any error highlight
+            
     def setMessage(self, val=''):
         self.outputText.set(val)
 
@@ -397,9 +463,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if self.codeText is None:
             self.codeText = Text(
                 self.codeFrame, wrap=NONE, background=self.OPERATIONS_BG,
-
-                font=self.CODE_FONT, width=42,
-                height=self.minCodeCharacterHeight, padx=10, pady=10,
+                font=self.CODE_FONT, width=self.MIN_CODE_CHARACTER_WIDTH * 2,
+                height=self.MIN_CODE_CHARACTER_HEIGHT, padx=10, pady=10,
                 takefocus=False)
             self.codeText.grid(row=0, column=0, sticky=(N, E, S, W))
             self.codeVScroll = Scrollbar(
@@ -414,6 +479,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.tag_config('call_stack_boundary',
                                      font=self.CODE_FONT + ('overstrike',),
                                      background=self.CALL_STACK_BOUNDARY)
+            self.codeTextCharWidth = self.textWidth( 
+                self.CODE_FONT, '0123456789') // 10
         
         self.codeText.configure(state=NORMAL)
         
@@ -434,9 +501,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.insert('1.0', code + '\n')
         if self.codeText:
             self.codeText.see('1.0')
-        self.window.update()
-        self.resizeCodeText()
-       
+        # Doing a window update here causes multiple resize events
+        # self.window.update()
+        self.resizeCodeText() # Set up initial codeText size
+        self.window.update()  # Doing the update here is OK
+        
         # Tag the snippets with unique tag name
         if self.codeText:
             for tagName in snippets:
@@ -444,35 +513,67 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.configure(state=DISABLED)
 
     def resizeCodeText(self, event=None):
-        if self.codeText and self.codeText.winfo_ismapped():
-            ct = self.codeText
-            nCharsWide = ct['width']
-            padX = ct['padx']
-            available = (self.controlPanel.winfo_width() -
+        if False:      # Set true for debugging printout
+            print('Call to resizeCodeText, codeText =', self.codeText,
+                  'which {} mapped'.format(
+                      'is' if self.codeText.winfo_ismapped() else 'is not'))
+        if self.codeText is None or not self.codeText.winfo_ismapped():
+            return
+        ct = self.codeText
+        nCharsWide = ct['width']
+        padX = ct['padx']
+        available = (self.window.winfo_width() -
                      max(self.operationsUpper.winfo_width(),
                          self.operationsLower.winfo_width()) -
-                          self.codeVScroll.winfo_width() - padX - padX)
-            ctWidth = ct.winfo_width()
-            widthPerChar = (ctWidth - padX) / nCharsWide
-            desired = max(self.minCodeCharacterWidth, 
-                          round(available / widthPerChar))
-            if desired != nCharsWide:
-                ct['width'] = desired
+                          self.codeVScroll.winfo_width() - padX * 2)
+        desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
+                              available // self.codeTextCharWidth))
+        timeout_ID = getattr(self.codeText, 'timeout_ID', None)
+        skip = event is not None and timeout_ID is not None
+        if False:     # Set true for debugging printout
+            print('Resize codeText request based on', event,
+                  'window width =', self.window.winfo_width(),
+                  '\noperationsUpper width =',
+                  self.operationsUpper.winfo_width(), 
+                  'operationsLower width =', self.operationsLower.winfo_width(),
+                  '\nVScroll width =', self.codeVScroll.winfo_width(),
+                  'padX =', padX, 'available pixels =', available,
+                  '\ncurrent width in characters =', nCharsWide,
+                  'desired width in characters =', desired)
+            if skip:
+                print('Skipping resize whiler timer {} running'.format(
+                    timeout_ID))
+        if not skip and desired != nCharsWide:
+            ct['width'] = desired
 
-    def highlightCodeTags(self, tags, callEnviron, wait=0):
-        codeHighlightBlock = self.getCodeHighlightBlock(callEnviron)
-        if codeHighlightBlock is None:  # This shouldn't happen, but...
+    def highlightCode(
+            self, fragments, callEnviron, wait=0, color=CODE_HIGHLIGHT):
+        '''Highlight a code fragment for a particular call environment.
+        Multiple fragments can be highlighted.  Each fragment can be
+        either a string of code, or a (string, int) tuple where the int
+        is 1 for the first instance of the string, 2 for the second, etc.
+        '''
+        codeBlock = self.getCodeHighlightBlock(callEnviron)
+        if codeBlock is None:  # This shouldn't happen, but...
             return
-        if not isinstance(tags, (list, tuple, set)):
-            tags = [tags]
+        if isinstance(fragments, (list, tuple, set)):
+            if (len(fragments) == 2 and
+                isinstance(fragments[0], str) and
+                isinstance(fragments[1], int)):
+                tags = [ codeBlock[fragments[0], fragments[1]] ]
+            else:
+                tags = [
+                    codeBlock[tuple(frag)] if isinstance(frag, (list, tuple))
+                    else codBlock.tag(fragment) for frag in fragments]
+        else:
+            tags = [codeBlock[fragments]]
         found = False       # Assume tag not found
         for tagName in self.codeText.tag_names() if self.codeText else []:
-            if not tagName.startswith(codeHighlightBlock.prefix):
+            if not tagName.startswith(codeBlock.prefix):
                 continue  # Only change tags for this call environment
-            highlight = tagName[len(codeHighlightBlock.prefix):] in tags
+            highlight = tagName in tags
             self.codeText.tag_config(
-                tagName,
-                background=self.CODE_HIGHLIGHT if highlight else '',
+                tagName, background=color if highlight else '',
                 underline=1 if highlight else 0)
             if highlight:
                 found = True
@@ -481,10 +582,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     self.codeText.see(ranges[0])
         if not found and len(tags) > 0:  # This shouldn't happen so log bug
             print('Unable to find highlight tag(s) {} among {}'.format(
-                ', '.join(tags), ', '.join(codeHighlightBlock.snippets.keys())))
+                ', '.join(tags), ', '.join(codeBlock.cache.keys())))
         if wait > 0:              # Optionally weit for highlight to show
             self.wait(wait)
-        
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
@@ -528,7 +628,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
                 last_line = int(float(self.codeText.index(END)))
-                for i in range(1, min(last_line, thing.lines + 2)):
+                for i in range(1, min(last_line, len(thing.lines) + 2)):
                     if self.codeText:
                         self.codeText.delete('1.0', '2.0')
                         if sleepTime > 0:
@@ -539,15 +639,15 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def createCallEnvironment( # Create a call environment on the call stack
             self,              # for animating a particular call
             code='',           # code for this call, if any
-            snippets={},       # code snippet dictionary, if any
             sleepTime=0):      # Wait time between inserting lines of code
         # The call environment is a set for local variables represented by
         # canvas items plus a codeHighlightBlock that controls code highlights
-        codeHighlightBlock = CodeHighlightBlock(code, snippets)
+        self.showCode(code, addBoundary=True, sleepTime=sleepTime)
+        codeHighlightBlock = CodeHighlightBlock(code, self.codeText)
+        if self.codeText:
+            codeHighlightBlock.markStart()
         callEnviron = set([codeHighlightBlock])
         self.callStack.append(callEnviron) # Push environment on stack
-        self.showCode(code, addBoundary=True, prefix=codeHighlightBlock.prefix,
-                      snippets=snippets, sleepTime=sleepTime)
         return callEnviron
         
     # General Tk widget methods
@@ -557,6 +657,20 @@ class VisualizationApp(object):  # Base class for Python visualizations
             geom = (widget.config('width')[-1], widget.config('height')[-1])
         return int(geom[0]), int(geom[1])
 
+    def widgetState(self, widget, state=None): # Get or set widget state
+        if isinstance(widget, (ttk.Button,)):
+            if state is None:
+                stateFlags = widget.state()
+                return DISABLED if DISABLED in stateFlags else NORMAL
+            else:
+                widget.state(('!disabled', '!pressed') if state == NORMAL 
+                             else (state, ))
+        else:
+            if state is None:
+                return widget['state']
+            else:
+                widget['state'] = state
+            
     sizePattern = re.compile(r'-?\d+')
 
     def textWidth(self, font, text=' '):
@@ -838,7 +952,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 if isinstance(btn, self.buttonTypes) and (
                         enable or btn not in (self.stopButton, 
                                               self.pauseButton)):
-                    btn['state'] = NORMAL if enable else DISABLED
+                    self.widgetState(btn, NORMAL if enable else DISABLED)
 
     def stop(self, pauseButton):
         self.stopAnimations()
@@ -866,9 +980,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.pauseButton['command'] = self.runOperation(
                 lambda: self.onClick(self.pause, self.pauseButton), False)
             if enableStops:
-                self.pauseButton['state'] = NORMAL
+                self.widgetState(self.pauseButton, NORMAL)
         if self.stopButton and enableStops:
-            self.stopButton['state'] = NORMAL
+            self.widgetState(self.stopButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
         # Calls from stack level 2+ only stop animation for their level
@@ -877,9 +991,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.animationState = self.STOPPED
             self.enableButtons(enable=True)
             if self.pauseButton:
-                self.pauseButton['state'] = DISABLED
+                self.widgetState(self.pauseButton, DISABLED)
             if self.stopButton:
-                self.stopButton['state'] = DISABLED
+                self.widgetState(self.stopButton, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
@@ -895,38 +1009,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def runVisualization(self):
         self.window.mainloop()
 
-# Class to hold information about visualizing the code during animation
-# of a particular call on the call stack
-class CodeHighlightBlock(object):
-    counter = 1
-    
-    def __init__(self,       # Constructor takes code block and snippets
-                 code,       # and makes a unique prefix for snippet keys
-                 snippets):  # to translate them into a unique tag name
-        self.code = code.strip()
-        self.lines = len(self.code.split('\n')) if len(code) > 0 else 0
-        self.snippets = snippets
-        self.prefix = '{:04d}-'.format(self.counter)
-        CodeHighlightBlock.counter += 1
-
 class UserStop(Exception):   # Exception thrown when user stops animation
     pass
 
 # Tk widget utilities
 
-# Tkinter returns a string with a large integer followed by <lambda>
-# as a handler ID.  The calls to .bind() without a handler function
-# return an executable Python string containing handler IDs.  This
-# regular expression extracts the identifier from the executable
-# Python string.  The re.sub function is used on the compiled regex to
-# run a function on each handler ID in the the binding string.
-bindingID = re.compile(r'\d+<lambda>', re.IGNORECASE)
-
-def deleteInitialHintHandler(hint, textEntry):
-    "Remove a hint when clicked or when text is first entered in textEntry"
+def clearHintHandler(hintLabel, textEntry=None):
+    'Clear the hint text and set focus to textEntry, if provided'
     return lambda event: (
-        textEntry.focus_set() if event.widget == hint else 0) or (
-            hint.destroy() or
-            # Remove any bound handlers the textEntry has for <FocusIn> events
-            bindingID.sub(lambda ID: textEntry.unbind(ID),
-                          textEntry.bind('<FocusIn>')))
+        textEntry.focus_set() if event.widget == hintLabel and textEntry
+        else 0) or hintLabel.config(text='') or hintLabel.grid_remove()
