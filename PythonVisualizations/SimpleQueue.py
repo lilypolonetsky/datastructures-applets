@@ -427,7 +427,7 @@ def __init__(self, size={newSize}):
         self.nItemsDisplay = self.canvas.create_text(
             self.center[0] - self.outerRadius, 
             self.center[1] - self.outerRadius,
-            text='nItems: {}'.format(self.nItems), anchor=NW,
+            text='_nItems: {}'.format(self.nItems), anchor=NW,
             font=self.variableFont, fill=self.variableColor)
         
         if callEnviron:
