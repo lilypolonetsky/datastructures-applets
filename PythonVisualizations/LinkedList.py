@@ -2,11 +2,11 @@ import time
 from tkinter import *
 import math
 try:
-    from drawable import *
+    from drawnValue import *
     from coordinates import *
     from VisualizationApp import *
 except ModuleNotFoundError:
-    from .drawable import *
+    from .drawnValue import *
     from .coordinates import *
     from .VisualizationApp import *
 
@@ -75,7 +75,8 @@ class LinkedList(VisualizationApp):
     
     # Calculate coordinates of cell parts
     # Position 0 is the LinkedList cell.  The Links start at postiion 1
-    # Negative position means above the Linked List node 
+    # Negative position means above the Linked List node (for introducing
+    # new Link cells)
     def x_y_offset(self, pos):
         x_offset = self.LL_X0 + max(0, pos) % self.LEN_ROW * (
             self.CELL_WIDTH + self.CELL_GAP)
@@ -112,7 +113,7 @@ class LinkedList(VisualizationApp):
     
     def display(self):      # Set up the permanent canvas items
         self.canvas.delete('all')
-        self.linkedListNode(self.sorted.get())
+        self.linkedListNode()
         if self.first:      # If there was a displayed first pointer, recreate
             self.first = self.linkNext(0)
             
@@ -167,8 +168,8 @@ class LinkedList(VisualizationApp):
     #accesses the next color in the pallete
     #used to assign a node's color
     def chooseColor(self):
-        color = drawable.palette[self.nextColor]
-        self.nextColor = (self.nextColor + 1) % len(drawable.palette)
+        color = drawnValue.palette[self.nextColor]
+        self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
         return color
     
     def linkCoords(self, pos): # Return coords for cell, text, and dot of a Link
@@ -199,14 +200,13 @@ class LinkedList(VisualizationApp):
             linkPointer = ()
         return (cell_rect, cell_text, cell_dot) + linkPointer
 
-    # Creates the LinkedList of SortedList "node" that is the head of the list
-    def linkedListNode(self, sorted):
+    # Creates the LinkedList objeect that is the head of the list
+    def linkedListNode(self):
         x, y = self.x_y_offset(0)
         rect = self.canvas.create_rectangle(
             x + self.CELL_WIDTH * 2 // 3, y,
             x + self.CELL_WIDTH, y + self.CELL_HEIGHT,
-            fill=self.SORTED_BACKGROUND if sorted else self.UNSORTED_BACKGROUND,
-            tags=("LinkedList", "cell"))
+            fill=self.UNSORTED_BACKGROUND, tags=("LinkedList", "cell"))
         oval = self.createDot(0, 'LinkedList')
         ovalCoords = self.canvas.coords(oval)
         firstText = self.canvas.create_text(
@@ -214,7 +214,7 @@ class LinkedList(VisualizationApp):
             text="first", font=('Courier', -10))
         nameText = self.canvas.create_text(
             x, y + self.CELL_HEIGHT // 2, font=('Courier', -14),
-            text='SortedList' if sorted else 'LinkedList')
+            text='LinkedList')
         
     ### ANIMATION METHODS###
     def indexCoords(self, pos, level=0):
@@ -240,70 +240,122 @@ class LinkedList(VisualizationApp):
                 anchor=SW if pos >= 0 else E)
         return (arrow, name) if name else (arrow,)
 
-    getFirstCode = """
-def getFirst(self): 
-    return self.__first
-"""
-    getFirstCodeSnippets = {
-        'return_first': ('2.4', '2.end'),
-    }
-    def getFirst(self):    # returns the value the first link in the list
-        callEnviron = self.createCallEnvironment(
-            self.getFirstCode.strip(), self.getFirstCodeSnippets)
+    def outputData(self, pos=1, callEnviron=None):
+        localEnviron = callEnviron or self.createCallEnvironment()
         self.startAnimations()
 
-        self.highlightCodeTags('return_first', callEnviron)
-        firstIndex = self.createIndex(1, name='first')
-        callEnviron |= set(firstIndex)
-
         outputBoxCoords = self.outputBoxCoords(full=False)
-        callEnviron.add(self.createOutputBox(full=False))
+        localEnviron.add(self.createOutputBox(full=False))
         
         textX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
         textY = (outputBoxCoords[1] + outputBoxCoords[3]) // 2
         
         firstText = self.canvas.create_text(
-            *self.cellText(1), text=self.list[0].key,
+            *self.cellText(pos), text=self.list[pos - 1].key,
             font=self.VALUE_FONT, fill=self.VALUE_COLOR)
-        callEnviron.add(firstText)
+        localEnviron.add(firstText)
         self.moveItemsTo(firstText, (textX, textY), sleepTime = 0.05)
 
-        self.cleanUp(callEnviron)        
-        return self.list[0].key
+        if localEnviron != callEnviron:
+            self.cleanUp(localEnviron)
+        return self.list[pos - 1].key
 
     def outputBoxCoords(self, full=False):
-        return (self.LL_X0 // 2, self.LL_Y0 // 6,
-                self.LL_X0 // 2 + (self.CELL_WIDTH + self.CELL_GAP) *
-                (self.LEN_ROW if full else 1),
+        return (self.LL_X0, self.LL_Y0 // 6,
+                self.LL_X0 + (self.CELL_WIDTH + self.CELL_GAP) *
+                (self.LEN_ROW if full else 1) - self.CELL_GAP,
                 self.LL_Y0 // 6 + self.CELL_HEIGHT)
+
+    def outputLabelCoords(self):
+        oBox = self.outputBoxCoords()
+        pad = 10
+        return oBox[0] - pad, (oBox[1] + oBox[3]) // 2
     
     def createOutputBox(self, full=False):
         return self.canvas.create_rectangle(
             *self.outputBoxCoords(full), fill = self.OPERATIONS_BG)
-
-    def traverse(self):
-        callEnviron = self.createCallEnvironment()
+    
+    firstCode = """
+def first(self):
+   if self.isEmpty():
+      raise Exception("No first item in empty list")
+   return self.getFirst().getData()
+"""
+    
+    def firstData(self, code=firstCode, animateOutput=True):
+        callEnviron = self.createCallEnvironment(code=code)
         self.startAnimations()
+        wait=0.1
+        
+        self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
+        if self.first is None:
+            self.highlightCode(
+                'raise Exception("No first item in empty list")', callEnviron,
+                wait=wait, color=self.EXCEPTION_HIGHLIGHT)
+        else:
+            self.highlightCode(
+                'return self.getFirst().getData()', callEnviron)
+            if animateOutput:
+                self.outputData(1, callEnviron)
+            else:
+                self.wait(wait)
+
+        self.cleanUp(callEnviron)
+        return self.list[0].key if self.first else None
+    
+    deleteFirstCode = """
+def deleteFirst(self):
+   return self.delete(self.first())
+"""
+    
+    def deleteFirst(self, code=deleteFirstCode):
+        callEnviron = self.createCallEnvironment(code=code)
+        self.startAnimations()
+        wait=0.1
+        
+        self.highlightCode('self.first()', callEnviron, wait=wait)
+        firstKey = self.firstData(animateOutput=False)
+        self.highlightCode(
+            'return self.delete(self.first())', callEnviron,
+            wait=wait, 
+            color=self.EXCEPTION_HIGHLIGHT if self.first is None else 
+            self.CODE_HIGHLIGHT)
+        if self.first is not None:
+            self.delete(firstKey)
+
+        self.cleanUp(callEnviron)
+        return self.list[0].key if self.first else None
+
+    traverseCode = """
+def traverse(self, func=print):
+   link = self.getFirst()
+   while link is not None:
+      func(link.getData())
+      link = link.getNext()
+"""
+    
+    def traverse(self, code=traverseCode):
+        callEnviron = self.createCallEnvironment(code=code)
+        self.startAnimations()
+        wait=0.1
 
         outputBoxCoords = self.outputBoxCoords(full=True)
         callEnviron.add(self.createOutputBox(full=True))
-
-        link = 1
-        linkIndex = self.createIndex(link, name='link')
-        callEnviron |= set(linkIndex)
-
         outputFont = ('Courier', -18)
         outX = outputBoxCoords[0] + abs(outputFont[1])
         outY = outputBoxCoords[1] + abs(outputFont[1])
-
         sepX = self.textWidth(outputFont, ' ')
         sepY = self.textHeight(outputFont, ' ')
+
+        self.highlightCode('link = self.getFirst()', callEnviron)
+        link = 1
+        linkIndex = self.createIndex(link, name='link')
+        callEnviron |= set(linkIndex)
+        self.wait(wait)
+        
+        self.highlightCode('link is not None', callEnviron, wait=wait)
         while link <= len(self.list):
-            if link > 1:
-                self.moveItemsTo(
-                    linkIndex,
-                    (self.indexCoords(link), self.indexLabelCoords(link)),
-                    sleepTime=0.02)
+            self.highlightCode('func(link.getData())', callEnviron)
             linkText = text=self.list[link - 1].key
             tx = self.textWidth(outputFont, linkText)
             textItem = self.canvas.create_text(
@@ -312,78 +364,61 @@ def getFirst(self):
             callEnviron.add(textItem)
             self.moveItemsTo(textItem, (outX, outY), sleepTime = 0.05)
             outX += tx + sepX
+            
+            self.highlightCode('link = link.getNext()', callEnviron)
             link += 1
+            self.moveItemsTo(
+                linkIndex,
+                (self.indexCoords(link), self.indexLabelCoords(link)),
+                sleepTime=0.02)
+            self.highlightCode('link is not None', callEnviron, wait=wait)
 
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
             
     newLinkedListCode = """
 def __init__(self):
-    self.__first = None
-    """
-
-    newLinkedListCodeSnippets = {
-        'first_pointer': ('2.4','2.end'),
-    }
+   self.__first = None
+"""
 
     # Erases old linked list and draws empty list
-    def newLinkedList(self):
-        callEnviron = self.createCallEnvironment(
-            self.newLinkedListCode.strip(), self.newLinkedListCodeSnippets)
+    def newLinkedList(self, code=newLinkedListCode):
+        callEnviron = self.createCallEnvironment(code=code)
         self.startAnimations(enableStops=False)
+        self.highlightCode('self.__first = None', callEnviron)
         self.first = None
         self.list = []
         self.display()
 
-        self.highlightCodeTags('first_pointer', callEnviron)
-        self.wait(0.2)
-
+        self.wait(0.1)
         self.cleanUp(callEnviron)
+        
+    insertFirstCode = '''
+def insertFirst(self, datum={val!r}):
+   link = Link(datum, self.getFirst())
+   self.setFirst(link)
+'''
     
-    def insertElem(       # Insert a new Link node at the front of the linked
-            self, val):   # list with a specific value
-        callEnviron = self.createCallEnvironment()
+    def insertFirst(self, val, code=insertFirstCode):
+        'Insert a new Link node at the front with a specific value'
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.startAnimations()
+        wait=0.1
 
-        previous = 0
-        if self.sorted.get():  # For sorted lists, find insertion point
-            goal = self.createIndex(-1, 'goal')
-            coords = V(self.cellCoords(-1)[:2]) + V((0, self.CELL_HEIGHT // 2))
-            goal += (self.canvas.create_text(
-                *coords, text=val, anchor=W,
-                font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR), )
-            callEnviron |= set(goal)
-
-            previousIndex = self.createIndex(previous, 'previous')
-            callEnviron |= set(previousIndex)
-            while (previous < len(self.list) and
-                   self.list[previous].key < val):
-                self.wait(0.2)     # Pause for comparison
-                previous += 1
-                self.moveItemsTo(
-                    previousIndex, 
-                    (self.indexCoords(previous), 
-                     self.indexLabelCoords(previous)),
-                    sleepTime=0.02)
-                
-            self.wait(0.2)     # Pause for final comparison
-            callEnviron -= set(goal)
-            for item in goal:
-                self.canvas.delete(item)
-            self.wait(0.2)
-            
-        linkIndex = self.createIndex(
-            -1, 'newLink' if self.sorted.get() else 'link')
-        callEnviron |= set(linkIndex)
-
+        self.highlightCode('link = Link(datum, self.getFirst())', callEnviron)
         nodeID = self.generateID()
         newNode = Node(
             val, self.first, nodeID,
             *self.createLink(
-                -1, val, nodeID, 
-                nextNode=self.list[previous] if previous < len(self.list) else None))
+                -1, val, nodeID, nextNode=self.list[0] if self.first else None))
         callEnviron |= set(newNode.items())
-        self.wait(0.2)
         
+        linkIndex = self.createIndex(-1, 'link')
+        callEnviron |= set(linkIndex)
+        self.wait(wait * 2)
+
+        self.highlightCode('self.setFirst(link)', callEnviron)
+        previous = 0
         toMove = newNode.items()
         for node in self.list[previous:]:
             toMove.extend(node.items())
@@ -394,7 +429,7 @@ def __init__(self):
         # coordinates for the final next pointer
         if previous < len(self.list):
             toCoords[-3:-3] = [self.nextLinkCoords(len(self.list))]
-        self.moveItemsLinearly(toMove, toCoords, sleepTime=0.02)
+        self.moveItemsLinearly(toMove, toCoords, sleepTime=wait/5)
         self.list[previous:previous] = [newNode]
         callEnviron -= set(newNode.items())
                        
@@ -403,179 +438,124 @@ def __init__(self):
         elif previous >= len(self.list) - 1: # Insertion at end 
             self.linkNext(previous) # requires new pointer from last link
             
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
-        return val 
     
-    unsortedDeleteCode = """
-def delete(self, goal, key=identity):
-    if self.isEmpty():
-        raise Exception("Cannot delete from empty linked list")
+    deleteCode = """
+def delete(self, goal={goal!r}, key=identity):
+   if self.isEmpty():
+      raise Exception("Cannot delete from empty linked list")
 
-    previous = self
-    while previous.getNext() is not None:
-        link = previous.getNext()
-        if goal == key(link.getData()):
-            previous.setNext(link.getNext())
-            return True
-        previous = link
+   previous = self
+   while previous.getNext() is not None:
+      link = previous.getNext()
+      if goal == key(link.getData()):
+         previous.setNext(link.getNext())
+         return True
+      previous = link
         
-    raise Exception("No item with matching key found in list")
-    """
+   raise Exception("No item with matching key found in list")
+"""
 
-    unsortedDeleteCodeSnippets = {
-        'check_if_empty': ('2.4','2.end'),
-        'empty_exception': ('3.8','3.end'),
-        'init_prev': ('5.4','5.end'),
-        'while_next': ('6.4','6.end'),
-        'get_next': ('7.8','7.end'),
-        'key_comparison': ('8.8','8.end'),
-        'set_prev_next': ('9.12','9.end'),
-        'return_true': ('10.12','10.end'),
-        'move_prev_over': ('11.8','11.end'),
-        'no_item_found': ('13.4','13.end'),
-    }
-
-    sortedDeleteCode = """
-def delete(self, goal):
-    if self.isEmpty():
-        raise Exception("Cannot delete from empty linked list")
-
-    previous = self
-    while (previous.getNext() is not None and self.__key(previous.getNext().getData()) < goal):
-        previous = previous.getNext()
-        if (previous.getNext() is None or goal != self.__key(previous.getNext().getData())):
-            raise Exception("No datum with matching key found in list")
-
-        previous.setNext(previous.getNext().getNext())
-    """
-
-    sortedDeleteCodeSnippets = {
-        'check_if_empty': ('2.4', '2.end'),
-        'empty_exception': ('3.8','3.end'),
-        'init_prev': ('5.4','5.end'),
-        'while_next': ('6.4','6.end'),
-        'get_next': ('7.8','7.end'),
-        'key_comparison': ('8.8','8.end'),
-        'no_item_found': ('9.12','9.end'),
-        'set_prev_next': ('11.8','11.end'),
-    }
-
-    #deletes first node in Linked List
-    def deleteFirst(self):
-        deleteKey = self.list[0].key if self.first else None
-        return self.delete(deleteKey)
-    
     # Delete a link from the linked list by finding a matching goal key
-    def delete(self, goal):
-        if self.sorted.get():
-            callEnviron = self.createCallEnvironment(
-            self.sortedDeleteCode.strip(), self.sortedDeleteCodeSnippets)
-        else:
-            callEnviron = self.createCallEnvironment(
-                self.unsortedDeleteCode.strip(), self.unsortedDeleteCodeSnippets)
+    def delete(self, goal, code=deleteCode):
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.startAnimations()
+        wait=0.1
+
+        callEnviron.add(self.canvas.create_text(
+            *self.outputLabelCoords(), text='goal = {}'.format(goal), 
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
 
         # check if empty
-        self.highlightCodeTags('check_if_empty', callEnviron)
-        self.wait(0.2)
+        self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
         if not self.first:
-            self.highlightCodeTags('empty_exception', callEnviron)
-            self.wait(0.2)
+            self.highlightCode(
+                'raise Exception("Cannot delete from empty linked list")',
+                callEnviron, color=self.EXCEPTION_HIGHLIGHT, wait=wait)
             self.cleanUp(callEnviron)
             return None
 
+        self.highlightCode('previous = self', callEnviron)
         previous = 0
         previousIndex = self.createIndex(previous, 'previous', level=1)
         callEnviron |= set(previousIndex)
-        self.highlightCodeTags('init_prev', callEnviron)
-        self.wait(0.2)
+        self.wait(wait)
 
-        link = 1
-        linkIndex = self.createIndex(link, 'link')
-        callEnviron |= set(linkIndex)
+        linkIndex = None
 
+        self.highlightCode(
+            'previous.getNext() is not None:', callEnviron, wait=wait)
         while previous < len(self.list):
-            self.highlightCodeTags('while_next', callEnviron)
-            self.wait(0.2)
-
-            self.highlightCodeTags('get_next', callEnviron)
-            self.wait(0.2)
+            
+            self.highlightCode('link = previous.getNext()', callEnviron)
             link = previous + 1
-            if link > 1:
+            if linkIndex:
                 self.moveItemsTo(
                     linkIndex, 
                     (self.indexCoords(link), self.indexLabelCoords(link)),
-                    sleepTime=0.02)
+                    sleepTime=wait/10)
+            else:
+                linkIndex  = self.createIndex(link, 'link')
+                callEnviron |= set(linkIndex)
+                self.wait(wait)
             
-            self.highlightCodeTags('key_comparison', callEnviron)
-            self.wait(0.2)     # Pause for comparison
+            self.highlightCode(
+                'goal == key(link.getData())', callEnviron, wait=wait)
             found = self.list[previous].key == goal
-            if found or (self.sorted.get() and self.list[previous].key > goal):
-                if found:
-                    foundHighlight = self.createFoundHighlight(link)
-                    callEnviron.add(foundHighlight)
+            if found:
+                foundHighlight = self.createFoundHighlight(link)
+                callEnviron.add(foundHighlight)
                                 
-                    # Prepare to update next pointer from previous
-                    self.highlightCodeTags('set_prev_next', callEnviron)
-                    updateFirst = previous == 0
-                    nextPointer = self.list[previous].nextPointer
-                    if nextPointer:
-                        toMove = (self.first if updateFirst else
-                                  self.list[previous - 1].nextPointer)
-                        toCoords = self.nextLinkCoords(previous, d=2)
-                        self.canvas.tag_raise(toMove)
-                        self.moveItemsLinearly(toMove, toCoords, sleepTime=0.05)
-                        self.wait(0.1)
-                    elif updateFirst:
-                        self.canvas.delete(self.first)
-                        self.first = None
-                    else:
-                        self.canvas.delete(self.list[previous - 1].nextPointer)
-                        self.list[previous - 1].nextPointer = None
-
-                    # Remove Link with goal key and link index
-                    self.moveItemsOffCanvas(self.list[previous].items() + 
-                                            [foundHighlight] + list(linkIndex),
-                                            sleepTime=0.01)
-                    callEnviron |= set(self.list[previous].items())
-                    self.list[previous:link] = []
-
-                    # Reposition all remaining links
-                    self.restorePositions()
-                    
-                # Exit delete if item found or sorted list passed goal location
-                if found:
-                    if not self.sorted.get():
-                        self.highlightCodeTags('return_true', callEnviron)
-                        self.wait(0.2)
-                    self.cleanUp(callEnviron)
-                    return goal
+                # Prepare to update next pointer from previous
+                self.highlightCode(
+                    'previous.setNext(link.getNext())', callEnviron)
+                updateFirst = previous == 0
+                nextPointer = self.list[previous].nextPointer
+                if nextPointer:
+                    toMove = (self.first if updateFirst else
+                              self.list[previous - 1].nextPointer)
+                    toCoords = self.nextLinkCoords(previous, d=2)
+                    self.canvas.tag_raise(toMove)
+                    self.moveItemsLinearly(toMove, toCoords, sleepTime=wait/2)
+                    self.wait(wait)
+                elif updateFirst:
+                    self.canvas.delete(self.first)
+                    self.first = None
                 else:
-                    self.highlightCodeTags('no_item_found', callEnviron)
-                    self.wait(0.2)
-                    self.cleanUp(callEnviron)
-                    return None
+                    self.canvas.delete(self.list[previous - 1].nextPointer)
+                    self.list[previous - 1].nextPointer = None
+
+                # Remove Link with goal key and link index
+                self.moveItemsOffCanvas(self.list[previous].items() + 
+                                        [foundHighlight] + list(linkIndex),
+                                        sleepTime=0.01)
+                callEnviron |= set(self.list[previous].items())
+                self.list[previous:link] = []
+
+                # Reposition all remaining links
+                self.restorePositions()
+                    
+                self.highlightCode('return True', callEnviron, wait=wait)
+                self.cleanUp(callEnviron)
+                return True
 
             # Advance to next Link
-            if not self.sorted.get(): self.highlightCodeTags('move_prev_over', callEnviron)
+            self.highlightCode('previous = link', callEnviron)
             previous = link
             self.moveItemsTo(
                 previousIndex,
-                (self.indexCoords(previous, level=1), 
-                 self.indexLabelCoords(previous, level=1)),
-                sleepTime = 0.02)
+                (self.indexCoords(link, level=1), 
+                 self.indexLabelCoords(link, level=1)),
+                sleepTime=wait/10)
+            self.highlightCode(
+                'previous.getNext() is not None:', callEnviron, wait=wait)
             
         # Failed to find goal key
-        self.highlightCodeTags('no_item_found',callEnviron)
-        self.wait(0.2)
-        self.cleanUp(callEnviron)
-        
-        # otherwise highlight the found node
-        # x_offset, y_offset = self.x_y_offset(pos)
-        # cell_outline = self.canvas.create_rectangle(
-        #     x_offset-5, y_offset-5,
-        #     self.CELL_WIDTH + x_offset+5, self.CELL_HEIGHT+y_offset+5,
-        #     outline = "RED", tag=id)
+        self.highlightCode(
+            'raise Exception("No item with matching key found in list")',
+            callEnviron, color=self.EXCEPTION_HIGHLIGHT, wait=wait)
+        self.cleanUp(callEnviron)        
         
     def restorePositions(  # Move all links on the canvas to their correct
             self, sleepTime=0.01): # positions 
@@ -605,7 +585,7 @@ def delete(self, goal):
             self.restorePositions(sleepTime=0)
 
     findCode = """
-def find(self, goal, key=identity):
+def find(self, goal={goal!r}, key=identity):
     link = self.getFirst()
     while link is not None:
         if key(link.getData()) == goal:
@@ -613,81 +593,78 @@ def find(self, goal, key=identity):
         link = link.getNext()
 """
 
-    findCodeSnippets = {
-        'get_first': ('2.4', '2.end'),
-        'while_link': ('3.4', '3.end'),
-        'if_found_key': ('4.8','4.end'),
-        'return_link': ('5.12', '5.end'),
-        'get_next_link': ('6.8','6.end'),
-    }
-
-    def find(self, goal):
-        callEnviron = self.createCallEnvironment(
-            self.findCode.strip(), self.findCodeSnippets)
+    def find(self, goal, code=findCode):
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.startAnimations()
+        wait = 0.1
 
-        self.highlightCodeTags('get_first', callEnviron)
-        sorted = self.sorted.get()
+        callEnviron.add(self.canvas.create_text(
+            *self.outputLabelCoords(), text='goal = {}'.format(goal), 
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
+
+        self.highlightCode('link = self.getFirst()', callEnviron)
         link = 1
         linkIndex = self.createIndex(link, 'link')
         callEnviron |= set(linkIndex)
-        self.wait(0.2)
+        self.wait(wait)
 
-        self.highlightCodeTags('while_link', callEnviron)
-        self.wait(0.2)
+        self.highlightCode('link is not None', callEnviron, wait=wait)
+
         while link <= len(self.list):
-            if link > 1:
-                self.moveItemsTo(
-                    linkIndex, 
-                    (self.indexCoords(link), self.indexLabelCoords(link)),
-                    sleepTime=0.02)
-                
-            self.highlightCodeTags('if_found_key', callEnviron)
-            self.wait(0.2)     # Pause for comparison
-            linkKey = self.list[link - 1].key
-            if linkKey == goal or (sorted and goal < linkKey):
-                self.highlightCodeTags('return_link', callEnviron)
-                self.wait(0.2)
+            self.highlightCode('key(link.getData()) == goal', callEnviron,
+                               wait=wait)
+
+            if self.list[link - 1].key == goal:
+                self.highlightCode('return link', callEnviron, wait=0.1)
                 self.cleanUp(callEnviron)
-                return link if linkKey == goal else None
+                return link
 
             # Advance to next Link
-            self.highlightCodeTags('get_next_link', callEnviron)
+            self.highlightCode('link = link.getNext()', callEnviron)
             link += 1
-            self.wait(0.2)
+            self.moveItemsTo(
+                linkIndex, 
+                (self.indexCoords(link), self.indexLabelCoords(link)),
+                sleepTime=wait/10)
+
+            self.highlightCode('link is not None', callEnviron, wait=0.1)
             
         # Failed to find goal key
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         
     searchCode = """
-def search(self, goal, key=identity):
-    link = self.find(goal, key)
-    if link is not None:
-        return link.getData()
+def search(self, goal={goal!r}, key=identity):
+   link = self.find(goal, key)
+   if link is not None:
+      return link.getData()
 """
 
-    searchCodeSnippets = {
-            'call_find': ('2.4', '2.end'),
-            'check_link': ('3.4', '3.end'),
-            'return_link_data': ('4.8','4.end'),
-        }
-
-    def search(self, goal):
+    def search(self, goal, code=searchCode):
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.startAnimations()
-        callEnviron = self.createCallEnvironment(
-            self.searchCode.strip(), self.searchCodeSnippets)
+        wait = 0.1
 
-        self.highlightCodeTags('call_find', callEnviron)
+        goalLabel = self.canvas.create_text(
+            *self.outputLabelCoords(), text='goal = {}'.format(goal), 
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        callEnviron.add(goalLabel)
+
+        self.highlightCode('link = self.find(goal, key)', callEnviron)
         link = self.find(goal)
-        linkIndex = self.createIndex(0 if link is None else link, 'link')
+        
+        linkIndex = self.createIndex(
+            len(self.list) + 1 if link is None else link, 'link')
         callEnviron |= set(linkIndex)
-
-        self.highlightCodeTags('check_link', callEnviron)
-        self.wait(0.2)
+        self.highlightCode('link is not None', callEnviron, wait=wait)
+        
         if link is not None:
-            self.highlightCodeTags('return_link_data', callEnviron)
+            self.highlightCode('return link.getData()', callEnviron)
             callEnviron.add(self.createFoundHighlight(link))
-            self.wait(0.5)
+            self.canvas.delete(goalLabel)
+            self.outputData(link, callEnviron)
+        else:
+            self.highlightCode([], callEnviron)
 
         self.cleanUp(callEnviron)
         return goal if link else None
@@ -715,74 +692,65 @@ def search(self, goal, key=identity):
             self.setMessage("Error! Linked List is already full.")
             self.clearArgument()
         else:  
-            self.insertElem(val)
+            self.insertFirst(val)
 
     def clickDelete(self):
-        empty = False if self.first else True       # check whether linked list is empty or not
+        empty = self.first is None  # check whether linked list is empty or not
         val = self.getArgument()
         result = self.delete(val)
-        if not empty:                               # only set a message if linked list was not empty
-            if result != None:
-                msg = "{} Deleted!".format(val)
-            else:
-                msg = "Value {} not found".format(val)
-            self.setMessage(msg)
-        self.clearArgument()
+        self.setMessage(
+            'Error! Linked list is empty' if empty else
+            '{} eleted'.format(val) if result else
+            'Value {} not found'.format(val))
+        if result:
+            self.clearArgument()        
         
     def clickDeleteFirst(self):
-        deleted = self.deleteFirst()
-        if deleted:                     # only set message if something was deleted
-            msg = "first node deleted"
-            self.setMessage(msg)
-        self.clearArgument()
+        if self.deleteFirst() is None:
+            self.setMessage('Error! Queue is empty')
         
     def clickNewLinkedList(self):
         self.newLinkedList()
     
     def clickGetFirst(self):
-        if self.isEmpty():
-            msg = "ERROR: Linked list is empty!"
-        else:
-            first = self.getFirst()
-            msg = "The first link's data is {}".format(first)
-            self.setArgument(first)
-        self.setMessage(msg)
+        first = self.firstData()
+        self.setMessage('Error! Queue is empty' if first is None else
+                        "The first link's data is {}".format(first))
 
     def clickTraverse(self):
         self.traverse()
-        if self.isEmpty():
-            self.setMessage('No Links in list to traverse')
     
     def makeButtons(self):
         vcmd = (self.window.register(self.validate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         searchButton = self.addOperation(
             "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd)
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Search for item in list')
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd)
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Insert item at front of list')
         deleteButton = self.addOperation(
             "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd)
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Delete item from list')
         newLinkedListButton = self.addOperation(
-            "New", lambda: self.clickNewLinkedList())
-        self.sorted = IntVar()
-        self.sorted.set(0)
-        sortedButton = self.addOperation(
-            "Sorted", lambda: self.clickNewLinkedList(),
-            buttonType=Checkbutton, variable=self.sorted)
+            "New", lambda: self.clickNewLinkedList(), 
+            helpText='Create new, empty list')
         deleteFirstButton = self.addOperation(
-            "Delete First", lambda: self.clickDeleteFirst())
+            "Delete First", lambda: self.clickDeleteFirst(), 
+            helpText='Delete first item from list')
         getFirstButton = self.addOperation(
-            "Get First", lambda: self.clickGetFirst())
+            "Get First", lambda: self.clickGetFirst(), 
+            helpText='Get copy of first item from list')
         traverseButton = self.addOperation(
-            "Traverse", lambda: self.clickTraverse())
+            "Traverse", lambda: self.clickTraverse(), 
+            helpText='Traverse items in list')
         self.addAnimationButtons()
     
         return [searchButton, insertButton, deleteButton, deleteFirstButton,
-                newLinkedListButton, sortedButton, getFirstButton,
-                traverseButton]
+                newLinkedListButton, getFirstButton, traverseButton]
             
     ##allow letters or numbers to be typed in                  
     def validate(self, action, index, value_if_allowed,
@@ -793,7 +761,7 @@ if __name__ == '__main__':
     ll = LinkedList()
     try:
         for arg in reversed(sys.argv[1:]):
-            ll.insertElem(arg)
+            ll.insertFirst(arg)
             ll.cleanUp()
     except UserStop:
         ll.cleanUp()
