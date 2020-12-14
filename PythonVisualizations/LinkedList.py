@@ -28,8 +28,9 @@ class Node(object):
         self.nextPointer = nextPointer
 
     def items(self):    # Return list of canvas items used to draw Node
-        return [i for i in (self.cell, self.value, self.dot, self.nextPointer)
-                if i is not None]
+        return tuple(
+            i for i in (self.cell, self.value, self.dot, self.nextPointer)
+            if i is not None)
         
     def __str__(self):
         return "{" + str(self.key) + "}"
@@ -74,13 +75,14 @@ class LinkedList(VisualizationApp):
         return "item" + str(self.prev_id)
     
     # Calculate coordinates of cell parts
-    # Position 0 is the LinkedList cell.  The Links start at postiion 1
-    # Negative position means above the Linked List node (for introducing
-    # new Link cells)
+    # Position 0 is the LinkedList cell.  The Links start at postiion 1.
+    # Negative position means row above the Linked List node 
+    # Position -1 is directly above position 1, -2 is above 2, etc.
+    # Posittion -self.LEN_ROW is directly above the Linked List node
     def x_y_offset(self, pos):
-        x_offset = self.LL_X0 + max(0, pos) % self.LEN_ROW * (
+        x_offset = self.LL_X0 + abs(pos) % self.LEN_ROW * (
             self.CELL_WIDTH + self.CELL_GAP)
-        y_offset = self.LL_Y0 + max(-1, pos) // self.LEN_ROW * (
+        y_offset = self.LL_Y0 + max(1 - self.LEN_ROW, pos) // self.LEN_ROW * (
             self.CELL_HEIGHT + self.ROW_GAP) 
         return x_offset, y_offset
     
@@ -305,7 +307,12 @@ def first(self):
     
     deleteFirstCode = """
 def deleteFirst(self):
-   return self.delete(self.first())
+   if self.isEmpty():
+      raise Exception("Cannot delete from empty linked list")
+   
+   first = self.getFirst()
+   self.setNext(first.getNext())
+   return first.getData()
 """
     
     def deleteFirst(self, code=deleteFirstCode):
@@ -313,18 +320,45 @@ def deleteFirst(self):
         self.startAnimations()
         wait=0.1
         
-        self.highlightCode('self.first()', callEnviron, wait=wait)
-        firstKey = self.firstData(animateOutput=False)
-        self.highlightCode(
-            'return self.delete(self.first())', callEnviron,
-            wait=wait, 
-            color=self.EXCEPTION_HIGHLIGHT if self.first is None else 
-            self.CODE_HIGHLIGHT)
-        if self.first is not None:
-            self.delete(firstKey)
+        self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
+        if self.first is None:
+            self.highlightCode(
+                'raise Exception("Cannot delete from empty linked list")',
+                callEnviron, wait=wait, color=self.EXCEPTION_HIGHLIGHT)
+            self.cleanUp(callEnviron)
+            return
+        
+        self.highlightCode('first = self.getFirst()', callEnviron)
+        firstIndex = self.createIndex(1, 'first')
+        callEnviron |= set(firstIndex)
+        self.wait(wait)
+        
+        self.highlightCode('self.setNext(first.getNext())', callEnviron)
+        previous = 0
+        nextPointer = self.list[previous].nextPointer
+        firstKey = self.list[previous].key
+        if nextPointer:
+            toMove = self.first
+            toCoords = self.nextLinkCoords(previous, d=2)
+            self.canvas.tag_raise(toMove)
+            self.moveItemsLinearly(toMove, toCoords, sleepTime=wait/5)
+        else:
+            self.canvas.delete(self.first)
+            self.first = None
+        self.wait(wait)
+        first = self.list[0]
+        self.list[0:1] = []
+        callEnviron |= set(first.items())
 
+        delta = subtract_vector(self.cellCoords(-1), self.cellCoords(1))
+        self.moveItemsBy(
+            firstIndex + first.items(), delta[:2], sleepTime=wait/10)
+        
+        self.restorePositions()   # Reposition all remaining links
+
+        self.highlightCode('return first.getData()', callEnviron)
         self.cleanUp(callEnviron)
-        return self.list[0].key if self.first else None
+        return firstKey
 
     traverseCode = """
 def traverse(self, func=print):
@@ -419,7 +453,7 @@ def insertFirst(self, datum={val!r}):
 
         self.highlightCode('self.setFirst(link)', callEnviron)
         previous = 0
-        toMove = newNode.items()
+        toMove = list(newNode.items())
         for node in self.list[previous:]:
             toMove.extend(node.items())
         toCoords = [self.canvas.coords(item) for node in self.list[previous:]
@@ -528,7 +562,7 @@ def delete(self, goal={goal!r}, key=identity):
 
                 # Remove Link with goal key and link index
                 self.moveItemsOffCanvas(self.list[previous].items() + 
-                                        [foundHighlight] + list(linkIndex),
+                                        (foundHighlight,) + linkIndex,
                                         sleepTime=0.01)
                 callEnviron |= set(self.list[previous].items())
                 self.list[previous:link] = []
