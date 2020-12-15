@@ -142,18 +142,22 @@ class LinkedList(VisualizationApp):
     # and pos -1 creates an arrow for a new node above the LinkedList
     def nextLinkCoords(self, pos, d=1):
         cell0 = self.cellNext(pos)
-        cell1 = self.cellNext(max(1, pos + d))
-        spansRows = cell1[1] > cell0[1] # Flag if next cell is on next row
+        cell1index = pos + d
+        if cell1index == 0: cell1index = 1  # Cannot point to Linked List head
+        cell1 = self.cellNext(cell1index)
+        dy = cell1[1] - cell0[1]    # Difference of cell Y coordinates
+        if abs(dy) < 1: dy = 0      # ignore small differences
+        stairstep = dy != 0 and pos != 0
+        
         # Determine position for the tip of the arrow
         tip = V(cell1) - V(
-            (0, self.CELL_HEIGHT // 2) if spansRows else 
-            (self.CELL_HEIGHT * 2, 0))
-        delta = V(V(tip) - V(cell0)) * 0.33
+            (0, (1 if dy > 0 else -1) * self.CELL_HEIGHT // 2) if stairstep
+            else (self.CELL_HEIGHT * 2, 0))
+        delta3 = V(V(tip) - V(cell0)) * 0.33
         p0 = cell0
-        p1 = V(cell0) + (
-            V((0, (self.CELL_HEIGHT + self.ROW_GAP) // 2)) if spansRows else
-            V(delta))
-        p2 = V(tip) - (V((0, self.ROW_GAP // 2)) if spansRows else V(delta))
+        p1 = V(cell0) + ( V((0, dy // 2)) if stairstep else V(delta3) )
+        p2 = V(tip)   - ( V((0, (1 if dy > 0 else -1) * self.ROW_GAP // 2))
+                          if stairstep else V(delta3) )
         return (*p0, *p1, *p2, *tip)
 
     # Create the arrow linking a Link node to the next Link
@@ -175,7 +179,7 @@ class LinkedList(VisualizationApp):
         return color
     
     def linkCoords(self, pos): # Return coords for cell, text, and dot of a Link
-        return [self.cellCoords(pos), self.cellText(pos), self.nextDot(pos)]
+        return (self.cellCoords(pos), self.cellText(pos), self.nextDot(pos))
 
     def createLink(           # Create  the canvas items for a Link node
             self,             # This will be placed according to coordinates
@@ -350,11 +354,23 @@ def deleteFirst(self):
         self.list[0:1] = []
         callEnviron |= set(first.items())
 
-        delta = subtract_vector(self.cellCoords(-1), self.cellCoords(1))
-        self.moveItemsBy(
-            firstIndex + first.items(), delta[:2], sleepTime=wait/10)
-        
-        self.restorePositions()   # Reposition all remaining links
+        indexCoords = self.indexCoords(-1)
+        LBBox = self.canvas.bbox(firstIndex[1])
+        indexLabelCoords = V(self.indexLabelCoords(-1)) - V(
+            (LBBox[2] - LBBox[0]) // 2, (LBBox[1] - LBBox[3]) // 2)
+        linkCoords = self.linkCoords(-1)
+        nextLinkCoords = (
+            (self.nextLinkCoords(-1, d=3), ) if first.nextPointer else ())
+        self.moveItemsLinearly(
+            firstIndex + first.items(), 
+            (indexCoords, indexLabelCoords) + linkCoords + nextLinkCoords, 
+            sleepTime=wait/10)
+
+        if nextLinkCoords:
+            nextLinkCoords = (self.nextLinkCoords(-1, d=2), )
+        self.restorePositions(       # Reposition all links along with lingering
+            addItems=first.items()[3:], # first pointer, if present
+            addCoords=nextLinkCoords)
 
         self.highlightCode('return first.getData()', callEnviron)
         self.cleanUp(callEnviron)
@@ -453,12 +469,23 @@ def insertFirst(self, datum={val!r}):
 
         self.highlightCode('self.setFirst(link)', callEnviron)
         previous = 0
-        toMove = list(newNode.items())
+        insertLinkCoords = self.nextLinkCoords(previous, -(previous + 1))
+        insertLink = (self.first if previous == 0 else
+                      self.list[previous].nextPointer)
+        if self.first is None or previous >= len(self.list):
+            self.linkNext(previous, -1)
+            insertLink = (self.first if previous == 0 else
+                          self.list[previous].nextPointer)
+        else:
+            self.moveItemsLinearly(
+                self.first, insertLinkCoords, sleepTime=wait/5)
+            
+        toMove = [insertLink] + list(newNode.items())
         for node in self.list[previous:]:
             toMove.extend(node.items())
-        toCoords = [self.canvas.coords(item) for node in self.list[previous:]
-                    for item in node.items()] + self.linkCoords(
-                            len(self.list) + 1)
+        toCoords = [self.nextLinkCoords(previous)] + [
+            self.canvas.coords(item) for node in self.list[previous:]
+            for item in node.items()] + list(self.linkCoords(len(self.list) + 1))
         # When list already contains some items, splice in the target 
         # coordinates for the final next pointer
         if previous < len(self.list):
@@ -466,11 +493,6 @@ def insertFirst(self, datum={val!r}):
         self.moveItemsLinearly(toMove, toCoords, sleepTime=wait/5)
         self.list[previous:previous] = [newNode]
         callEnviron -= set(newNode.items())
-                       
-        if self.first is None:   # For first link, add next pointer from head
-            self.linkNext(0)
-        elif previous >= len(self.list) - 1: # Insertion at end 
-            self.linkNext(previous) # requires new pointer from last link
             
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
@@ -592,10 +614,12 @@ def delete(self, goal={goal!r}, key=identity):
         self.cleanUp(callEnviron)        
         
     def restorePositions(  # Move all links on the canvas to their correct
-            self, sleepTime=0.01): # positions 
+            self,          # positions.  Include any additional items to move
+            addItems=[], addCoords=[], # to some target coordinates
+            sleepTime=0.01):
         if self.first:
-            items = [self.first]
-            toCoords = [self.nextLinkCoords(0)]
+            items = [self.first] + list(addItems)
+            toCoords = [self.nextLinkCoords(0)] + list(addCoords)
             for i, node in enumerate(self.list):
                 items.extend(node.items())
                 toCoords.extend(self.linkCoords(i + 1))
@@ -800,4 +824,3 @@ if __name__ == '__main__':
     except UserStop:
         ll.cleanUp()
     ll.runVisualization()
-    
