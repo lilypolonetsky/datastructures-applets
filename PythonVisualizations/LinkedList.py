@@ -259,8 +259,8 @@ class LinkedList(VisualizationApp):
         textY = (outputBoxCoords[1] + outputBoxCoords[3]) // 2
 
         if isinstance(posOrNode, int):
-            valCoords = self.cellText(pos)
-            val = self.list[pos - 1].key
+            valCoords = self.cellText(posOrNode)
+            val = self.list[posOrNode - 1].key
         elif isinstance(posOrNode, Node):
             valCoords = self.canvas.coords(posOrNode.value)
             val = posOrNode.key
@@ -529,7 +529,7 @@ def delete(self, goal={goal!r}, key=identity):
 
         callEnviron.add(self.canvas.create_text(
             *self.outputLabelCoords(), text='goal = {}'.format(goal), 
-            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
+            anchor=W, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
 
         # check if empty
         self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
@@ -666,7 +666,7 @@ def find(self, goal={goal!r}, key=identity):
 
         callEnviron.add(self.canvas.create_text(
             *self.outputLabelCoords(), text='goal = {}'.format(goal), 
-            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
+            anchor=W, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
 
         self.highlightCode('link = self.getFirst()', callEnviron)
         link = 1
@@ -711,10 +711,10 @@ def search(self, goal={goal!r}, key=identity):
         self.startAnimations()
         wait = 0.1
 
-        goalLabel = self.canvas.create_text(
-            *self.outputLabelCoords(), text='goal = {}'.format(goal), 
-            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
-        callEnviron.add(goalLabel)
+        # goalLabel = self.canvas.create_text(
+        #     *self.outputLabelCoords(), text='goal = {}'.format(goal), 
+        #     font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
+        # callEnviron.add(goalLabel)
 
         self.highlightCode('link = self.find(goal, key)', callEnviron)
         link = self.find(goal)
@@ -727,7 +727,7 @@ def search(self, goal={goal!r}, key=identity):
         if link is not None:
             self.highlightCode('return link.getData()', callEnviron)
             callEnviron.add(self.createFoundHighlight(link))
-            self.canvas.delete(goalLabel)
+            # self.canvas.delete(goalLabel)
             self.outputData(link, callEnviron)
         else:
             self.highlightCode([], callEnviron)
