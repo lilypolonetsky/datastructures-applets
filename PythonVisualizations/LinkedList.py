@@ -711,11 +711,6 @@ def search(self, goal={goal!r}, key=identity):
         self.startAnimations()
         wait = 0.1
 
-        # goalLabel = self.canvas.create_text(
-        #     *self.outputLabelCoords(), text='goal = {}'.format(goal), 
-        #     font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
-        # callEnviron.add(goalLabel)
-
         self.highlightCode('link = self.find(goal, key)', callEnviron)
         link = self.find(goal)
         
@@ -727,7 +722,6 @@ def search(self, goal={goal!r}, key=identity):
         if link is not None:
             self.highlightCode('return link.getData()', callEnviron)
             callEnviron.add(self.createFoundHighlight(link))
-            # self.canvas.delete(goalLabel)
             self.outputData(link, callEnviron)
         else:
             self.highlightCode([], callEnviron)
