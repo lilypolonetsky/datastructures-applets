@@ -248,7 +248,7 @@ class LinkedList(VisualizationApp):
                 anchor=SW if pos >= 0 else E)
         return (arrow, name) if name else (arrow,)
 
-    def outputData(self, pos=1, callEnviron=None):
+    def outputData(self, posOrNode=1, callEnviron=None):
         localEnviron = callEnviron or self.createCallEnvironment()
         self.startAnimations()
 
@@ -257,20 +257,25 @@ class LinkedList(VisualizationApp):
         
         textX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
         textY = (outputBoxCoords[1] + outputBoxCoords[3]) // 2
-        
+
+        if isinstance(posOrNode, int):
+            valCoords = self.cellText(pos)
+            val = self.list[pos - 1].key
+        elif isinstance(posOrNode, Node):
+            valCoords = self.canvas.coords(posOrNode.value)
+            val = posOrNode.key
         firstText = self.canvas.create_text(
-            *self.cellText(pos), text=self.list[pos - 1].key,
-            font=self.VALUE_FONT, fill=self.VALUE_COLOR)
+            *valCoords, text=val, font=self.VALUE_FONT, fill=self.VALUE_COLOR)
         localEnviron.add(firstText)
         self.moveItemsTo(firstText, (textX, textY), sleepTime = 0.05)
 
         if localEnviron != callEnviron:
             self.cleanUp(localEnviron)
-        return self.list[pos - 1].key
+        return val
 
     def outputBoxCoords(self, full=False):
-        return (self.LL_X0, self.LL_Y0 // 6,
-                self.LL_X0 + (self.CELL_WIDTH + self.CELL_GAP) *
+        return (self.LL_X0 // 2, self.LL_Y0 // 6,
+                self.LL_X0 // 2 + (self.CELL_WIDTH + self.CELL_GAP) *
                 (self.LEN_ROW if full else 1) - self.CELL_GAP,
                 self.LL_Y0 // 6 + self.CELL_HEIGHT)
 
@@ -375,6 +380,8 @@ def deleteFirst(self):
             addCoords=nextLinkCoords)
 
         self.highlightCode('return first.getData()', callEnviron)
+        self.outputData(first, callEnviron)
+        
         self.cleanUp(callEnviron)
         return firstKey
 
