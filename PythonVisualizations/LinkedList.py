@@ -142,8 +142,10 @@ class LinkedList(VisualizationApp):
     # and pos -1 creates an arrow for a new node above the LinkedList
     def nextLinkCoords(self, pos, d=1):
         cell0 = self.cellNext(pos)
+        if d == 0:                  # Empty link (to be animated)
+            return cell0 * 4
         cell1index = pos + d
-        if cell1index == 0: cell1index = 1  # Cannot point to Linked List head
+        if cell1index == 0: cell1index = 1 # Cannot point to Linked List head
         cell1 = self.cellNext(cell1index)
         dy = cell1[1] - cell0[1]    # Difference of cell Y coordinates
         if abs(dy) < 1: dy = 0      # ignore small differences
@@ -473,12 +475,11 @@ def insertFirst(self, datum={val!r}):
         insertLink = (self.first if previous == 0 else
                       self.list[previous].nextPointer)
         if self.first is None or previous >= len(self.list):
-            self.linkNext(previous, -1)
+            self.linkNext(previous, 0)
             insertLink = (self.first if previous == 0 else
                           self.list[previous].nextPointer)
-        else:
-            self.moveItemsLinearly(
-                self.first, insertLinkCoords, sleepTime=wait/5)
+        self.moveItemsLinearly(
+            insertLink, insertLinkCoords, sleepTime=wait/5)
             
         toMove = [insertLink] + list(newNode.items())
         for node in self.list[previous:]:
