@@ -1,6 +1,5 @@
-import time
 from tkinter import *
-import math
+
 try:
     from drawnValue import *
     from coordinates import *
@@ -56,7 +55,6 @@ class LinkedList(VisualizationApp):
     
     def __init__(self, title="Linked List", maxArgWidth=MAX_ARG_WIDTH, **kwargs):
         super().__init__(title=title, maxArgWidth = maxArgWidth, **kwargs)
-        self.title = title        
         self.first = None   # Canvas ID for first pointer arrow
         self.list = []      # List of Link nodes in linked list
         self.prev_id = -1
