@@ -137,6 +137,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.window = Tk()
             if title:
                 self.window.title(title)
+        self.targetCanvasWidth = canvasWidth
+        self.targetCanvasHeight = canvasHeight
         self.canvas = Canvas(
             self.window, width=canvasWidth, height=canvasHeight,
             bg=self.DEFAULT_BG)
@@ -523,9 +525,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
             vScrollWidth,   # and vertical scroll bar width
             debug=False):   # Set true for debugging printout
 
-        available = (self.window.winfo_width() -
-                     max(self.operationsUpper.winfo_width(),
-                         self.operationsLower.winfo_width()) -
+        mainWidth = self.window.winfo_width()
+        upperWidth = self.operationsUpper.winfo_width()
+        lowerWidth = self.operationsLower.winfo_width()
+        if mainWidth < max(upperWidth, lowerWidth) or mainWidth == 1:
+            mainWidth = self.targetCanvasWidth
+            lowerWidth = 500
+        available = (mainWidth - max(upperWidth, lowerWidth) -
                      vScrollWidth - padX * 2)
         desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
                               available // self.codeTextCharWidth))
@@ -541,6 +547,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                   'operationsLower width =', self.operationsLower.winfo_width(),
                   '\nVScroll width =', vScrollWidth,
                   'padX =', padX, 'available pixels =', available,
+                  'codeText character width =', self.codeTextCharWidth,
                   '\ndesired width in characters =', desired)
         return desired
         
