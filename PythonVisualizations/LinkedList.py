@@ -452,13 +452,13 @@ def __init__(self):
         self.wait(0.1)
         self.cleanUp(callEnviron)
         
-    insertFirstCode = '''
-def insertFirst(self, datum={val!r}):
+    insertCode = '''
+def insert(self, datum={val!r}):
    link = Link(datum, self.getFirst())
    self.setFirst(link)
 '''
     
-    def insertFirst(self, val, code=insertFirstCode):
+    def insert(self, val, code=insertCode):
         'Insert a new Link node at the front with a specific value'
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.startAnimations()
@@ -752,7 +752,7 @@ def search(self, goal={goal!r}, key=identity):
             self.setMessage("Error! Linked List is already full.")
             self.clearArgument()
         else:  
-            self.insertFirst(val)
+            self.insert(val)
 
     def clickDelete(self):
         empty = self.first is None  # check whether linked list is empty or not
@@ -783,14 +783,14 @@ def search(self, goal={goal!r}, key=identity):
     def makeButtons(self):
         vcmd = (self.window.register(self.validate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        searchButton = self.addOperation(
-            "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd, argHelpText=['item'], 
-            helpText='Search for item in list')
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd, argHelpText=['item'], 
             helpText='Insert item at front of list')
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1,
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Search for item in list')
         deleteButton = self.addOperation(
             "Delete", lambda: self.clickDelete(), numArguments=1,
             validationCmd=vcmd, argHelpText=['item'], 
@@ -821,7 +821,7 @@ if __name__ == '__main__':
     ll = LinkedList()
     try:
         for arg in reversed(sys.argv[1:]):
-            ll.insertFirst(arg)
+            ll.insert(arg)
             ll.cleanUp()
     except UserStop:
         ll.cleanUp()
