@@ -471,7 +471,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeVScroll = Scrollbar(self.codeFrame, orient=VERTICAL)
             self.vScrollWidth = max(
                 self.vScrollWidth, self.codeVScroll.winfo_width())
-            width = self.codeTextWidth(padX, self.vScrollWidth, debug=True)
+            width = self.codeTextWidth(padX, self.vScrollWidth)
             self.codeText = Text(
                 self.codeFrame, wrap=NONE, background=self.OPERATIONS_BG,
                 font=self.CODE_FONT, width=width,
