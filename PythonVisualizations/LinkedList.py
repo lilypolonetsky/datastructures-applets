@@ -200,7 +200,7 @@ class LinkedList(VisualizationApp):
         if nextNode in self.list and isinstance(coordsOrPos, int):
             nextNodeIndex = self.list.index(nextNode)
             linkPointer = (self.linkNext(coordsOrPos,
-                                         nextNodeIndex - coordsOrPos,
+                                         nextNodeIndex + 1 - coordsOrPos,
                                          updateInternal=updateInternal), )
         else:
             linkPointer = ()
@@ -650,11 +650,11 @@ def delete(self, goal={goal!r}, key=identity):
 
     findCode = """
 def find(self, goal={goal!r}, key=identity):
-    link = self.getFirst()
-    while link is not None:
-        if key(link.getData()) == goal:
-            return link
-        link = link.getNext()
+   link = self.getFirst()
+   while link is not None:
+      if key(link.getData()) == goal:
+         return link
+      link = link.getNext()
 """
 
     def find(self, goal, code=findCode):
@@ -715,11 +715,17 @@ def search(self, goal={goal!r}, key=identity):
         linkIndex = self.createIndex(
             len(self.list) + 1 if link is None else link, 'link')
         callEnviron |= set(linkIndex)
+        goalText = self.canvas.create_text(
+            *self.outputLabelCoords(), text='goal = {}'.format(goal), 
+            anchor=W, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        callEnviron.add(goalText)
+
         self.highlightCode('link is not None', callEnviron, wait=wait)
-        
         if link is not None:
             self.highlightCode('return link.getData()', callEnviron)
             callEnviron.add(self.createFoundHighlight(link))
+            self.canvas.delete(goalText)
+            callEnviron.discard(goalText)
             self.outputData(link, callEnviron)
         else:
             self.highlightCode([], callEnviron)
