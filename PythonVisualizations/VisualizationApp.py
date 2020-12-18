@@ -450,7 +450,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             
     def setMessage(self, val=''):
         self.outputText.set(val)
-
+        
+    vScrollWidth = 10      # Guess for width of vertical scrollbar width
+    
     def showCode(self,     # Show algorithm code in a scrollable text box
                  code,     # Code to display, plus optional boundary line
                  addBoundary=False, # to separate calls on the stack
@@ -461,14 +463,20 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if len(code) == 0:  # Empty code string?
             return          # then nothing to show
         if self.codeText is None:
+            padX, padY = 10, 10
+            self.codeTextCharWidth = self.textWidth( 
+                self.CODE_FONT, '0123456789') // 10
+            self.codeVScroll = Scrollbar(self.codeFrame, orient=VERTICAL)
+            self.vScrollWidth = max(
+                self.vScrollWidth, self.codeVScroll.winfo_width())
+            width = self.codeTextWidth(padX, self.vScrollWidth, debug=True)
             self.codeText = Text(
                 self.codeFrame, wrap=NONE, background=self.OPERATIONS_BG,
-                font=self.CODE_FONT, width=self.MIN_CODE_CHARACTER_WIDTH * 2,
-                height=self.MIN_CODE_CHARACTER_HEIGHT, padx=10, pady=10,
+                font=self.CODE_FONT, width=width,
+                height=self.MIN_CODE_CHARACTER_HEIGHT, padx=padX, pady=padY,
                 takefocus=False)
             self.codeText.grid(row=0, column=0, sticky=(N, E, S, W))
-            self.codeVScroll = Scrollbar(
-                self.codeFrame, orient=VERTICAL, command=self.codeText.yview)
+            self.codeVScroll['command'] = self.codeText.yview
             self.codeVScroll.grid(row=0, column=1, rowspan=2, sticky=(N, S))
             self.codeHScroll = Scrollbar(
                 self.codeFrame, orient=HORIZONTAL, command=self.codeText.xview)
@@ -479,8 +487,6 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.tag_config('call_stack_boundary',
                                      font=self.CODE_FONT + ('overstrike',),
                                      background=self.CALL_STACK_BOUNDARY)
-            self.codeTextCharWidth = self.textWidth( 
-                self.CODE_FONT, '0123456789') // 10
         
         self.codeText.configure(state=NORMAL)
         
@@ -501,10 +507,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.insert('1.0', code + '\n')
         if self.codeText:
             self.codeText.see('1.0')
-        # Doing a window update here causes multiple resize events
-        # self.window.update()
-        self.resizeCodeText() # Set up initial codeText size
-        self.window.update()  # Doing the update here is OK
+            
+        # Doing a window update here can cause multiple resize events
+        self.window.update()
         
         # Tag the snippets with unique tag name
         if self.codeText:
@@ -512,35 +517,47 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.codeText.tag_add(prefix + tagName, *snippets[tagName])
             self.codeText.configure(state=DISABLED)
 
-    def resizeCodeText(self, event=None):
-        if False:      # Set true for debugging printout
-            print('Call to resizeCodeText, codeText =', self.codeText,
+    def codeTextWidth(      # Compute width available for code text
+            self,           # This can be called before the codeText widget
+            padX,           # is created. Provide padX setting for codeText
+            vScrollWidth,   # and vertical scroll bar width
+            debug=False):   # Set true for debugging printout
+
+        available = (self.window.winfo_width() -
+                     max(self.operationsUpper.winfo_width(),
+                         self.operationsLower.winfo_width()) -
+                     vScrollWidth - padX * 2)
+        desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
+                              available // self.codeTextCharWidth))
+        if debug:     # Set true for debugging printout
+            print('Call to codeTextWidth, codeText =', self.codeText,
                   'which {} mapped'.format(
-                      'is' if self.codeText.winfo_ismapped() else 'is not'))
+                      'is' if self.codeText and self.codeText.winfo_ismapped()
+                      else 'is not'),
+                  '\nDetermining codeText width based on window width =', 
+                  self.window.winfo_width(),
+                  '\noperationsUpper width =',
+                  self.operationsUpper.winfo_width(), 
+                  'operationsLower width =', self.operationsLower.winfo_width(),
+                  '\nVScroll width =', vScrollWidth,
+                  'padX =', padX, 'available pixels =', available,
+                  '\ndesired width in characters =', desired)
+        return desired
+        
+    def resizeCodeText(self, event=None, debug=False):
         if self.codeText is None or not self.codeText.winfo_ismapped():
             return
         ct = self.codeText
         nCharsWide = ct['width']
         padX = ct['padx']
-        available = (self.window.winfo_width() -
-                     max(self.operationsUpper.winfo_width(),
-                         self.operationsLower.winfo_width()) -
-                          self.codeVScroll.winfo_width() - padX * 2)
-        desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
-                              available // self.codeTextCharWidth))
+        self.vScrollWidth = max(
+            self.vScrollWidth, self.codeVScroll.winfo_width())
+        desired = self.codeTextWidth(padX, self.vScrollWidth, debug)
         timeout_ID = getattr(self.codeText, 'timeout_ID', None)
         skip = event is not None and timeout_ID is not None
         if False:     # Set true for debugging printout
-            print('Resize codeText request based on', event,
-                  'window width =', self.window.winfo_width(),
-                  '\noperationsUpper width =',
-                  self.operationsUpper.winfo_width(), 
-                  'operationsLower width =', self.operationsLower.winfo_width(),
-                  '\nVScroll width =', self.codeVScroll.winfo_width(),
-                  'padX =', padX, 'available pixels =', available,
-                  '\ncurrent width in characters =', nCharsWide,
-                  'desired width in characters =', desired)
-            if skip:
+            print('Current width is', nCharsWide, 'and desired is', desired)
+            if skip and desired != nCharsWide:
                 print('Skipping resize whiler timer {} running'.format(
                     timeout_ID))
         if not skip and desired != nCharsWide:
