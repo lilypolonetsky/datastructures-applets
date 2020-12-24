@@ -2,11 +2,11 @@ import random
 from tkinter import *
 
 try:
-    from drawable import *
+    from drawnValue import *
     from VisualizationApp import *
     from SortingBase import *    
 except ModuleNotFoundError:
-    from .drawable import *
+    from .drawnValue import *
     from .VisualizationApp import *
     from .SortingBase import *    
 
@@ -17,7 +17,7 @@ class SimpleArraySort(SortingBase):
         super().__init__(**kwargs)
 
         for i in range(self.size):
-            self.list.append(drawable(random.randrange(self.valMax)))
+            self.list.append(drawnValue(random.randrange(self.valMax)))
         self.display()
 
         self.buttons = self.makeButtons()
@@ -100,9 +100,7 @@ def insertionSort(self):
             self.assignFromTemp(inner, tempVal, None)
 
             # Take it out of the cleanup set since it should persist
-            for item in (tempVal.display_shape, tempVal.display_val):
-                if item in callEnviron:
-                    callEnviron.remove(item)
+            callEnviron -= set(tempVal.items)
 
             # Advance outer loop
             outer += 1
