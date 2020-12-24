@@ -616,11 +616,11 @@ def traverse(self, function=print):
         """Create new canvas items to represent a cell value.  A rectangle is
         created filled with a particular color behind an optional text key.
         The position of the cell can either be an integer index in the Array or
-        the bounding box coordinates of the square.  If color is not
+        the bounding box coordinates of the rectangle.  If color is not
         supplied, the next color in the palette is used.  An event handler is
         set up to update the VisualizationApp argument with the cell's value
-        if clicked with any button.  Returns the tuple, (square, text), of
-        canvas items.
+        if clicked with any button.  Returns a tuple, (rectangle, text), of
+        canvas items, which may be 1-tuple if self.showValues is False.
         """
         # Determine position and color of cell
         if isinstance(indexOrCoords, int):
