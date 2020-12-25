@@ -603,14 +603,19 @@ def traverse(self, function=print):
             cell0,
             (canvasDims[0] // 2 - cell0[0], canvasDims[1] - cell0[1]) * 2)
 
-    def createArrayCell(self, index):  # Create a box representing an array cell
+    def cellTag(self, index): # Tag name for a particular cell in an array
+        return "cell-{}".format(index)
+    
+    def createArrayCell(     # Create a box representing an array cell
+            self, index, tags=["arrayBox"]):
         cell_coords = self.cellCoords(index)
         half_border = self.CELL_BORDER // 2
+        tags.append(self.cellTag(index))
         rect = self.canvas.create_rectangle(
             *add_vector(cell_coords,
                         (-half_border, -half_border,
                          self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)),
-            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, tags="arrayBox")
+            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, tags=tags)
         self.canvas.lower(rect)
         return rect        
     
@@ -669,8 +674,8 @@ def traverse(self, function=print):
                         multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
             outline=self.FOUND_COLOR)
     
-    def redrawArrayCells(self):        
-        self.canvas.delete("arrayBox")
+    def redrawArrayCells(self, tag="arrayBox"):
+        self.canvas.delete(tag)
         for i in range(self.size):
             self.createArrayCell(i)    
     
