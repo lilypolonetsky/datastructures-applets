@@ -24,7 +24,7 @@ PREFERRED_ARRANGEMENT = [
      ['Array', 'OrderedArray', 'SimpleArraySort', 'Stack', 'Queue',
       'PriorityQueue', 'InfixCalculator']],
     ['Chapters 5-7',
-     ['LinkedList', 'TowerOfHanoi', 'MergeSort', 'AdvancedArraySort']],
+     ['LinkedList', 'TowerOfHanoi', 'Mergesort', 'AdvancedArraySort']],
     ['Chapters 8-11',
      ['BinaryTree','Tree234', 'AVLTree', 'RedBlackTree', 'Quadtree']],
     ['Chapters 12-16',
