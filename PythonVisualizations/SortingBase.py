@@ -24,7 +24,8 @@ class SortingBase(VisualizationApp):
         self.size = size
         self.maxCells = maxCells
         self.valMax = valMax
-        self.showValues = True 
+        self.showValues = True
+        self.nItems = None
 
         self.list = []  # Internal array of drawnValue cell values
         
@@ -297,7 +298,7 @@ def insert(self, item={val}):
         self.list = [
             drawnValue(random.randrange(self.valMax)) for i in range(self.size)]
         
-        self.display()         
+        self.display(showNItems=self.nItems)
         self.cleanUp(callEnviron)
         
     getCode = """
@@ -695,9 +696,9 @@ def traverse(self, function=print):
             n.items = self.createCellValue(i, n.val, color=colors[i])
 
         # draw an index pointing to the last item in the list
-        if showNItems:
-            self.nItems = self.createIndex(
-                len(self.list), 'nItems', level = -1, color = 'black')
+        self.nItems = self.createIndex(
+            len(self.list), 'nItems', level = -1, color = 'black'
+        ) if showNItems else None
     
         self.window.update()
 
