@@ -605,17 +605,21 @@ def traverse(self, function=print):
 
     def cellTag(self, index): # Tag name for a particular cell in an array
         return "cell-{}".format(index)
-    
-    def createArrayCell(     # Create a box representing an array cell
-            self, index, tags=["arrayBox"]):
+
+    def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
         half_border = self.CELL_BORDER // 2
-        tags.append(self.cellTag(index))
+        return add_vector(
+            cell_coords,
+            (-half_border, -half_border,
+             self.CELL_BORDER - half_border, self.CELL_BORDER - half_border))
+        
+    def createArrayCell(     # Create a box representing an array cell
+            self, index, tags=["arrayBox"]):
         rect = self.canvas.create_rectangle(
-            *add_vector(cell_coords,
-                        (-half_border, -half_border,
-                         self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)),
-            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, tags=tags)
+            *self.arrayCellCoords(index),
+            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, 
+            tags=tags + [self.cellTag(index)])
         self.canvas.lower(rect)
         return rect        
     
@@ -676,16 +680,14 @@ def traverse(self, function=print):
     
     def redrawArrayCells(self, tag="arrayBox"):
         self.canvas.delete(tag)
-        for i in range(self.size):
-            self.createArrayCell(i)    
+        self.arrayCells = [self.createArrayCell(i) for i in range(self.size)]
     
     def display(self, showNItems=True):
         # Save any current drawn value colors
         colors = [dValue.color(self.canvas) for dValue in self.list]
         self.canvas.delete("all")
     
-        for i in range(self.size):  # Draw grid of cells
-            self.createArrayCell(i)
+        self.arrayCells = [self.createArrayCell(i) for i in range(self.size)]
     
         # go through each drawnValue in the list
         for i, n in enumerate(self.list):
@@ -795,7 +797,8 @@ def traverse(self, function=print):
         
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
-        self.fixCells() 
+        if len(self.callStack) == 0: # When call stack is empty
+            self.fixCells()
         
     def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
