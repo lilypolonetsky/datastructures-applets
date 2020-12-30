@@ -1,5 +1,4 @@
 import random
-import time
 from tkinter import *
 try:
     from drawnValue import *
@@ -15,12 +14,12 @@ class Mergesort(SortingBase):
 
     STORED_VARIABLE = 'bisque'
     CELL_GAP = 6
-    LEVEL_SEPARATION = 30
+    LEVEL_SEPARATION = 25
 
     def __init__(self, title="Mergesort", **kwargs):
         super().__init__(title=title, **kwargs)
         self.ARRAY_Y0 = 50
-        self.CELL_HEIGHT = 100
+        self.CELL_HEIGHT = 90
         self.LABEL_GAP = abs(self.VARIABLE_FONT[1])
 
         for i in range(self.size):
@@ -161,11 +160,6 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
       self.__work.set(n, self.__arr.get(idxLo))
       idxLo += 1
       n += 1
-         
-   while idxHi < hi:
-      self.__work.set(n, self.__arr.get(idxHi))
-      idxHi += 1
-      n += 1
 
    while n > 0:
       n -= 1
@@ -253,25 +247,6 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
             n += 1
             self.moveItemsBy(nIndex, idxDelta, sleepTime=wait / 10)
             self.highlightCode(('idxLo < mid', 2), callEnviron, wait=wait)
-
-        self.highlightCode(('idxHi < hi', 2), callEnviron, wait=wait)
-        while idxHi < hi:
-            self.highlightCode(
-                'self.__work.set(n, self.__arr.get(idxHi))', callEnviron)
-            copiedVal = self.setArrayValue(
-                self.workArray, self.workCells, n, 
-                self.list, self.arrayCells, idxHi, callEnviron)
-            self.workArray[n] = copiedVal
-
-            self.highlightCode(('idxHi += 1', 2), callEnviron)
-            idxHi += 1
-            self.moveItemsBy(idxHiIndex, idxDelta, sleepTime=wait / 10)
-            
-            self.highlightCode(('n += 1', 2), callEnviron)
-            n += 1
-            self.moveItemsBy(nIndex, idxDelta, sleepTime=wait / 10)
-            
-            self.highlightCode(('idxHi < hi', 2), callEnviron, wait=wait)
 
         idxDelta = multiply_vector(idxDelta, -1)
         self.highlightCode('n > 0', callEnviron, wait=wait)
@@ -365,6 +340,29 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
                    randomFillButton, shuffleButton, deleteRightmostButton,
                    mergesortButton]
         return buttons  # Buttons managed by play/pause/stop controls
+
+    def new(self, val):
+        canvasDims = self.widgetDimensions(self.canvas)
+        maxCells = min(
+            self.maxCells, 
+            (canvasDims[0] - self.ARRAY_X0) // self.CELL_MIN_WIDTH - 1)
+        if val > maxCells:
+            self.setMessage('Too many cells; must be {} or less'.format(
+                maxCells))
+            return
+        elif val < 1:
+            self.setMessage('Too few cells; must be 1 or more')
+            return
+
+        self.canvas.delete('all')
+        
+        self.size = val
+        self.list = []
+        self.CELL_WIDTH = self.computeCellWidth()
+        self.showValues = self.canShowValues()
+
+        self.display(showNItems=False)
+        return True
         
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
