@@ -1,5 +1,4 @@
 import random
-import time
 from tkinter import *
 try:
     from drawnValue import *
@@ -21,104 +20,6 @@ class AdvancedArraySort(SortingBase):
         self.display()
         
         self.buttons = self.makeButtons()
-    
-    # SORTING METHODS 
-    def split(self, index, start=0, end=-1):
-        if end == -1: end = len(self.list) - 1
-        # get the y coordinates of the next level down
-        toY = self.canvas.coords(self.list[start].items[0])[1] + self.CELL_SIZE + 15
-        xspeed = -0.5
-        yspeed = 2
-        # while the cells have not been moved to the new y-coord,
-        while self.canvas.coords(self.list[start].items[0])[1] < toY:
-            for i in range(start, end + 1):
-                self.moveItemsBy(
-                    self.list[i].items,
-                    (xspeed, yspeed) if i <= index else (-xspeed, yspeed),
-                    sleepTime=0.01)
-
-            self.wait(0.01)
-            time.sleep(self.speed(0.01))
-
-    def merge(self, startA, startB, endB):
-        # endA and endB are inclusive
-        endA = startB - 1
-        # create a list to hold the merged lists
-        temp = [None] * (endB - startA + 1)
-        curTemp = 0
-        curA, curB = startA, startB
-        dy = -2
-        # calculate the toY position - if the sublists are on equal levels, then merge them upwards
-        # to the next level up. if the sublists are on different levels, move the lower on up to the
-        # level of the higher one.
-        toY = max(self.canvas.coords(self.list[startA].items[0])[1],
-                  self.canvas.coords(self.list[startB].items[0])[1])
-        if (toY == self.canvas.coords(self.list[startA].items[0])[1] and
-            toY == self.canvas.coords(self.list[startB].items[0])[1]):
-            toY -= self.CELL_SIZE + 15
-        # calculate the desired toX position
-        toX = self.canvas.coords(self.list[startA].items[0])[0] - (
-            -0.5 / -dy) * (self.CELL_SIZE + 15)  # -1 is the current dx in split
-        curItems = ()
-        # while you haven't gotten to the end of either sublist, select the smaller element from the front
-        # of the two sublists and copy it to the next open position in the temp list
-        while curA <= endA and curB <= endB:
-            if self.list[curA].val <= self.list[curB].val:
-                temp[curTemp] = self.list[curA]
-                curItems = self.list[curA].items
-                curA += 1
-            else:
-                temp[curTemp] = self.list[curB]
-                curItems = self.list[curB].items
-                curB += 1
-            # move the selected element up to the level of the merged lists
-            self.moveUp(dy, toX, toY, curItems)
-            curTemp += 1
-            toX += self.CELL_SIZE
-
-        # add on the remainder of the unfinished list to the merged list
-        while curA <= endA:
-            temp[curTemp] = self.list[curA]
-            curItems = self.list[curA].items
-            curA += 1
-            self.moveUp(dy, toX, toY, curItems)
-            curTemp += 1
-            toX += self.CELL_SIZE
-
-        while curB <= endB:
-            temp[curTemp] = self.list[curB]
-            curItems = self.list[curB].items
-            curB += 1
-            self.moveUp(dy, toX, toY, curItems)
-            curTemp += 1
-            toX += self.CELL_SIZE
-
-        # copy the merged sublist into the real list
-        curTemp = 0
-        for i in range(startA, endB + 1):
-            self.list[i] = temp[curTemp]
-            curTemp += 1
-        # garbage collection
-        temp = None
-        
-    def mergeSort(self):
-        self.__mergeSort()
-        self.fixGaps()
-        
-    def __mergeSort(self, l=0, r=-1):
-        if r == -1: r = len(self.list) - 1
-        if l < r:
-            # Same as (l+r)/2, but avoids overflow for
-            # large l and h
-            m = (l + r) // 2
-            # Sort first and second halves
-            self.split(m, l, r)
-            self.__mergeSort(l, m)
-            self.__mergeSort(m + 1, r)
-            self.merge(l, m + 1, r)
-            if not running:
-                self.stopMergeSort()
-                return
 
     def fixGaps(self, toX=SortingBase.ARRAY_X0, toY=SortingBase.ARRAY_Y0):
         done = [False] * len(self.list)
@@ -152,6 +53,8 @@ class AdvancedArraySort(SortingBase):
                         doneCount += 1
                         done[i] = True
             self.wait(0.01)
+    
+    # SORTING METHODS 
 
     def drawPartition(self, left, right):
         bottom = self.canvas.create_line(self.ARRAY_X0 + self.CELL_WIDTH*left, self.ARRAY_Y0 + self.CELL_SIZE + 90,
