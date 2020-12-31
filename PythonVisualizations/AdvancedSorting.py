@@ -260,7 +260,187 @@ class AdvancedArraySort(SortingBase):
             partition = self.partitionIt(left, right)
             self.__quickSort(callEnviron, left, partition - 1)
             self.__quickSort(callEnviron, partition + 1, right)    
+
+    shellSortCode = """
+def shellSort(self):
+    h = 1
+    while h * 3 < len(self):
+        h = 3 * h + 1
+    nShifts = 0
+    while h > 0:
+        for outer in range(h, len(self)):
+            temp = self.get(outer)
+            inner = outer
+            while inner >= h and temp < self.get(inner-h):
+                self.set(inner, self.get(inner-h))
+                inner -= h
+                nShifts += 1
+            if inner < outer:
+                self.set(inner, temp)
+                nShifts += 1
+        h = (h - 1) // 3
+    return nShifts
+    """
+
+    def shellSort(self):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
+        # calculate h
+        h = 1
+        while h * 3 < len(self.list):
+            h = 3 * h + 1
+        hPos = (self.ARRAY_X0 + (self.CELL_WIDTH*(len(self.list)-1)) + self.CELL_WIDTH // 2, self.ARRAY_Y0-40)
+        hText = "h: {}".format(h)
+        hLabel = self.canvas.create_text(
+                *hPos, text=hText, font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+        callEnviron.add(hLabel)
+
+        nShifts = 0
+        while h > 0:
+            outerArrow = self.createIndex(h, name="outer", level=3)
+            callEnviron |= set(outerArrow)
+            
+            for outer in range(h, len(self.list)):
+                # move outer index
+                arrowPos = self.indexCoords(outer, level=3)
+                labelPos = (arrowPos[2], arrowPos[1])
+                self.moveItemsTo(outerArrow, (arrowPos, labelPos), sleepTime=.02)
+
+                # assign outer to temp
+                temp = self.list[outer].val
+                tempVal, label = self.assignToTemp(outer, callEnviron, varName="temp")
+                callEnviron.add(label)
+                tempAssigned = False
+
+                # create the inner index
+                inner = outer
+                innerArrow = self.createIndex(inner, name="inner", level=2)
+                callEnviron |= set(innerArrow)
+                self.wait(0.2)
+
+                while inner >= h and temp < self.list[inner-h].val:
+                    # get the item and value to be moved
+                    moveItems = [self.list[inner-h].display_shape]
+                    moveLoc = [self.fillCoords(self.list[inner-h].val, self.cellCoords(inner))]
+                    if self.showValues:
+                        # calculate where value should move to
+                        rectPos = self.cellCoords(inner)
+                        valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
+                        moveItems.append(self.list[inner-h].display_val)
+                        moveLoc.append(valPos)
+                    upDelta = (0, - self.CELL_SIZE * 4 // 3)
+                    downDelta = multiply_vector(upDelta, -1)
+
+                    # item being moved should be on top
+                    for item in moveItems:
+                        self.canvas.tag_raise(item)
+                    self.moveItemsOnCurve(
+                    moveItems, moveLoc,
+                    sleepTime=0.05, startAngle=90 * 11 / (10 + abs(inner-h)))
+                    # item underneath should then be removed
+                    if inner < len(self.list)-1 and self.list[inner+1] is not self.list[inner]:             # delete the item underneath if it was not moved to the right
+                        for item in self.list[inner].items:
+                            self.canvas.delete(item)
+                    self.list[inner] = self.list[inner-h]
+
+                    # move the inner index
+                    inner -= h
+                    arrowPos = self.indexCoords(inner, level=2)
+                    labelPos = (arrowPos[2], arrowPos[1])
+                    self.moveItemsTo(innerArrow, (arrowPos, labelPos), sleepTime=.02)
+                    self.wait(0.2)
+
+                    nShifts += 1
+
+                if inner < outer:
+                    self.assignFromTemp(inner, tempVal, None, delete=False)
+                    # Take it out of the cleanup set since it should persist
+                    callEnviron -= set(tempVal.items)
+                    tempAssigned = True
+                    nShifts += 1
+                # finished with outer as temp
+                callEnviron.remove(label)
+                self.canvas.delete(label)
+                if not tempAssigned:
+                    for item in tempVal.items:
+                        if item is not None:
+                            self.canvas.delete(item)
+                # finished with inner index
+                callEnviron ^= set(innerArrow)       
+                self.canvas.delete(innerArrow[0])
+                self.canvas.delete(innerArrow[1])   
+            
+            # change h
+            h = (h - 1) // 3
+            self.canvas.itemconfig(hLabel, text="h: {}".format(h))
+
+            # remove outer arrow
+            callEnviron ^= set(outerArrow)
+            self.canvas.delete(outerArrow[0])
+            self.canvas.delete(outerArrow[1])
+        
+        self.cleanUp(callEnviron)
+        return nShifts
    
+    # def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
+    #     """Assign indexed cell to a temporary variable named varName.
+    #     Animate value moving to the temporary variable above the array.
+    #     Return a drawable for the new temporary value and a text item for
+    #     its name.  The existing name item can be passed to avoid creating
+    #     a new one and for moving the value to that location
+    #     """
+    #     fromDraw = self.list[index]
+    #     fromCell = fromDraw.display_shape
+    #     posCell = self.canvas.coords(fromCell)
+    #     if not self.changeSize:
+    #         fromCellVal = fromDraw.display_val
+    #         posCellVal = self.canvas.coords(fromCellVal)
+
+    #     shape = self.copyCanvasItem(fromCell)
+    #     if not self.changeSize:
+    #         val = self.copyCanvasItem(fromCellVal)
+    #         callEnviron |= set((shape, val))
+    #     else:
+    #         callEnviron.add(shape)
+
+    #     padding = 20
+    #     if existing:
+    #         tempPos = self.canvas.coords(existing)
+    #         templabel = existing
+    #     else:
+    #         posLabel = (padding * 2,padding + self.CELL_SIZE + 10)
+    #         templabel = self.canvas.create_text(
+    #             *posLabel, text=varName, font=self.VARIABLE_FONT,
+    #             fill=self.VARIABLE_COLOR)
+
+    #     shapePos = (padding,padding,padding+self.CELL_SIZE, padding+self.CELL_SIZE)
+    #     moveItems = [shape]
+    #     moveItemsPos = [shapePos]
+    #     if not self.changeSize:
+    #         valPos = ((shapePos[0] + shapePos[2]) // 2, (shapePos[1] + shapePos[3]) // 2)
+    #         moveItems.append(val)
+    #         moveItemsPos.append(valPos)
+    #     self.moveItemsTo(moveItems, moveItemsPos, sleepTime=0.02)
+
+    #     return drawable(fromDraw.val, fromDraw.color, *moveItems), templabel
+
+    # def assignFromTemp(self, index, temp, templabel):
+    #     toCellCoords = self.fillCoords(temp.val, self.cellCoords(index))
+    #     toCellCenter = self.cellCenter(index)
+    #     tempCellCoords = self.canvas.coords(temp.display_shape)
+    #     deltaX = toCellCoords[0] - tempCellCoords[0]
+    #     startAngle = -45 * 500 / (500 + abs(deltaX)) * (-1 if deltaX < 0 else 1)
+
+    #     self.moveItemsOnCurve(
+    #         (temp.display_shape, temp.display_val),
+    #         (toCellCoords, toCellCenter), sleepTime=0.04, startAngle=startAngle)
+
+    #     if templabel:
+    #         self.canvas.delete(templabel)
+    #     self.list[index] = temp
+
     def makeButtons(self, maxRows=3):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
@@ -293,6 +473,9 @@ class AdvancedArraySort(SortingBase):
         quicksortButton = self.addOperation(
             "Quicksort", lambda: self.quickSort(), maxRows=maxRows,
             helpText='Sort items using quicksort algorithm')
+        shellSortButton = self.addOperation(
+            "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
+            helpText='Sort items using shellsort algorithm')
         self.addAnimationButtons(maxRows=maxRows)
         buttons = [insertButton, searchButton, deleteButton, newButton, 
                    randomFillButton, shuffleButton, deleteRightmostButton,

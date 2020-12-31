@@ -103,7 +103,7 @@ class SortingBase(VisualizationApp):
 
         return drawnValue(fromValue.val, *copyItems), tempLabel
 
-    def assignFromTemp(self, index, temp, templabel):
+    def assignFromTemp(self, index, temp, templabel, delete=True):
 
         toCellCoords = self.fillCoords(temp.val, self.cellCoords(index))
         toCellCenter = self.cellCenter(index)
@@ -115,11 +115,12 @@ class SortingBase(VisualizationApp):
             temp.items, (toCellCoords, toCellCenter), sleepTime=0.04,
             startAngle=startAngle)
 
-        if templabel:
-            self.canvas.delete(templabel)
-        for item in self.list[index].items:
-            if item is not None:
-                self.canvas.delete(item)
+        if delete:
+            if templabel:
+                self.canvas.delete(templabel)
+            for item in self.list[index].items:
+                if item is not None:
+                    self.canvas.delete(item)
         self.list[index] = temp
         
     def swap(self, a, b, aCellObjects=[], bCellObjects=[]):
