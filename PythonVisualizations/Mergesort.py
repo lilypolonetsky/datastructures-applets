@@ -56,6 +56,11 @@ def __init__(self, unordered, key=identity):
             cell0Coords = [0] * 4
         canvasDims = self.widgetDimensions(self.canvas)
         delta = (0, canvasDims[1] - self.CELL_BORDER * 2 - cell0coords[3])
+        callEnviron.add(self.canvas.create_text(
+            cell0coords[0] - self.CELL_GAP,
+            (cell0coords[1] + cell0coords[3]) // 2 + delta[1],
+            text='__work', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR,
+            anchor=E))
         tags = ["workArray"]
         self.workCells, self.workArray = [], []
         for i in range(self.size):
