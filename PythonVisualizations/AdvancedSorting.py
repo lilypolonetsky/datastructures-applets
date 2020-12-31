@@ -383,63 +383,6 @@ def shellSort(self):
         
         self.cleanUp(callEnviron)
         return nShifts
-   
-    # def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
-    #     """Assign indexed cell to a temporary variable named varName.
-    #     Animate value moving to the temporary variable above the array.
-    #     Return a drawable for the new temporary value and a text item for
-    #     its name.  The existing name item can be passed to avoid creating
-    #     a new one and for moving the value to that location
-    #     """
-    #     fromDraw = self.list[index]
-    #     fromCell = fromDraw.display_shape
-    #     posCell = self.canvas.coords(fromCell)
-    #     if not self.changeSize:
-    #         fromCellVal = fromDraw.display_val
-    #         posCellVal = self.canvas.coords(fromCellVal)
-
-    #     shape = self.copyCanvasItem(fromCell)
-    #     if not self.changeSize:
-    #         val = self.copyCanvasItem(fromCellVal)
-    #         callEnviron |= set((shape, val))
-    #     else:
-    #         callEnviron.add(shape)
-
-    #     padding = 20
-    #     if existing:
-    #         tempPos = self.canvas.coords(existing)
-    #         templabel = existing
-    #     else:
-    #         posLabel = (padding * 2,padding + self.CELL_SIZE + 10)
-    #         templabel = self.canvas.create_text(
-    #             *posLabel, text=varName, font=self.VARIABLE_FONT,
-    #             fill=self.VARIABLE_COLOR)
-
-    #     shapePos = (padding,padding,padding+self.CELL_SIZE, padding+self.CELL_SIZE)
-    #     moveItems = [shape]
-    #     moveItemsPos = [shapePos]
-    #     if not self.changeSize:
-    #         valPos = ((shapePos[0] + shapePos[2]) // 2, (shapePos[1] + shapePos[3]) // 2)
-    #         moveItems.append(val)
-    #         moveItemsPos.append(valPos)
-    #     self.moveItemsTo(moveItems, moveItemsPos, sleepTime=0.02)
-
-    #     return drawable(fromDraw.val, fromDraw.color, *moveItems), templabel
-
-    # def assignFromTemp(self, index, temp, templabel):
-    #     toCellCoords = self.fillCoords(temp.val, self.cellCoords(index))
-    #     toCellCenter = self.cellCenter(index)
-    #     tempCellCoords = self.canvas.coords(temp.display_shape)
-    #     deltaX = toCellCoords[0] - tempCellCoords[0]
-    #     startAngle = -45 * 500 / (500 + abs(deltaX)) * (-1 if deltaX < 0 else 1)
-
-    #     self.moveItemsOnCurve(
-    #         (temp.display_shape, temp.display_val),
-    #         (toCellCoords, toCellCenter), sleepTime=0.04, startAngle=startAngle)
-
-    #     if templabel:
-    #         self.canvas.delete(templabel)
-    #     self.list[index] = temp
 
     def makeButtons(self, maxRows=3):
         vcmd = (self.window.register(numericValidate),
