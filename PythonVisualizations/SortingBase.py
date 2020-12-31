@@ -67,7 +67,7 @@ class SortingBase(VisualizationApp):
     def tempCoords(self, index):  # Determine coordinates for a temporary
         cellCoords = self.cellCoords(index) # variable aligned below an array
         height = cellCoords[3] - cellCoords[1] # cell
-        return add_vector(cellCoords, (0, int(height * 1.6)) * 2)
+        return add_vector(cellCoords, (0, int(height * 1.7)) * 2)
 
     def tempLabelCoords(self, index, font):
         tempPos = self.tempCoords(index)
