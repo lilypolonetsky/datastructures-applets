@@ -320,6 +320,9 @@ def shellSort(self):
                 callEnviron |= set(innerArrow)
                 self.wait(0.2)
 
+                # after temp is done being used, remove any number that is hidden behind another
+                toBeRemoved = []
+
                 while inner >= h and temp < self.list[inner-h].val:
                     # get the item and value to be moved
                     moveItems = [self.list[inner-h].display_shape]
@@ -339,10 +342,9 @@ def shellSort(self):
                     self.moveItemsOnCurve(
                     moveItems, moveLoc,
                     sleepTime=0.05, startAngle=90 * 11 / (10 + abs(inner-h)))
-                    # item underneath should then be removed
-                    if inner < len(self.list)-1 and self.list[inner+1] is not self.list[inner]:             # delete the item underneath if it was not moved to the right
-                        for item in self.list[inner].items:
-                            self.canvas.delete(item)
+                    # item underneath should be added to call environ to be removed
+                    if inner == outer:   # delete the item underneath if it was not moved to the right
+                        toBeRemoved += self.list[inner].items
                     self.list[inner] = self.list[inner-h]
 
                     # move the inner index
@@ -371,6 +373,8 @@ def shellSort(self):
                 callEnviron ^= set(innerArrow)       
                 self.canvas.delete(innerArrow[0])
                 self.canvas.delete(innerArrow[1])   
+                for item in toBeRemoved:
+                        self.canvas.delete(item)   
             
             # change h
             h = (h - 1) // 3
