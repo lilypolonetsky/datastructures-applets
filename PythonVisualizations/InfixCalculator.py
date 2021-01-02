@@ -359,7 +359,8 @@ def PostfixEvaluate(formula={infixExpression!r}):
         callEnviron = self.createCallEnvironment(code=code.format(**env))
         self.startAnimations()
         wait=0.1
-
+        errorValue = 'Error!'
+        
         self.highlightCode('postfix = PostfixTranslate(formula)', callEnviron)
         postfixExpression = self.PostfixTranslate(infixExpression)
 
@@ -413,26 +414,35 @@ def PostfixEvaluate(formula={infixExpression!r}):
                 self.highlightCode('left = s.pop()', callEnviron)
                 leftDValue = self.popToken(callEnviron, array=2, toString=left)
                 op = token
-                L, R = eval(leftDValue.val), eval(rightDValue.val)
+                try:
+                    L = eval(leftDValue.val)
+                except:
+                    L = errorValue
+                try:
+                    R = eval(rightDValue.val)
+                except:
+                    R = errorValue
                 check = lambda o: self.highlightOp(op, o, callEnviron, wait)
                 result, attempts = None, 0
                 while result is None:
                     try:
                         attempts += 1
-                        result = str(
-                            L|R if check('|') else
-                            L&R if check('&') else
-                            L+R if check('+') else
-                            L-R if check('-') else
-                            L*R if check('*') else
-                            L/R if check('/') else
-                            L%R if check('%') else
-                            L^R if check('^') else None)
+                        result = (errorValue
+                                  if L is errorValue or R is errorValue else
+                                  str(L|R if check('|') else
+                                      L&R if check('&') else
+                                      L+R if check('+') else
+                                      L-R if check('-') else
+                                      L*R if check('*') else
+                                      L/R if check('/') else
+                                      L%R if check('%') else
+                                      L^R if check('^') else None))
                     except Exception as e:
                         self.setMessage(e)
-                        if attempts > 1 or not isinstance(e, TypeError):
-                            break
                         self.wait(1)
+                        if attempts > 1 or not isinstance(e, TypeError):
+                            result = errorValue
+                            break
                         L = int(L)
                         self.canvas.itemconfigure(left, text=str(L))
                         R = int(R)
