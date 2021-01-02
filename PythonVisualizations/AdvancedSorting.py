@@ -305,8 +305,7 @@ def shellSort(self):
             for outer in range(h, len(self.list)):
                 # move outer index
                 arrowPos = self.indexCoords(outer, level=3)
-                labelPos = (arrowPos[2], arrowPos[1])
-                self.moveItemsTo(outerArrow, (arrowPos, labelPos), sleepTime=.02)
+                self.moveItemsTo(outerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
 
                 # assign outer to temp
                 temp = self.list[outer].val
@@ -330,8 +329,7 @@ def shellSort(self):
                     # move the inner index
                     inner -= h
                     arrowPos = self.indexCoords(inner, level=2)
-                    labelPos = (arrowPos[2], arrowPos[1])
-                    self.moveItemsTo(innerArrow, (arrowPos, labelPos), sleepTime=.02)
+                    self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
                     self.wait(0.2)
 
                     nShifts += 1
