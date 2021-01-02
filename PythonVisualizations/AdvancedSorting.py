@@ -290,7 +290,7 @@ def shellSort(self):
         h = 1
         while h * 3 < len(self.list):
             h = 3 * h + 1
-        hPos = (self.ARRAY_X0 + (self.CELL_WIDTH*(len(self.list)-1)) + self.CELL_WIDTH // 2, self.ARRAY_Y0-40)
+        hPos = (self.ARRAY_X0 // 2, self.ARRAY_Y0-40)
         hText = "h: {}".format(h)
         hLabel = self.canvas.create_text(
                 *hPos, text=hText, font=self.VARIABLE_FONT,
