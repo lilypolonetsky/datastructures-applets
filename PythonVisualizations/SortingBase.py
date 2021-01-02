@@ -35,7 +35,7 @@ class SortingBase(VisualizationApp):
     
     # ANIMATION METHODS
     def assignElement(
-            self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01):
+            self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01, startAngle=0):
         
         fromValue = self.list[fromIndex]
         toValue = self.list[toIndex]
@@ -50,8 +50,12 @@ class SortingBase(VisualizationApp):
         callEnviron |= set(copyItems)
 
         # Move copies to the desired location
-        self.moveItemsTo(copyItems, toPositions, steps=steps,
-                         sleepTime=sleepTime)
+        if startAngle == 0:                                         # move items linearly
+            self.moveItemsTo(copyItems, toPositions, steps=steps,
+                            sleepTime=sleepTime)
+        else:                                                       # move items on curve
+            self.moveItemsOnCurve(copyItems, toPositions, startAngle=startAngle, 
+                                steps=steps, sleepTime=sleepTime)
 
         # delete the original "to" display value and the new display shape
         for item in toValue.items:

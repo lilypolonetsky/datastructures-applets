@@ -324,28 +324,8 @@ def shellSort(self):
                 toBeRemoved = []
 
                 while inner >= h and temp < self.list[inner-h].val:
-                    # get the item and value to be moved
-                    moveItems = [self.list[inner-h].display_shape]
-                    moveLoc = [self.fillCoords(self.list[inner-h].val, self.cellCoords(inner))]
-                    if self.showValues:
-                        # calculate where value should move to
-                        rectPos = self.cellCoords(inner)
-                        valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
-                        moveItems.append(self.list[inner-h].display_val)
-                        moveLoc.append(valPos)
-                    upDelta = (0, - self.CELL_SIZE * 4 // 3)
-                    downDelta = multiply_vector(upDelta, -1)
-
-                    # item being moved should be on top
-                    for item in moveItems:
-                        self.canvas.tag_raise(item)
-                    self.moveItemsOnCurve(
-                    moveItems, moveLoc,
-                    sleepTime=0.05, startAngle=90 * 11 / (10 + abs(inner-h)))
-                    # item underneath should be added to call environ to be removed
-                    if inner == outer:   # delete the item underneath if it was not moved to the right
-                        toBeRemoved += self.list[inner].items
-                    self.list[inner] = self.list[inner-h]
+                    toBeRemoved += self.list[inner-h].items
+                    self.assignElement(inner-h, inner, callEnviron, sleepTime=0.05, startAngle=90 * 11 / (10 + abs(inner-h)))
 
                     # move the inner index
                     inner -= h
@@ -358,6 +338,12 @@ def shellSort(self):
 
                 if inner < outer:
                     self.assignFromTemp(inner, tempVal, None, delete=False)
+                    
+                    # remove any number that is hidden behind another
+                    for item in toBeRemoved:
+                        if item is not None:
+                            self.canvas.delete(item)
+
                     # Take it out of the cleanup set since it should persist
                     callEnviron -= set(tempVal.items)
                     tempAssigned = True
