@@ -415,15 +415,31 @@ def PostfixEvaluate(formula={infixExpression!r}):
                 op = token
                 L, R = eval(leftDValue.val), eval(rightDValue.val)
                 check = lambda o: self.highlightOp(op, o, callEnviron, wait)
-                result = str(
-                    L|R if check('|') else
-                    L&R if check('&') else
-                    L+R if check('+') else
-                    L-R if check('-') else
-                    L*R if check('*') else
-                    L/R if check('/') else
-                    L%R if check('%') else
-                    L^R if check('^') else None)
+                result, attempts = None, 0
+                while result is None:
+                    try:
+                        attempts += 1
+                        result = str(
+                            L|R if check('|') else
+                            L&R if check('&') else
+                            L+R if check('+') else
+                            L-R if check('-') else
+                            L*R if check('*') else
+                            L/R if check('/') else
+                            L%R if check('%') else
+                            L^R if check('^') else None)
+                    except Exception as e:
+                        self.setMessage(e)
+                        if attempts > 1 or not isinstance(e, TypeError):
+                            break
+                        self.wait(1)
+                        L = int(L)
+                        self.canvas.itemconfigure(left, text=str(L))
+                        R = int(R)
+                        self.canvas.itemconfigure(right, text=str(R))
+                        self.setMessage('Convert values to integer')
+                        self.wait(1)
+                        
                 self.moveItemsTo(
                     (left, right), (operatorCoords, operatorCoords), 
                     sleepTime=0.01)
