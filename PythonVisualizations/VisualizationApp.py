@@ -561,8 +561,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if not skip and desired != nCharsWide:
             ct['width'] = desired
 
-    def highlightCode(
-            self, fragments, callEnviron, wait=0, color=CODE_HIGHLIGHT):
+    def highlightCode(self, fragments, callEnviron, wait=0, color=None):
         '''Highlight a code fragment for a particular call environment.
         Multiple fragments can be highlighted.  Each fragment can be
         either a string of code, or a (string, int) tuple where the int
@@ -571,6 +570,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         codeBlock = self.getCodeHighlightBlock(callEnviron)
         if codeBlock is None:  # This shouldn't happen, but...
             return
+        if color is None:
+            color = self.CODE_HIGHLIGHT
         if isinstance(fragments, (list, tuple, set)):
             if (len(fragments) == 2 and   # Look for (str, int) pair
                 isinstance(fragments[0], str) and

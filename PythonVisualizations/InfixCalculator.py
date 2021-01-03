@@ -360,21 +360,25 @@ def PostfixEvaluate(formula={infixExpression!r}):
         self.startAnimations()
         wait=0.1
         errorValue = 'Error!'
+        hlColor = self.CODE_HIGHLIGHT
+
+        del self.EVstack[:]
         
-        self.highlightCode('postfix = PostfixTranslate(formula)', callEnviron)
+        self.highlightCode('postfix = PostfixTranslate(formula)', callEnviron,
+                           color=hlColor)
         postfixExpression = self.PostfixTranslate(infixExpression)
 
         # Restore infix expression that was parsed
         self.canvas.itemconfigure(self.infixInputString, text=infixExpression)
         self.canvas.itemconfigure(self.postfixLabel, text='postfix')
         
-        del self.EVstack[:]
         for array in (0, 1):         # Gray out arrays used by Translate
             self.canvas.itemconfigure(
                 'array-{}'.format(array), outline='gray80')
             self.canvas.itemconfigure('index-{}'.format(array), fill='gray80')
             
-        self.highlightCode('s = Stack({ARRAY_SIZE})'.format(**env), callEnviron)
+        self.highlightCode('s = Stack({ARRAY_SIZE})'.format(**env), callEnviron,
+                           color=hlColor)
         self.createEvaluateStructues(postfixExpression, callEnviron=callEnviron)
 
         left, operator, right = [
@@ -384,7 +388,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
         operatorCoords = self.canvas.coords(operator)
         
         self.highlightCode(('token, postfix = nextToken(postfix)', 1),
-                           callEnviron)
+                           callEnviron, color=hlColor)
         token, postfixExpression = self.nextToken(self.postfixInputString)
         tokenItem = self.extractToken(token, self.postfixInputString,
                                       callEnviron)
@@ -393,37 +397,61 @@ def PostfixEvaluate(formula={infixExpression!r}):
             labelCoords[0] + 300, labelCoords[1], text='',
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
         
-        self.highlightCode(('token', 2), callEnviron, wait=wait)
+        self.highlightCode(('token', 2), callEnviron, wait=wait, color=hlColor)
         while token:
             
             self.highlightCode('prec = precedence(token)', callEnviron,
-                               wait=wait)
+                               wait=wait, color=hlColor)
             prec = self.precedence(token)
             self.canvas.itemconfigure(precValue, text='prec = {}'.format(prec))
             
-            self.highlightCode(('prec', 3), callEnviron, wait=wait)
+            self.highlightCode(('prec', 3), callEnviron, wait=wait,
+                               color=hlColor)
             if prec:
                 
                 self.moveItemsTo(tokenItem, operatorCoords, sleepTime=0.01)
                 self.canvas.itemconfigure(operator, text=token)
                 self.canvas.delete(tokenItem)
                 
-                self.highlightCode('right = s.pop()', callEnviron)
-                rightDValue = self.popToken(callEnviron, array=2, 
-                                            toString=right)
-                self.highlightCode('left = s.pop()', callEnviron)
-                leftDValue = self.popToken(callEnviron, array=2, toString=left)
+                self.highlightCode('right = s.pop()', callEnviron, 
+                                   color=hlColor)
+                result, attempts = None, 0
+                try:
+                    rightDValue = self.popToken(callEnviron, array=2, 
+                                                toString=right)
+                except IndexError as e:
+                    self.setMessage(e)
+                    hlColor = self.EXCEPTION_HIGHLIGHT
+                    self.highlightCode('right = s.pop()', callEnviron,
+                                       color=hlColor)
+                    self.wait(1)
+                    rightDValue, result = errorValue, errorValue
+                    
+                self.highlightCode('left = s.pop()', callEnviron, color=hlColor)
+                try:
+                    leftDValue = self.popToken(callEnviron, array=2, 
+                                               toString=left)
+                except IndexError as e:
+                    self.setMessage(e)
+                    hlColor = self.EXCEPTION_HIGHLIGHT
+                    self.highlightCode('left = s.pop()', callEnviron,
+                                       color=hlColor)
+                    self.wait(1)
+                    leftDValue, result = errorValue, errorValue
+
                 op = token
                 try:
                     L = eval(leftDValue.val)
                 except:
                     L = errorValue
+                    hlColor = self.EXCEPTION_HIGHLIGHT
                 try:
                     R = eval(rightDValue.val)
                 except:
                     R = errorValue
-                check = lambda o: self.highlightOp(op, o, callEnviron, wait)
-                result, attempts = None, 0
+                    hlColor = self.EXCEPTION_HIGHLIGHT
+                check = lambda o: self.highlightOp(
+                    op, o, callEnviron, wait, hlColor)
                 while result is None:
                     try:
                         attempts += 1
@@ -439,6 +467,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
                                       L^R if check('^') else None))
                     except Exception as e:
                         self.setMessage(e)
+                        hlColor = self.EXCEPTION_HIGHLIGHT
                         self.wait(1)
                         if attempts > 1 or not isinstance(e, TypeError):
                             result = errorValue
@@ -448,6 +477,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
                         R = int(R)
                         self.canvas.itemconfigure(right, text=str(R))
                         self.setMessage('Convert values to integer')
+                        hlColor = self.CODE_HIGHLIGHT
                         self.wait(1)
                         
                 self.moveItemsTo(
@@ -463,15 +493,17 @@ def PostfixEvaluate(formula={infixExpression!r}):
                     self.canvas.coords(displayString, *coords)
                     
             else:
-                self.highlightCode('s.push(int(token))', callEnviron)
+                self.highlightCode('s.push(int(token))', callEnviron, 
+                                   color=hlColor)
             self.pushToken(tokenItem, callEnviron, array=2)
                           
             self.highlightCode(('token, postfix = nextToken(postfix)', 2),
-                               callEnviron)
+                               callEnviron, color=hlColor)
             token, postfixExpression = self.nextToken(self.postfixInputString)
             tokenItem = self.extractToken(token, self.postfixInputString,
                                           callEnviron)
-            self.highlightCode(('token', 2), callEnviron, wait=wait)
+            self.highlightCode(('token', 2), callEnviron, wait=wait, 
+                               color=hlColor)
 
         outputBox = self.outputBoxCoords()
         self.canvas.itemconfigure(precValue, text='')
@@ -479,18 +511,23 @@ def PostfixEvaluate(formula={infixExpression!r}):
         self.canvas.coords(
             operator, 
             *divide_vector(add_vector(outputBox[:2], outputBox[2:]), 2))
-        self.highlightCode('return s.pop()', callEnviron)
-        dValue = self.popToken(callEnviron, array=2, toString=operator)
-        
+        self.highlightCode('return s.pop()', callEnviron, color=hlColor)
+        try:
+            dValue = self.popToken(callEnviron, array=2, toString=operator)
+        except:
+            hlColor = self.EXCEPTION_HIGHLIGHT
+            self.highlightCode('return s.pop()', callEnviron, color=hlColor)
+            dValue = drawnValue(errorValue)
+            
         self.cleanUp(callEnviron)
         return dValue.val
 
-    def highlightOp(self, actual, target, callEnviron, wait=0.1):
+    def highlightOp(self, actual, target, callEnviron, wait=0.1, color=None):
         self.highlightCode("token == '{}'".format(target), callEnviron, 
-                           wait=wait)
+                           wait=wait, color=color)
         if actual == target:
             self.highlightCode("s.push(left {} right)".format(target),
-                               callEnviron)
+                               callEnviron, color=color)
             return True
 
     postfixTranslateCode = '''
@@ -860,5 +897,7 @@ def PostfixTranslate(formula={infixExpression!r}):
 if __name__ == '__main__':
     # random.seed(3.14159)    # Use fixed seed for testing consistency
     app = InfixCalculator()
+    if len(sys.argv) > 1:
+        app.setArgument(' '.join(sys.argv[1:]))
+        app.clickEvaluate()
     app.runVisualization()
-
