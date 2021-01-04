@@ -138,64 +138,64 @@ class BinaryTreeBase(VisualizationApp):
     def getChildDirection(self, node):
         if self.isRoot(node):
             direction = None
-      elif self.isRightChild(node):
-         direction = Child.RIGHT
-      else:
-         direction = Child.LEFT
-      return direction
+        elif self.isRightChild(node):
+            direction = Child.RIGHT
+        else:
+            direction = Child.LEFT
+        return direction
 
-   # returns the node's parent
-   def getParent(self, node):
-      # is it the root?
-      if self.isRoot(node): return None
+    # returns the node's parent
+    def getParent(self, node):
+        # is it the root?
+        if self.isRoot(node): return None
 
-      parentIndex = self.getParentIndex(node)
-      return self.nodes[parentIndex]
+        parentIndex = self.getParentIndex(node)
+        return self.nodes[parentIndex]
 
-   def getParentIndex(self, node):
-      # get node's index
-      index = self.getIndex(node)
-      return (index - 1) // 2
+    def getParentIndex(self, node):
+        # get node's index
+        index = self.getIndex(node)
+        return (index - 1) // 2
 
-   # returns the level of the node
-   def getLevel(self, node):
-      if self.isRoot(node): return 0
-      else: return self.getLevel(self.getParent(node)) + 1
+    # returns the level of the node
+    def getLevel(self, node):
+        if self.isRoot(node): return 0
+        else: return self.getLevel(self.getParent(node)) + 1
 
-   def getHeight(self, node):
-      if not node: return 0
+    def getHeight(self, node):
+        if not node: return 0
 
-      rightChild = self.getRightChild(node)
-      leftChild = self.getLeftChild(node)
+        rightChild = self.getRightChild(node)
+        leftChild = self.getLeftChild(node)
 
-      return max(self.getHeight(rightChild), self.getHeight(leftChild)) + 1
+        return max(self.getHeight(rightChild), self.getHeight(leftChild)) + 1
 
-   # return difference in node's child heights
-   def heightDiff(self, node):
-      print("height diff")
-      leftChild, rightChild = self.getChildren(node)
-      left = self.getHeight(leftChild) if leftChild else 0
-      right = self.getHeight(rightChild) if rightChild else 0
+    # return difference in node's child heights
+    def heightDiff(self, node):
+        print("height diff")
+        leftChild, rightChild = self.getChildren(node)
+        left = self.getHeight(leftChild) if leftChild else 0
+        right = self.getHeight(rightChild) if rightChild else 0
+        
+        print("diff:", left-right)
+
+        return left - right
+
+    # returns the line pointing to the node
+    def getLine(self, node, highlight=False):
+        coords = self.calculateLineCoordinates(node)
+        # is there a line in these coords?
+        overlap = set(self.canvas.find_overlapping(*coords))
+
+        if not highlight: line = set(self.canvas.find_withtag("line"))
+        else: line = set(self.canvas.find_withtag("highlight line"))
+
+        foundLine = (overlap & line)
+        if len(foundLine) > 1 and node: return set(self.canvas.find_withtag(node.tag + " line")).pop()
+        else: return foundLine.pop() if len(foundLine) > 0 else None 
       
-      print("diff:", left-right)
-
-      return left - right
-
-   # returns the line pointing to the node
-   def getLine(self, node, highlight=False):
-      coords = self.calculateLineCoordinates(node)
-      # is there a line in these coords?
-      overlap = set(self.canvas.find_overlapping(*coords))
-
-      if not highlight: line = set(self.canvas.find_withtag("line"))
-      else: line = set(self.canvas.find_withtag("highlight line"))
-
-      foundLine = (overlap & line)
-      if len(foundLine) > 1 and node: return set(self.canvas.find_withtag(node.tag + " line")).pop()
-      else: return foundLine.pop() if len(foundLine) > 0 else None 
-      
-   # returns a tuple of the left and right child of node
-   def getChildren(self, node):
+    # returns a tuple of the left and right child of node
+    def getChildren(self, node):
       return self.getLeftChild(node), self.getRightChild(node)
 
     # returns the level of the node
@@ -305,71 +305,71 @@ class BinaryTreeBase(VisualizationApp):
             *node.coords, text=node.getKey(), font=self.VALUE_FONT, fill=color,
             tags="highlight value")
       
-      if callEnviron: callEnviron |= set((text,))
+        if callEnviron: callEnviron |= set((text,))
 
-      return text
+        return text
 
-   # draws the circle and the key value
-   def createNodeShape(self, x, y, key, tag, color= drawable.palette[2]):
-      circle = self.canvas.create_circle(x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
-      circle_text = self.canvas.create_text(x,y, text=key, font=self.VALUE_FONT, tag = tag)
+    # draws the circle and the key value
+    def createNodeShape(self, x, y, key, tag, color= drawable.palette[2]):
+        circle = self.canvas.create_circle(x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
+        circle_text = self.canvas.create_text(x,y, text=key, font=self.VALUE_FONT, tag = tag)
 
-      return circle, circle_text
+        return circle, circle_text
 
-   # moves all the nodes in moveItems to their proper place (as defined by their place in the array)
-   def restoreNodesPosition(self, moveItems, sleepTime=0.1):
-      # get the coords for the node to move to
-      moveCoords = []
-      for node in moveItems:
-         if node:
-            node.coords = self.calculateCoordinates(self.getParent(node), self.getLevel(node), self.getChildDirection(node))
-            moveCoords.append(( node.coords[0]-self.CIRCLE_SIZE, node.coords[1]-self.CIRCLE_SIZE,
-                                 node.coords[0]+self.CIRCLE_SIZE, node.coords[1]+self.CIRCLE_SIZE))
-      
-      moveItemsTags = [node.tag for node in moveItems if node]
-      self.moveItemsTo(moveItemsTags, moveCoords, sleepTime=sleepTime)
+    # moves all the nodes in moveItems to their proper place (as defined by their place in the array)
+    def restoreNodesPosition(self, moveItems, sleepTime=0.1):
+        # get the coords for the node to move to
+        moveCoords = []
+        for node in moveItems:
+            if node:
+                node.coords = self.calculateCoordinates(self.getParent(node), self.getLevel(node), self.getChildDirection(node))
+                moveCoords.append(( node.coords[0]-self.CIRCLE_SIZE, node.coords[1]-self.CIRCLE_SIZE,
+                                        node.coords[0]+self.CIRCLE_SIZE, node.coords[1]+self.CIRCLE_SIZE))
+            
+        moveItemsTags = [node.tag for node in moveItems if node]
+        self.moveItemsTo(moveItemsTags, moveCoords, sleepTime=sleepTime)
 
-   # draw a line pointing to node
-   def createLine(self, node):
-      parent = self.getParent(node)
-      lineCoords = self.calculateLineCoordinates(node, parent)
-      line = self.canvas.create_line(*lineCoords, tags = ("line", node.tag + " line"))
-      self.canvas.tag_lower(line)
+    # draw a line pointing to node
+    def createLine(self, node):
+        parent = self.getParent(node)
+        lineCoords = self.calculateLineCoordinates(node, parent)
+        line = self.canvas.create_line(*lineCoords, tags = ("line", node.tag + " line"))
+        self.canvas.tag_lower(line)
 
-   # remove all the line drawings
-   def clearAllLines(self):
-      self.canvas.delete("line")
+    # remove all the line drawings
+    def clearAllLines(self):
+        self.canvas.delete("line")
 
-   # draw all the lines
-   def drawAllLines(self):
-      cur = self.getRoot()
-      if cur:
-         left = self.getLeftChild(cur)
-         right = self.getRightChild(cur)
-         self.__drawLines(left, right)
+    # draw all the lines
+    def drawAllLines(self):
+        cur = self.getRoot()
+        if cur:
+            left = self.getLeftChild(cur)
+            right = self.getRightChild(cur)
+            self.__drawLines(left, right)
 
-   def __drawLines(self, left, right):
-      if left: 
-         self.createLine(left)
-         self.__drawLines(self.getLeftChild(left), self.getRightChild(left))
-      if right: 
-         self.createLine(right)
-         self.__drawLines(self.getLeftChild(right), self.getRightChild(right))
+    def __drawLines(self, left, right):
+        if left: 
+            self.createLine(left)
+            self.__drawLines(self.getLeftChild(left), self.getRightChild(left))
+        if right: 
+            self.createLine(right)
+            self.__drawLines(self.getLeftChild(right), self.getRightChild(right))
 
-   # remove any existing lines and draw lines
-   def redrawLines(self):
-      self.clearAllLines()
-      self.drawAllLines()
+    # remove any existing lines and draw lines
+    def redrawLines(self):
+        self.clearAllLines()
+        self.drawAllLines()
 
    # ----------- SETTER METHODS --------------------
    
    # create a Node object with key and parent specified
    # parent should be a Node object
-   def createNode(self, key, parent = None, direction = None, addToArray=True,):
-      # calculate the level
-      if not parent: level = 0
-      else: level = self.getLevel(parent) + 1                                                
-      
+    def createNode(self, key, parent = None, direction = None, addToArray=True,):
+        # calculate the level
+        if not parent: level = 0
+        else: level = self.getLevel(parent) + 1                                                
+        
         # calculate the coords
         coords = self.calculateCoordinates(parent, level, direction)
         x,y = coords
@@ -379,18 +379,18 @@ class BinaryTreeBase(VisualizationApp):
 
         # create the shape and text
         circle, circle_text = self.createNodeShape(x, y, key, tag)
-      
+        
         # create the drawable object
         drawableObj = drawable(key, self.canvas.itemconfigure(circle, 'fill')[-1], *(circle, circle_text))
-      
+        
         # create the Node object
         node = Node(drawableObj, coords, tag)
 
         # increment size
         self.size += 1
 
-      # add the node object to the internal representation
-      if addToArray: self.setChildNode(node, direction, parent)
+        # add the node object to the internal representation
+        if addToArray: self.setChildNode(node, direction, parent)
 
         # draw the lines
         if parent:
@@ -494,56 +494,56 @@ class BinaryTreeBase(VisualizationApp):
         self.nodes[self.getIndex(node)] = None
         self.size -= 1
 
-   def removeNodesInternal(self, nodeList):
-      for node in nodeList:
-         self.removeNodeInternal(node)
+    def removeNodesInternal(self, nodeList):
+        for node in nodeList:
+            self.removeNodeInternal(node)
 
-    # rotate a subtree to the left in the array and animate it
-   def rotateLeft(self, top):
-      toRaise = self.getRightChild(top)                        # The node to raise is top's right child
-      leftChildOfToRaise, rightChildOfToRaise = self.getChildren(toRaise)
-      self.removeNodesInternal([leftChildOfToRaise, rightChildOfToRaise])
+        # rotate a subtree to the left in the array and animate it
+    def rotateLeft(self, top):
+        toRaise = self.getRightChild(top)                        # The node to raise is top's right child
+        leftChildOfToRaise, rightChildOfToRaise = self.getChildren(toRaise)
+        self.removeNodesInternal([leftChildOfToRaise, rightChildOfToRaise])
 
-      if self.isRoot(top):
-         self.removeNodesInternal([toRaise, rightChildOfToRaise])
-         self.setRoot(toRaise)
-         self.setRightChild(toRaise, rightChildOfToRaise)
+        if self.isRoot(top):
+            self.removeNodesInternal([toRaise, rightChildOfToRaise])
+            self.setRoot(toRaise)
+            self.setRightChild(toRaise, rightChildOfToRaise)
 
-      self.removeNodeInternal(leftChildOfToRaise)
-      self.setRightChild(top, leftChildOfToRaise)          # The raised node's left crosses over
-      self.removeNodeInternal(top)
-      self.setLeftChild(toRaise, top)                          # to be the right subtree under the old
+        self.removeNodeInternal(leftChildOfToRaise)
+        self.setRightChild(top, leftChildOfToRaise)          # The raised node's left crosses over
+        self.removeNodeInternal(top)
+        self.setLeftChild(toRaise, top)                          # to be the right subtree under the old
 
-      for i,node in enumerate(self.nodes):
-         print("i:", i, "node:", node)
+        for i,node in enumerate(self.nodes):
+            print("i:", i, "node:", node)
 
-      moveItems = [toRaise, self.getRightChild(toRaise), self.getLeftChild(toRaise)]
-      self.restoreNodesPosition(moveItems)
+        moveItems = [toRaise, self.getRightChild(toRaise), self.getLeftChild(toRaise)]
+        self.restoreNodesPosition(moveItems)
 
-      return toRaise                                           # Return raised node to update parent
+        return toRaise                                           # Return raised node to update parent
 
-   # rotate a subtree to the right in the array and animate it
-   def rotateRight(self, top):
-      toRaise = self.getLeftChild(top)
-      leftChildOfToRaise, rightChildOfToRaise = self.getChildren(toRaise)
-      self.removeNodesInternal([leftChildOfToRaise, rightChildOfToRaise])
+    # rotate a subtree to the right in the array and animate it
+    def rotateRight(self, top):
+        toRaise = self.getLeftChild(top)
+        leftChildOfToRaise, rightChildOfToRaise = self.getChildren(toRaise)
+        self.removeNodesInternal([leftChildOfToRaise, rightChildOfToRaise])
 
-      if self.isRoot(top): 
-         self.removeNodeInternal([toRaise, leftChildOfToRaise])
-         self.setRoot(toRaise)
-         self.setLeftChild(toRaise, leftChildOfToRaise)
+        if self.isRoot(top): 
+            self.removeNodeInternal([toRaise, leftChildOfToRaise])
+            self.setRoot(toRaise)
+            self.setLeftChild(toRaise, leftChildOfToRaise)
 
-      self.removeNodesInternal([rightChildOfToRaise, top])
-      self.setLeftChild(top, rightChildOfToRaise)
-      self.setRightChild(toRaise, top)
+        self.removeNodesInternal([rightChildOfToRaise, top])
+        self.setLeftChild(top, rightChildOfToRaise)
+        self.setRightChild(toRaise, top)
 
-      for i,node in enumerate(self.nodes):
-         print("i:", i, "node:", node)
+        for i,node in enumerate(self.nodes):
+            print("i:", i, "node:", node)
 
-      moveItems = [toRaise, self.getRightChild(toRaise), self.getLeftChild(toRaise)]
-      self.restoreNodesPosition(moveItems)
+        moveItems = [toRaise, self.getRightChild(toRaise), self.getLeftChild(toRaise)]
+        self.restoreNodesPosition(moveItems)
 
-      return toRaise                                            # Return raised node to update parent
+        return toRaise                                            # Return raised node to update parent
 
     # ----------- TESTING METHODS --------------------
    
