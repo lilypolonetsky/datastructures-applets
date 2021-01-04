@@ -19,10 +19,6 @@ class drawable(object):      # A record describing a drawable Tk object
             if 0 <= key and key < len(self.__fields):
                 return getattr(self, self.__fields[key])
             raise IndexError
-        elif isinstance(key, slice):
-            return [self[k] for k in range(key.start or 0, 
-                                           key.stop or len(self.__fields), 
-                                           key.step or 1)]
         elif isinstance(key, str):
             return getattr(self, key)
         raise ValueError
@@ -48,15 +44,6 @@ class drawable(object):      # A record describing a drawable Tk object
         
     def _is_valid_operand(self, other): # Check that other is drawable
         return isinstance(other, drawable)
-
-    def __len__(self):
-        return len(self.__fields)
-
-    def __str__(self):
-        return '<drawable: {}>'.format(', '.join(repr(attr) for attr in self))
-        
-    def copy(self):          # Retun a copy of this drawable
-        return drawable(*(attr for attr in self))
     
     palette = ['indianRed2', 'PaleGreen2', 'SkyBlue2', 'orange2',
                'yellow2', 'magenta2', 'cyan2', 'DodgerBlue2',

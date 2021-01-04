@@ -2,10 +2,7 @@ import math
 import random
 from time import sleep
 from tkinter import *
-try:
-    from VisualizationApp import *
-except ModuleNotFoundError:
-    from .VisualizationApp import *
+from VisualizationApp import *
 
 class Link():
     
@@ -23,11 +20,10 @@ class Link():
             
 class SkipList(VisualizationApp):
     
-    def __init__(self, maxKeys=20, title="Skip List", **kwargs):
+    def __init__(self, maxKeys):
         
         # VisualizationApp code
-        kwargs['title'] = title
-        super().__init__(**kwargs)
+        VisualizationApp.__init__(self, title="Skip List")
         
         self.makeButtons()
         
@@ -692,5 +688,5 @@ class SkipList(VisualizationApp):
     #####################
 
 if __name__ == '__main__':
-    s = SkipList()
+    s = SkipList(20)
     s.runVisualization()
