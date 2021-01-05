@@ -1,6 +1,5 @@
-import time
 from tkinter import *
-import math
+
 try:
     from drawnValue import *
     from coordinates import *
@@ -56,7 +55,6 @@ class LinkedList(VisualizationApp):
     
     def __init__(self, title="Linked List", maxArgWidth=MAX_ARG_WIDTH, **kwargs):
         super().__init__(title=title, maxArgWidth = maxArgWidth, **kwargs)
-        self.title = title        
         self.first = None   # Canvas ID for first pointer arrow
         self.list = []      # List of Link nodes in linked list
         self.prev_id = -1
@@ -202,7 +200,7 @@ class LinkedList(VisualizationApp):
         if nextNode in self.list and isinstance(coordsOrPos, int):
             nextNodeIndex = self.list.index(nextNode)
             linkPointer = (self.linkNext(coordsOrPos,
-                                         nextNodeIndex - coordsOrPos,
+                                         nextNodeIndex + 1 - coordsOrPos,
                                          updateInternal=updateInternal), )
         else:
             linkPointer = ()
@@ -274,10 +272,10 @@ class LinkedList(VisualizationApp):
         return val
 
     def outputBoxCoords(self, full=False):
-        return (self.LL_X0 // 2, self.LL_Y0 // 6,
-                self.LL_X0 // 2 + (self.CELL_WIDTH + self.CELL_GAP) *
+        return (self.LL_X0 // 5, self.LL_Y0 // 5,
+                self.LL_X0 // 5 + (self.CELL_WIDTH + self.CELL_GAP) *
                 (self.LEN_ROW if full else 1) - self.CELL_GAP,
-                self.LL_Y0 // 6 + self.CELL_HEIGHT)
+                self.LL_Y0 // 5 + self.CELL_HEIGHT)
 
     def outputLabelCoords(self):
         oBox = self.outputBoxCoords()
@@ -364,7 +362,7 @@ def deleteFirst(self):
         indexCoords = self.indexCoords(-1)
         LBBox = self.canvas.bbox(firstIndex[1])
         indexLabelCoords = V(self.indexLabelCoords(-1)) - V(
-            (LBBox[2] - LBBox[0]) // 2, (LBBox[1] - LBBox[3]) // 2)
+            LBBox[2] - LBBox[0], (LBBox[1] - LBBox[3]) // 2)
         linkCoords = self.linkCoords(-1)
         nextLinkCoords = (
             (self.nextLinkCoords(-1, d=3), ) if first.nextPointer else ())
@@ -652,11 +650,11 @@ def delete(self, goal={goal!r}, key=identity):
 
     findCode = """
 def find(self, goal={goal!r}, key=identity):
-    link = self.getFirst()
-    while link is not None:
-        if key(link.getData()) == goal:
-            return link
-        link = link.getNext()
+   link = self.getFirst()
+   while link is not None:
+      if key(link.getData()) == goal:
+         return link
+      link = link.getNext()
 """
 
     def find(self, goal, code=findCode):
@@ -717,11 +715,17 @@ def search(self, goal={goal!r}, key=identity):
         linkIndex = self.createIndex(
             len(self.list) + 1 if link is None else link, 'link')
         callEnviron |= set(linkIndex)
+        goalText = self.canvas.create_text(
+            *self.outputLabelCoords(), text='goal = {}'.format(goal), 
+            anchor=W, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        callEnviron.add(goalText)
+
         self.highlightCode('link is not None', callEnviron, wait=wait)
-        
         if link is not None:
             self.highlightCode('return link.getData()', callEnviron)
             callEnviron.add(self.createFoundHighlight(link))
+            self.canvas.delete(goalText)
+            callEnviron.discard(goalText)
             self.outputData(link, callEnviron)
         else:
             self.highlightCode([], callEnviron)
