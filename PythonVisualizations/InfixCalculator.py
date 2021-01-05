@@ -867,6 +867,8 @@ def PostfixTranslate(formula={infixExpression!r}):
                 text += ' '
             copyItem = self.copyCanvasItem(dValue.items[1])
             callEnviron.add(copyItem)
+            bbox = self.canvas.bbox(copyItem)
+            self.canvas.move(copyItem, (bbox[0] - bbox[2]) // 2, 0)
             self.canvas.itemconfigure(copyItem, anchor=W)
             toCoords = add_vector(
                 self.canvas.coords(toString),
