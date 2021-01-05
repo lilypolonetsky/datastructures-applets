@@ -362,10 +362,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
         return Ehandler
     
     def returnPressed(self, event):  # Handle press of Return/Enter in text
-        if hasattr(event.widget, 'last_button'): # entry argument widget
-            button = getattr(event.widget, 'last_button')
+        button = getattr(            # entry argument widget.
+            event.widget, 'last_button', None)
+        if button:                   # If last_button attribute is defined
             if self.widgetState(button) == NORMAL:
-                self.widgetState(
+                self.widgetState(    # Re-do button press
                     button, 
                     'pressed' if isinstance(button, ttk.Button) else ACTIVE)
                 self.window.update()
@@ -375,7 +376,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     '!pressed' if isinstance(button, ttk.Button) else NORMAL)
                 button.invoke()
                 
-    def addAnimationButtons(self, maxRows=4):
+    def addAnimationButtons(self, maxRows=4, setDefaultButton=True):
         self.pauseButton = self.addOperation(
             "Pause", lambda: self.onClick(self.pause, self.pauseButton),
             cleanUpBefore=False, maxRows=maxRows,
@@ -386,6 +387,17 @@ class VisualizationApp(object):  # Base class for Python visualizations
             cleanUpBefore=False, maxRows=maxRows,
             helpText='Stop animation')
         self.widgetState(self.stopButton, DISABLED)
+        if setDefaultButton and self.textEntries:
+            if isinstance(setDefaultButton, self.buttonTypes):
+                setattr(self.textEntries[0], 'last_button', setDefaultButton)
+            else:
+                gridItems = gridDict(self.operations)
+                nColumns, nRows = self.operations.grid_size()
+                withArgument = [
+                    gridItems[0, row] for row in range(nRows)
+                    if isinstance(gridItems[0, row], self.buttonTypes)]
+                if len(withArgument) == 1:
+                    setattr(self.textEntries[0], 'last_button', withArgument[0])
         
     def runOperation(self, command, cleanUpBefore, button=None):
         def animatedOperation(): # If button that uses arguments is provided,
@@ -546,8 +558,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if not skip and desired != nCharsWide:
             ct['width'] = desired
 
-    def highlightCode(
-            self, fragments, callEnviron, wait=0, color=CODE_HIGHLIGHT):
+    def highlightCode(self, fragments, callEnviron, wait=0, color=None):
         '''Highlight a code fragment for a particular call environment.
         Multiple fragments can be highlighted.  Each fragment can be
         either a string of code, or a (string, int) tuple where the int
@@ -556,15 +567,18 @@ class VisualizationApp(object):  # Base class for Python visualizations
         codeBlock = self.getCodeHighlightBlock(callEnviron)
         if codeBlock is None:  # This shouldn't happen, but...
             return
+        if color is None:
+            color = self.CODE_HIGHLIGHT
         if isinstance(fragments, (list, tuple, set)):
-            if (len(fragments) == 2 and
+            if (len(fragments) == 2 and   # Look for (str, int) pair
                 isinstance(fragments[0], str) and
                 isinstance(fragments[1], int)):
-                tags = [ codeBlock[fragments[0], fragments[1]] ]
+                tags = [codeBlock[fragments]] # Look up by (str, int) pair
             else:
                 tags = [
                     codeBlock[tuple(frag)] if isinstance(frag, (list, tuple))
-                    else codBlock.tag(fragment) for frag in fragments]
+                    else codeBlock[frag] 
+                    for frag in fragments]
         else:
             tags = [codeBlock[fragments]]
         found = False       # Assume tag not found
