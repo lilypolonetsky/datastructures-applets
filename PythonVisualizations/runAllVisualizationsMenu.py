@@ -69,7 +69,7 @@ def findVisualizations(filesAndDirectories, verbose=0):
                     classes |= set(findVisualizationClasses(
                         module, verbose=verbose))
                 except ModuleNotFoundError:
-                    if verbose > 1:
+                    if verbose > 0:
                         print('Unable to import module', modulename,
                               file=sys.stderr)
     return classes
