@@ -90,6 +90,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     VALUE_COLOR = 'black'
     VARIABLE_FONT = ('Courier', FONT_SIZE * 8 // 10)
     VARIABLE_COLOR = 'brown3'
+    NONLOCAL_VARIABLE_COLOR = 'bisque'
     FOUND_FONT = ('Helvetica', FONT_SIZE)
     FOUND_COLOR = 'green2'
     OPERATIONS_BG = 'beige'
