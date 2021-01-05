@@ -275,35 +275,8 @@ def shellSort(self):
         self.cleanUp(callEnviron)
         return nShifts
 
-    def makeButtons(self, maxRows=3):
-        vcmd = (self.window.register(numericValidate),
-                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows,
-            argHelpText=['item key'], helpText='Insert item in array')
-        searchButton = self.addOperation(
-            "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows,
-            argHelpText=['item key'], helpText='Search for item in array')
-        deleteButton = self.addOperation(
-            "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows,
-            argHelpText=['item key'], helpText='Delete array item')
-        newButton = self.addOperation(
-            "New", lambda: self.clickNew(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows, 
-            argHelpText=['number of cells'],
-            helpText='Create new empty array')
-        randomFillButton = self.addOperation(
-            "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
-            helpText='Fill all array cells with random keys')
-        shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
-            helpText='Shuffle position of all items')
-        deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
-            helpText='Delete last array item')
+    def makeButtons(self, maxRows=4):
+        buttons, vcmd = super().makeButtons(maxRows=maxRows)
         quicksortButton = self.addOperation(
             "Quicksort", lambda: self.quickSort(), maxRows=maxRows,
             helpText='Sort items using quicksort algorithm')
@@ -311,9 +284,7 @@ def shellSort(self):
             "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
             helpText='Sort items using shellsort algorithm')
         self.addAnimationButtons(maxRows=maxRows)
-        buttons = [insertButton, searchButton, deleteButton, newButton, 
-                   randomFillButton, shuffleButton, deleteRightmostButton,
-                   quicksortButton]
+        buttons += [quicksortButton, shellSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
         
 if __name__ == '__main__':
