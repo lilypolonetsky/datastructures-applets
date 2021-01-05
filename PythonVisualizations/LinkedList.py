@@ -272,10 +272,10 @@ class LinkedList(VisualizationApp):
         return val
 
     def outputBoxCoords(self, full=False):
-        return (self.LL_X0 // 2, self.LL_Y0 // 6,
-                self.LL_X0 // 2 + (self.CELL_WIDTH + self.CELL_GAP) *
+        return (self.LL_X0 // 5, self.LL_Y0 // 5,
+                self.LL_X0 // 5 + (self.CELL_WIDTH + self.CELL_GAP) *
                 (self.LEN_ROW if full else 1) - self.CELL_GAP,
-                self.LL_Y0 // 6 + self.CELL_HEIGHT)
+                self.LL_Y0 // 5 + self.CELL_HEIGHT)
 
     def outputLabelCoords(self):
         oBox = self.outputBoxCoords()
@@ -362,7 +362,7 @@ def deleteFirst(self):
         indexCoords = self.indexCoords(-1)
         LBBox = self.canvas.bbox(firstIndex[1])
         indexLabelCoords = V(self.indexLabelCoords(-1)) - V(
-            (LBBox[2] - LBBox[0]) // 2, (LBBox[1] - LBBox[3]) // 2)
+            LBBox[2] - LBBox[0], (LBBox[1] - LBBox[3]) // 2)
         linkCoords = self.linkCoords(-1)
         nextLinkCoords = (
             (self.nextLinkCoords(-1, d=3), ) if first.nextPointer else ())
