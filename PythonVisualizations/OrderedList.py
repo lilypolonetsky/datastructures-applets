@@ -1,14 +1,14 @@
 from tkinter import *
 
-from LinkedList import *
-
 try:
     from drawnValue import *
     from coordinates import *
+    from LinkedList import *
     from VisualizationApp import *
 except ModuleNotFoundError:
     from .drawnValue import *
     from .coordinates import *
+    from .LinkedList import *
     from .VisualizationApp import *
 
 V = vector
