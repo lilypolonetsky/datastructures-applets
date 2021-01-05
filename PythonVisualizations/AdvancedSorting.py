@@ -280,12 +280,21 @@ def shellSort(self):
         quicksortButton = self.addOperation(
             "Quicksort", lambda: self.quickSort(), maxRows=maxRows,
             helpText='Sort items using quicksort algorithm')
+        self.useMedianOf3 = IntVar()
+        self.useMedianOf3.set(1)
+        useMedianOf3Button = self.addOperation(
+            "Use median of 3", self.clickUseMedianOf3, buttonType=Checkbutton,
+            variable=self.useMedianOf3, maxRows=maxRows,
+            helpText='Use median of 3 to select pivot in quicksort algorithm')
         shellSortButton = self.addOperation(
             "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
             helpText='Sort items using shellsort algorithm')
         self.addAnimationButtons(maxRows=maxRows)
         buttons += [quicksortButton, shellSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
+
+    def clickUseMedianOf3(self):
+        pass
         
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
