@@ -35,7 +35,7 @@ class SortingBase(VisualizationApp):
     
     # ANIMATION METHODS
     def assignElement(
-            self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01):
+            self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01, startAngle=0):
         
         fromValue = self.list[fromIndex]
         toValue = self.list[toIndex]
@@ -50,8 +50,12 @@ class SortingBase(VisualizationApp):
         callEnviron |= set(copyItems)
 
         # Move copies to the desired location
-        self.moveItemsTo(copyItems, toPositions, steps=steps,
-                         sleepTime=sleepTime)
+        if startAngle == 0:                                         # move items linearly
+            self.moveItemsTo(copyItems, toPositions, steps=steps,
+                            sleepTime=sleepTime)
+        else:                                                       # move items on curve
+            self.moveItemsOnCurve(copyItems, toPositions, startAngle=startAngle, 
+                                steps=steps, sleepTime=sleepTime)
 
         # delete the original "to" display value and the new display shape
         for item in toValue.items:
@@ -103,7 +107,7 @@ class SortingBase(VisualizationApp):
 
         return drawnValue(fromValue.val, *copyItems), tempLabel
 
-    def assignFromTemp(self, index, temp, templabel):
+    def assignFromTemp(self, index, temp, templabel, delete=True):
 
         toCellCoords = self.fillCoords(temp.val, self.cellCoords(index))
         toCellCenter = self.cellCenter(index)
@@ -115,11 +119,12 @@ class SortingBase(VisualizationApp):
             temp.items, (toCellCoords, toCellCenter), sleepTime=0.04,
             startAngle=startAngle)
 
-        if templabel:
-            self.canvas.delete(templabel)
-        for item in self.list[index].items:
-            if item is not None:
-                self.canvas.delete(item)
+        if delete:
+            if templabel:
+                self.canvas.delete(templabel)
+            for item in self.list[index].items:
+                if item is not None:
+                    self.canvas.delete(item)
         self.list[index] = temp
         
     def swap(self, a, b, aCellObjects=[], bCellObjects=[]):
