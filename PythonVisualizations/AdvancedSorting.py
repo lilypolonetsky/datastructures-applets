@@ -260,6 +260,7 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         
         self.highlightCode('self.swap(hipart, hi)', callEnviron)
         self.swap(hipart, hi)
+        pivotMark = self.createPivotMark(hipart)
 
         for item in pivotPartition:
             if item is not pivotPartition[-1]:
@@ -313,6 +314,20 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
                 self.canvas.coords(
                     item, multiply_vector(self.canvas.coords(item), -1))
         return lbls + (line,)
+    
+    def createPivotMark(
+            self, pivotIndex, font=None, 
+            color=VisualizationApp.VARIABLE_COLOR, tags=['pivotPartition']):
+        if font is None:
+            font = (self.VARIABLE_FONT[0], self.VARIABLE_FONT[1] * 2)
+        cellCoords = self.cellCoords(pivotIndex)
+        markCoords = ((cellCoords[0] + cellCoords[2]) // 2,
+                      cellCoords[3] + abs(font[1]) // 2)
+        mark = self.canvas.create_text(
+            *(markCoords if self.showPartitions else 
+              multipy_vector(markCoords, -1)), tags=tags, text='◭',
+            font=font, fill=color)
+        return mark
 
     def showPartitionsControlCoords(self):
         gap = 10
