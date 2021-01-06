@@ -11,19 +11,37 @@ except ModuleNotFoundError:
       
 
 class AdvancedArraySort(SortingBase):
-    PIVOT_LINE_COLOR = 'VioletRed4'
+    PIVOT_LINE_COLOR = 'VioletRed3'
     PIVOT_LINE_WIDTH = 2
-    PIVOT_LINE_PAD = 3
+    PIVOT_LINE_PAD = 0
 
     def __init__(self, title="Advanced Sorting", **kwargs):
         super().__init__(title=title, **kwargs)
 
+        self.ARRAY_Y0 = 60
+        
         for i in range(self.size):
             self.list.append(drawnValue(random.randrange(self.valMax)))
         self.display()
         
         self.buttons = self.makeButtons()
+        
+    def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
+        return (self.ARRAY_X0 + self.CELL_WIDTH * cell_index, self.ARRAY_Y0,  # at index
+                self.ARRAY_X0 + self.CELL_WIDTH * (cell_index + 1) - self.CELL_BORDER,
+                self.ARRAY_Y0 + 3*self.CELL_SIZE - self.CELL_BORDER)    
 
+    def fillCoords(self, val, rectPos, valMin=0, valMax=None):
+        if valMax is None:
+            valMax = self.valMax
+        x1, y1, x2, y2 = rectPos 
+        minY = (y1 * 8 + y2 * 2) // 10
+        # proportion of what is filled
+        prop = (val - valMin) / (valMax - valMin)
+        y2 = round(minY + prop * (y2 - minY))
+        
+        return (x1, y1, x2, y2)
+        
     def fixGaps(self, toX=SortingBase.ARRAY_X0, toY=SortingBase.ARRAY_Y0):
         done = [False] * len(self.list)
         doneCount = 0
@@ -205,7 +223,9 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
    self.quicksort(hipart + 1, hi, short, key)
 '''
     
-    def quicksort(self, lo=0, hi=None, short=3, code=quicksortCode):
+    def quicksort(
+            self, lo=0, hi=None, short=3, code=quicksortCode,
+            bottomCallEnviron=None):
             
         # Start animation
         wait = 0.1
@@ -213,6 +233,9 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         self.startAnimations()
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=codeWait)
+        if bottomCallEnviron is None:
+            bottomCallEnviron = callEnviron
+            callEnviron |= set(self.createShowPartitionsControl())
         
         loIndex = self.createIndex(lo, 'lo')
         callEnviron |= set(loIndex)
@@ -232,22 +255,23 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         if hi - lo + 1 <= short:
             self.highlightCode('return self.insertionSort(lo, hi, key)',
                                callEnviron, wait=wait)
-            self.fadeNonLocalItems(callEnviron)
+            self.fadeNonLocalItems(loIndex + hiIndex)
             self.insertionSort(lo, hi)
             self.cleanUp(callEnviron, sleepTime=codeWait)
-            self.restoreLocalItems(callEnviron)
+            self.restoreLocalItems(loIndex + hiIndex)
             return
         
         self.highlightCode('pivotItem = self.{}(lo, hi, key)'.format(
             'medianOfThree' if  self.useMedianOf3.get() else 'rightmost'),
                            callEnviron)
-        self.fadeNonLocalItems(callEnviron)
+        self.fadeNonLocalItems(loIndex + hiIndex)
         pivotItem = (self.medianOfThree(lo, hi) if self.useMedianOf3.get() else
                      self.rightmost(lo, hi))
-        self.restoreLocalItems(callEnviron)
+        self.restoreLocalItems(loIndex + hiIndex)
 
         pivotPartition = self.createPivotPartition(lo, hi, pivotItem, hi)
         callEnviron |= set(pivotPartition)
+        bottomCallEnviron.add(pivotPartition[-1])
                 
         self.highlightCode(
             'hipart = self.__part(key(pivotItem), {}, hi - 1, key)'.format(
@@ -260,11 +284,11 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         
         self.highlightCode('self.swap(hipart, hi)', callEnviron)
         self.swap(hipart, hi)
-        pivotMark = self.createPivotMark(hipart)
+        pivotMark = self.createPivotMark(hipart, pivotItem)
+        bottomCallEnviron |= set(pivotMark)
 
-        for item in pivotPartition:
-            if item is not pivotPartition[-1]:
-                self.canvas.delete(item)
+        for item in pivotPartition[:-1]:
+            self.canvas.delete(item)
             callEnviron.discard(item)
 
         self.canvas.tag_raise('pivotPartition')
@@ -272,14 +296,16 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         self.highlightCode('self.quicksort(lo, hipart - 1, short, key)',
                            callEnviron)
         self.fadeNonLocalItems(loIndex + hiIndex)
-        self.quicksort(lo, hipart - 1, short, code)
+        self.quicksort(lo, hipart - 1, short, code, 
+                       bottomCallEnviron=bottomCallEnviron)
         self.restoreLocalItems(loIndex + hiIndex)
         self.canvas.tag_raise('pivotPartition')
 
         self.highlightCode('self.quicksort(hipart + 1, hi, short, key)',
                            callEnviron)
         self.fadeNonLocalItems(loIndex + hiIndex)
-        self.quicksort(hipart + 1, hi, short, code)
+        self.quicksort(hipart + 1, hi, short, code, 
+                       bottomCallEnviron=bottomCallEnviron)
         self.restoreLocalItems(loIndex + hiIndex)
         self.canvas.tag_raise('pivotPartition')
         
@@ -302,7 +328,8 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         height = abs(font[1])
         maxWidth = max(*widths)
         lbls = tuple(self.canvas.create_text(
-            self.ARRAY_X0 - maxWidth // 2, pivotCoords[3] + (i - 1) * height,
+            self.ARRAY_X0 - maxWidth // 2 - 1,
+            pivotCoords[3] + (i - 1) * height,
             text=labels[i], font=font, fill=labelColor)
                   for i in range(len(labels)))
         line = self.canvas.create_line(
@@ -316,18 +343,25 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         return lbls + (line,)
     
     def createPivotMark(
-            self, pivotIndex, font=None, 
+            self, pivotIndex, pivotValue, font=None,
             color=VisualizationApp.VARIABLE_COLOR, tags=['pivotPartition']):
         if font is None:
             font = (self.VARIABLE_FONT[0], self.VARIABLE_FONT[1] * 2)
         cellCoords = self.cellCoords(pivotIndex)
-        markCoords = ((cellCoords[0] + cellCoords[2]) // 2,
-                      cellCoords[3] + abs(font[1]) // 2)
+        fillCoords = self.fillCoords(pivotValue, cellCoords)
+        centerX = (cellCoords[0] + cellCoords[2]) // 2
+        markCoords = (centerX, cellCoords[3] + abs(font[1]) // 2)
         mark = self.canvas.create_text(
-            *(markCoords if self.showPartitions else 
-              multipy_vector(markCoords, -1)), tags=tags, text='◭',
-            font=font, fill=color)
-        return mark
+            *markCoords, tags=tags, text='◭', font=font, fill=color)
+        line = self.canvas.create_line(
+            centerX, fillCoords[3], centerX, cellCoords[3],
+            tags=tags, fill=color, width=self.PIVOT_LINE_WIDTH)
+        items = (mark, line)
+        if not self.showPartitions:
+            for item in items:
+                self.canvas.coords(
+                    item, multiply_vector(self.canvas.coords(item), -1))
+        return items
 
     def showPartitionsControlCoords(self):
         gap = 10
@@ -348,8 +382,10 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
             *add_vector(center, (coords[2] - coords[0], 0)), anchor=W,
             text='Show pivot partitions', fill=self.CONTROLS_COLOR, 
             font=self.CONTROLS_FONT)
-        for item in (box, self.showPartitionsCheck, label):
+        items = (box, self.showPartitionsCheck, label)
+        for item in items:
             self.canvas.tag_bind(item, '<Button>', self.toggleShowPartitons)
+        return items
 
     def toggleShowPartitons(self, event=None):
         self.showPartitions = not self.showPartitions
@@ -468,12 +504,12 @@ def shellSort(self):
 
         nShifts = 0
         while h > 0:
-            outerArrow = self.createIndex(h, name="outer", level=3)
+            outerArrow = self.createIndex(h, name="outer", level=2)
             callEnviron |= set(outerArrow)
             
             for outer in range(h, len(self.list)):
                 # move outer index
-                arrowPos = self.indexCoords(outer, level=3)
+                arrowPos = self.indexCoords(outer, level=2)
                 self.moveItemsTo(outerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
 
                 # assign outer to temp
@@ -484,7 +520,7 @@ def shellSort(self):
 
                 # create the inner index
                 inner = outer
-                innerArrow = self.createIndex(inner, name="inner", level=2)
+                innerArrow = self.createIndex(inner, name="inner", level=1)
                 callEnviron |= set(innerArrow)
                 self.wait(0.2)
 
@@ -497,7 +533,7 @@ def shellSort(self):
 
                     # move the inner index
                     inner -= h
-                    arrowPos = self.indexCoords(inner, level=2)
+                    arrowPos = self.indexCoords(inner, level=1)
                     self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
                     self.wait(0.2)
 
@@ -551,7 +587,7 @@ def shellSort(self):
         useMedianOf3Button = self.addOperation(
             "Use median of 3", self.clickUseMedianOf3, buttonType=Checkbutton,
             variable=self.useMedianOf3, maxRows=maxRows,
-            helpText='Use median of 3 to select pivot in quicksort algorithm')
+            helpText='Use median of 3 to select\npivot in quicksort algorithm')
         shellSortButton = self.addOperation(
             "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
             helpText='Sort items using shellsort algorithm')
@@ -562,7 +598,6 @@ def shellSort(self):
     def clickQuicksort(self):
         self.partitions = []
         self.showPartitions = True
-        self.createShowPartitionsControl()
         self.quicksort(code=self.quicksortCode if self.useMedianOf3.get() else
                        self.quicksortCode.replace('medianOfThree', 'rightmost')
                        .replace('lo + 1,', 'lo,'))
