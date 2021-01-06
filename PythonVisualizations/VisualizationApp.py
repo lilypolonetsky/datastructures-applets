@@ -100,6 +100,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     CODE_HIGHLIGHT = 'yellow'
     EXCEPTION_HIGHLIGHT = 'orange'
     CONTROLS_FONT = ('Helvetica', -12)
+    CONTROLS_COLOR = 'blue'
     HINT_FONT = CONTROLS_FONT + ('italic',)
     HINT_FG = 'blue'
     HINT_BG = 'beige'
@@ -759,6 +760,18 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.canvas.tag_bind(newItem, eventType,
                                  self.canvas.tag_bind(canvasitem, eventType))
         return newItem
+
+    def fadeNonLocalItems(self, items, color=NONLOCAL_VARIABLE_COLOR):
+        'Set fill color of non-local variable canvas items to a faded color'
+        self.setItemsFillColor(items, color)
+        
+    def restoreLocalItems(self, items, color=VARIABLE_COLOR):
+        'Restore fill color of local variable canvas items to normal'
+        self.setItemsFillColor(items, color)
+
+    def setItemsFillColor(self, items, color):
+        for item in items:
+            self.canvas.itemconfigure(item, fill=color)
 
     #####################################################################
     #                                                                   #
