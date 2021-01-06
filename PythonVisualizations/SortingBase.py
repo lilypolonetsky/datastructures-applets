@@ -1,5 +1,4 @@
 import random
-import time
 from tkinter import *
 try:
     from drawnValue import *
@@ -17,6 +16,7 @@ class SortingBase(VisualizationApp):
     FOUND_COLOR = 'brown4'
     nextColor = 0
     CELL_WIDTH = CELL_SIZE
+    CELL_HEIGHT = CELL_SIZE * 5 // 2
     CELL_MIN_WIDTH = 18
     
     def __init__(self, size=10, maxCells=100, valMax=99, **kwargs):
@@ -24,7 +24,8 @@ class SortingBase(VisualizationApp):
         self.size = size
         self.maxCells = maxCells
         self.valMax = valMax
-        self.showValues = True 
+        self.showValues = True
+        self.nItems = None
 
         self.list = []  # Internal array of drawnValue cell values
         
@@ -70,7 +71,7 @@ class SortingBase(VisualizationApp):
     def tempCoords(self, index):  # Determine coordinates for a temporary
         cellCoords = self.cellCoords(index) # variable aligned below an array
         height = cellCoords[3] - cellCoords[1] # cell
-        return add_vector(cellCoords, (0, int(height * 1.6)) * 2)
+        return add_vector(cellCoords, (0, int(height * 1.7)) * 2)
 
     def tempLabelCoords(self, index, font):
         tempPos = self.tempCoords(index)
@@ -302,7 +303,7 @@ def insert(self, item={val}):
         self.list = [
             drawnValue(random.randrange(self.valMax)) for i in range(self.size)]
         
-        self.display()         
+        self.display(showNItems=self.nItems)
         self.cleanUp(callEnviron)
         
     getCode = """
@@ -575,23 +576,25 @@ def traverse(self, function=print):
     def outputBoxSpacing(self, outputFont):
         return self.textWidth(outputFont, self.valMax) + abs(outputFont[1])
     
-    def outputBoxCoords(self, outputFont, padding=10, n=None):
-        if n is None:
-            n = len(self.list)
+    def outputBoxCoords(self, outputFont, padding=10, N=None):
+        '''Coordinates for an output box in lower right of canvas with enough
+        space to hold n values, defaulting to current array length'''
+        if N is None:
+            N = len(self.list)
         spacing = self.outputBoxSpacing(outputFont)
         canvasDims = self.widgetDimensions(self.canvas)
-        left = max(0, canvasDims[0] - n * spacing - padding) // 2
+        left = max(0, canvasDims[0] - N * spacing - padding) // 2
         return (left, canvasDims[1] - abs(outputFont[1]) * 3 - padding,
-                left + n * spacing + padding, canvasDims[1] - padding)
+                left + N * spacing + padding, canvasDims[1] - padding)
        
     def isSorted(self):
         return all(self.list[i-1] <= self.list[i] 
                    for i in range(1, len(self.list)))
         
-    def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
-        return (self.ARRAY_X0 + self.CELL_WIDTH * cell_index, self.ARRAY_Y0,  # at index
-                self.ARRAY_X0 + self.CELL_WIDTH * (cell_index + 1) - self.CELL_BORDER,
-                self.ARRAY_Y0 + 2.5*self.CELL_SIZE - self.CELL_BORDER)    
+    def cellCoords(self, index): # Get bounding rectangle for indexed array cell
+        return (self.ARRAY_X0 + self.CELL_WIDTH * index, self.ARRAY_Y0,
+                self.ARRAY_X0 + self.CELL_WIDTH * (index + 1) - self.CELL_BORDER,
+                self.ARRAY_Y0 + self.CELL_HEIGHT - self.CELL_BORDER)    
     
     def cellCenter(self, cell_index):  # Center point for array cell at index
         x1, y1, x2, y2 = self.cellCoords(cell_index)
@@ -606,14 +609,23 @@ def traverse(self, function=print):
             cell0,
             (canvasDims[0] // 2 - cell0[0], canvasDims[1] - cell0[1]) * 2)
 
-    def createArrayCell(self, index):  # Create a box representing an array cell
+    def cellTag(self, index): # Tag name for a particular cell in an array
+        return "cell-{}".format(index)
+
+    def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
         half_border = self.CELL_BORDER // 2
+        return add_vector(
+            cell_coords,
+            (-half_border, -half_border,
+             self.CELL_BORDER - half_border, self.CELL_BORDER - half_border))
+        
+    def createArrayCell(     # Create a box representing an array cell
+            self, index, tags=["arrayBox"]):
         rect = self.canvas.create_rectangle(
-            *add_vector(cell_coords,
-                        (-half_border, -half_border,
-                         self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)),
-            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, tags="arrayBox")
+            *self.arrayCellCoords(index),
+            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, 
+            tags=tags + [self.cellTag(index)])
         self.canvas.lower(rect)
         return rect        
     
@@ -672,18 +684,16 @@ def traverse(self, function=print):
                         multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
             outline=self.FOUND_COLOR)
     
-    def redrawArrayCells(self):        
-        self.canvas.delete("arrayBox")
-        for i in range(self.size):
-            self.createArrayCell(i)    
+    def redrawArrayCells(self, tag="arrayBox"):
+        self.canvas.delete(tag)
+        self.arrayCells = [self.createArrayCell(i) for i in range(self.size)]
     
     def display(self, showNItems=True):
         # Save any current drawn value colors
         colors = [dValue.color(self.canvas) for dValue in self.list]
         self.canvas.delete("all")
     
-        for i in range(self.size):  # Draw grid of cells
-            self.createArrayCell(i)
+        self.arrayCells = [self.createArrayCell(i) for i in range(self.size)]
     
         # go through each drawnValue in the list
         for i, n in enumerate(self.list):
@@ -691,9 +701,9 @@ def traverse(self, function=print):
             n.items = self.createCellValue(i, n.val, color=colors[i])
 
         # draw an index pointing to the last item in the list
-        if showNItems:
-            self.nItems = self.createIndex(
-                len(self.list), 'nItems', level = -1, color = 'black')
+        self.nItems = self.createIndex(
+            len(self.list), 'nItems', level = -1, color = 'black'
+        ) if showNItems else None
     
         self.window.update()
 
@@ -793,7 +803,8 @@ def traverse(self, function=print):
         
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
-        self.fixCells() 
+        if len(self.callStack) == 0: # When call stack is empty
+            self.fixCells()
         
     def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
