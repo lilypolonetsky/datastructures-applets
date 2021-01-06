@@ -163,7 +163,118 @@ class AdvancedArraySort(SortingBase):
             partition = self.partitionIt(left, right)
             self.__quickSort(callEnviron, left, partition - 1)
             self.__quickSort(callEnviron, partition + 1, right)    
-   
+
+    shellSortCode = """
+def shellSort(self):
+    h = 1
+    while h * 3 < len(self):
+        h = 3 * h + 1
+    nShifts = 0
+    while h > 0:
+        for outer in range(h, len(self)):
+            temp = self.get(outer)
+            inner = outer
+            while inner >= h and temp < self.get(inner-h):
+                self.set(inner, self.get(inner-h))
+                inner -= h
+                nShifts += 1
+            if inner < outer:
+                self.set(inner, temp)
+                nShifts += 1
+        h = (h - 1) // 3
+    return nShifts
+    """
+
+    def shellSort(self):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
+        # calculate h
+        h = 1
+        while h * 3 < len(self.list):
+            h = 3 * h + 1
+        hPos = (self.ARRAY_X0 // 2, self.ARRAY_Y0-40)
+        hText = "h: {}".format(h)
+        hLabel = self.canvas.create_text(
+                *hPos, text=hText, font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+        callEnviron.add(hLabel)
+
+        nShifts = 0
+        while h > 0:
+            outerArrow = self.createIndex(h, name="outer", level=3)
+            callEnviron |= set(outerArrow)
+            
+            for outer in range(h, len(self.list)):
+                # move outer index
+                arrowPos = self.indexCoords(outer, level=3)
+                self.moveItemsTo(outerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
+
+                # assign outer to temp
+                temp = self.list[outer].val
+                tempVal, label = self.assignToTemp(outer, callEnviron, varName="temp")
+                callEnviron.add(label)
+                tempAssigned = False
+
+                # create the inner index
+                inner = outer
+                innerArrow = self.createIndex(inner, name="inner", level=2)
+                callEnviron |= set(innerArrow)
+                self.wait(0.2)
+
+                # after temp is done being used, remove any number that is hidden behind another
+                toBeRemoved = []
+
+                while inner >= h and temp < self.list[inner-h].val:
+                    toBeRemoved += self.list[inner-h].items
+                    self.assignElement(inner-h, inner, callEnviron, sleepTime=0.05, startAngle=90 * 11 / (10 + abs(inner-h)))
+
+                    # move the inner index
+                    inner -= h
+                    arrowPos = self.indexCoords(inner, level=2)
+                    self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
+                    self.wait(0.2)
+
+                    nShifts += 1
+
+                if inner < outer:
+                    self.assignFromTemp(inner, tempVal, None, delete=False)
+                    
+                    # remove any number that is hidden behind another
+                    for item in toBeRemoved:
+                        if item is not None:
+                            self.canvas.delete(item)
+
+                    # Take it out of the cleanup set since it should persist
+                    callEnviron -= set(tempVal.items)
+                    tempAssigned = True
+                    nShifts += 1
+                # finished with outer as temp
+                callEnviron.remove(label)
+                self.canvas.delete(label)
+                if not tempAssigned:
+                    for item in tempVal.items:
+                        if item is not None:
+                            self.canvas.delete(item)
+                # finished with inner index
+                callEnviron ^= set(innerArrow)       
+                self.canvas.delete(innerArrow[0])
+                self.canvas.delete(innerArrow[1])   
+                for item in toBeRemoved:
+                        self.canvas.delete(item)   
+            
+            # change h
+            h = (h - 1) // 3
+            self.canvas.itemconfig(hLabel, text="h: {}".format(h))
+
+            # remove outer arrow
+            callEnviron ^= set(outerArrow)
+            self.canvas.delete(outerArrow[0])
+            self.canvas.delete(outerArrow[1])
+        
+        self.cleanUp(callEnviron)
+        return nShifts
+
     def makeButtons(self, maxRows=3):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
@@ -196,6 +307,9 @@ class AdvancedArraySort(SortingBase):
         quicksortButton = self.addOperation(
             "Quicksort", lambda: self.quickSort(), maxRows=maxRows,
             helpText='Sort items using quicksort algorithm')
+        shellSortButton = self.addOperation(
+            "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
+            helpText='Sort items using shellsort algorithm')
         self.addAnimationButtons(maxRows=maxRows)
         buttons = [insertButton, searchButton, deleteButton, newButton, 
                    randomFillButton, shuffleButton, deleteRightmostButton,

@@ -24,7 +24,8 @@ PREFERRED_ARRANGEMENT = [
      ['Array', 'OrderedArray', 'SimpleArraySort', 'Stack', 'Queue',
       'PriorityQueue', 'InfixCalculator']],
     ['Chapters 5-7',
-     ['LinkedList', 'TowerOfHanoi', 'Mergesort', 'AdvancedArraySort']],
+     ['LinkedList', 'OrderedList', 'TowerOfHanoi', 'MergeSort',
+      'AdvancedArraySort']],
     ['Chapters 8-11',
      ['BinaryTree','Tree234', 'AVLTree', 'RedBlackTree', 'Quadtree']],
     ['Chapters 12-16',
@@ -61,7 +62,7 @@ def findVisualizations(filesAndDirectories, verbose=0):
                     classes |= set(findVisualizationClasses(
                         module, verbose=verbose))
                 except ModuleNotFoundError:
-                    if verbose > 1:
+                    if verbose > 0:
                         print('Unable to import module', modulename,
                               file=sys.stderr)
     return classes
