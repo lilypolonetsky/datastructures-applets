@@ -147,7 +147,7 @@ def peek(self):
         self.highlightCode('self.__que[self.__front]', callEnviron)
         # draw output box using smaller font than values
         font = (self.VALUE_FONT[0], - abs(self.VALUE_FONT[1]) * 3 // 4)
-        outputBoxCoords = self.outputBoxCoords(font, n=1)
+        outputBoxCoords = self.outputBoxCoords(font, N=1)
         outputBox = self.canvas.create_rectangle(
             *outputBoxCoords, fill=self.OPERATIONS_BG)
         callEnviron.add(outputBox)
@@ -226,6 +226,7 @@ def __init__(self, size={val}, pri=identity):
         except UserStop:
             wait = 0
 
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
     removeCode = '''

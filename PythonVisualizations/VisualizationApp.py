@@ -137,6 +137,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.window = Tk()
             if title:
                 self.window.title(title)
+        self.targetCanvasWidth = canvasWidth
+        self.targetCanvasHeight = canvasHeight
         self.canvas = Canvas(
             self.window, width=canvasWidth, height=canvasHeight,
             bg=self.DEFAULT_BG)
@@ -362,10 +364,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
         return Ehandler
     
     def returnPressed(self, event):  # Handle press of Return/Enter in text
-        if hasattr(event.widget, 'last_button'): # entry argument widget
-            button = getattr(event.widget, 'last_button')
+        button = getattr(            # entry argument widget.
+            event.widget, 'last_button', None)
+        if button:                   # If last_button attribute is defined
             if self.widgetState(button) == NORMAL:
-                self.widgetState(
+                self.widgetState(    # Re-do button press
                     button, 
                     'pressed' if isinstance(button, ttk.Button) else ACTIVE)
                 self.window.update()
@@ -375,7 +378,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     '!pressed' if isinstance(button, ttk.Button) else NORMAL)
                 button.invoke()
                 
-    def addAnimationButtons(self, maxRows=4):
+    def addAnimationButtons(self, maxRows=4, setDefaultButton=True):
         self.pauseButton = self.addOperation(
             "Pause", lambda: self.onClick(self.pause, self.pauseButton),
             cleanUpBefore=False, maxRows=maxRows,
@@ -386,6 +389,17 @@ class VisualizationApp(object):  # Base class for Python visualizations
             cleanUpBefore=False, maxRows=maxRows,
             helpText='Stop animation')
         self.widgetState(self.stopButton, DISABLED)
+        if setDefaultButton and self.textEntries:
+            if isinstance(setDefaultButton, self.buttonTypes):
+                setattr(self.textEntries[0], 'last_button', setDefaultButton)
+            else:
+                gridItems = gridDict(self.operations)
+                nColumns, nRows = self.operations.grid_size()
+                withArgument = [
+                    gridItems[0, row] for row in range(nRows)
+                    if isinstance(gridItems[0, row], self.buttonTypes)]
+                if len(withArgument) == 1:
+                    setattr(self.textEntries[0], 'last_button', withArgument[0])
         
     def runOperation(self, command, cleanUpBefore, button=None):
         def animatedOperation(): # If button that uses arguments is provided,
@@ -450,7 +464,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             
     def setMessage(self, val=''):
         self.outputText.set(val)
-
+        
+    vScrollWidth = 10      # Guess for width of vertical scrollbar width
+    
     def showCode(self,     # Show algorithm code in a scrollable text box
                  code,     # Code to display, plus optional boundary line
                  addBoundary=False, # to separate calls on the stack
@@ -461,14 +477,20 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if len(code) == 0:  # Empty code string?
             return          # then nothing to show
         if self.codeText is None:
+            padX, padY = 10, 10
+            self.codeTextCharWidth = self.textWidth( 
+                self.CODE_FONT, '0123456789') // 10
+            self.codeVScroll = Scrollbar(self.codeFrame, orient=VERTICAL)
+            self.vScrollWidth = max(
+                self.vScrollWidth, self.codeVScroll.winfo_width())
+            width = self.codeTextWidth(padX, self.vScrollWidth)
             self.codeText = Text(
                 self.codeFrame, wrap=NONE, background=self.OPERATIONS_BG,
-                font=self.CODE_FONT, width=self.MIN_CODE_CHARACTER_WIDTH * 2,
-                height=self.MIN_CODE_CHARACTER_HEIGHT, padx=10, pady=10,
+                font=self.CODE_FONT, width=width,
+                height=self.MIN_CODE_CHARACTER_HEIGHT, padx=padX, pady=padY,
                 takefocus=False)
             self.codeText.grid(row=0, column=0, sticky=(N, E, S, W))
-            self.codeVScroll = Scrollbar(
-                self.codeFrame, orient=VERTICAL, command=self.codeText.yview)
+            self.codeVScroll['command'] = self.codeText.yview
             self.codeVScroll.grid(row=0, column=1, rowspan=2, sticky=(N, S))
             self.codeHScroll = Scrollbar(
                 self.codeFrame, orient=HORIZONTAL, command=self.codeText.xview)
@@ -479,8 +501,6 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.tag_config('call_stack_boundary',
                                      font=self.CODE_FONT + ('overstrike',),
                                      background=self.CALL_STACK_BOUNDARY)
-            self.codeTextCharWidth = self.textWidth( 
-                self.CODE_FONT, '0123456789') // 10
         
         self.codeText.configure(state=NORMAL)
         
@@ -501,10 +521,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.codeText.insert('1.0', code + '\n')
         if self.codeText:
             self.codeText.see('1.0')
-        # Doing a window update here causes multiple resize events
-        # self.window.update()
-        self.resizeCodeText() # Set up initial codeText size
-        self.window.update()  # Doing the update here is OK
+            
+        # Doing a window update here can cause multiple resize events
+        self.window.update()
         
         # Tag the snippets with unique tag name
         if self.codeText:
@@ -512,42 +531,58 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.codeText.tag_add(prefix + tagName, *snippets[tagName])
             self.codeText.configure(state=DISABLED)
 
-    def resizeCodeText(self, event=None):
-        if False:      # Set true for debugging printout
-            print('Call to resizeCodeText, codeText =', self.codeText,
+    def codeTextWidth(      # Compute width available for code text
+            self,           # This can be called before the codeText widget
+            padX,           # is created. Provide padX setting for codeText
+            vScrollWidth,   # and vertical scroll bar width
+            debug=False):   # Set true for debugging printout
+
+        mainWidth = self.window.winfo_width()
+        upperWidth = self.operationsUpper.winfo_width()
+        lowerWidth = self.operationsLower.winfo_width()
+        if mainWidth < max(upperWidth, lowerWidth) or mainWidth == 1:
+            mainWidth = self.targetCanvasWidth
+            lowerWidth = 500
+        available = (mainWidth - max(upperWidth, lowerWidth) -
+                     vScrollWidth - padX * 2)
+        desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
+                              available // self.codeTextCharWidth))
+        if debug:     # Set true for debugging printout
+            print('Call to codeTextWidth, codeText =', self.codeText,
                   'which {} mapped'.format(
-                      'is' if self.codeText.winfo_ismapped() else 'is not'))
+                      'is' if self.codeText and self.codeText.winfo_ismapped()
+                      else 'is not'),
+                  '\nDetermining codeText width based on window width =', 
+                  self.window.winfo_width(),
+                  '\noperationsUpper width =',
+                  self.operationsUpper.winfo_width(), 
+                  'operationsLower width =', self.operationsLower.winfo_width(),
+                  '\nVScroll width =', vScrollWidth,
+                  'padX =', padX, 'available pixels =', available,
+                  'codeText character width =', self.codeTextCharWidth,
+                  '\ndesired width in characters =', desired)
+        return desired
+        
+    def resizeCodeText(self, event=None, debug=False):
         if self.codeText is None or not self.codeText.winfo_ismapped():
             return
         ct = self.codeText
         nCharsWide = ct['width']
         padX = ct['padx']
-        available = (self.window.winfo_width() -
-                     max(self.operationsUpper.winfo_width(),
-                         self.operationsLower.winfo_width()) -
-                          self.codeVScroll.winfo_width() - padX * 2)
-        desired = min(80, max(self.MIN_CODE_CHARACTER_WIDTH, 
-                              available // self.codeTextCharWidth))
+        self.vScrollWidth = max(
+            self.vScrollWidth, self.codeVScroll.winfo_width())
+        desired = self.codeTextWidth(padX, self.vScrollWidth, debug)
         timeout_ID = getattr(self.codeText, 'timeout_ID', None)
         skip = event is not None and timeout_ID is not None
         if False:     # Set true for debugging printout
-            print('Resize codeText request based on', event,
-                  'window width =', self.window.winfo_width(),
-                  '\noperationsUpper width =',
-                  self.operationsUpper.winfo_width(), 
-                  'operationsLower width =', self.operationsLower.winfo_width(),
-                  '\nVScroll width =', self.codeVScroll.winfo_width(),
-                  'padX =', padX, 'available pixels =', available,
-                  '\ncurrent width in characters =', nCharsWide,
-                  'desired width in characters =', desired)
-            if skip:
+            print('Current width is', nCharsWide, 'and desired is', desired)
+            if skip and desired != nCharsWide:
                 print('Skipping resize whiler timer {} running'.format(
                     timeout_ID))
         if not skip and desired != nCharsWide:
             ct['width'] = desired
 
-    def highlightCode(
-            self, fragments, callEnviron, wait=0, color=CODE_HIGHLIGHT):
+    def highlightCode(self, fragments, callEnviron, wait=0, color=None):
         '''Highlight a code fragment for a particular call environment.
         Multiple fragments can be highlighted.  Each fragment can be
         either a string of code, or a (string, int) tuple where the int
@@ -556,15 +591,18 @@ class VisualizationApp(object):  # Base class for Python visualizations
         codeBlock = self.getCodeHighlightBlock(callEnviron)
         if codeBlock is None:  # This shouldn't happen, but...
             return
+        if color is None:
+            color = self.CODE_HIGHLIGHT
         if isinstance(fragments, (list, tuple, set)):
-            if (len(fragments) == 2 and
+            if (len(fragments) == 2 and   # Look for (str, int) pair
                 isinstance(fragments[0], str) and
                 isinstance(fragments[1], int)):
-                tags = [ codeBlock[fragments[0], fragments[1]] ]
+                tags = [codeBlock[fragments]] # Look up by (str, int) pair
             else:
                 tags = [
                     codeBlock[tuple(frag)] if isinstance(frag, (list, tuple))
-                    else codBlock.tag(fragment) for frag in fragments]
+                    else codeBlock[frag] 
+                    for frag in fragments]
         else:
             tags = [codeBlock[fragments]]
         found = False       # Assume tag not found

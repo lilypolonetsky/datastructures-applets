@@ -1,5 +1,4 @@
 import random
-import time
 from tkinter import *
 try:
     from drawnValue import *
@@ -21,104 +20,6 @@ class AdvancedArraySort(SortingBase):
         self.display()
         
         self.buttons = self.makeButtons()
-    
-    # SORTING METHODS 
-    def split(self, index, start=0, end=-1):
-        if end == -1: end = len(self.list) - 1
-        # get the y coordinates of the next level down
-        toY = self.canvas.coords(self.list[start].items[0])[1] + self.CELL_SIZE + 15
-        xspeed = -0.5
-        yspeed = 2
-        # while the cells have not been moved to the new y-coord,
-        while self.canvas.coords(self.list[start].items[0])[1] < toY:
-            for i in range(start, end + 1):
-                self.moveItemsBy(
-                    self.list[i].items,
-                    (xspeed, yspeed) if i <= index else (-xspeed, yspeed),
-                    sleepTime=0.01)
-
-            self.wait(0.01)
-            time.sleep(self.speed(0.01))
-
-    def merge(self, startA, startB, endB):
-        # endA and endB are inclusive
-        endA = startB - 1
-        # create a list to hold the merged lists
-        temp = [None] * (endB - startA + 1)
-        curTemp = 0
-        curA, curB = startA, startB
-        dy = -2
-        # calculate the toY position - if the sublists are on equal levels, then merge them upwards
-        # to the next level up. if the sublists are on different levels, move the lower on up to the
-        # level of the higher one.
-        toY = max(self.canvas.coords(self.list[startA].items[0])[1],
-                  self.canvas.coords(self.list[startB].items[0])[1])
-        if (toY == self.canvas.coords(self.list[startA].items[0])[1] and
-            toY == self.canvas.coords(self.list[startB].items[0])[1]):
-            toY -= self.CELL_SIZE + 15
-        # calculate the desired toX position
-        toX = self.canvas.coords(self.list[startA].items[0])[0] - (
-            -0.5 / -dy) * (self.CELL_SIZE + 15)  # -1 is the current dx in split
-        curItems = ()
-        # while you haven't gotten to the end of either sublist, select the smaller element from the front
-        # of the two sublists and copy it to the next open position in the temp list
-        while curA <= endA and curB <= endB:
-            if self.list[curA].val <= self.list[curB].val:
-                temp[curTemp] = self.list[curA]
-                curItems = self.list[curA].items
-                curA += 1
-            else:
-                temp[curTemp] = self.list[curB]
-                curItems = self.list[curB].items
-                curB += 1
-            # move the selected element up to the level of the merged lists
-            self.moveUp(dy, toX, toY, curItems)
-            curTemp += 1
-            toX += self.CELL_SIZE
-
-        # add on the remainder of the unfinished list to the merged list
-        while curA <= endA:
-            temp[curTemp] = self.list[curA]
-            curItems = self.list[curA].items
-            curA += 1
-            self.moveUp(dy, toX, toY, curItems)
-            curTemp += 1
-            toX += self.CELL_SIZE
-
-        while curB <= endB:
-            temp[curTemp] = self.list[curB]
-            curItems = self.list[curB].items
-            curB += 1
-            self.moveUp(dy, toX, toY, curItems)
-            curTemp += 1
-            toX += self.CELL_SIZE
-
-        # copy the merged sublist into the real list
-        curTemp = 0
-        for i in range(startA, endB + 1):
-            self.list[i] = temp[curTemp]
-            curTemp += 1
-        # garbage collection
-        temp = None
-        
-    def mergeSort(self):
-        self.__mergeSort()
-        self.fixGaps()
-        
-    def __mergeSort(self, l=0, r=-1):
-        if r == -1: r = len(self.list) - 1
-        if l < r:
-            # Same as (l+r)/2, but avoids overflow for
-            # large l and h
-            m = (l + r) // 2
-            # Sort first and second halves
-            self.split(m, l, r)
-            self.__mergeSort(l, m)
-            self.__mergeSort(m + 1, r)
-            self.merge(l, m + 1, r)
-            if not running:
-                self.stopMergeSort()
-                return
 
     def fixGaps(self, toX=SortingBase.ARRAY_X0, toY=SortingBase.ARRAY_Y0):
         done = [False] * len(self.list)
@@ -152,6 +53,8 @@ class AdvancedArraySort(SortingBase):
                         doneCount += 1
                         done[i] = True
             self.wait(0.01)
+    
+    # SORTING METHODS 
 
     def drawPartition(self, left, right):
         bottom = self.canvas.create_line(self.ARRAY_X0 + self.CELL_WIDTH*left, self.ARRAY_Y0 + self.CELL_SIZE + 90,
@@ -260,7 +163,118 @@ class AdvancedArraySort(SortingBase):
             partition = self.partitionIt(left, right)
             self.__quickSort(callEnviron, left, partition - 1)
             self.__quickSort(callEnviron, partition + 1, right)    
-   
+
+    shellSortCode = """
+def shellSort(self):
+    h = 1
+    while h * 3 < len(self):
+        h = 3 * h + 1
+    nShifts = 0
+    while h > 0:
+        for outer in range(h, len(self)):
+            temp = self.get(outer)
+            inner = outer
+            while inner >= h and temp < self.get(inner-h):
+                self.set(inner, self.get(inner-h))
+                inner -= h
+                nShifts += 1
+            if inner < outer:
+                self.set(inner, temp)
+                nShifts += 1
+        h = (h - 1) // 3
+    return nShifts
+    """
+
+    def shellSort(self):
+        callEnviron = self.createCallEnvironment()
+        self.startAnimations()
+
+        # calculate h
+        h = 1
+        while h * 3 < len(self.list):
+            h = 3 * h + 1
+        hPos = (self.ARRAY_X0 // 2, self.ARRAY_Y0-40)
+        hText = "h: {}".format(h)
+        hLabel = self.canvas.create_text(
+                *hPos, text=hText, font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+        callEnviron.add(hLabel)
+
+        nShifts = 0
+        while h > 0:
+            outerArrow = self.createIndex(h, name="outer", level=3)
+            callEnviron |= set(outerArrow)
+            
+            for outer in range(h, len(self.list)):
+                # move outer index
+                arrowPos = self.indexCoords(outer, level=3)
+                self.moveItemsTo(outerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
+
+                # assign outer to temp
+                temp = self.list[outer].val
+                tempVal, label = self.assignToTemp(outer, callEnviron, varName="temp")
+                callEnviron.add(label)
+                tempAssigned = False
+
+                # create the inner index
+                inner = outer
+                innerArrow = self.createIndex(inner, name="inner", level=2)
+                callEnviron |= set(innerArrow)
+                self.wait(0.2)
+
+                # after temp is done being used, remove any number that is hidden behind another
+                toBeRemoved = []
+
+                while inner >= h and temp < self.list[inner-h].val:
+                    toBeRemoved += self.list[inner-h].items
+                    self.assignElement(inner-h, inner, callEnviron, sleepTime=0.05, startAngle=90 * 11 / (10 + abs(inner-h)))
+
+                    # move the inner index
+                    inner -= h
+                    arrowPos = self.indexCoords(inner, level=2)
+                    self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
+                    self.wait(0.2)
+
+                    nShifts += 1
+
+                if inner < outer:
+                    self.assignFromTemp(inner, tempVal, None, delete=False)
+                    
+                    # remove any number that is hidden behind another
+                    for item in toBeRemoved:
+                        if item is not None:
+                            self.canvas.delete(item)
+
+                    # Take it out of the cleanup set since it should persist
+                    callEnviron -= set(tempVal.items)
+                    tempAssigned = True
+                    nShifts += 1
+                # finished with outer as temp
+                callEnviron.remove(label)
+                self.canvas.delete(label)
+                if not tempAssigned:
+                    for item in tempVal.items:
+                        if item is not None:
+                            self.canvas.delete(item)
+                # finished with inner index
+                callEnviron ^= set(innerArrow)       
+                self.canvas.delete(innerArrow[0])
+                self.canvas.delete(innerArrow[1])   
+                for item in toBeRemoved:
+                        self.canvas.delete(item)   
+            
+            # change h
+            h = (h - 1) // 3
+            self.canvas.itemconfig(hLabel, text="h: {}".format(h))
+
+            # remove outer arrow
+            callEnviron ^= set(outerArrow)
+            self.canvas.delete(outerArrow[0])
+            self.canvas.delete(outerArrow[1])
+        
+        self.cleanUp(callEnviron)
+        return nShifts
+
     def makeButtons(self, maxRows=3):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
@@ -293,6 +307,9 @@ class AdvancedArraySort(SortingBase):
         quicksortButton = self.addOperation(
             "Quicksort", lambda: self.quickSort(), maxRows=maxRows,
             helpText='Sort items using quicksort algorithm')
+        shellSortButton = self.addOperation(
+            "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
+            helpText='Sort items using shellsort algorithm')
         self.addAnimationButtons(maxRows=maxRows)
         buttons = [insertButton, searchButton, deleteButton, newButton, 
                    randomFillButton, shuffleButton, deleteRightmostButton,

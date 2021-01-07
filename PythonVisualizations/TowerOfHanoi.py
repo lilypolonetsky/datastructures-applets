@@ -109,22 +109,23 @@ def reset(self):
             self.__stacks[spindle].push(disk)
 '''
 
-    def setupDisks(self, nDisks):
+    def setupDisks(self, nDisks, code=_init__Code):
+        wait = 0.05
         callEnviron = None
         if nDisks > 0:
             self.startAnimations()
             callEnviron = self.createCallEnvironment(
-                self._init__Code.format(**locals()))
+                code.format(**locals()), sleepTime=wait / 5)
 
         self.spindles = [[] for _ in range(3)]   # Prepare to create spindles
-        wait = 0.05
         if callEnviron:
             self.highlightCode('self.__stacks = [None] * 3', callEnviron, wait)
             self.highlightCode("self.__labels = ['L', 'M', 'R']",
                                callEnviron, wait)
             self.highlightCode('self.__nDisks = nDisks', callEnviron, wait)
             self.highlightCode('self.reset()', callEnviron, wait)
-            callEnviron2 = self.createCallEnvironment(self.resetCode)
+            callEnviron2 = self.createCallEnvironment(
+                self.resetCode, sleepTime=wait / 5)
             self.highlightCode('spindle in range(3)', callEnviron2)
 
         self.disks = [None] * nDisks # Prepare to create disks
@@ -153,9 +154,9 @@ def reset(self):
                 self.updateSpindles(spindle)
 
         if callEnviron:
-            self.cleanUp(callEnviron2)
+            self.cleanUp(callEnviron2, sleepTime=wait / 5)
             self.highlightCode([], callEnviron, wait)
-            self.cleanUp(callEnviron)
+            self.cleanUp(callEnviron, sleepTime=wait / 5)
 
     def createSpindleDrawing(self, index):
         tags = ('spindle', self.spindleTag(index))
@@ -428,7 +429,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
         highlightWait = 0.08
         moveWait = 0.01
         callEnviron = self.createCallEnvironment(
-            self.solveCode.format(**locals()))
+            self.solveCode.format(**locals()), sleepTime=moveWait)
         labels = ('start', 'goal', 'spare')
         labelPositions = list(zip(labels, (start, goal, spare)))
         for label, pos in labelPositions:
