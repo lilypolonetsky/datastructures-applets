@@ -59,7 +59,6 @@ class AVLTree(BinaryTreeBase):
          self.setLeftChild(node, newLeft)
          self.restoreNodesPosition([newLeft], sleepTime=.01)
          self.redrawLines()
-         print(node,"left is", newLeft)  
 
           # If insert made node left heavy
          if self.heightDiff(node) > 1:
@@ -76,8 +75,7 @@ class AVLTree(BinaryTreeBase):
          newRight, flag = self.__insert(self.getRightChild(node), key)
          self.setRightChild(node, newRight)
          self.restoreNodesPosition([newRight], sleepTime=.01)
-         self.redrawLines()
-         print(node,"right is", newRight)     
+         self.redrawLines()  
          
          # If insert made node right heavy
          if self.heightDiff(node) < -1:                     
@@ -87,7 +85,7 @@ class AVLTree(BinaryTreeBase):
                    
             node = self.rotateLeft( # Correct right heavy tree by
                node)          # rotating left around this node
-       
+      self.cleanUp(callEnviron)
       return node, flag       # Return the updated node & insert flag
 
    def __drawHeight(self, node):
@@ -95,6 +93,15 @@ class AVLTree(BinaryTreeBase):
       x, y = self.calculateCoordinates(self.getParent(node), self.getLevel(node), self.getChildDirection(node))
 
       return self.canvas.create_text(x, y- 1.5*self.CIRCLE_SIZE, text = str(height), tags = (node.tag, "height"))
+
+   # override height from BinaryTreeBase.py
+   def getHeight(self, node):
+        if not node: return 0
+
+        rightChild = self.getRightChild(node)
+        leftChild = self.getLeftChild(node)
+
+        return max(self.getHeight(rightChild), self.getHeight(leftChild)) + 1
 
    # display the height of the given node
    def __displayHeight(self, left, right):
