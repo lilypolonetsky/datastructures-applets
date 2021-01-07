@@ -155,6 +155,8 @@ def __part(self, pivot={pivot}, lo={lo}, hi={hi}, key=identity):
         wait = 0.1
         codeWait = 0.01
         self.startAnimations()
+        if not self.useMedianOf3.get():
+            code = code.replace('pivot <', 'lo < hi and pivot <')
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=codeWait)
         
@@ -176,15 +178,21 @@ def __part(self, pivot={pivot}, lo={lo}, hi={hi}, key=identity):
                 self.highlightCode('key(self.get(lo)) < pivot', callEnviron,
                                    wait=wait)
 
-            self.highlightCode('pivot < key(self.get(hi))', callEnviron,
-                               wait=wait)
-            while hi > lo and pivot < self.list[hi].val:
+            if not self.useMedianOf3.get():
+                self.highlightCode('lo < hi', callEnviron, wait=wait)
+            if lo < hi or self.useMedianOf3.get():
+                self.highlightCode('pivot < key(self.get(hi))', callEnviron,
+                                   wait=wait)
+            while lo < hi and pivot < self.list[hi].val:
                 self.highlightCode('hi -= 1', callEnviron)
                 hi -= 1
                 self.moveItemsBy(hiIndex, leftDelta, sleepTime=wait / 10)
                 
-                self.highlightCode('pivot < key(self.get(hi))', callEnviron,
-                                   wait=wait)
+                if not self.useMedianOf3.get():
+                    self.highlightCode('lo < hi', callEnviron, wait=wait)
+                if lo < hi or self.useMedianOf3.get():
+                    self.highlightCode('pivot < key(self.get(hi))', callEnviron,
+                                       wait=wait)
                 
             self.highlightCode('lo >= hi', callEnviron, wait=wait)
             if lo >= hi:
@@ -257,8 +265,8 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
                                callEnviron, wait=wait)
             self.fadeNonLocalItems(loIndex + hiIndex)
             self.insertionSort(lo, hi)
-            self.cleanUp(callEnviron, sleepTime=codeWait)
             self.restoreLocalItems(loIndex + hiIndex)
+            self.cleanUp(callEnviron, sleepTime=codeWait)
             return
         
         self.highlightCode('pivotItem = self.{}(lo, hi, key)'.format(
@@ -281,6 +289,8 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         hipart = self.partition(
             pivotItem, lo + (1 if self.useMedianOf3.get() else 0), hi - 1)
         self.restoreLocalItems(loIndex + hiIndex)
+        hipartIndex = self.createIndex(hipart, 'hipart', level=2)
+        callEnviron |= set(hipartIndex)
         
         self.highlightCode('self.swap(hipart, hi)', callEnviron)
         self.swap(hipart, hi)
@@ -295,18 +305,18 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         self.partitions.append(pivotPartition[-1])
         self.highlightCode('self.quicksort(lo, hipart - 1, short, key)',
                            callEnviron)
-        self.fadeNonLocalItems(loIndex + hiIndex)
+        self.fadeNonLocalItems(loIndex + hiIndex + hipartIndex)
         self.quicksort(lo, hipart - 1, short, code, 
                        bottomCallEnviron=bottomCallEnviron)
-        self.restoreLocalItems(loIndex + hiIndex)
+        self.restoreLocalItems(loIndex + hiIndex + hipartIndex)
         self.canvas.tag_raise('pivotPartition')
 
         self.highlightCode('self.quicksort(hipart + 1, hi, short, key)',
                            callEnviron)
-        self.fadeNonLocalItems(loIndex + hiIndex)
+        self.fadeNonLocalItems(loIndex + hiIndex + hipartIndex)
         self.quicksort(hipart + 1, hi, short, code, 
                        bottomCallEnviron=bottomCallEnviron)
-        self.restoreLocalItems(loIndex + hiIndex)
+        self.restoreLocalItems(loIndex + hiIndex + hipartIndex)
         self.canvas.tag_raise('pivotPartition')
         
         # Finish animation
