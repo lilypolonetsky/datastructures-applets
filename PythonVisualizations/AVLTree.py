@@ -22,13 +22,25 @@ class AVLTree(BinaryTreeBase):
       self.emptyTree()
 
    def randomFill(self, numNodes):
-      pass
+      callEnviron = self.createCallEnvironment()
 
-   def insert(self, key):
+      # empty the tree
+      self.emptyTree()
+
+      #randomly generate a tree
+      nums = list(range(1, 99))
+      random.shuffle(nums)
+      while self.size < numNodes and nums:
+         num = nums.pop()
+         self.insert(nums.pop(), animation=False)
+
+      self.cleanUp(callEnviron)
+
+   def insert(self, key, animation=True):
       callEnviron = self.createCallEnvironment()
       self.startAnimations()
 
-      root, flag = self.__insert(self.getRoot(), key)
+      root, flag = self.__insert(self.getRoot(), key, animation=animation)
       self.setRoot(root)
       self.redrawNodes()
       self.drawAllLines()
@@ -37,7 +49,7 @@ class AVLTree(BinaryTreeBase):
       self.cleanUp(callEnviron)
       return flag
 
-   def __insert(self, node, key):
+   def __insert(self, node, key,animation=True):
       callEnviron = self.createCallEnvironment()
       self.startAnimations()
 
@@ -55,36 +67,38 @@ class AVLTree(BinaryTreeBase):
       # Does the key belong in left subtree?
       elif key < node.getKey():
          # insert on left and update the left link
-         newLeft, flag = self.__insert(self.getLeftChild(node), key)
+         newLeft, flag = self.__insert(self.getLeftChild(node), key, animation=animation)
          self.setLeftChild(node, newLeft)
-         self.restoreNodesPosition([newLeft], sleepTime=.01)
-         self.redrawLines()
+
+         if animation:
+            self.restoreNodesPosition([newLeft], sleepTime=.01)
+            self.redrawLines()
 
           # If insert made node left heavy
          if self.heightDiff(node) > 1:
             leftChild = self.getLeftChild(node)
-            if leftChild.getKey() < key:                             # If inside grandchild inserted,
-               self.setLeftChild(node, self.rotateLeft(leftChild))   # then raise grandchild   
+            if leftChild.getKey() < key:                             
+               self.setLeftChild(node, self.rotateLeft(leftChild, animation=animation))  
                    
-            node = self.rotateRight(                           # Correct left heavy tree by
-               node)                                           # rotating right around this node
+            node = self.rotateRight(node, animation=animation)                                           
           
       # Otherwise key belongs in right subtree
       else:
          # Insert it on right and update the right link 
-         newRight, flag = self.__insert(self.getRightChild(node), key)
+         newRight, flag = self.__insert(self.getRightChild(node), key, animation=animation)
          self.setRightChild(node, newRight)
-         self.restoreNodesPosition([newRight], sleepTime=.01)
-         self.redrawLines()  
+         
+         if animation:
+            self.restoreNodesPosition([newRight], sleepTime=.01)
+            self.redrawLines()  
          
          # If insert made node right heavy
          if self.heightDiff(node) < -1:                     
             rightChild = self.getRightChild(node)
-            if key < rightChild.getKey():                               # If inside grandchild inserted,
-               self.setRightChild(node, self.rotateRight(rightChild))   # then raise grandchild
+            if key < rightChild.getKey():
+               self.setRightChild(node, self.rotateRight(rightChild, animation= animation))
                    
-            node = self.rotateLeft( # Correct right heavy tree by
-               node)          # rotating left around this node
+            node = self.rotateLeft(node, animation=animation)
       self.cleanUp(callEnviron)
       return node, flag       # Return the updated node & insert flag
 
@@ -138,14 +152,18 @@ class AVLTree(BinaryTreeBase):
                 self.setMessage("Input value must be an integer from 0 to 99.")
 
    def clickInsert(self):
-        val = self.validArgument()
-        if val:
-            self.insert(val)
-            self.window.update()
-        self.clearArgument()
+      val = self.validArgument()
+      if val:
+         self.insert(val)
+         self.window.update()
+      self.clearArgument()
 
    def clickRandomFill(self):
-      pass
+      val = self.validArgument()
+      if val:
+         self.randomFill(val)
+         self.window.update()
+      self.clearArgument()
 
    def makeButtons(self):
       vcmd = (self.window.register(numericValidate),

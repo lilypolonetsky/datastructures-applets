@@ -533,7 +533,7 @@ class BinaryTreeBase(VisualizationApp):
         for node in nodeList:
             self.removeNodeInternal(node)
 
-    def rotateLeft(self, top):
+    def rotateLeft(self, top, animation=True):
         "rotate a subtree to the left in the array and animate it"
         # the node to raise it top's right child
         toRaise = self.getRightChild(top)
@@ -558,14 +558,13 @@ class BinaryTreeBase(VisualizationApp):
         # move top's left subtree over
         self.moveSubtree(self.getLeftChildIndex(top), topLeftTree)
 
-        self.restoreNodesPosition([toRaise] + self.getAllDescendants(toRaise), sleepTime=.05)
+        if animation:
+            self.restoreNodesPosition([toRaise] + self.getAllDescendants(toRaise), sleepTime=.05)
         
         # Return raised node to update parent
         return toRaise                                           
 
-    # TODO: Modify restoreNodesPosition to move lines too
-
-    def rotateRight(self, top):
+    def rotateRight(self, top, animation=True):
         "rotate a subtree to the right in the array and animate it"
         # the node to raise it top's left child
         toRaise = self.getLeftChild(top)
@@ -590,7 +589,8 @@ class BinaryTreeBase(VisualizationApp):
         # move top's right subtree over
         self.moveSubtree(self.getRightChildIndex(top), topRightTree)
 
-        self.restoreNodesPosition([toRaise] + self.getAllDescendants(toRaise), sleepTime=.05)
+        if animation:
+            self.restoreNodesPosition([toRaise] + self.getAllDescendants(toRaise), sleepTime=.05)
         # Return raised node to update parent
         return toRaise                                            
 
