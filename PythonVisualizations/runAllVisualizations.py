@@ -40,10 +40,6 @@ def findVisualizations(filesAndDirectories, verbose=0):
     classes = set()
     for fileOrDir in filesAndDirectories:
         isDir = os.path.isdir(fileOrDir)
-        if verbose > 1:
-            print('Looking for "runVisualization()" in',
-                  'python files in {}'.format(fileOrDir) if isDir else isDir,
-                  file=sys.stderr)
         files = glob.glob(os.path.join(fileOrDir, '*.py')) if isDir else [
                    fileOrDir]
         if verbose > 1:
