@@ -1,5 +1,6 @@
 from tkinter import *
-import time, random
+import random
+import sys
 
 try:
     from drawable import *
@@ -182,5 +183,7 @@ class AVLTree(BinaryTreeBase):
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
     tree = AVLTree()
-
+    for arg in sys.argv[1:]:
+        tree.setArgument(arg)
+        tree.clickInsert()
     tree.runVisualization()
