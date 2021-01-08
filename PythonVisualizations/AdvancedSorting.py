@@ -279,7 +279,7 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
 
         pivotPartition = self.createPivotPartition(lo, hi, pivotItem, hi)
         callEnviron |= set(pivotPartition)
-        bottomCallEnviron.add(pivotPartition[-1])
+        # bottomCallEnviron.add(pivotPartition[-1])
                 
         self.highlightCode(
             'hipart = self.__part(key(pivotItem), {}, hi - 1, key)'.format(
@@ -297,12 +297,11 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         pivotMark = self.createPivotMark(hipart, pivotItem)
         bottomCallEnviron |= set(pivotMark)
 
-        for item in pivotPartition[:-1]:
+        for item in pivotPartition:
             self.canvas.delete(item)
             callEnviron.discard(item)
+        pivotPartition = ()
 
-        self.canvas.tag_raise('pivotPartition')
-        self.partitions.append(pivotPartition[-1])
         self.highlightCode('self.quicksort(lo, hipart - 1, short, key)',
                            callEnviron)
         self.fadeNonLocalItems(loIndex + hiIndex + hipartIndex)
@@ -363,10 +362,7 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         markCoords = (centerX, cellCoords[3] + abs(font[1]) // 2)
         mark = self.canvas.create_text(
             *markCoords, tags=tags, text='◭', font=font, fill=color)
-        line = self.canvas.create_line(
-            centerX, fillCoords[3], centerX, cellCoords[3],
-            tags=tags, fill=color, width=self.PIVOT_LINE_WIDTH)
-        items = (mark, line)
+        items = (mark,)
         if not self.showPartitions:
             for item in items:
                 self.canvas.coords(
