@@ -350,18 +350,19 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
                 self.canvas.coords(
                     item, multiply_vector(self.canvas.coords(item), -1))
         return lbls + (line,)
-    
-    def createPivotMark(
-            self, pivotIndex, pivotValue, font=None,
-            color=VisualizationApp.VARIABLE_COLOR, tags=['pivotPartition']):
-        if font is None:
-            font = (self.VARIABLE_FONT[0], self.VARIABLE_FONT[1] * 2)
+
+    def pivotMarkCoords(self, pivotIndex):
         cellCoords = self.cellCoords(pivotIndex)
-        fillCoords = self.fillCoords(pivotValue, cellCoords)
         centerX = (cellCoords[0] + cellCoords[2]) // 2
-        markCoords = (centerX, cellCoords[3] + abs(font[1]) // 2)
-        mark = self.canvas.create_text(
-            *markCoords, tags=tags, text='◭', font=font, fill=color)
+        top = cellCoords[3] + 10
+        dX, dY = 5, 15
+        return (centerX, top, centerX - dX, top + dY, centerX + dX, top + dY)
+        
+    def createPivotMark(
+            self, pivotIndex, pivotValue, 
+            color=VisualizationApp.VARIABLE_COLOR, tags=['pivotPartition']):
+        mark = self.canvas.create_polygon(
+            *self.pivotMarkCoords(pivotIndex), tags=tags, fill=color, width=0)
         items = (mark,)
         if not self.showPartitions:
             for item in items:
