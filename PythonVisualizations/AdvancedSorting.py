@@ -318,7 +318,7 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         self.restoreLocalItems(loIndex + hiIndex + hipartIndex)
         self.canvas.tag_raise('pivotPartition')
         
-        # Finish animation
+        self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron, sleepTime=codeWait)
 
     def createPivotPartition(
