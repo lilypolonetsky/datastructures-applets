@@ -121,6 +121,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     STOPPED = 0
     RUNNING = 1
     PAUSED = 2
+    STEP = 3
 
     def __init__(  # Constructor
             self,
@@ -153,7 +154,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         # Set up instance variables for managing animations and operations
         self.callStack = []    # Stack of local environments for visualziation
         self.animationState = self.STOPPED
-        self.pauseButton, self.stopButton = None, None
+        self.pauseButton, self.stopButton, self.stepButton = None, None, None
+        self.lastCodeBlock, self.lastCodeBlockFragments = None, None
  
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window, bg=self.DEFAULT_BG)
@@ -388,6 +390,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
             cleanUpBefore=False, maxRows=maxRows,
             helpText='Pause or resume playing animation')
         self.widgetState(self.pauseButton, DISABLED)
+        self.stepButton = self.addOperation(
+            "Step", lambda: self.onClick(self.step, self.pauseButton),
+            cleanUpBefore=False, maxRows=maxRows,
+            helpText='Play one step')
+        self.widgetState(self.stepButton, DISABLED)
         self.stopButton = self.addOperation(
             "Stop", lambda: self.onClick(self.stop, self.pauseButton),
             cleanUpBefore=False, maxRows=maxRows,
@@ -597,18 +604,20 @@ class VisualizationApp(object):  # Base class for Python visualizations
             return
         if color is None:
             color = self.CODE_HIGHLIGHT
-        if isinstance(fragments, (list, tuple, set)):
+        if isinstance(fragments, (list, tuple)):
             if (len(fragments) == 2 and   # Look for (str, int) pair
                 isinstance(fragments[0], str) and
                 isinstance(fragments[1], int)):
-                tags = [codeBlock[fragments]] # Look up by (str, int) pair
+                frags = [tuple(fragments)] # Look up by (str, int) tuple
             else:
-                tags = [
-                    codeBlock[tuple(frag)] if isinstance(frag, (list, tuple))
-                    else codeBlock[frag] 
+                frags = [
+                    tuple(frag) if isinstance(frag, (list, tuple))
+                    else (frag, 1)
                     for frag in fragments]
         else:
-            tags = [codeBlock[fragments]]
+            frags = [(fragments, 1)]
+        codeBlock.currentFragments = frags # Store standardized fragments
+        tags = [codeBlock[frag] for frag in frags]
         found = False       # Assume tag not found
         for tagName in self.codeText.tag_names() if self.codeText else []:
             if not tagName.startswith(codeBlock.prefix):
@@ -670,9 +679,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.canvas.delete(thing)
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
+                self.wait(0)
                 last_line = int(
                     float(self.codeText.index(END)) if len(thing.lines) > 0
-                    else 0)
                 for i in range(1, min(last_line, len(thing.lines) + 2)):
                     if self.codeText:
                         self.codeText.delete('1.0', '2.0')
@@ -807,13 +816,16 @@ class VisualizationApp(object):  # Base class for Python visualizations
     # and the total number of steps (some methods my change the number
     # of steps) This enables combining animation sequences by using
     # the *Sequence generator to go through the steps and performing
-    # other animation actions for each step.
+    # other animation actions for each step.  Each moveItems____
+    # method calls self.wait(0) at the beginning to wait if step mode
+    # has been engaged
 
     def moveItemsOffCanvas(  # Animate the removal of canvas items by sliding
             self, items,     # them off one of the canvas edges
             edge=N,          # One of the 4 tkinter edges: N, E, S, or W
             steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
+        self.wait(0)
         for step, _ in self.moveItemsOffCanvasSequence(items, edge, steps):
             self.wait(sleepTime)
 
@@ -852,6 +864,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             delta,           # delta vector. items can be 1 item or a list/tuple
             steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
+        self.wait(0)
         for step, _ in self.moveItemsBySequence(items, delta, steps):
             self.wait(sleepTime)
 
@@ -878,6 +891,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             toPositions,     # items can be a single item or list of items
             steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
+        self.wait(0)
         for step, _ in self.moveItemsToSequence(items, toPositions, steps):
             self.wait(sleepTime)
 
@@ -921,6 +935,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             toPositions,     # Items can be single or multiple, but not tags
             steps=10,        # Number of intermediate steps along line
             sleepTime=0.1):  # Base time between steps (adjusted by user)
+        self.wait(0)
         for step, _ in self.moveItemsLinearlySequence(
                 items, toPositions, steps):
             self.wait(sleepTime)
@@ -959,6 +974,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             startAngle=90,   # Starting angle away from destination
             steps=10,        # Number of intermediate steps to reach destination
             sleepTime=0.1):  # Base time between steps (adjusted by user)
+        self.wait(0)
         for step, _ in self.moveItemsOnCurveSequence(
                 items, toPositions, startAngle, steps):
             self.wait(sleepTime)
@@ -994,9 +1010,23 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     # ANIMATION CONTROLS
     def speed(self, sleepTime):
-        return sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get()
+        return min(
+            10, sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get())
 
     def wait(self, sleepTime):    # Sleep for a user-adjusted period
+        codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
+                     if self.callStack else None)
+        while self.animationState == self.STEP and (
+                self.lastCodeBlock is not codeBlock or
+                self.lastCodeBlockFragments != codeBlock.currentFragments):
+            self.pauseButton['text'] = "Play"
+            self.pauseButton['command'] = self.runOperation(
+                lambda: self.onClick(self.play, self.pauseButton), False)
+            self.window.update()
+            time.sleep(0.02)
+        self.lastCodeBlock = codeBlock
+        self.lastCodeBlockFragments = (
+            self.lastCodeBlock.currentFragments if self.lastCodeBlock else None)
         if sleepTime > 0:
             self.window.update()
             time.sleep(self.speed(sleepTime))
@@ -1034,22 +1064,32 @@ class VisualizationApp(object):  # Base class for Python visualizations
         pauseButton['command'] = self.runOperation(
             lambda: self.onClick(self.play, pauseButton), False)
         while self.animationState == self.PAUSED:
-            self.wait(0.05)
+            self.wait(0.02)
 
     def play(self, pauseButton):
-        self.startAnimations()
+        self.startAnimations(state=self.RUNNING)
 
-    def startAnimations(self, enableStops=True):
-        self.animationState = self.RUNNING
+    def step(self, pauseButton):
+        codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
+                     if self.callStack else None)
+        self.lastCodeBlock = codeBlock
+        self.lastCodeBlockFragments = (
+            self.lastCodeBlock.currentFragments if self.lastCodeBlock else None)
+        self.startAnimations(state=self.STEP)
+
+    def startAnimations(self, enableStops=True, state=None):
+        self.animationState = state if state is not None else (
+            self.animationState if self.animationState in (self.RUNNING,
+                                                           self.STEP)
+            else self.RUNNING)
         self.enableButtons(enable=False)
         if self.pauseButton:
             self.pauseButton['text'] = 'Pause'
             self.pauseButton['command'] = self.runOperation(
                 lambda: self.onClick(self.pause, self.pauseButton), False)
-            if enableStops:
-                self.widgetState(self.pauseButton, NORMAL)
-        if self.stopButton and enableStops:
-            self.widgetState(self.stopButton, NORMAL)
+        for btn in (self.pauseButton, self.stopButton, self.stepButton):
+            if btn and enableStops:
+                self.widgetState(btn, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
         # Calls from stack level 2+ only stop animation for their level
@@ -1057,10 +1097,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if len(self.callStack) <= 1:
             self.animationState = self.STOPPED
             self.enableButtons(enable=True)
-            if self.pauseButton:
-                self.widgetState(self.pauseButton, DISABLED)
-            if self.stopButton:
-                self.widgetState(self.stopButton, DISABLED)
+            for btn in (self.pauseButton, self.stopButton, self.stepButton):
+                if btn:
+                    self.widgetState(btn, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
