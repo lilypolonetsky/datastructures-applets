@@ -505,6 +505,28 @@ class BinaryTreeBase(VisualizationApp):
         self.prevId+=1
         return "item" + str(self.prevId)
 
+    # remove node and any of its descendants from the internal array
+    def clearDescendants(self, node, subSize = True):
+        if isinstance(node, Node):
+            nodeIndex = self.getIndex(node)
+        else:
+            nodeIndex = node
+
+        # stop if node does not exist in tree
+        if not node or nodeIndex == -1 or nodeIndex >= self.maxElems: return
+        
+        # get the child indices
+        leftIndex = 2*nodeIndex + 1
+        rightIndex = 2*nodeIndex + 2
+        
+        # remove from tree
+        self.nodes[nodeIndex] = None
+        if subSize: self.size -= 1
+
+        # recursively remove children
+        self.clearDescendants(leftIndex)
+        self.clearDescendants(rightIndex)
+
     # remove the tree's drawing
     # empty the tree's data
     def emptyTree(self):
@@ -543,11 +565,15 @@ class BinaryTreeBase(VisualizationApp):
         topLeftTree = self.getSubtree(topLeft)
 
         # save toRaise's left subtree
-        toRaiseLeft = self.getLeftChild(toRaise)
+        toRaiseLeft, toRaiseRight = self.getChildren(toRaise)
         toRaiseLeftTree = self.getSubtree(toRaiseLeft)
+        toRaiseRightTree = self.getSubtree(toRaiseRight)
+
+        self.clearDescendants(toRaiseLeft, subSize=False)
 
         # toRaise takes over top's spot
-        self.moveSubtree(self.getIndex(top), self.getSubtree(toRaise))
+        self.nodes[self.getIndex(top)] = toRaise
+        self.moveSubtree(self.getRightChildIndex(toRaise), toRaiseRightTree)
 
         # top becomes toRaise's left
         self.setLeftChild(toRaise, top)
@@ -573,12 +599,16 @@ class BinaryTreeBase(VisualizationApp):
         topRight = self.getRightChild(top)
         topRightTree = self.getSubtree(topRight)
 
-        # save toRaise's right subtree
-        toRaiseRight = self.getRightChild(toRaise)
+        # save toRaise's left and right subtree
+        toRaiseLeft, toRaiseRight = self.getChildren(toRaise)
+        toRaiseLeftTree = self.getSubtree(toRaiseLeft)
         toRaiseRightTree = self.getSubtree(toRaiseRight)
 
+        self.clearDescendants(toRaiseRight, subSize=False)
+
         # toRaise takes over top's spot
-        self.moveSubtree(self.getIndex(top), self.getSubtree(toRaise))
+        self.nodes[self.getIndex(top)] = toRaise
+        self.moveSubtree(self.getLeftChildIndex(toRaise), toRaiseLeftTree)
 
         # top becomes toRaise's right
         self.setRightChild(toRaise, top)
