@@ -170,10 +170,10 @@ class SortingBase(VisualizationApp):
         space = self.CELL_SIZE * 1 // 10
         x = cell_center[0]
         if level > 0:
-            y0 = cell_coords[1] - 2 * space - level * level_space
+            y0 = cell_coords[1] - space - level * level_space
             y1 = cell_coords[1] - space
         else:
-            y0 = cell_coords[3] + 2 * space - level * level_space
+            y0 = cell_coords[3] + space - level * level_space
             y1 = cell_coords[3] + space
         return x, y0, x, y1
         
