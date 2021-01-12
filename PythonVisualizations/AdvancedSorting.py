@@ -14,6 +14,7 @@ class AdvancedArraySort(SortingBase):
 
     def __init__(self, title="Advanced Sorting", **kwargs):
         super().__init__(title=title, **kwargs)
+        self.ARRAY_Y0 = 75
 
         for i in range(self.size):
             self.list.append(drawnValue(random.randrange(self.valMax)))
@@ -185,96 +186,217 @@ def shellSort(self):
     return nShifts
     """
 
-    def shellSort(self):
-        callEnviron = self.createCallEnvironment()
+    def shellSort(self, code=shellSortCode):
+        wait = 0.1
+        moveWait = wait / 10
+        descend = (0, 16) * 2
+        callEnviron = self.createCallEnvironment(code=code)
         self.startAnimations()
 
         # calculate h
         h = 1
+        hLabel = None
+        hLabel = self.adjustHLabel(h, 0, None)
+        callEnviron |= set(hLabel)
+        self.highlightCode('h = 1', callEnviron, wait=wait)
+        
+        self.highlightCode('h * 3 < len(self)', callEnviron, wait=wait)
         while h * 3 < len(self.list):
+            self.highlightCode('h = 3 * h + 1', callEnviron)
             h = 3 * h + 1
-        hPos = (self.ARRAY_X0 // 2, self.ARRAY_Y0-40)
-        hText = "h: {}".format(h)
-        hLabel = self.canvas.create_text(
-                *hPos, text=hText, font=self.VARIABLE_FONT,
-                fill=self.VARIABLE_COLOR)
-        callEnviron.add(hLabel)
-
-        nShifts = 0
-        while h > 0:
-            outerArrow = self.createIndex(h, name="outer", level=3)
-            callEnviron |= set(outerArrow)
+            self.adjustHLabel(h, 0, hLabel)
             
+            self.highlightCode('h * 3 < len(self)', callEnviron, wait=wait)
+            
+        nShifts = 0
+        nShiftsPos = (10, self.ARRAY_Y0 // 3)
+        nShiftsValue = "nShifts: {}"
+        nShiftsLabel = self.canvas.create_text(
+            *nShiftsPos, anchor=W, text=nShiftsValue.format(nShifts),
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        callEnviron.add(nShiftsLabel)
+        self.highlightCode('nShifts = 0', callEnviron, wait=wait)
+
+        tempLabel, outerArrow, innerArrow = None, None, None
+        toRestore = []
+        self.highlightCode('h > 0', callEnviron, wait=wait)
+        while h > 0:
+            if outerArrow is None:
+                outerArrow = self.createIndex(h, name="outer", level=-2)
+                callEnviron |= set(outerArrow)
+            
+            self.highlightCode('outer in range(h, len(self))', callEnviron,
+                               wait=wait)
             for outer in range(h, len(self.list)):
                 # move outer index
-                arrowPos = self.indexCoords(outer, level=3)
-                self.moveItemsTo(outerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
+                arrowPos = self.indexCoords(outer, level=-2)
+                outerCoords = self.canvas.coords(outerArrow[0])
+                if outerCoords != arrowPos:
+                    self.moveItemsTo(outerArrow, (arrowPos, arrowPos[:2]), 
+                                     sleepTime=moveWait)
+                    self.adjustHLabel(h, outer - h, hLabel)
 
+                # Move cells being worked down
+                toMove = [j for j in range(outer if h > 1 else -1, -1, -h)]
+                itemsToMove = list(flat(*[
+                    self.list[j].items + (self.arrayCells[j],) for j in toMove]))
+                toMoveCoords = [add_vector(self.canvas.coords(i), descend)
+                                for i in itemsToMove]
+                itemsToRestore = list(flat(*[
+                    self.list[j].items + (self.arrayCells[j],) for j in toRestore]))
+                toRestoreCoords = list(flat(*[
+                    [self.fillCoords(self.list[j].val, self.cellCoords(j))] +
+                    ([self.cellCenter(j)] if len(self.list[j].items) > 1 
+                     else []) +
+                    [self.arrayCellCoords(j)] for j in toRestore]))
+                if len(itemsToMove + itemsToRestore) > 0:
+                    self.moveItemsTo(
+                        itemsToMove + itemsToRestore, 
+                        toMoveCoords + toRestoreCoords, sleepTime=moveWait)
+                toRestore = toMove
+                
                 # assign outer to temp
-                temp = self.list[outer].val
-                tempVal, label = self.assignToTemp(outer, callEnviron, varName="temp")
-                callEnviron.add(label)
-                tempAssigned = False
+                self.highlightCode('temp = self.get(outer)', callEnviron)
+                temp = self.list[outer]
+                tempVal, tempLabel = self.assignToTemp(
+                    outer, callEnviron, varName="temp", existing=tempLabel)
+                callEnviron |= set(tempVal.items + (tempLabel,))
 
                 # create the inner index
                 inner = outer
-                innerArrow = self.createIndex(inner, name="inner", level=2)
-                callEnviron |= set(innerArrow)
-                self.wait(0.2)
+                if innerArrow is None:
+                    innerArrow = self.createIndex(inner, name="inner", level=-1)
+                    callEnviron |= set(innerArrow)
+                    self.highlightCode('inner = outer', callEnviron, wait=wait)
+                else:
+                    arrowPos = self.indexCoords(inner, level=-1)
+                    self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]),
+                                     sleepTime=moveWait)
 
-                # after temp is done being used, remove any number that is hidden behind another
-                toBeRemoved = []
-
-                while inner >= h and temp < self.list[inner-h].val:
-                    toBeRemoved += self.list[inner-h].items
-                    self.assignElement(inner-h, inner, callEnviron, sleepTime=0.05, startAngle=90 * 11 / (10 + abs(inner-h)))
+                self.highlightCode('inner >= h', callEnviron, wait=wait)
+                if inner >= h:
+                    self.highlightCode('temp < self.get(inner-h)', callEnviron,
+                                       wait=wait)
+                    
+                while inner >= h and tempVal.val < self.list[inner-h].val:
+                    self.highlightCode('self.set(inner, self.get(inner-h))',
+                                       callEnviron)
+                    self.assignElement(
+                        inner-h, inner, callEnviron, sleepTime=moveWait,
+                        startAngle=90 * 11 / (10 + abs(inner-h)))
 
                     # move the inner index
+                    self.highlightCode('inner -= h', callEnviron)
                     inner -= h
-                    arrowPos = self.indexCoords(inner, level=2)
-                    self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
-                    self.wait(0.2)
+                    arrowPos = self.indexCoords(inner, level=-1)
+                    self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]),
+                                     sleepTime=moveWait)
 
                     nShifts += 1
-
-                if inner < outer:
-                    self.assignFromTemp(inner, tempVal, None, delete=False)
+                    self.canvas.itemconfigure(
+                        nShiftsLabel, text=nShiftsValue.format(nShifts))
+                    self.highlightCode('nShifts += 1', callEnviron, wait=wait)
                     
-                    # remove any number that is hidden behind another
-                    for item in toBeRemoved:
-                        if item is not None:
-                            self.canvas.delete(item)
+                    self.highlightCode('inner >= h', callEnviron, wait=wait)
+                    if inner >= h:
+                        self.highlightCode('temp < self.get(inner-h)',
+                                           callEnviron, wait=wait)
 
-                    # Take it out of the cleanup set since it should persist
+                self.highlightCode('inner < outer', callEnviron, wait=wait)
+                if inner < outer:
+                    self.highlightCode('self.set(inner, temp)', callEnviron)
+                    self.assignFromTemp(inner, tempVal, tempLabel, delete=False,
+                                        sleepTime=moveWait)
+                    
+                    # Take temp out of the cleanup set since it should persist
                     callEnviron -= set(tempVal.items)
-                    tempAssigned = True
-                    nShifts += 1
-                # finished with outer as temp
-                callEnviron.remove(label)
-                self.canvas.delete(label)
-                if not tempAssigned:
-                    for item in tempVal.items:
-                        if item is not None:
-                            self.canvas.delete(item)
-                # finished with inner index
-                callEnviron ^= set(innerArrow)       
-                self.canvas.delete(innerArrow[0])
-                self.canvas.delete(innerArrow[1])   
-                for item in toBeRemoved:
-                        self.canvas.delete(item)   
-            
-            # change h
-            h = (h - 1) // 3
-            self.canvas.itemconfig(hLabel, text="h: {}".format(h))
 
-            # remove outer arrow
-            callEnviron ^= set(outerArrow)
-            self.canvas.delete(outerArrow[0])
-            self.canvas.delete(outerArrow[1])
+                    nShifts += 1
+                    self.canvas.itemconfigure(
+                        nShiftsLabel, text=nShiftsValue.format(nShifts))
+                    self.highlightCode('nShifts += 1', callEnviron, wait=wait)
+                    
+                    self.highlightCode('outer in range(h, len(self))',
+                                       callEnviron)
+                else:
+                    for item in tempVal.items:
+                        self.canvas.delete(item)
+                    
+            # change h
+            self.highlightCode('h = (h - 1) // 3', callEnviron)
+            h = (h - 1) // 3
+            self.adjustHLabel(h, 0, hLabel)
+            
+            self.highlightCode('h > 0', callEnviron, wait=wait)
         
+        self.highlightCode('return nShifts', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
         return nShifts
 
+    def adjustHLabel(
+            self, h, leftCell, hLabel, steps=10, sleepTime=0.01, font=None,
+            color=None):
+        'Adjust or make the h span label'
+        if font is None:
+            font = self.VARIABLE_FONT
+        leftCenter = self.cellCenter(leftCell)[0]
+        spanCoords = self.hSpanCoords(h, leftCenter)
+        spanCenter = ((spanCoords[0] + spanCoords[-2]) // 2, spanCoords[5])
+        textPattern = "h: {}"
+        hText = textPattern.format(h)
+        textWidth = self.textWidth(font, hText)
+        boxCoords = (spanCenter[0] - textWidth / 2 - 1, spanCoords[1],
+                     spanCenter[0] + textWidth / 2 + 1, spanCoords[3])
+        if hLabel:  # Adjust existing hLabel: (span, box, text)
+            currentCoords = self.canvas.coords(hLabel[0])
+            currentText = self.canvas.itemconfigure(hLabel[2], 'text')[-1]
+            startH = int(currentText[3:]) if currentText != hText else h
+            if currentCoords != spanCoords or currentText != hText:
+                for step in range(steps):
+                    sCoords = divide_vector(
+                        add_vector(multiply_vector(currentCoords,
+                                                   steps - 1 - step),
+                                   multiply_vector(spanCoords, step + 1)),
+                        steps)
+                    sCenter = ((sCoords[0] + sCoords[-2]) // 2, sCoords[5])
+                    if startH != h:
+                        text = 'h: {:3.1f}'.format(
+                            (startH * (steps - 1 - step) + h * (step + 1)) /
+                            steps)
+                        textWidth = self.textWidth(font, text)
+                    bCoords = (sCenter[0] - textWidth / 2 - 1, sCoords[1],
+                               sCenter[0] + textWidth / 2 + 1, sCoords[3])
+                    for i, coords in zip(hLabel, (sCoords, bCoords, sCenter)):
+                        self.canvas.coords(i, *coords)
+                    if startH != h:
+                        self.canvas.itemconfigure(hLabel[2], text=text)
+                    self.wait(sleepTime)
+                    
+                for i, coords in zip(hLabel, 
+                                     (spanCoords, boxCoords, spanCenter)):
+                    self.canvas.coords(i, *coords)
+                self.canvas.itemconfigure(hLabel[2], text=hText)
+                        
+        else: # Create new hLabel
+            if color is None:
+                color = self.VARIABLE_COLOR
+            span = self.canvas.create_line(*spanCoords, fill=color)
+            box = self.canvas.create_rectangle(*boxCoords,
+                fill=self.DEFAULT_BG, width=0, outline='')
+            text = self.canvas.create_text(
+                *spanCenter, text=hText, font=font, fill=color)
+            hLabel = (span, box, text)
+        return hLabel   # Return created or adjusted canvas items
+                
+    def hSpanCoords(self, h, leftCenter):
+        width = h * self.CELL_WIDTH
+        height = 18
+        _, y0, x, y = self.indexCoords(0, level=1)
+        x0, x1 = leftCenter, leftCenter + width
+        return (x0, y0 - height // 2, x0, y0 + height // 2,
+                x0, y0, x1, y0,
+                x1, y0 - height // 2, x1, y0 + height // 2)
+    
     def makeButtons(self, maxRows=3):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
