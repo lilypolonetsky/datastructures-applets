@@ -570,6 +570,7 @@ class BinaryTreeBase(VisualizationApp):
         toRaiseRightTree = self.getSubtree(toRaiseRight)
 
         self.clearDescendants(toRaiseLeft, subSize=False)
+        self.clearDescendants(toRaiseRight, subSize=False)
 
         # toRaise takes over top's spot
         self.nodes[self.getIndex(top)] = toRaise
@@ -592,7 +593,7 @@ class BinaryTreeBase(VisualizationApp):
 
     def rotateRight(self, top, animation=True):
         "rotate a subtree to the right in the array and animate it"
-        # the node to raise it top's left child
+        # the node to raise is top's left child
         toRaise = self.getLeftChild(top)
 
         # save top's right subtree
@@ -605,6 +606,7 @@ class BinaryTreeBase(VisualizationApp):
         toRaiseRightTree = self.getSubtree(toRaiseRight)
 
         self.clearDescendants(toRaiseRight, subSize=False)
+        self.clearDescendants(toRaiseLeft, subSize=False)
 
         # toRaise takes over top's spot
         self.nodes[self.getIndex(top)] = toRaise
