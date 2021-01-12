@@ -82,7 +82,8 @@ class SortingBase(VisualizationApp):
         tempPos = self.tempCoords(index)
         return (tempPos[0] + tempPos[2]) // 2, tempPos[1] - abs(font[1])
     
-    def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
+    def assignToTemp(self, index, callEnviron, varName="temp", existing=None,
+                     sleepTime=0.02):
         """Assign indexed cell to a temporary variable named varName.
         Animate value moving to the temporary variable below the array.
         Return a drawnValue for the new temporary value and a text item for
@@ -109,24 +110,25 @@ class SortingBase(VisualizationApp):
             callEnviron.add(tempLabel)
 
         delta = (tempLabelPos[0] - cellXCenter, tempPos[1] - posCell[1])
-        self.moveItemsBy(copyItems, delta, sleepTime=0.02)
+        self.moveItemsBy(copyItems, delta, sleepTime=sleepTime)
 
         return drawnValue(fromValue.val, *copyItems), tempLabel
 
-    def assignFromTemp(self, index, temp, templabel, delete=True):
+    def assignFromTemp(self, index, temp, templabel, delete=True,
+                       sleepTime=0.04):
         """Assign a temporary drawnValue to the indexed array cell by
         moving it into position on top of the array cell
         Delete the temporary label if requested.
         """
 
-        toCellCoords = self.fillCoords(temp.val, self.cellCoords(index))
-        toCellCenter = self.cellCenter(index)
+        toCellCoords = self.fillCoords(temp.val, self.currentCellCoords(index))
+        toCellCenter = self.currentCellCenter(index)
         tempCellCoords = self.canvas.coords(temp.items[0])
         deltaX = toCellCoords[0] - tempCellCoords[0]
         startAngle = 45 * 500 / (500 + abs(deltaX)) * (-1 if deltaX < 0 else 1)
 
         self.moveItemsOnCurve(
-            temp.items, (toCellCoords, toCellCenter), sleepTime=0.04,
+            temp.items, (toCellCoords, toCellCenter), sleepTime=sleepTime,
             startAngle=startAngle)
 
         if delete:
@@ -803,6 +805,8 @@ def traverse(self, function=print):
         self.fixCells()
     
     def fixCells(self):  # Move canvas display items to exact cell coords
+        for index, ac in enumerate(self.arrayCells):
+            self.canvas.coords(ac, self.arrayCellCoords(index))
         for i, dValue in enumerate(self.list):
             for item, coords in zip(dValue.items,
                                     (self.fillCoords(dValue.val,
