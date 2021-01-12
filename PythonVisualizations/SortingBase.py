@@ -36,14 +36,16 @@ class SortingBase(VisualizationApp):
     
     # ANIMATION METHODS
     def assignElement(
-            self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01, startAngle=0):
+            self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01,
+            startAngle=0):
         
         fromValue = self.list[fromIndex]
         toValue = self.list[toIndex]
 
         # get positions of "to" cell in array
-        toPositions = (self.fillCoords(fromValue.val, self.cellCoords(toIndex)),
-                       self.cellCenter(toIndex))
+        toPositions = (self.fillCoords(fromValue.val, 
+                                       self.currentCellCoords(toIndex)),
+                       self.currentCellCenter(toIndex))
                 
         # create new display objects as copies of the "from" cell and value
         copyItems = [self.copyCanvasItem(i) for i in fromValue.items 
@@ -51,12 +53,13 @@ class SortingBase(VisualizationApp):
         callEnviron |= set(copyItems)
 
         # Move copies to the desired location
-        if startAngle == 0:                                         # move items linearly
+        if startAngle == 0:                            # move items linearly
             self.moveItemsTo(copyItems, toPositions, steps=steps,
                             sleepTime=sleepTime)
-        else:                                                       # move items on curve
-            self.moveItemsOnCurve(copyItems, toPositions, startAngle=startAngle, 
-                                steps=steps, sleepTime=sleepTime)
+        else:                                          # move items on curve
+            self.moveItemsOnCurve(
+                copyItems, toPositions, startAngle=startAngle, 
+                steps=steps, sleepTime=sleepTime)
 
         # delete the original "to" display value and the new display shape
         for item in toValue.items:
@@ -68,10 +71,12 @@ class SortingBase(VisualizationApp):
         toValue.items = tuple(copyItems)
         callEnviron -= set(copyItems)
 
-    def tempCoords(self, index):  # Determine coordinates for a temporary
-        cellCoords = self.cellCoords(index) # variable aligned below an array
-        height = cellCoords[3] - cellCoords[1] # cell
-        return add_vector(cellCoords, (0, int(height * 1.7)) * 2)
+    def tempCoords(self, index):  # Determine coordinates for a temporary var
+        cellCoords = self.currentCellCoords(index) # aligned below an array
+        canvasDims = self.widgetDimensions(self.canvas) # cell
+        bottom = min(canvasDims[1] - 1,
+                     cellCoords[3] + int(self.CELL_HEIGHT * 1.7))
+        return add_vector(cellCoords, (0, bottom - cellCoords[3]) * 2)
 
     def tempLabelCoords(self, index, font):
         tempPos = self.tempCoords(index)
@@ -598,9 +603,7 @@ def traverse(self, function=print):
     
     def cellCenter(self, cell_index):  # Center point for array cell at index
         x1, y1, x2, y2 = self.cellCoords(cell_index)
-        midX = (x1 + x2) // 2 
-        midY = (y1 + y2) // 2
-        return midX, midY
+        return (x1 + x2) // 2, (y1 + y2) // 2
 
     def newValueCoords(self):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
@@ -612,14 +615,23 @@ def traverse(self, function=print):
     def cellTag(self, index): # Tag name for a particular cell in an array
         return "cell-{}".format(index)
 
+    def arrayCellDelta(self):
+        half_border = self.CELL_BORDER // 2
+        return (-half_border, -half_border,
+                self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)
+    
     def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
-        half_border = self.CELL_BORDER // 2
-        return add_vector(
-            cell_coords,
-            (-half_border, -half_border,
-             self.CELL_BORDER - half_border, self.CELL_BORDER - half_border))
-        
+        return add_vector(cell_coords, self.arrayCellDelta())
+
+    def currentCellCoords(self, index):  # Compute coords from current position
+        return subtract_vector(self.canvas.coords(self.arrayCells[index]),
+                               self.arrayCellDelta())
+
+    def currentCellCenter(self, index):
+        x1, y1, x2, y2 = self.currentCellCoords(index)
+        return (x1 + x2) // 2, (y1 + y2) // 2
+    
     def createArrayCell(     # Create a box representing an array cell
             self, index, tags=["arrayBox"]):
         rect = self.canvas.create_rectangle(
