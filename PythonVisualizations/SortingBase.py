@@ -114,6 +114,10 @@ class SortingBase(VisualizationApp):
         return drawnValue(fromValue.val, *copyItems), tempLabel
 
     def assignFromTemp(self, index, temp, templabel, delete=True):
+        """Assign a temporary drawnValue to the indexed array cell by
+        moving it into position on top of the array cell
+        Delete the temporary label if requested.
+        """
 
         toCellCoords = self.fillCoords(temp.val, self.cellCoords(index))
         toCellCenter = self.cellCenter(index)
@@ -128,9 +132,9 @@ class SortingBase(VisualizationApp):
         if delete:
             if templabel:
                 self.canvas.delete(templabel)
-            for item in self.list[index].items:
-                if item is not None:
-                    self.canvas.delete(item)
+        for item in self.list[index].items:
+            if item is not None:
+                self.canvas.delete(item)
         self.list[index] = temp
         
     def swap(self, a, b, aCellObjects=[], bCellObjects=[]):
