@@ -316,6 +316,18 @@ def insert(self, item={val}):
         
         self.display(showNItems=self.nItems)
         self.cleanUp(callEnviron)
+    
+    def linearFill(self, increasing=True):
+        callEnviron = self.createCallEnvironment()        
+
+        self.list = [
+            drawnValue(
+                int((i if increasing else (self.size - 1 - i)) * self.valMax /
+                    (self.size - 1)))
+            for i in range(self.size)]
+        
+        self.display(showNItems=self.nItems)
+        self.cleanUp(callEnviron)
         
     getCode = """
 def get(self, n={n}):

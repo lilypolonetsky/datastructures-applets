@@ -397,7 +397,7 @@ def shellSort(self):
                 x0, y0, x1, y0,
                 x1, y0 - height // 2, x1, y0 + height // 2)
     
-    def makeButtons(self, maxRows=3):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         insertButton = self.addOperation(
@@ -420,6 +420,12 @@ def shellSort(self):
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
             helpText='Fill all array cells with random keys')
+        increasingFillButton = self.addOperation(
+            "Increasing Fill", lambda: self.linearFill(), maxRows=maxRows,
+            helpText='Fill all array cells with increasing keys')
+        decreasingFillButton = self.addOperation(
+            "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
+            helpText='Fill all array cells with decreasing keys')
         shuffleButton = self.addOperation(
             "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
             helpText='Shuffle position of all items')
@@ -434,8 +440,9 @@ def shellSort(self):
             helpText='Sort items using shellsort algorithm')
         self.addAnimationButtons(maxRows=maxRows)
         buttons = [insertButton, searchButton, deleteButton, newButton, 
-                   randomFillButton, shuffleButton, deleteRightmostButton,
-                   quicksortButton]
+                   randomFillButton, decreasingFillButton, increasingFillButton,
+                   shuffleButton, deleteRightmostButton,
+                   quicksortButton, shellSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
         
 if __name__ == '__main__':
