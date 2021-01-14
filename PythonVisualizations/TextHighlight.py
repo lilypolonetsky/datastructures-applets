@@ -13,7 +13,7 @@ class CodeHighlightBlock(object):
                  code,       # a unique prefix to highlight snippets in it,
                  textWidget): # and tags the snippets when refreenced
        self.code = code.strip()
-       self.lines = self.code.split('\n')
+       self.lines = self.code.split('\n') if len(code) > 0 else []
        self.cache = {}
        self.textWidget = textWidget
        self.prefix = '{:04d}-'.format(self._counter)
