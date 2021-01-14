@@ -11,16 +11,37 @@ except ModuleNotFoundError:
       
 
 class AdvancedArraySort(SortingBase):
+    PIVOT_LINE_COLOR = 'VioletRed3'
+    PIVOT_LINE_WIDTH = 2
+    PIVOT_LINE_PAD = 0
 
     def __init__(self, title="Advanced Sorting", **kwargs):
         super().__init__(title=title, **kwargs)
 
+        self.ARRAY_Y0 = 60
+        
         for i in range(self.size):
             self.list.append(drawnValue(random.randrange(self.valMax)))
         self.display()
         
         self.buttons = self.makeButtons()
+        
+    def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
+        return (self.ARRAY_X0 + self.CELL_WIDTH * cell_index, self.ARRAY_Y0,  # at index
+                self.ARRAY_X0 + self.CELL_WIDTH * (cell_index + 1) - self.CELL_BORDER,
+                self.ARRAY_Y0 + 3*self.CELL_SIZE - self.CELL_BORDER)    
 
+    def fillCoords(self, val, rectPos, valMin=0, valMax=None):
+        if valMax is None:
+            valMax = self.valMax
+        x1, y1, x2, y2 = rectPos 
+        minY = (y1 * 8 + y2 * 2) // 10
+        # proportion of what is filled
+        prop = (val - valMin) / (valMax - valMin)
+        y2 = round(minY + prop * (y2 - minY))
+        
+        return (x1, y1, x2, y2)
+        
     def fixGaps(self, toX=SortingBase.ARRAY_X0, toY=SortingBase.ARRAY_Y0):
         done = [False] * len(self.list)
         doneCount = 0
@@ -56,113 +77,401 @@ class AdvancedArraySort(SortingBase):
     
     # SORTING METHODS 
 
-    def drawPartition(self, left, right):
-        bottom = self.canvas.create_line(self.ARRAY_X0 + self.CELL_WIDTH*left, self.ARRAY_Y0 + self.CELL_SIZE + 90,
-                           self.ARRAY_X0 + self.CELL_WIDTH*(right+1), self.ARRAY_Y0 + self.CELL_SIZE + 90, fill="red")
-        l = self.canvas.create_line(self.ARRAY_X0 + self.CELL_WIDTH*left, self.ARRAY_Y0 + self.CELL_SIZE + 80,
-                           self.ARRAY_X0 + self.CELL_WIDTH * left, self.ARRAY_Y0 + self.CELL_SIZE + 90, fill="red")
-        r = self.canvas.create_line(self.ARRAY_X0 + self.CELL_WIDTH * (right+1), self.ARRAY_Y0 + self.CELL_SIZE + 80,
-                           self.ARRAY_X0 + self.CELL_WIDTH * (right+1), self.ARRAY_Y0 + self.CELL_SIZE + 90, fill="red")
-
-        return bottom, l, r  
-            
-    def medianOfThree(self, left, right):
-        a = self.list
-
-        b = random.randint(left, right)
-        c = random.randint(left, right)
-        d = random.randint(left, right)
-        
-        dVal = a[d].val
-        bVal = a[b].val
-        cVal = a[c].val
-
-        if (dVal < bVal and bVal < cVal) or (cVal < bVal and bVal < dVal):
-            median = b
-        elif (bVal < dVal and dVal < cVal) or (cVal < dVal and dVal < bVal):
-            median = d
-        else:
-            median = c
-            
-        #a[median], a[right] = a[right], a[median]
-        self.swap(median, right)    
-    
-    def partitionIt(self, left, right):
-        callEnviron = self.createCallEnvironment()
-    
-        x = self.ARRAY_X0 + (self.CELL_SIZE / 2)
-        y0 = self.ARRAY_Y0 - 15
-        y1 = self.ARRAY_Y0 - 40
-
-        b, l, r = self.drawPartition(left, right)
-
-        self.medianOfThree(left, right)
-        a = self.list
-        pivot = a[right]
-        done = left
-        
-        doneArrow = self.createIndex(done, name="done", level=2)
-        pivotArrow = self.createIndex(right, name="pivot", level=3)
-
-        pivotCellObjects = []
-        pivotCellObjects.append(pivotArrow)
-
-        doneCellObjects = []
-        doneCellObjects.append(doneArrow)
-        
-        curArrow = self.createIndex(left, name="cur")
-        
-        callEnviron |= set(doneArrow)
-        callEnviron |= set(pivotArrow)
-        callEnviron |= set(curArrow)
-        callEnviron |= set((b, l, r))
-        
-        # for each position except for the pivot position
-        for cur in range(left, right):
-            # if the value at that position is smaller than the pivot
-            # swap it so it becomes the next value of the done part
-            if a[cur].val <= pivot.val:
-                #a[done], a[cur] = a[cur], a[done]
-                self.swap(done, cur)
-                done += 1                
-                self.moveItemsBy(doneArrow, (self.CELL_WIDTH, 0), sleepTime=0.02)
-
-            self.wait(0.2)
-
-            self.moveItemsBy(curArrow, (self.CELL_WIDTH, 0), sleepTime=0.02)
-
-        # Move the pivot into the correct place
-        #a[done], a[right] = a[right], a[done]
-        self.swap(done, right, aCellObjects=doneCellObjects, bCellObjects=pivotCellObjects)
-        
+    rightmostCode = '''
+def rightmost(self, lo={lo}, hi={hi}, key=identity):
+   return self.get(hi)
+'''
+    def rightmost(self, lo, hi, code=rightmostCode):
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        self.startAnimations()
+        self.highlightCode('return self.get(hi)', callEnviron, wait=0.1)
         self.cleanUp(callEnviron)
-
-        # At this point, done is the location where the pivot value got placed
-        self.wait(0.1)
-        return done
+        return self.list[hi].val
     
-    # Wrapper method 
-    def quickSort(self):
+    medianOfThreeCode = '''
+def medianOfThree(self, lo={lo}, hi={hi}, key=identity):
+   mid = (lo + hi) // 2
+   if key(self.get(lo)) > key(self.get(mid)):
+      self.swap(lo, mid)
+   if key(self.get(lo)) > key(self.get(hi)):
+      self.swap(lo, hi)
+   if key(self.get(hi)) > key(self.get(mid)):
+      self.swap(hi, mid)
+   return self.get(hi)
+'''
+    
+    def medianOfThree(self, lo, hi, code=medianOfThreeCode):
+        wait = 0.1
+        codeWait = 0.01
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=codeWait)
+
+        loIndex = self.createIndex(lo, 'lo')
+        hiIndex = self.createIndex(hi, 'hi')
+        callEnviron |= set(loIndex + hiIndex)
+        
+        self.highlightCode('mid = (lo + hi) // 2', callEnviron, wait=wait)
+        mid = (lo + hi) // 2
+        midIndex = self.createIndex(mid, 'mid', level=2)
+        callEnviron |= set(midIndex)
+
+        self.highlightCode('key(self.get(lo)) > key(self.get(mid))',
+                           callEnviron, wait=wait)
+        if self.list[lo].val > self.list[mid].val:
+            self.highlightCode('self.swap(lo, mid)', callEnviron)
+            self.swap(lo, mid)
+
+        self.highlightCode('key(self.get(lo)) > key(self.get(hi))',
+                           callEnviron, wait=wait)
+        if self.list[lo].val > self.list[hi].val:
+            self.highlightCode('self.swap(lo, hi)', callEnviron)
+            self.swap(lo, hi)
+
+        self.highlightCode('key(self.get(hi)) > key(self.get(mid))',
+                           callEnviron, wait=wait)
+        if self.list[hi].val > self.list[mid].val:
+            self.highlightCode('self.swap(hi, mid)', callEnviron)
+            self.swap(hi, mid)
+
+        self.highlightCode('return self.get(hi)', callEnviron, wait=wait)
+        self.cleanUp(callEnviron, sleepTime=codeWait)
+        return self.list[hi].val
+
+    __partCode = '''
+def __part(self, pivot={pivot}, lo={lo}, hi={hi}, key=identity):
+   while lo <= hi:
+      while (key(self.get(lo)) < pivot):
+         lo += 1
+      while (pivot < key(self.get(hi))):
+         hi -= 1
+      if lo >= hi:
+         return lo
+      self.swap(lo, hi)
+      lo, hi = lo + 1, hi - 1
+   return lo
+'''
+    def partition(self, pivot, lo, hi, code=__partCode):
+        wait = 0.1
+        codeWait = 0.01
+        self.startAnimations()
+        if not self.useMedianOf3.get():
+            code = code.replace('pivot <', 'lo < hi and pivot <')
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=codeWait)
+        
+        loIndex = self.createIndex(lo, 'lo')
+        hiIndex = self.createIndex(hi, 'hi', level=2)
+        callEnviron |= set(loIndex + hiIndex)
+        leftDelta = (-self.CELL_WIDTH, 0)
+        rightDelta = (self.CELL_WIDTH, 0)
+        
+        self.highlightCode('lo <= hi', callEnviron, wait=wait)
+        while lo <= hi:
+            self.highlightCode('key(self.get(lo)) < pivot', callEnviron,
+                               wait=wait)
+            while self.list[lo].val < pivot:
+                self.highlightCode('lo += 1', callEnviron)
+                lo += 1
+                self.moveItemsBy(loIndex, rightDelta, sleepTime=wait / 10)
+                
+                self.highlightCode('key(self.get(lo)) < pivot', callEnviron,
+                                   wait=wait)
+
+            if not self.useMedianOf3.get():
+                self.highlightCode('lo < hi', callEnviron, wait=wait)
+            if lo < hi or self.useMedianOf3.get():
+                self.highlightCode('pivot < key(self.get(hi))', callEnviron,
+                                   wait=wait)
+            while lo < hi and pivot < self.list[hi].val:
+                self.highlightCode('hi -= 1', callEnviron)
+                hi -= 1
+                self.moveItemsBy(hiIndex, leftDelta, sleepTime=wait / 10)
+                
+                if not self.useMedianOf3.get():
+                    self.highlightCode('lo < hi', callEnviron, wait=wait)
+                if lo < hi or self.useMedianOf3.get():
+                    self.highlightCode('pivot < key(self.get(hi))', callEnviron,
+                                       wait=wait)
+                
+            self.highlightCode('lo >= hi', callEnviron, wait=wait)
+            if lo >= hi:
+                self.highlightCode('return lo', callEnviron, wait=wait)
+                self.cleanUp(callEnviron, sleepTime=codeWait)
+                return lo
+                
+            self.highlightCode('self.swap(lo, hi)', callEnviron)
+            self.swap(lo, hi)
+
+            self.highlightCode('lo, hi = lo + 1, hi - 1', callEnviron)
+            lo, hi = lo + 1, hi - 1
+            loCoords, hiCoords = self.indexCoords(lo), self.indexCoords(hi, 2)
+            self.moveItemsTo(
+                loIndex + hiIndex, 
+                (loCoords, loCoords[:2], hiCoords, hiCoords[:2]),
+                sleepTime=wait / 10)
+            
+            self.highlightCode('lo <= hi', callEnviron, wait=wait)
+        
+        self.highlightCode('return lo', callEnviron, wait=wait)
+        self.cleanUp(callEnviron, sleepTime=codeWait)
+        return lo
+
+    quicksortCode = '''
+def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
+   if hi is None:
+      hi = len(self) - 1
+   short = max(3, short)
+   if hi - lo + 1 <= short:
+      return self.insertionSort(lo, hi, key)
+   pivotItem = self.medianOfThree(lo, hi, key)
+   hipart = self.__part(key(pivotItem), lo + 1, hi - 1, key)
+   self.swap(hipart, hi)
+   self.quicksort(lo, hipart - 1, short, key)
+   self.quicksort(hipart + 1, hi, short, key)
+'''
+    
+    def quicksort(
+            self, lo=0, hi=None, short=3, code=quicksortCode,
+            bottomCallEnviron=None):
+            
         # Start animation
+        wait = 0.1
+        codeWait = 0.01
+        self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=codeWait)
+        if bottomCallEnviron is None:
+            bottomCallEnviron = callEnviron
+            callEnviron |= set(self.createShowPartitionsControl())
+        
+        loIndex = self.createIndex(lo, 'lo')
+        callEnviron |= set(loIndex)
+
+        self.highlightCode('hi is None', callEnviron, wait=wait)
+        if hi is None:
+            self.highlightCode('hi = len(self) - 1', callEnviron, wait=wait)
+            hi = len(self.list) - 1
+            
+        hiIndex = self.createIndex(hi, 'hi', level=2)
+        callEnviron |= set(hiIndex)
+
+        self.highlightCode('short = max(3, short)', callEnviron, wait=wait)
+        short = max(3, short)
+
+        self.highlightCode('hi - lo + 1 <= short', callEnviron, wait=wait)
+        if hi - lo + 1 <= short:
+            self.highlightCode('return self.insertionSort(lo, hi, key)',
+                               callEnviron, wait=wait)
+            self.fadeNonLocalItems(loIndex + hiIndex)
+            self.insertionSort(lo, hi)
+            self.restoreLocalItems(loIndex + hiIndex)
+            self.cleanUp(callEnviron, sleepTime=codeWait)
+            return
+        
+        self.highlightCode('pivotItem = self.{}(lo, hi, key)'.format(
+            'medianOfThree' if  self.useMedianOf3.get() else 'rightmost'),
+                           callEnviron)
+        self.fadeNonLocalItems(loIndex + hiIndex)
+        pivotItem = (self.medianOfThree(lo, hi) if self.useMedianOf3.get() else
+                     self.rightmost(lo, hi))
+        self.restoreLocalItems(loIndex + hiIndex)
+
+        pivotPartition = self.createPivotPartition(lo, hi, pivotItem, hi)
+        callEnviron |= set(pivotPartition)
+        # bottomCallEnviron.add(pivotPartition[-1])
+                
+        self.highlightCode(
+            'hipart = self.__part(key(pivotItem), {}, hi - 1, key)'.format(
+                'lo + 1' if self.useMedianOf3.get() else 'lo'),
+            callEnviron)
+        self.fadeNonLocalItems(loIndex + hiIndex)
+        hipart = self.partition(
+            pivotItem, lo + (1 if self.useMedianOf3.get() else 0), hi - 1)
+        self.restoreLocalItems(loIndex + hiIndex)
+        hipartIndex = self.createIndex(hipart, 'hipart', level=2)
+        callEnviron |= set(hipartIndex)
+        
+        self.highlightCode('self.swap(hipart, hi)', callEnviron)
+        self.swap(hipart, hi)
+        pivotMark = self.createPivotMark(hipart, pivotItem)
+        bottomCallEnviron |= set(pivotMark)
+
+        for item in pivotPartition:
+            self.canvas.delete(item)
+            callEnviron.discard(item)
+        pivotPartition = ()
+
+        self.highlightCode('self.quicksort(lo, hipart - 1, short, key)',
+                           callEnviron)
+        self.fadeNonLocalItems(loIndex + hiIndex + hipartIndex)
+        self.quicksort(lo, hipart - 1, short, code, 
+                       bottomCallEnviron=bottomCallEnviron)
+        self.restoreLocalItems(loIndex + hiIndex + hipartIndex)
+        self.canvas.tag_raise('pivotPartition')
+
+        self.highlightCode('self.quicksort(hipart + 1, hi, short, key)',
+                           callEnviron)
+        self.fadeNonLocalItems(loIndex + hiIndex + hipartIndex)
+        self.quicksort(hipart + 1, hi, short, code, 
+                       bottomCallEnviron=bottomCallEnviron)
+        self.restoreLocalItems(loIndex + hiIndex + hipartIndex)
+        self.canvas.tag_raise('pivotPartition')
+        
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron, sleepTime=codeWait)
+
+    def createPivotPartition(
+            self, lo, hi, pivot, pivotIndex,
+            font=VisualizationApp.VARIABLE_FONT, 
+            labelColor=VisualizationApp.VARIABLE_COLOR, 
+            tags=['pivotPartition']):
+        pivotCoords, loCoords, hiCoords = (
+            self.canvas.coords(self.list[idx].items[0]) for idx in
+            (pivotIndex, lo, hi))
+        
+        pad = self.PIVOT_LINE_PAD
+
+        labels = ['pivot', str(pivot), '[{}, {}]'.format(lo, hi)]
+        widths = [self.textWidth(font, label) for label in labels]
+        height = abs(font[1])
+        maxWidth = max(*widths)
+        lbls = tuple(self.canvas.create_text(
+            self.ARRAY_X0 - maxWidth // 2 - 1,
+            pivotCoords[3] + (i - 1) * height,
+            text=labels[i], font=font, fill=labelColor)
+                  for i in range(len(labels)))
+        line = self.canvas.create_line(
+            loCoords[0] - pad, pivotCoords[3], 
+            hiCoords[2] + pad, pivotCoords[3], tags=tags, dash=(5, 5),
+            fill=self.PIVOT_LINE_COLOR, width=self.PIVOT_LINE_WIDTH)
+        if not self.showPartitions:
+            for item in lbls + (line,):
+                self.canvas.coords(
+                    item, multiply_vector(self.canvas.coords(item), -1))
+        return lbls + (line,)
+
+    def pivotMarkCoords(self, pivotIndex):
+        cellCoords = self.cellCoords(pivotIndex)
+        centerX = (cellCoords[0] + cellCoords[2]) // 2
+        top = cellCoords[3] + 10
+        dX, dY = 5, 15
+        return (centerX, top, centerX - dX, top + dY, centerX + dX, top + dY)
+        
+    def createPivotMark(
+            self, pivotIndex, pivotValue, 
+            color=VisualizationApp.VARIABLE_COLOR, tags=['pivotPartition']):
+        mark = self.canvas.create_polygon(
+            *self.pivotMarkCoords(pivotIndex), tags=tags, fill=color, width=0)
+        items = (mark,)
+        if not self.showPartitions:
+            for item in items:
+                self.canvas.coords(
+                    item, multiply_vector(self.canvas.coords(item), -1))
+        return items
+
+    def showPartitionsControlCoords(self):
+        gap = 10
+        size = 16
+        canvasDims = self.widgetDimensions(self.canvas)
+        return (gap, canvasDims[1] - gap - size, 
+                gap + size, canvasDims[1] - gap)
+    
+    def createShowPartitionsControl(self):
+        coords = self.showPartitionsControlCoords()
+        box = self.canvas.create_rectangle(
+            *coords, fill=self.DEFAULT_BG, outline=self.CONTROLS_COLOR, width=2)
+        center = divide_vector(add_vector(coords[:2], coords[2:]), 2)
+        self.showPartitionsCheck = self.canvas.create_text(
+            *(center if self.showPartitions else multiply_vector(center, -1)),
+            text='✓', fill=self.CONTROLS_COLOR, font=self.CONTROLS_FONT)
+        label = self.canvas.create_text(
+            *add_vector(center, (coords[2] - coords[0], 0)), anchor=W,
+            text='Show pivot partitions', fill=self.CONTROLS_COLOR, 
+            font=self.CONTROLS_FONT)
+        items = (box, self.showPartitionsCheck, label)
+        for item in items:
+            self.canvas.tag_bind(item, '<Button>', self.toggleShowPartitons)
+        return items
+
+    def toggleShowPartitons(self, event=None):
+        self.showPartitions = not self.showPartitions
+        sign = 1 if self.showPartitions else -1
+        for item in self.canvas.find_withtag('pivotPartition') + (
+                self.showPartitionsCheck,):
+            self.canvas.coords(
+                item, *(sign * abs(c) for c in self.canvas.coords(item)))
+        
+    def insertionSort(self, lo, hi):
+        'Sort a short range of cells using insertion sort (no code)'
+        wait = 0.1
         self.startAnimations()
         callEnviron = self.createCallEnvironment()
-        
-        self.__quickSort(callEnviron)
-        
-        # Finish animation
-        self.cleanUp()
-    
-    def __quickSort(self, callEnviron, left=-1, right=-1):
-        # initialize things if method was called without args
-        if left == -1:
-            left = 0
-            right = len(self.list) - 1
+        n = len(self.list)
 
-        # there has to be at least two elements
-        if left < right:
-            partition = self.partitionIt(left, right)
-            self.__quickSort(callEnviron, left, partition - 1)
-            self.__quickSort(callEnviron, partition + 1, right)    
+        # make an index arrow for the outer loop
+        outer = lo + 1
+        outerIndex = self.createIndex(outer, "outer", level=2)
+        callEnviron |= set(outerIndex)
+
+        # make an index arrow that points to the next cell to check
+        innerIndex = self.createIndex(outer, "inner", level=1)
+        callEnviron |= set(innerIndex)
+        tempVal, label = None, None
+
+        # All items beyond the outer index have not been sorted
+        while outer <= hi:
+
+            # Store item at outer index in temporary mark variable
+            temp = self.list[outer].val
+
+            if tempVal:
+                tempVal, _ = self.assignToTemp(
+                    outer, callEnviron, varName="temp", existing=label)
+            else:
+                tempVal, label = self.assignToTemp(
+                    outer, callEnviron, varName="temp")
+                callEnviron.add(label)
+
+            # Inner loop starts at marked temporary item
+            inner = outer
+
+            # Move inner index arrow to point at cell to check
+            centerX0 = self.cellCenter(inner)[0]
+            deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+            if deltaX != 0:
+                self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=wait / 10)
+
+            # Loop down until we find an item less than or equal to the mark
+            while inner > lo and temp < self.list[inner - 1].val:
+
+                # Shift cells right that are greater than mark
+                self.assignElement(inner - 1, inner, callEnviron)
+
+                # Move inner index arrow to point at next cell to check
+                inner -= 1
+                centerX0 = self.cellCenter(inner)[0]
+                deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+                if deltaX != 0:
+                    self.moveItemsBy(
+                        innerIndex, (deltaX, 0), sleepTime=wait / 10) 
+
+            # Delay to show discovery of insertion point for mark
+            self.wait(wait)
+
+            # Copy marked temporary value to insertion point
+            self.assignFromTemp(inner, tempVal, None)
+
+            # Take it out of the cleanup set since it should persist
+            callEnviron -= set(tempVal.items)
+
+            # Advance outer loop
+            outer += 1
+            self.moveItemsBy(outerIndex, (self.CELL_WIDTH, 0), 
+                             sleepTime=wait / 10)
+
+        # Animation stops
+        self.cleanUp(callEnviron)
 
     shellSortCode = """
 def shellSort(self):
@@ -202,12 +511,12 @@ def shellSort(self):
 
         nShifts = 0
         while h > 0:
-            outerArrow = self.createIndex(h, name="outer", level=3)
+            outerArrow = self.createIndex(h, name="outer", level=2)
             callEnviron |= set(outerArrow)
             
             for outer in range(h, len(self.list)):
                 # move outer index
-                arrowPos = self.indexCoords(outer, level=3)
+                arrowPos = self.indexCoords(outer, level=2)
                 self.moveItemsTo(outerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
 
                 # assign outer to temp
@@ -218,7 +527,7 @@ def shellSort(self):
 
                 # create the inner index
                 inner = outer
-                innerArrow = self.createIndex(inner, name="inner", level=2)
+                innerArrow = self.createIndex(inner, name="inner", level=1)
                 callEnviron |= set(innerArrow)
                 self.wait(0.2)
 
@@ -231,7 +540,7 @@ def shellSort(self):
 
                     # move the inner index
                     inner -= h
-                    arrowPos = self.indexCoords(inner, level=2)
+                    arrowPos = self.indexCoords(inner, level=1)
                     self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]), sleepTime=.02)
                     self.wait(0.2)
 
@@ -275,46 +584,33 @@ def shellSort(self):
         self.cleanUp(callEnviron)
         return nShifts
 
-    def makeButtons(self, maxRows=3):
-        vcmd = (self.window.register(numericValidate),
-                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows,
-            argHelpText=['item key'], helpText='Insert item in array')
-        searchButton = self.addOperation(
-            "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows,
-            argHelpText=['item key'], helpText='Search for item in array')
-        deleteButton = self.addOperation(
-            "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows,
-            argHelpText=['item key'], helpText='Delete array item')
-        newButton = self.addOperation(
-            "New", lambda: self.clickNew(), numArguments=1,
-            validationCmd=vcmd, maxRows=maxRows, 
-            argHelpText=['number of cells'],
-            helpText='Create new empty array')
-        randomFillButton = self.addOperation(
-            "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
-            helpText='Fill all array cells with random keys')
-        shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
-            helpText='Shuffle position of all items')
-        deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
-            helpText='Delete last array item')
+    def makeButtons(self, maxRows=4):
+        buttons, vcmd = super().makeButtons(maxRows=maxRows)
         quicksortButton = self.addOperation(
-            "Quicksort", lambda: self.quickSort(), maxRows=maxRows,
+            "Quicksort", lambda: self.clickQuicksort(), maxRows=maxRows,
             helpText='Sort items using quicksort algorithm')
+        self.useMedianOf3 = IntVar()
+        self.useMedianOf3.set(1)
+        useMedianOf3Button = self.addOperation(
+            "Use median of 3", self.clickUseMedianOf3, buttonType=Checkbutton,
+            variable=self.useMedianOf3, maxRows=maxRows,
+            helpText='Use median of 3 to select\npivot in quicksort algorithm')
         shellSortButton = self.addOperation(
             "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
             helpText='Sort items using shellsort algorithm')
         self.addAnimationButtons(maxRows=maxRows)
-        buttons = [insertButton, searchButton, deleteButton, newButton, 
-                   randomFillButton, shuffleButton, deleteRightmostButton,
-                   quicksortButton]
+        buttons += [quicksortButton, shellSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
+
+    def clickQuicksort(self):
+        self.partitions = []
+        self.showPartitions = True
+        self.quicksort(code=self.quicksortCode if self.useMedianOf3.get() else
+                       self.quicksortCode.replace('medianOfThree', 'rightmost')
+                       .replace('lo + 1,', 'lo,'))
+
+    def clickUseMedianOf3(self):
+        pass
         
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
