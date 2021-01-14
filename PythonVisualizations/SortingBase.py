@@ -311,8 +311,13 @@ def insert(self, item={val}):
     def randomFill(self):
         callEnviron = self.createCallEnvironment()        
 
-        self.list = [
-            drawnValue(random.randrange(self.valMax)) for i in range(self.size)]
+        toFill = self.size - len(self.list)
+        if toFill > 0:
+            self.list.extend([
+                drawnValue(random.randrange(self.valMax)) 
+                for i in range(toFill)])
+        else:
+            self.setMessage('Array is already full')
         
         self.display(showNItems=self.nItems)
         self.cleanUp(callEnviron)
@@ -320,12 +325,15 @@ def insert(self, item={val}):
     def linearFill(self, increasing=True):
         callEnviron = self.createCallEnvironment()        
 
-        self.list = [
-            drawnValue(
-                int((i if increasing else (self.size - 1 - i)) * self.valMax /
-                    (self.size - 1)))
-            for i in range(self.size)]
-        
+        toFill = self.size - len(self.list)
+        if toFill > 0:
+            self.list.extend([
+                drawnValue(
+                    int((i if increasing else max(1, toFill - 1) - i) *
+                        self.valMax / max(1, toFill - 1)))
+                for i in range(toFill)])
+        else:
+            self.setMessage('Array is already full')
         self.display(showNItems=self.nItems)
         self.cleanUp(callEnviron)
         
@@ -863,16 +871,20 @@ def traverse(self, function=print):
             helpText='Traverse all array cells once')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
-            helpText='Fill all array cells with random keys')
-        shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
-            helpText='Shuffle position of all items')
+            helpText='Fill empty array cells with random keys')
+        increasingFillButton = self.addOperation(
+            "Increasing Fill", lambda: self.linearFill(), maxRows=maxRows,
+            helpText='Fill empty array cells with increasing keys')
+        decreasingFillButton = self.addOperation(
+            "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
+            helpText='Fill empty array cells with decreasing keys')
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
             helpText='Delete last array item')
-        buttons = [insertButton, searchButton, deleteButton, newButton, 
-                   traverseButton, randomFillButton, shuffleButton,
-                   deleteRightmostButton]
+        shuffleButton = self.addOperation(
+            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
+            helpText='Shuffle position of all items')
+        buttons = [btn for btn in self.opButtons]
         return buttons, vcmd  # Buttons managed by play/pause/stop controls    
     
     def validArgument(self, valMax=None):
