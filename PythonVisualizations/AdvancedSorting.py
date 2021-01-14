@@ -17,8 +17,6 @@ class AdvancedArraySort(SortingBase):
 
     def __init__(self, title="Advanced Sorting", **kwargs):
         super().__init__(title=title, **kwargs)
-        self.ARRAY_Y0 = 75
-
         self.ARRAY_Y0 = 60
         
         for i in range(self.size):
@@ -27,11 +25,6 @@ class AdvancedArraySort(SortingBase):
         
         self.buttons = self.makeButtons()
         
-    def cellCoords(self, cell_index):  # Get bounding rectangle for array cell
-        return (self.ARRAY_X0 + self.CELL_WIDTH * cell_index, self.ARRAY_Y0,  # at index
-                self.ARRAY_X0 + self.CELL_WIDTH * (cell_index + 1) - self.CELL_BORDER,
-                self.ARRAY_Y0 + 3*self.CELL_SIZE - self.CELL_BORDER)    
-
     def fillCoords(self, val, rectPos, valMin=0, valMax=None):
         if valMax is None:
             valMax = self.valMax
