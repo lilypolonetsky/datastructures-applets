@@ -245,7 +245,7 @@ def selectionSort(self):
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
-    def makeButtons(self, maxRows=3):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         insertButton = self.addOperation(
@@ -267,13 +267,19 @@ def selectionSort(self):
             helpText='Create new empty array')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
-            helpText='Fill all array cells with random keys')
-        shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
-            helpText='Shuffle position of all items')
+            helpText='Fill empty array cells with random keys')
+        increasingFillButton = self.addOperation(
+            "Increasing Fill", lambda: self.linearFill(), maxRows=maxRows,
+            helpText='Fill empty array cells with increasing keys')
+        decreasingFillButton = self.addOperation(
+            "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
+            helpText='Fill empty array cells with decreasing keys')
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
             helpText='Delete last array item')
+        shuffleButton = self.addOperation(
+            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
+            helpText='Shuffle position of all items')
         bubbleSortButton = self.addOperation(
             "Bubble Sort", lambda: self.bubbleSort(), maxRows=maxRows,
             helpText='Sort array using bubble sort')
@@ -283,10 +289,8 @@ def selectionSort(self):
         insertionSortButton = self.addOperation(
             "Insertion Sort", lambda: self.insertionSort(), maxRows=maxRows,
             helpText='Sort array using insertion sort')
+        buttons = [btn for btn in self.opButtons]
         self.addAnimationButtons(maxRows=maxRows)
-        buttons = [insertButton, searchButton, deleteButton, newButton, 
-                   randomFillButton, shuffleButton, deleteRightmostButton,
-                   bubbleSortButton, selectionSortButton, insertionSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
 
 if __name__ == '__main__':

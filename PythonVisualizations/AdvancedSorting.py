@@ -419,30 +419,27 @@ def shellSort(self):
             helpText='Create new empty array')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
-            helpText='Fill all array cells with random keys')
+            helpText='Fill empty array cells with random keys')
         increasingFillButton = self.addOperation(
             "Increasing Fill", lambda: self.linearFill(), maxRows=maxRows,
-            helpText='Fill all array cells with increasing keys')
+            helpText='Fill empty array cells with increasing keys')
         decreasingFillButton = self.addOperation(
             "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
-            helpText='Fill all array cells with decreasing keys')
-        shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
-            helpText='Shuffle position of all items')
+            helpText='Fill empty array cells with decreasing keys')
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
             helpText='Delete last array item')
+        shuffleButton = self.addOperation(
+            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
+            helpText='Shuffle position of all items')
         quicksortButton = self.addOperation(
             "Quicksort", lambda: self.quickSort(), maxRows=maxRows,
             helpText='Sort items using quicksort algorithm')
         shellSortButton = self.addOperation(
             "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
             helpText='Sort items using shellsort algorithm')
+        buttons = [btn for btn in self.opButtons]
         self.addAnimationButtons(maxRows=maxRows)
-        buttons = [insertButton, searchButton, deleteButton, newButton, 
-                   randomFillButton, decreasingFillButton, increasingFillButton,
-                   shuffleButton, deleteRightmostButton,
-                   quicksortButton, shellSortButton]
         return buttons  # Buttons managed by play/pause/stop controls
         
 if __name__ == '__main__':

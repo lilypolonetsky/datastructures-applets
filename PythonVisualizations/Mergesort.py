@@ -308,7 +308,7 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
         for i, cell in enumerate(self.arrayCells):
             self.canvas.coords(cell, self.arrayCellCoords(i))
                 
-    def makeButtons(self, maxRows=3):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         insertButton = self.addOperation(
@@ -328,22 +328,26 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
             validationCmd=vcmd, maxRows=maxRows, 
             argHelpText=['number of cells'],
             helpText='Create new empty array')
-        mergesortButton = self.addOperation(
-            "Mergesort", lambda: self.mergesortInit(), maxRows=maxRows,
-            helpText='Sort items using mergesort')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
-            helpText='Fill all array cells with random keys')
-        shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
-            helpText='Shuffle position of all items')
+            helpText='Fill empty array cells with random keys')
+        increasingFillButton = self.addOperation(
+            "Increasing Fill", lambda: self.linearFill(), maxRows=maxRows,
+            helpText='Fill empty array cells with increasing keys')
+        decreasingFillButton = self.addOperation(
+            "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
+            helpText='Fill empty array cells with decreasing keys')
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
             helpText='Delete last array item')
+        shuffleButton = self.addOperation(
+            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
+            helpText='Shuffle position of all items')
+        mergesortButton = self.addOperation(
+            "Mergesort", lambda: self.mergesortInit(), maxRows=maxRows,
+            helpText='Sort items using mergesort')
+        buttons = [btn for btn in self.opButtons]
         self.addAnimationButtons(maxRows=maxRows)
-        buttons = [insertButton, searchButton, deleteButton, newButton, 
-                   randomFillButton, shuffleButton, deleteRightmostButton,
-                   mergesortButton]
         return buttons  # Buttons managed by play/pause/stop controls
 
     def new(self, val):
