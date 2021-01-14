@@ -159,6 +159,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.operationsUpper = LabelFrame(
             self.controlPanel, text="Operations", bg=self.DEFAULT_BG)
         self.operationsUpper.grid(row=0, column=0)
+        self.opButtons = []
         self.operationsPadding = Frame(
             self.operationsUpper, padx=2, pady=2, bg=self.OPERATIONS_BORDER)
         self.operationsPadding.pack(side=TOP)
@@ -287,6 +288,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
             button.bind('<Enter>', self.makeArmHintHandler(button, helpText))
             button.bind('<Leave>', self.makeDisarmHandler(button))
             button.bind('<Button>', self.makeDisarmHandler(button), '+')
+        self.opButtons.append(button)
         return button
 
     def makeArgumentEntry(self, validationCmd):
