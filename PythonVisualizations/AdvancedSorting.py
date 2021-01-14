@@ -734,6 +734,9 @@ def shellSort(self):
         shuffleButton = self.addOperation(
             "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
             helpText='Shuffle position of all items')
+        shellSortButton = self.addOperation(
+            "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
+            helpText='Sort items using shellsort algorithm')
         quicksortButton = self.addOperation(
             "Quicksort", lambda: self.clickQuicksort(), maxRows=maxRows,
             helpText='Sort items using quicksort algorithm')
@@ -743,9 +746,6 @@ def shellSort(self):
             "Use median of 3", self.clickUseMedianOf3, buttonType=Checkbutton,
             variable=self.useMedianOf3, maxRows=maxRows,
             helpText='Use median of 3 to select\npivot in quicksort algorithm')
-        shellSortButton = self.addOperation(
-            "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
-            helpText='Sort items using shellsort algorithm')
         buttons = [btn for btn in self.opButtons]
         self.addAnimationButtons(maxRows=maxRows)
         return buttons  # Buttons managed by play/pause/stop controls
