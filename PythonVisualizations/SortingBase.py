@@ -36,14 +36,16 @@ class SortingBase(VisualizationApp):
     
     # ANIMATION METHODS
     def assignElement(
-            self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01, startAngle=0):
+            self, fromIndex, toIndex, callEnviron, steps=10, sleepTime=0.01,
+            startAngle=0):
         
         fromValue = self.list[fromIndex]
         toValue = self.list[toIndex]
 
         # get positions of "to" cell in array
-        toPositions = (self.fillCoords(fromValue.val, self.cellCoords(toIndex)),
-                       self.cellCenter(toIndex))
+        toPositions = (self.fillCoords(fromValue.val, 
+                                       self.currentCellCoords(toIndex)),
+                       self.currentCellCenter(toIndex))
                 
         # create new display objects as copies of the "from" cell and value
         copyItems = [self.copyCanvasItem(i) for i in fromValue.items 
@@ -51,12 +53,13 @@ class SortingBase(VisualizationApp):
         callEnviron |= set(copyItems)
 
         # Move copies to the desired location
-        if startAngle == 0:                                         # move items linearly
+        if startAngle == 0:                            # move items linearly
             self.moveItemsTo(copyItems, toPositions, steps=steps,
                             sleepTime=sleepTime)
-        else:                                                       # move items on curve
-            self.moveItemsOnCurve(copyItems, toPositions, startAngle=startAngle, 
-                                steps=steps, sleepTime=sleepTime)
+        else:                                          # move items on curve
+            self.moveItemsOnCurve(
+                copyItems, toPositions, startAngle=startAngle, 
+                steps=steps, sleepTime=sleepTime)
 
         # delete the original "to" display value and the new display shape
         for item in toValue.items:
@@ -68,16 +71,19 @@ class SortingBase(VisualizationApp):
         toValue.items = tuple(copyItems)
         callEnviron -= set(copyItems)
 
-    def tempCoords(self, index):  # Determine coordinates for a temporary
-        cellCoords = self.cellCoords(index) # variable aligned below an array
-        height = cellCoords[3] - cellCoords[1] # cell
-        return add_vector(cellCoords, (0, int(height * 1.7)) * 2)
+    def tempCoords(self, index):  # Determine coordinates for a temporary var
+        cellCoords = self.currentCellCoords(index) # aligned below an array
+        canvasDims = self.widgetDimensions(self.canvas) # cell
+        bottom = min(canvasDims[1] - 1,
+                     cellCoords[3] + int(self.CELL_HEIGHT * 1.7))
+        return add_vector(cellCoords, (0, bottom - cellCoords[3]) * 2)
 
     def tempLabelCoords(self, index, font):
         tempPos = self.tempCoords(index)
         return (tempPos[0] + tempPos[2]) // 2, tempPos[1] - abs(font[1])
     
-    def assignToTemp(self, index, callEnviron, varName="temp", existing=None):
+    def assignToTemp(self, index, callEnviron, varName="temp", existing=None,
+                     sleepTime=0.02):
         """Assign indexed cell to a temporary variable named varName.
         Animate value moving to the temporary variable below the array.
         Return a drawnValue for the new temporary value and a text item for
@@ -104,28 +110,33 @@ class SortingBase(VisualizationApp):
             callEnviron.add(tempLabel)
 
         delta = (tempLabelPos[0] - cellXCenter, tempPos[1] - posCell[1])
-        self.moveItemsBy(copyItems, delta, sleepTime=0.02)
+        self.moveItemsBy(copyItems, delta, sleepTime=sleepTime)
 
         return drawnValue(fromValue.val, *copyItems), tempLabel
 
-    def assignFromTemp(self, index, temp, templabel, delete=True):
+    def assignFromTemp(self, index, temp, templabel, delete=True,
+                       sleepTime=0.04):
+        """Assign a temporary drawnValue to the indexed array cell by
+        moving it into position on top of the array cell
+        Delete the temporary label if requested.
+        """
 
-        toCellCoords = self.fillCoords(temp.val, self.cellCoords(index))
-        toCellCenter = self.cellCenter(index)
+        toCellCoords = self.fillCoords(temp.val, self.currentCellCoords(index))
+        toCellCenter = self.currentCellCenter(index)
         tempCellCoords = self.canvas.coords(temp.items[0])
         deltaX = toCellCoords[0] - tempCellCoords[0]
         startAngle = 45 * 500 / (500 + abs(deltaX)) * (-1 if deltaX < 0 else 1)
 
         self.moveItemsOnCurve(
-            temp.items, (toCellCoords, toCellCenter), sleepTime=0.04,
+            temp.items, (toCellCoords, toCellCenter), sleepTime=sleepTime,
             startAngle=startAngle)
 
         if delete:
             if templabel:
                 self.canvas.delete(templabel)
-            for item in self.list[index].items:
-                if item is not None:
-                    self.canvas.delete(item)
+        for item in self.list[index].items:
+            if item is not None:
+                self.canvas.delete(item)
         self.list[index] = temp
         
     def swap(self, a, b, aCellObjects=[], bCellObjects=[]):
@@ -161,10 +172,10 @@ class SortingBase(VisualizationApp):
         space = self.CELL_SIZE * 1 // 10
         x = cell_center[0]
         if level > 0:
-            y0 = cell_coords[1] - 2 * space - level * level_space
+            y0 = cell_coords[1] - space - level * level_space
             y1 = cell_coords[1] - space
         else:
-            y0 = cell_coords[3] + 2 * space - level * level_space
+            y0 = cell_coords[3] + space - level * level_space
             y1 = cell_coords[3] + space
         return x, y0, x, y1
         
@@ -300,9 +311,29 @@ def insert(self, item={val}):
     def randomFill(self):
         callEnviron = self.createCallEnvironment()        
 
-        self.list = [
-            drawnValue(random.randrange(self.valMax)) for i in range(self.size)]
+        toFill = self.size - len(self.list)
+        if toFill > 0:
+            self.list.extend([
+                drawnValue(random.randrange(self.valMax)) 
+                for i in range(toFill)])
+        else:
+            self.setMessage('Array is already full')
         
+        self.display(showNItems=self.nItems)
+        self.cleanUp(callEnviron)
+    
+    def linearFill(self, increasing=True):
+        callEnviron = self.createCallEnvironment()        
+
+        toFill = self.size - len(self.list)
+        if toFill > 0:
+            self.list.extend([
+                drawnValue(
+                    int((i if increasing else max(1, toFill - 1) - i) *
+                        self.valMax / max(1, toFill - 1)))
+                for i in range(toFill)])
+        else:
+            self.setMessage('Array is already full')
         self.display(showNItems=self.nItems)
         self.cleanUp(callEnviron)
         
@@ -598,9 +629,7 @@ def traverse(self, function=print):
     
     def cellCenter(self, cell_index):  # Center point for array cell at index
         x1, y1, x2, y2 = self.cellCoords(cell_index)
-        midX = (x1 + x2) // 2 
-        midY = (y1 + y2) // 2
-        return midX, midY
+        return (x1 + x2) // 2, (y1 + y2) // 2
 
     def newValueCoords(self):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
@@ -612,14 +641,23 @@ def traverse(self, function=print):
     def cellTag(self, index): # Tag name for a particular cell in an array
         return "cell-{}".format(index)
 
+    def arrayCellDelta(self):
+        half_border = self.CELL_BORDER // 2
+        return (-half_border, -half_border,
+                self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)
+    
     def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
-        half_border = self.CELL_BORDER // 2
-        return add_vector(
-            cell_coords,
-            (-half_border, -half_border,
-             self.CELL_BORDER - half_border, self.CELL_BORDER - half_border))
-        
+        return add_vector(cell_coords, self.arrayCellDelta())
+
+    def currentCellCoords(self, index):  # Compute coords from current position
+        return subtract_vector(self.canvas.coords(self.arrayCells[index]),
+                               self.arrayCellDelta())
+
+    def currentCellCenter(self, index):
+        x1, y1, x2, y2 = self.currentCellCoords(index)
+        return (x1 + x2) // 2, (y1 + y2) // 2
+    
     def createArrayCell(     # Create a box representing an array cell
             self, index, tags=["arrayBox"]):
         rect = self.canvas.create_rectangle(
@@ -787,6 +825,8 @@ def traverse(self, function=print):
         self.fixCells()
     
     def fixCells(self):  # Move canvas display items to exact cell coords
+        for index, ac in enumerate(self.arrayCells):
+            self.canvas.coords(ac, self.arrayCellCoords(index))
         for i, dValue in enumerate(self.list):
             for item, coords in zip(dValue.items,
                                     (self.fillCoords(dValue.val,
@@ -831,16 +871,20 @@ def traverse(self, function=print):
             helpText='Traverse all array cells once')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
-            helpText='Fill all array cells with random keys')
-        shuffleButton = self.addOperation(
-            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
-            helpText='Shuffle position of all items')
+            helpText='Fill empty array cells with random keys')
+        increasingFillButton = self.addOperation(
+            "Increasing Fill", lambda: self.linearFill(), maxRows=maxRows,
+            helpText='Fill empty array cells with increasing keys')
+        decreasingFillButton = self.addOperation(
+            "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
+            helpText='Fill empty array cells with decreasing keys')
         deleteRightmostButton = self.addOperation(
             "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
             helpText='Delete last array item')
-        buttons = [insertButton, searchButton, deleteButton, newButton, 
-                   traverseButton, randomFillButton, shuffleButton,
-                   deleteRightmostButton]
+        shuffleButton = self.addOperation(
+            "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
+            helpText='Shuffle position of all items')
+        buttons = [btn for btn in self.opButtons]
         return buttons, vcmd  # Buttons managed by play/pause/stop controls    
     
     def validArgument(self, valMax=None):
