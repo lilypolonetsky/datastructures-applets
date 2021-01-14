@@ -663,6 +663,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
     def cleanUpCallEnviron(    # Clean up a call on the stack
             self, callEnviron, # removing the call environement
             sleepTime=0):      # waiting sleepTime between removing code lines
+        inUserStop = False
         while len(callEnviron):
             thing = callEnviron.pop()
             if isinstance(thing, (str, int)) and self.canvas.type(thing):
@@ -675,10 +676,15 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 for i in range(1, min(last_line, len(thing.lines) + 2)):
                     if self.codeText:
                         self.codeText.delete('1.0', '2.0')
-                        if sleepTime > 0:
-                            self.wait(sleepTime)
+                        if sleepTime > 0 and not self.animationsStopped():
+                            try:
+                                self.wait(sleepTime)
+                            except UserStop:
+                                inUserStop = True
                 if self.codeText:
                     self.codeText.configure(state=DISABLED)
+        if inUserStop:
+            raise UserStop()
 
     def createCallEnvironment( # Create a call environment on the call stack
             self,              # for animating a particular call
