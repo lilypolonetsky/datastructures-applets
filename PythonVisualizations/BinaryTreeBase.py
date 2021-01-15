@@ -524,8 +524,8 @@ class BinaryTreeBase(VisualizationApp):
         if subSize: self.size -= 1
 
         # recursively remove children
-        self.clearDescendants(leftIndex)
-        self.clearDescendants(rightIndex)
+        self.clearDescendants(leftIndex, subSize= subSize)
+        self.clearDescendants(rightIndex, subSize = subSize)
 
     # remove the tree's drawing
     # empty the tree's data
@@ -557,7 +557,7 @@ class BinaryTreeBase(VisualizationApp):
 
     def rotateLeft(self, top, animation=True):
         "rotate a subtree to the left in the array and animate it"
-        # the node to raise it top's right child
+        # the node to raise is top's right child
         toRaise = self.getRightChild(top)
 
         # save top's left subtree
