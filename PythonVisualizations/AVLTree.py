@@ -70,6 +70,12 @@ class AVLTree(BinaryTreeBase):
       
       # key already exists in tree
       if key == node.getKey():
+      # don't insert past MAX_LEVEL
+      if self.getLevel(node) == self.MAX_LEVEL-1:
+         if animation:
+            self.setMessage(
+               "Error! Cannot insert at level " + str(self.MAX_LEVEL+1) + 
+               " or below")
          self.cleanUp(callEnviron)
          return node, False
           
