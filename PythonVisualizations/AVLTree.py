@@ -70,6 +70,11 @@ class AVLTree(BinaryTreeBase):
       
       # key already exists in tree
       if key == node.getKey():
+         self.setMessage(
+               "Error! Key" + str(key) + " already exists in the tree")
+         self.cleanUp(callEnviron)
+         return node, False
+
          self.cleanUp(callEnviron)
          return node, False
           
