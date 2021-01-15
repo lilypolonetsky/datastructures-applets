@@ -593,7 +593,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         is 1 for the first instance of the string, 2 for the second, etc.
         '''
         codeBlock = self.getCodeHighlightBlock(callEnviron)
-        if codeBlock is None:  # This shouldn't happen, but...
+        if codeBlock is None:  # This should only happen when code is hidden
             return
         if color is None:
             color = self.CODE_HIGHLIGHT
@@ -692,11 +692,15 @@ class VisualizationApp(object):  # Base class for Python visualizations
             sleepTime=0):      # Wait time between inserting lines of code
         # The call environment is a set for local variables represented by
         # canvas items plus a codeHighlightBlock that controls code highlights
-        self.showCode(code, addBoundary=True, sleepTime=sleepTime)
-        codeHighlightBlock = CodeHighlightBlock(code, self.codeText)
-        if self.codeText:
-            codeHighlightBlock.markStart()
-        callEnviron = set([codeHighlightBlock])
+        code = code.strip()
+        callEnviron = set()
+        if len(code) > 0:
+            self.showCode(code, addBoundary=True, sleepTime=sleepTime)
+            codeHighlightBlock = CodeHighlightBlock(code, self.codeText)
+            if self.codeText:
+                codeHighlightBlock.markStart()
+            callEnviron.add(codeHighlightBlock)
+            
         self.callStack.append(callEnviron) # Push environment on stack
         return callEnviron
         
