@@ -164,7 +164,11 @@ def __part(self, pivot={pivot}, lo={lo}, hi={hi}, key=identity):
         while lo <= hi:
             self.highlightCode('key(self.get(lo)) < pivot', callEnviron,
                                wait=wait)
-            while self.list[lo].val < pivot:
+            # In quicksort, the pivot is to the right of the [lo, hi] range
+            # and acts as a sentinel.  When partition() is called outside
+            # that context (code == '', the pivot may not be present so we
+            # must test that lo <= hi before looking at the value at lo
+            while (len(code) > 0 or lo <= hi) and self.list[lo].val < pivot:
                 self.highlightCode('lo += 1', callEnviron)
                 lo += 1
                 self.moveItemsBy(loIndex, rightDelta, sleepTime=wait / 10)
@@ -271,7 +275,9 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
                      self.rightmost(lo, hi))
         self.restoreLocalItems(loIndex + hiIndex)
 
-        pivotPartition = self.createPivotPartition(lo, hi, pivotItem, hi)
+        pivotItemShape = self.list[hi].items[0]
+        pivotPartition = self.createPivotPartition(
+            lo, hi, pivotItem, self.canvas.coords(pivotItemShape)[3])
         callEnviron |= set(pivotPartition)
         # bottomCallEnviron.add(pivotPartition[-1])
                 
@@ -316,13 +322,12 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         self.cleanUp(callEnviron, sleepTime=codeWait)
 
     def createPivotPartition(
-            self, lo, hi, pivot, pivotIndex,
+            self, lo, hi, pivot, pivotY,
             font=VisualizationApp.VARIABLE_FONT, 
             labelColor=VisualizationApp.VARIABLE_COLOR, 
             tags=['pivotPartition']):
-        pivotCoords, loCoords, hiCoords = (
-            self.canvas.coords(self.list[idx].items[0]) for idx in
-            (pivotIndex, lo, hi))
+        loCoords, hiCoords = (
+            self.canvas.coords(self.list[idx].items[0]) for idx in (lo, hi))
         
         pad = self.PIVOT_LINE_PAD
 
@@ -331,14 +336,13 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         height = abs(font[1])
         maxWidth = max(*widths)
         lbls = tuple(self.canvas.create_text(
-            self.ARRAY_X0 - maxWidth // 2 - 1,
-            pivotCoords[3] + (i - 1) * height,
+            self.ARRAY_X0 - maxWidth // 2 - 1, pivotY + (i - 1) * height,
             text=labels[i], font=font, fill=labelColor)
                   for i in range(len(labels)))
         line = self.canvas.create_line(
-            loCoords[0] - pad, pivotCoords[3], 
-            hiCoords[2] + pad, pivotCoords[3], tags=tags, dash=(5, 5),
-            fill=self.PIVOT_LINE_COLOR, width=self.PIVOT_LINE_WIDTH)
+            loCoords[0] - pad, pivotY, hiCoords[2] + pad, pivotY,
+            tags=tags, dash=(5, 5), fill=self.PIVOT_LINE_COLOR,
+            width=self.PIVOT_LINE_WIDTH)
         if not self.showPartitions:
             for item in lbls + (line,):
                 self.canvas.coords(
@@ -710,10 +714,10 @@ def shellSort(self):
             "Search", lambda: self.clickSearch(), numArguments=1,
             validationCmd=vcmd, maxRows=maxRows,
             argHelpText=['item key'], helpText='Search for item in array')
-        deleteButton = self.addOperation(
-            "Delete", lambda: self.clickDelete(), numArguments=1,
+        partitionButton = self.addOperation(
+            "Partition", lambda: self.clickPartition(), numArguments=1,
             validationCmd=vcmd, maxRows=maxRows,
-            argHelpText=['item key'], helpText='Delete array item')
+            argHelpText=['item key'], helpText='Partition array around key')
         newButton = self.addOperation(
             "New", lambda: self.clickNew(), numArguments=1,
             validationCmd=vcmd, maxRows=maxRows, 
@@ -749,6 +753,30 @@ def shellSort(self):
         buttons = [btn for btn in self.opButtons]
         self.addAnimationButtons(maxRows=maxRows)
         return buttons  # Buttons managed by play/pause/stop controls
+
+    def clickPartition(self):
+        val = self.validArgument()
+        if val is None:
+            self.setMessage(
+                "Input value must be an integer from 0 to {}".format(
+                    self.valMax))
+            self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
+        else:
+            callEnviron = self.createCallEnvironment()
+            self.startAnimations()
+            self.showPartitions = True
+
+            pivotY = self.fillCoords(val, self.cellCoords(0))[3]
+            pivotPartition = self.createPivotPartition(
+                0, len(self.list) - 1, val, pivotY)
+            callEnviron |= set(pivotPartition)
+            part = self.partition(val, 0, len(self.list) - 1, code='')
+            callEnviron |= set(self.createIndex(part, '', level=-1))
+            self.setMessage('Partition at or above {}\nstarts at index {}'
+                            .format(val, part))
+            
+            self.cleanUp(callEnviron)
+            self.clearArgument()
 
     def clickQuicksort(self):
         self.partitions = []
