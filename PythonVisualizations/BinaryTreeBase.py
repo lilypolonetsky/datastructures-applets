@@ -256,9 +256,14 @@ class BinaryTreeBase(VisualizationApp):
     Canvas.create_circle = _create_circle
 
     # Create an arrow to point at a node
-    def createArrow(self, node):
-        arrow = self.canvas.create_line(node.coords[0], node.coords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
-                                   node.coords[0], node.coords[1] - self.CIRCLE_SIZE, arrow="last", fill='red')
+    def createArrow(self, nodeOrCoords):
+        if isinstance(nodeOrCoords, Node):
+            coords = node.coords
+        else:
+            coords = nodeOrCoords
+        
+        arrow = self.canvas.create_line(coords[0], coords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
+                                        coords[0], coords[1] - self.CIRCLE_SIZE, arrow="last", fill='red')
         return (arrow, )
 
     # move the arrow to point above the node
@@ -273,6 +278,11 @@ class BinaryTreeBase(VisualizationApp):
             node[0], node[1] - self.CIRCLE_SIZE)
 
         self.moveItemsTo(arrow, (toPos,), steps = numSteps, sleepTime=sleepTime)
+
+    # get the coords for where to move the arrow
+    def getMoveArrowCoords(self, arrow, nodeCoords):
+        return (nodeCoords[0], nodeCoords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
+                nodeCoords[0], nodeCoords[1] - self.CIRCLE_SIZE)
 
     # calculate the coordinates for the node shape
     def calculateCoordinates(self, parent, level, childDirection):
@@ -335,7 +345,7 @@ class BinaryTreeBase(VisualizationApp):
 
         return circle, circle_text
 
-    def restoreNodesPosition(self, moveItems, sleepTime=0.1):
+    def restoreNodesPosition(self, moveItems, arrow=None, sleepTime=0.1):
         "moves all the nodes in moveItems to their proper place (as defined by their place in the array)"
         # get the coords for the node to move to
         moveCoords = []
@@ -347,7 +357,12 @@ class BinaryTreeBase(VisualizationApp):
                 node.coords = self.calculateCoordinates(self.getParent(node), self.getLevel(node), self.getChildDirection(node))
                 moveCoords.append(( node.coords[0]-self.CIRCLE_SIZE, node.coords[1]-self.CIRCLE_SIZE,
                                         node.coords[0]+self.CIRCLE_SIZE, node.coords[1]+self.CIRCLE_SIZE))
-        if len(moveItemsTags) > 0: self.moveItemsTo(moveItemsTags, moveCoords, sleepTime=sleepTime)
+        arrowList = []
+        arrowCoords = []
+        if arrow:
+            arrowList.append(arrow)
+            arrowCoords.append(self.getMoveArrowCoords(arrow, node.coords))
+        if len(moveItemsTags) > 0: self.moveItemsTo(moveItemsTags+arrowList, moveCoords+arrowCoords, sleepTime=sleepTime)
 
     # draw a line pointing to node
     def createLine(self, node):

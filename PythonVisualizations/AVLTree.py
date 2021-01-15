@@ -41,8 +41,16 @@ class AVLTree(BinaryTreeBase):
       callEnviron = self.createCallEnvironment()
       self.startAnimations()
 
-      root, flag = self.__insert(self.getRoot(), key, animation=animation)
+      # create arrow
+      if animation:
+         coords = self.calculateCoordinates(None,0,Child.RIGHT)
+         arrow = self.createArrow(coords)
+         callEnviron |= set(arrow)
+
+      root, flag = self.__insert(self.getRoot(), key, animation=animation, arrow=arrow)
       self.setRoot(root)
+      if animation:
+         self.moveArrow(arrow, root)
       self.redrawNodes()
       self.drawAllLines()
       self.allDisplayHeight()
@@ -50,7 +58,7 @@ class AVLTree(BinaryTreeBase):
       self.cleanUp(callEnviron)
       return flag
 
-   def __insert(self, node, key,animation=True):
+   def __insert(self, node, key,animation=True, arrow=None):
       callEnviron = self.createCallEnvironment()
       self.startAnimations()
 
@@ -68,12 +76,13 @@ class AVLTree(BinaryTreeBase):
       # Does the key belong in left subtree?
       elif key < node.getKey():
          # insert on left and update the left link
-         newLeft, flag = self.__insert(self.getLeftChild(node), key, animation=animation)
+         newLeft, flag = self.__insert(self.getLeftChild(node), key, animation=animation, arrow=arrow)
          self.setLeftChild(node, newLeft)
 
          if animation:
-            self.restoreNodesPosition([newLeft], sleepTime=.01)
+            self.restoreNodesPosition([newLeft], arrow=arrow, sleepTime=.01)
             self.redrawLines()
+            self.wait(0.2)
 
           # If insert made node left heavy
          if self.heightDiff(node) > 1:
@@ -86,12 +95,13 @@ class AVLTree(BinaryTreeBase):
       # Otherwise key belongs in right subtree
       else:
          # Insert it on right and update the right link 
-         newRight, flag = self.__insert(self.getRightChild(node), key, animation=animation)
+         newRight, flag = self.__insert(self.getRightChild(node), key, animation=animation, arrow=arrow)
          self.setRightChild(node, newRight)
          
          if animation:
-            self.restoreNodesPosition([newRight], sleepTime=.01)
+            self.restoreNodesPosition([newRight], arrow=arrow, sleepTime=.01)
             self.redrawLines()  
+            self.wait(0.2)
          
          # If insert made node right heavy
          if self.heightDiff(node) < -1:                     
