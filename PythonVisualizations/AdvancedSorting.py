@@ -771,7 +771,7 @@ def shellSort(self):
                 0, len(self.list) - 1, val, pivotY)
             callEnviron |= set(pivotPartition)
             part = self.partition(val, 0, len(self.list) - 1, code='')
-            callEnviron |= set(self.createIndex(part, '', level=-1))
+            callEnviron |= set(self.createIndex(part, '', level=-3))
             self.setMessage('Partition at or above {}\nstarts at index {}'
                             .format(val, part))
             
