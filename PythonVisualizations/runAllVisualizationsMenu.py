@@ -12,7 +12,7 @@ with a prefix 'folder' name.  The rest are added in alphabetical
 order in a folder called 'Other'.
 """
 
-import argparse, sys, re, webbrowser, os, glob
+import argparse, sys, re, webbrowser, os, glob, random
 from importlib import *
 from tkinter import *
 from tkinter import ttk
@@ -232,10 +232,12 @@ def resizeHandler(event):
 
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", 
-        adjustForTrinket=False, verbose=0):
+        adjustForTrinket=False, seed='3.14159', verbose=0):
     if len(classes) == 0:
         print('No matching classes to visualize', file=sys.stderr)
         return
+    if seed and len(seed) > 0:
+        random.seed(seed)
     top = Tk()
     top.title(title)
     ttk.Style().configure(
@@ -363,6 +365,10 @@ if __name__ == '__main__':
         help='Adjust settings and warn users about limitations of use on '
         'Trinket.io')
     parser.add_argument(
+        '--seed', default='3.14159',
+        help='Random number generator seed.  Set to empty string to skip '
+        'seeding.')
+    parser.add_argument(
         '-v', '--verbose', action='count', default=0,
         help='Add verbose comments')
     args = parser.parse_args()
@@ -372,4 +378,5 @@ if __name__ == '__main__':
                       os.path.relpath(os.getcwd())]
     showVisualizations(findVisualizations(args.files, args.verbose),
                        start=args.start, title=args.title, verbose=args.verbose,
-                       adjustForTrinket=args.warn_for_trinket)
+                       adjustForTrinket=args.warn_for_trinket,
+                       seed=args.seed)
