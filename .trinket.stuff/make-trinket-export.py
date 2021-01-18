@@ -4,7 +4,7 @@ __doc__ = """Make a version of the python-visualizations that's easy to
 export to trinket.io
 """
 
-import argparse, sys, os, glob, shutil
+import argparse, sys, os, glob, shutil, re
 
 specialContent = {
    'main.py': '''
@@ -28,12 +28,16 @@ if __name__ == '__main__':
       '-f', '--force', default=False, action='store_true',
       help='Clear directory if it already exists before exporting')
    parser.add_argument(
+      '-x', '--exclude', nargs='*', default=['__init__.*', '.*[Tt]est.*'],
+      help='Regex for filenames to exclude from export')
+   parser.add_argument(
       '-v', '--verbose', action='count', default=0,
       help='Add verbose comments')
    args = parser.parse_args()
    
    outdir = args.output_directory[0]
    verbose = args.verbose
+   exclude = [re.compile(exp) for exp in args.exclude]
 
    if not all(os.path.exists(f) for f in mustHave):
       print('Missing some files.  Expected to find: {}'.format(
@@ -64,6 +68,12 @@ if __name__ == '__main__':
    for filename in files:
       if filename in specialContent:
          print('Skipping export of {}'.fomrat(filename))
+         continue
+
+      if any(regex.match(filename) for regex in exclude):
+         if verbose > 0:
+            print('Excluding {} for match to an exclude pattern'.format(
+               filename))
          continue
       
       with open(filename, 'r') as infile:
