@@ -19,6 +19,7 @@ showVisualizations(
 
 if __name__ == '__main__':
    mustHave = ['VisualizationApp.py']
+   replacements = [('▶', '=left_arrow='), ('▢', 'W'), ('✓', 'X')]
    parser = argparse.ArgumentParser(
       description=__doc__,
       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -78,12 +79,14 @@ if __name__ == '__main__':
       
       with open(filename, 'r') as infile:
          content = infile.read()
-         revised = content.replace('▶', '=left_arrow=').replace('▢', 'W')
+         revised = content
+         for pair in replacements:
+            revised = revised.replace(*pair)
          if verbose > 0:
             print('Exporting {}{}'.format(
                filename, ' with substitions' if content != revised else ''))
          with open(os.path.join(outdir, filename), 'w') as outfile:
-            outfile.write(content)
+            outfile.write(revised)
             outfile.close()
 
    for filename in specialContent:
