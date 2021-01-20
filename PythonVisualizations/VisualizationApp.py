@@ -681,7 +681,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.codeText.configure(state=NORMAL)
                 self.wait(0)
                 last_line = int(
-                    float(self.codeText.index(END)) if len(thing.lines) > 0
+                    float(self.codeText.index(END))
+                    ) if len(thing.lines) > 0 else 0
                 for i in range(1, min(last_line, len(thing.lines) + 2)):
                     if self.codeText:
                         self.codeText.delete('1.0', '2.0')
