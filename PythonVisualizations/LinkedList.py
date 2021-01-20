@@ -825,8 +825,8 @@ if __name__ == '__main__':
     ll = LinkedList()
     try:
         for arg in reversed(sys.argv[1:]):
-            ll.insert(arg)
-            ll.cleanUp()
+            ll.setArgument(arg)
+            ll.clickInsert()
     except UserStop:
         ll.cleanUp()
     ll.runVisualization()
