@@ -1099,9 +1099,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.pauseButton['text'] = 'Pause'
             self.pauseButton['command'] = self.runOperation(
                 lambda: self.onClick(self.pause, self.pauseButton), False)
-        for btn in (self.pauseButton, self.stopButton, self.stepButton):
+        for btn in (self.pauseButton, self.stopButton):
             if btn and enableStops:
                 self.widgetState(btn, NORMAL)
+        if self.stepButton and (self.codeText or state == self.STEP):
+            self.widgetState(self.stepButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
         # Calls from stack level 2+ only stop animation for their level
