@@ -423,7 +423,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
                     self.cleanUp()
                 command()
             except UserStop as e:
-                self.cleanUp(self.callStack[0] if self.callStack else None)
+                self.cleanUp(self.callStack[0] if self.callStack else None,
+                             ignoreStops=True)
         return animatedOperation
                 
     def getArgument(self, index=0, clear=False):
@@ -650,15 +651,20 @@ class VisualizationApp(object):  # Base class for Python visualizations
             
     def cleanUp(self,         # Remove Tk items from past animations either
                 callEnviron=None,  # for a particular call or all calls
-                stopAnimations=True, # stop animations if requested and
-                sleepTime=0): # wait between removing code lines from stack
+                stopAnimations=True, # stop animations, if requested
+                sleepTime=0,  # wait between removing code lines from stack
+                ignoreStops=False): # ignore UserStops, if requested
         if stopAnimations:
             self.stopAnimations()
         minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
         while len(self.callStack) > minStack: # 1st call unless cleaning all
             top = self.callStack.pop()
-            self.cleanUpCallEnviron(top, sleepTime, 
-                                    allowSteps=len(self.callStack) > 0)
+            try:
+                self.cleanUpCallEnviron(
+                    top, sleepTime, allowSteps=len(self.callStack) > 0)
+            except UserStop:
+                if not ignoreStops:
+                    raise UserStop
             if callEnviron is not None and callEnviron == top: # Stop popping
                 break         # stack if a particular call was being cleaned up
                 
