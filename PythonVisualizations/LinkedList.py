@@ -827,6 +827,7 @@ if __name__ == '__main__':
         for arg in reversed(sys.argv[1:]):
             ll.setArgument(arg)
             ll.clickInsert()
+            ll.cleanUp()
     except UserStop:
         ll.cleanUp()
     ll.runVisualization()
