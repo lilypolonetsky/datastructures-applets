@@ -652,7 +652,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 callEnviron=None,  # for a particular call or all calls
                 stopAnimations=True, # stop animations if requested and
                 sleepTime=0): # wait between removing code lines from stack
-        if stopAnimations and not self.animationsStopped():
+        if stopAnimations:
             self.stopAnimations()
         minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
         while len(self.callStack) > minStack: # 1st call unless cleaning all
@@ -679,14 +679,10 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.canvas.delete(thing)
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
-                try:
-                    # self.wait(0)
-                    pass
-                except UserStop:
-                    inUserStop = True
+                self.wait(0)
                 last_line = int(
-                    float(self.codeText.index(END)) if len(thing.lines) > 0
-                    else 0)
+                    float(self.codeText.index(END))
+                    ) if len(thing.lines) > 0 else 0
                 for i in range(1, min(last_line, len(thing.lines) + 2)):
                     if self.codeText:
                         self.codeText.delete('1.0', '2.0')
