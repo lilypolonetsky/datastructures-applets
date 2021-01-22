@@ -657,7 +657,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
         while len(self.callStack) > minStack: # 1st call unless cleaning all
             top = self.callStack.pop()
-            self.cleanUpCallEnviron(top, sleepTime)
+            self.cleanUpCallEnviron(top, sleepTime, 
+                                    allowSteps=len(self.callStack) > 0)
             if callEnviron is not None and callEnviron == top: # Stop popping
                 break         # stack if a particular call was being cleaned up
                 
@@ -671,7 +672,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
 
     def cleanUpCallEnviron(    # Clean up a call on the stack
             self, callEnviron, # removing the call environement
-            sleepTime=0):      # waiting sleepTime between removing code lines
+            sleepTime=0,       # waiting sleepTime between removing code lines
+            allowSteps=True):  # allowing step pauses if set
         inUserStop = False
         while len(callEnviron):
             thing = callEnviron.pop()
@@ -679,7 +681,11 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.canvas.delete(thing)
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 self.codeText.configure(state=NORMAL)
-                self.wait(0)
+                if allowSteps:
+                    try:
+                        self.wait(0)
+                    except UserStop:
+                        inUserStop = True
                 last_line = int(
                     float(self.codeText.index(END))
                     ) if len(thing.lines) > 0 else 0
@@ -1019,6 +1025,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
                      if self.callStack else None)
         while self.animationState == self.STEP and (
                 self.lastCodeBlock is not codeBlock or
+                codeBlock and
                 self.lastCodeBlockFragments != codeBlock.currentFragments):
             self.pauseButton['text'] = "Play"
             self.pauseButton['command'] = self.runOperation(
@@ -1048,9 +1055,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 # Only change button types, not text entry or other widgets
                 # Pause/Stop buttons can only be enabled here
                 if isinstance(btn, self.buttonTypes) and (
-                        enable or btn not in (self.stopButton, 
+                        enable or btn not in (self.stopButton, self.stepButton,
                                               self.pauseButton)):
-                    self.widgetState(btn, NORMAL if enable else DISABLED)
+                    self.widgetState(
+                        btn, 
+                        NORMAL if enable and (btn != self.stepButton or
+                                              self.codeText) 
+                        else DISABLED)
 
     def stop(self, pauseButton):
         self.stopAnimations()
