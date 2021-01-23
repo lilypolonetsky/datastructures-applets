@@ -23,7 +23,7 @@ class Link():
             
 class SkipList(VisualizationApp):
     
-    def __init__(self, maxKeys=20, title="Skip List", **kwargs):
+    def __init__(self, maxKeys=20, valMax=99, title="Skip List", **kwargs):
         
         # VisualizationApp code
         kwargs['title'] = title
@@ -46,23 +46,24 @@ class SkipList(VisualizationApp):
         self.arrowX2 = lambda to: to.x
         self.arrowY2 = lambda to, i: to.y - self.CELL_HEIGHT*i - self.ARROW_Y1 
         # The - 2 takes into acount the header and end
-        self.maxInserts = lambda : ((self.widgetDimensions(self.canvas)[0] // self.LINK_WIDTH) - 2)
+        self.maxInserts = lambda : ((self.widgetDimensions(self.canvas)[0] //
+                                     self.LINK_WIDTH) - 2)
         self.__numLinks = 0
         
         # Skip List code
+        self.valMax = valMax
         self.__level = 0  
         self.__maxLevel = math.ceil(math.log2(maxKeys))
         self.__header = Link(self.__maxLevel, None) 
-        self.__end = Link(self.__maxLevel, None)        
-
-        self.fill(5)        
+        self.__end = Link(self.__maxLevel, None)
+        self.setupHeaderAndEnd()
 
     def insert(self, insertKey):
         
         if self.__numLinks == self.maxInserts(): return False
         
-        self.startAnimations()
         callEnviron = self.createCallEnvironment()
+        self.startAnimations()
         
         update = [None] * self.__maxLevel
         x = self.__header
@@ -220,7 +221,7 @@ class SkipList(VisualizationApp):
             # Ensure fills up to num,
             # even if same random num 2x+
             while True:
-                r = random.randint(1, 99)
+                r = random.randrange(self.valMax)
                 if self.insert(r): break
                 
         # Finish animation
@@ -692,5 +693,13 @@ class SkipList(VisualizationApp):
     #####################
 
 if __name__ == '__main__':
+    random.seed(3.14159)    # Use fixed seed for testing consistency
     s = SkipList()
+    try:
+        for arg in sys.argv[1:]:
+            if arg.isdigit():
+                s.insert(int(arg))
+                s.cleanUp()
+    except UserStop:
+        s.cleanUp()
     s.runVisualization()

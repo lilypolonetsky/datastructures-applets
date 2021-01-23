@@ -461,6 +461,11 @@ def __init__(self, max={newSize}):
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
 
 if __name__ == '__main__':
-    # random.seed(3.14159)    # Use fixed seed for testing consistency
     stack = Stack()
+    try:
+        for arg in sys.argv[1:]:
+            stack.push(arg)
+            stack.cleanUp()
+    except UserStop:
+        stack.cleanUp()
     stack.runVisualization()

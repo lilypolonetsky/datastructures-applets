@@ -12,15 +12,18 @@ except ModuleNotFoundError:
 
 class OrderedArray(SortingBase):
 
-    def __init__(self, title="Ordered Array", **kwargs):
+    def __init__(self, title="Ordered Array", values=None, **kwargs):
         super().__init__(title=title, **kwargs)
 
         # Fill in initial array values with random but ordered integers
         # The display items representing these array cells are created later
-        for i in sorted([random.randrange(self.valMax) 
-                         for i in range(self.size-1)]):
-            self.list.append(drawnValue(i))
-        
+        if values is None:
+            for i in sorted([random.randrange(self.valMax) 
+                             for i in range(self.size-1)]):
+                self.list.append(drawnValue(i))
+        else:
+            self.list = [drawnValue(val) for val in sorted(values)]
+       
         self.display()
 
         self.buttons = self.makeButtons()
@@ -351,7 +354,7 @@ def delete(self, item):
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = OrderedArray()
-
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    array = OrderedArray(values=numArgs if len(numArgs) > 0 else None)
     array.runVisualization()
 

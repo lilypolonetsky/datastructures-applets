@@ -34,15 +34,20 @@ class BinaryTreeBase(VisualizationApp):
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     FOUND_FONT = ('Helvetica', FONT_SIZE)
 
-    def __init__(self, X0, Y0, X1, Y1, CIRCLE_SIZE = 15, 
+    def __init__(self, RECT=None, CIRCLE_SIZE = 15, VAL_MAX=99, 
                ARROW_HEIGHT = 30,MAX_LEVEL = 5, **kwargs):
         """Build a VisualizationApp that will show a binary tree on part of the
-        canvas within the rectangle bounded by (X0, Y0) and (X1, Y1).
+        canvas within the rectangle bounded by RECT (X0, Y0, X1, Y1) which
+        defaults to (0, 0, canvas width, canvas height).
         CIRCLE_SIZE is the radius of the circles used for each node in the tree.
         ARROW_HEIGHT is the length of a pointer arrow to point at a node.
         MAX_LEVEL is one more than the maximum node level allowed in the tree.
         """
         super().__init__(**kwargs)
+        if RECT is None:
+            RECT =  (0, 0, self.targetCanvasWidth, self.targetCanvasHeight)
+        X0, Y0, X1, Y1 = RECT
+        self.valMax = VAL_MAX
         
         self.CIRCLE_SIZE = CIRCLE_SIZE       # radius of each node
         self.ARROW_HEIGHT = ARROW_HEIGHT     # indicator arrow height
@@ -272,6 +277,9 @@ class BinaryTreeBase(VisualizationApp):
     def createNodeShape(self, x, y, key, tag, color= drawable.palette[2]):
         circle = self.canvas.create_circle(x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
         circle_text = self.canvas.create_text(x,y, text=key, font=self.VALUE_FONT, tag = tag)
+        for item in (circle, circle_text):
+            self.canvas.tag_bind(
+                item, '<Button>', lambda e: self.setArgument(key))
 
         return circle, circle_text
 

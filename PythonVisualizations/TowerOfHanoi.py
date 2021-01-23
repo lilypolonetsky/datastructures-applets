@@ -552,7 +552,9 @@ def moveAboveCanvas(bbox):
 if __name__ == '__main__':
     tower = TowerOfHanoi()
 
-    if len(sys.argv) > 1 and sys.argv[1].isdigit():
-        tower.setupDisks(int(sys.argv[1]))
+    for arg in sys.argv[1:]:
+        if arg.isdigit():
+            tower.setupDisks(min(tower.maxDisks, int(arg)))
+            break
         
     tower.runVisualization()

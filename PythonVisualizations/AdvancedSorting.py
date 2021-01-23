@@ -8,19 +8,21 @@ except ModuleNotFoundError:
     from .drawnValue import *
     from .VisualizationApp import *
     from .SortingBase import *    
-      
 
 class AdvancedArraySort(SortingBase):
     PIVOT_LINE_COLOR = 'VioletRed3'
     PIVOT_LINE_WIDTH = 2
     PIVOT_LINE_PAD = 0
 
-    def __init__(self, title="Advanced Sorting", **kwargs):
+    def __init__(self, title="Advanced Sorting", values=None, **kwargs):
         super().__init__(title=title, **kwargs)
         self.ARRAY_Y0 = 60
-        
-        for i in range(self.size):
-            self.list.append(drawnValue(random.randrange(self.valMax)))
+
+        if values is None:
+            for i in range(self.size):
+                self.list.append(drawnValue(random.randrange(self.valMax)))
+        else:
+            self.list = [drawnValue(val) for val in values]
         self.display()
         
         self.buttons = self.makeButtons()
@@ -790,6 +792,6 @@ def shellSort(self):
         
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = AdvancedArraySort()
-
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    array = AdvancedArraySort(values=numArgs if len(numArgs) > 0 else None)
     array.runVisualization()

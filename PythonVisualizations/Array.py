@@ -12,14 +12,17 @@ except ModuleNotFoundError:
     
 class Array(SortingBase):
 
-    def __init__(self, title="Array", **kwargs):
+    def __init__(self, title="Array", values=None, **kwargs):
         kwargs['title'] = title
         super().__init__(**kwargs)
 
         # Fill in initial array values with random integers
         # The display items representing these array cells are created later
-        for i in range(self.size - 1):
-            self.list.append(drawnValue(random.randrange(self.valMax)))
+        if values is None:
+            for i in range(self.size - 1):
+                self.list.append(drawnValue(random.randrange(self.valMax)))
+        else:
+            self.list = [drawnValue(val) for val in values]
         self.makeButtons()
 
         self.display()
@@ -70,6 +73,7 @@ class Array(SortingBase):
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = Array()
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    array = Array(values=numArgs if len(numArgs) > 0 else None)
 
     array.runVisualization()

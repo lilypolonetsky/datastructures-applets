@@ -12,12 +12,15 @@ except ModuleNotFoundError:
 
 class SimpleArraySort(SortingBase):
     
-    def __init__(self, title="Simple Sorting", **kwargs):
+    def __init__(self, title="Simple Sorting", values=None, **kwargs):
         kwargs['title'] = title
         super().__init__(**kwargs)
 
-        for i in range(self.size):
-            self.list.append(drawnValue(random.randrange(self.valMax)))
+        if values is None:
+            for i in range(self.size):
+                self.list.append(drawnValue(random.randrange(self.valMax)))
+        else:
+            self.list = [drawnValue(val) for val in values]
         self.display()
 
         self.buttons = self.makeButtons()
@@ -295,6 +298,6 @@ def selectionSort(self):
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = SimpleArraySort()
-
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    array = SimpleArraySort(values=numArgs if len(numArgs) > 0 else None)
     array.runVisualization()
