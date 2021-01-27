@@ -17,12 +17,12 @@ from tkinter import ttk
 PRESSED = 'pressed' # Oddly the ttk module does not define this like tk's ACTIVE
 
 try:
-   from PIL import Image as Img
-   from PIL import ImageTk
+    from PIL import Image as Img
+    from PIL import ImageTk
 except ModuleNotFoundError as e:
-   print('Pillow module not found.  Did you try running:')
-   print('pip3 install -r requirements.txt')
-   raise e
+    print('Pillow module not found.  Did you try running:')
+    print('pip3 install -r requirements.txt')
+    raise e
 
 try:
     from TextHighlight import *
@@ -356,7 +356,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             row=len(withoutArgs) % maxRows + 1, sticky=(E,W))
 
         self.pauseButton, self.stepButton, self.stopButton = (
-            Button(self.playControlsFrame, image=self.playControlImages[name])
+            Button(self.playControlsFrame, image=self.playControlImages[name],
+                   state=DISABLED)
             for name in ('pause', 'skip-next', 'stop'))
         for btn, name, func, column in zip(
                 (self.pauseButton, self.stepButton, self.stopButton),
@@ -366,9 +367,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             buttonImage(btn, self.playControlImages[name])
             btn['command'] = self.onClick(func)
             btn.grid(row=0, column=column, sticky=(E, W))
-            btn.bind('<KeyPress-space>', 
-                     lambda event: self.pressButton(event.widget))
-            self.widgetState(btn, DISABLED)
+            btn.bind('<FocusIn>', self.buttonFocus(btn, True))
+            btn.bind('<FocusOut>', self.buttonFocus(btn, False))
         
         if setDefaultButton and self.textEntries:
             if isinstance(setDefaultButton, self.buttonTypes):
@@ -735,7 +735,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         The handler runs a command and enables other buttons as appropriate
         to the animation state
         '''
-        def handler(event=None):
+        def buttonClickHandler(event=None):
+            if command == self.pausePlay:  # Button takes focus if it can be
+                self.pauseButton.focus_set() # repeated (pause/play & step)
+            elif command == self.step:
+                self.stepButton.focus_set()
+                
             command(*parameters)      # run the command, and re-enable buttons
             if command in [self.pausePlay, self.step]: # for animation control
                 for btn in (self.pauseButton, self.stepButton, self.stopButton):
@@ -743,7 +748,14 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                         self.widgetState(btn, NORMAL)
             else:                     # For stop or other buttons
                 self.enableButtons()  # other than pause/play or step command
-        return handler
+        return buttonClickHandler
+
+    def buttonFocus(self, btn, hasFocus):
+        '''Return a handler for focus change on animation buttons'''
+        def focusHandler(event=None):
+            btn['highlightbackground'] = (
+                'deep sky blue' if hasFocus else 'White')
+        return focusHandler
             
     def enableButtons(self, enable=True):
         gridItems = gridDict(self.operations)  # All Tk items in operations 
