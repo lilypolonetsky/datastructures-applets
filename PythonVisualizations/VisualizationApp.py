@@ -194,8 +194,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             button = buttonType( # Create button based on type
                 self.operations, text=label, font=self.CONTROLS_FONT, bg=bg,
                 **kwargs)
-        button['command'] = self.runOperation(
-            callback, cleanUpBefore, button if numArguments > 0 else None)
+        button['command'] = self.runOperation(callback, cleanUpBefore, button)
         setattr(button, 'required_args', numArguments)
 
         # Placement
@@ -393,13 +392,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         
     def runOperation(self, command, cleanUpBefore, button=None):
         def animatedOperation(): # If button that uses arguments is provided,
-            if button and hasattr(button, 'required_args'): # record it as the
-                for entry in self.textEntries[:getattr( # last button pressed
-                        button, 'required_args')]: # for all its required args
+            if button and getattr(button, 'required_args', 0) > 0: # record it
+                for entry in self.textEntries[:getattr( # as the last button
+                        button, 'required_args')]: # pressed for all its args
                     setattr(entry, 'last_button', button)
             try:
                 if cleanUpBefore:
                     self.cleanUp()
+                if button:
+                    button.focus_set()
                 command()
             except UserStop as e:
                 self.cleanUp(self.callStack[0] if self.callStack else None,
@@ -729,13 +730,17 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         if self.animationState == self.STOPPED: # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
 
-    def onClick(self, command, *parameters): # When user clicks an operations
+    def onClick(self, command, *parameters):
+        ''' Return a handler for user clicks on an animation button.
+        The handler runs a command and enables other buttons as appropriate
+        to the animation state
+        '''
         def handler(event=None):
-            # self.enableButtons(False) # button, disable all buttons,
             command(*parameters)      # run the command, and re-enable buttons
             if command in [self.pausePlay, self.step]: # for animation control
                 for btn in (self.pauseButton, self.stepButton, self.stopButton):
-                    self.widgetState(btn, NORMAL)
+                    if btn:
+                        self.widgetState(btn, NORMAL)
             else:                     # For stop or other buttons
                 self.enableButtons()  # other than pause/play or step command
         return handler
@@ -748,14 +753,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 # Only change button types, not text entry or other widgets
                 if isinstance(btn, self.buttonTypes):
                     self.widgetState(btn, NORMAL if enable else DISABLED)
-                elif btn is self.playControlsFrame:
-                    for btn in (
+                elif btn is getattr(self, 'playControlsFrame', False):
+                    for b in (
                             self.pauseButton, self.stepButton, self.stopButton):
-                        self.widgetState(
-                            btn,
-                            NORMAL if enable and (btn != self.stepButton or
-                                                  self.codeText)
-                            else DISABLED)
+                        if b:
+                            self.widgetState(
+                                b,
+                                NORMAL if enable and (b != self.stepButton or
+                                                      self.codeText)
+                                else DISABLED)
 
     def stop(self):
         self.stopAnimations()
