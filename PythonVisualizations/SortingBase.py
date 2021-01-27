@@ -228,8 +228,8 @@ def __init__(self, initialSize={val}):
             self.setMessage('Too few cells; must be 1 or more')
             return
 
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        self.startAnimations()
         self.canvas.delete('all')
         
         self.size = val
@@ -278,8 +278,8 @@ def insert(self, item={val}):
         if redraw:
             self.display()
         
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        self.startAnimations()
 
         self.highlightCode('self.__a[self.__nItems] = item', callEnviron)
 
@@ -344,8 +344,8 @@ def get(self, n={n}):
 """
 
     def get(self, n, code=getCode):
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        self.startAnimations()
         self.highlightCode('0 <= n and n < self.__nItems', 
                            callEnviron, wait=0.2)
         self.highlightCode('return self.__a[n]', callEnviron, wait=0.2)
@@ -362,8 +362,8 @@ def search(self, item={item}):
 """
 
     def search(self, item, code=searchCode):
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        self.startAnimations()
         self.highlightCode('self.find(item)', callEnviron)
         n = self.find(item)
         if n > -1:
@@ -384,10 +384,9 @@ def find(self, item={val}):
 """
 
     def find(self, val, code=findCode):
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         self.startAnimations()
        
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
         callEnviron |= set(indexDisplay)
@@ -439,8 +438,8 @@ def delete(self, item={val}):
 """
         
     def delete(self, val, code=deleteCode):
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        self.startAnimations()
 
         # draw an index for variable j pointing to the first cell
         Jindex = self.createIndex(0, 'j', level=2)
@@ -531,8 +530,8 @@ def deleteLast(self):
             self.setMessage('Array is empty!')
             return
     
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(code=code)
+        self.startAnimations()
 
         # pop an Element from the list
         n = self.list.pop()
@@ -557,9 +556,8 @@ def traverse(self, function=print):
 """
 
     def traverse(self, code=traverseCode):
-        self.startAnimations()
-     
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        self.startAnimations()
         
         # draw an index pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
@@ -596,8 +594,7 @@ def traverse(self, function=print):
             # Make sure the final value is in the output font
             self.canvas.itemconfig(valueOutput, font=outputFont)
 
-            # wait and then move the index pointer over
-            self.wait(0.2)
+            # move the index pointer over
             self.highlightCode('j in range(self.nItems)', callEnviron)
             self.moveItemsBy(indexDisplay, (self.CELL_WIDTH, 0), sleepTime=0.03)
 
@@ -752,8 +749,8 @@ def traverse(self, function=print):
             self.canvas.coords(self.list[index].items[0])[:2])
     
     def shuffle(self, steps=20):
-        self.startAnimations()
         callEnviron = self.createCallEnvironment()
+        self.startAnimations()
 
         nItems = len(self.list)    
         random.shuffle(self.list)  # Randomly move items internally in array

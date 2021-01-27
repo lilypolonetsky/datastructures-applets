@@ -38,8 +38,8 @@ def insertionSort(self):
 
     # SORTING METHODS
     def insertionSort(self):
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(self.insertionSortCode)
+        self.startAnimations()
         n = len(self.list)
 
         # make an index arrow for the outer loop
@@ -125,8 +125,8 @@ def bubbleSort(self):
 """
 
     def bubbleSort(self):
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(self.bubbleSortCode)
+        self.startAnimations()
         n = len(self.list)
 
         # make an index arrow that points to last unsorted element
@@ -179,8 +179,8 @@ def selectionSort(self):
 """
 
     def selectionSort(self):
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(self.selectionSortCode)
+        self.startAnimations()
         n = len(self.list)      
 
         # make an index arrow for the outer loop
