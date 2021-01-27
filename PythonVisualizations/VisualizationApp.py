@@ -14,6 +14,15 @@ import time, re, sys
 from collections import *
 from tkinter import *
 from tkinter import ttk
+PRESSED = 'pressed' # Oddly the ttk module does not define this like tk's ACTIVE
+
+try:
+   from PIL import Image as Img
+   from PIL import ImageTk
+except ModuleNotFoundError as e:
+   print('Pillow module not found.  Did you try running:')
+   print('pip3 install -r requirements.txt')
+   raise e
 
 try:
     from TextHighlight import *
@@ -82,7 +91,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
         self.pauseButton, self.stopButton, self.stepButton = None, None, None
         self.lastCodeBlock, self.lastCodeBlockFragments = None, None
-        
+
+        self.createPlayControlImages()
         self.setUpControlPanel()
  
     def setUpControlPanel(self):  # Set up control panel structure
@@ -135,7 +145,30 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
 
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
-    
+
+    def getOperations(self):
+        '''Get all the currently defined operations.  Retrun:
+        withArgument: List of operation buttons that require 1+ argument(s)
+        withoutArgument: List of operation buttons that require no arguments
+        nColumns: number of columns in operations grid
+        nRows: number of rows in opserations grid
+
+        Buttons are returned in the order they were added - top to bottom in
+        grid.  The self.playControlsFrame is returned as a single operation
+        in the withoutArgument list, if it is present.
+        '''
+        gridItems = gridDict(self.operations) # Operations inserted in grid
+        nColumns, nRows = self.operations.grid_size()
+        withArgument = [
+            gridItems[0, row] for row in range(nRows)
+            if isinstance(gridItems[0, row], self.buttonTypes)]
+        withoutArgument = [
+            gridItems[col, row]
+            for row in range(nRows) for col in range(4, nColumns)
+            if isinstance(gridItems[col, row], self.buttonTypes) or
+            gridItems[col, row] is getattr(self, 'playControlsFrame', False)]
+        return withArgument, withoutArgument, nColumns, nRows
+        
     def addOperation(  # Add a button to the operations control panel
             self,      # The button can require N arguments provided by text
             label,     # entry widgets. Button label
@@ -149,15 +182,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             cleanUpBefore=True, # Clean up all previous animations before Op
             bg=None,        # Background color, default is OPERATIONS_BG
             **kwargs):      # Tk button keyword args
-        gridItems = gridDict(self.operations) # Operations inserted in grid
-        nColumns, nRows = self.operations.grid_size()
-        withArgument = [
-            gridItems[0, row] for row in range(nRows)
-            if isinstance(gridItems[0, row], self.buttonTypes)]
-        withoutArgument = [
-            gridItems[col, row]
-            for row in range(nRows) for col in range(4, nColumns)
-            if isinstance(gridItems[col, row], self.buttonTypes)]
         if buttonType not in self.buttonTypes:
             raise ValueError('Unknown button type: {}'.format(buttonType))
         if bg is None:
@@ -173,6 +197,9 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         button['command'] = self.runOperation(
             callback, cleanUpBefore, button if numArguments > 0 else None)
         setattr(button, 'required_args', numArguments)
+
+        # Placement
+        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
                 textEntry = self.makeArgumentEntry(validationCmd)
@@ -186,30 +213,30 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 self.setHint()
 
             # Place button in grid of buttons
-            buttonRow = len(withArgument) + 1
+            buttonRow = len(withArgs) + 1
             button.grid(column=0, row=buttonRow, padx=8, sticky=(E, W))
             self.widgetState(button, DISABLED)
             nEntries = len(self.textEntries)
-            rowSpan = max(1, (len(withArgument) + 1) // nEntries)
+            rowSpan = max(1, (len(withArgs) + 1) // nEntries)
             
             # Spread text entries across all rows of buttons with arguments
             # with the hint about what to enter below, if any
             for i, entry in enumerate(self.textEntries):
                 entryRowSpan = rowSpan if i < nEntries - 1 else max(
-                    1, len(withArgument) + 1 - (nEntries - 1) * rowSpan)
+                    1, len(withArgs) + 1 - (nEntries - 1) * rowSpan)
                 entry.grid_configure(row=rowSpan * i + 1, rowspan=entryRowSpan)
             if self.entryHint:
-                self.entryHintRow = max(nEntries, len(withArgument) + 1) + (
+                self.entryHintRow = max(nEntries, len(withArgs) + 1) + (
                     0 if entryRowSpan > 2 else 1)
                 self.entryHint.grid_configure(column=2, row=self.entryHintRow)
 
         else:
-            buttonRow = len(withoutArgument) % maxRows + 1
-            button.grid(column=4 + len(withoutArgument) // maxRows,
+            buttonRow = len(withoutArgs) % maxRows + 1
+            button.grid(column=4 + len(withoutArgs) // maxRows,
                         row=buttonRow, padx=8, sticky=(E, W))
-        if ((len(withoutArgument) if numArguments else len(withArgument)) > 0
-                and not self.opSeparator):  # If both kinds of buttons are present
-            self.opSeparator = Frame(  # but not a separator line, create one
+        if ((len(withoutArgs) if numArguments else len(withArgs)) > 0
+                and not self.opSeparator):  # Add separator if both kinds of
+            self.opSeparator = Frame(  # buttons are present and none built
                 self.operations, width=2, bg=self.OPERATIONS_BORDER)
             self.opSeparator.grid(column=3, row=1, sticky=(N, E, W, S))
         if self.opSeparator:
@@ -301,44 +328,68 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         button = getattr(            # entry argument widget.
             event.widget, 'last_button', None)
         if button:                   # If last_button attribute is defined
-            if self.widgetState(button) == NORMAL:
-                self.widgetState(    # Re-do button press
-                    button, 
-                    'pressed' if isinstance(button, ttk.Button) else ACTIVE)
-                self.window.update()
-                time.sleep(0.05)
-                self.widgetState(
-                    button, 
-                    '!pressed' if isinstance(button, ttk.Button) else NORMAL)
-                button.invoke()
-                
+            self.pressButton(button)
+
+    def pressButton(self, button):  # Simulate button press, if enabled
+        if self.widgetState(button) == NORMAL:
+            self.widgetState(    # Simulate button press
+                button, PRESSED if isinstance(button, ttk.Button) else ACTIVE)
+            self.window.update()
+            time.sleep(0.05)
+            self.widgetState(
+                button, 
+                '!' + PRESSED if isinstance(button, ttk.Button) else NORMAL)
+            button.invoke()
+        
     def addAnimationButtons(self, maxRows=4, setDefaultButton=True):
-        self.pauseButton = self.addOperation(
-            "Pause", lambda: self.onClick(self.pause, self.pauseButton),
-            cleanUpBefore=False, maxRows=maxRows,
-            helpText='Pause or resume playing animation')
-        self.widgetState(self.pauseButton, DISABLED)
-        self.stepButton = self.addOperation(
-            "Step", lambda: self.onClick(self.step, self.pauseButton),
-            cleanUpBefore=False, maxRows=maxRows,
-            helpText='Play one step')
-        self.widgetState(self.stepButton, DISABLED)
-        self.stopButton = self.addOperation(
-            "Stop", lambda: self.onClick(self.stop, self.pauseButton),
-            cleanUpBefore=False, maxRows=maxRows,
-            helpText='Stop animation')
-        self.widgetState(self.stopButton, DISABLED)
+        '''Add the Play/Pause, Step, and Stop buttons to control animation.
+        Add the combined button in a new column to avoid going past maxRows.
+        If setDefaultButton is a button, it will be made the default button
+        when Enter is pressed in the first text entry box.
+        If setDefaultButton is true, and only one operation taking arguments
+        has been defined, that operation will be the default when Enter is
+        pressed.
+        '''
+        self.playControlsFrame = Frame(self.operations, bg=self.OPERATIONS_BG)
+        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        self.playControlsFrame.grid(
+            column=4 + len(withoutArgs) // maxRows,
+            row=len(withoutArgs) % maxRows + 1, sticky=(E,W))
+
+        self.pauseButton, self.stepButton, self.stopButton = (
+            Button(self.playControlsFrame, image=self.playControlImages[name])
+            for name in ('pause', 'skip-next', 'stop'))
+        for btn, name, func, column in zip(
+                (self.pauseButton, self.stepButton, self.stopButton),
+                ('pause', 'skip-next', 'stop'),
+                (self.pausePlay, self.step, self.stop),
+                range(3)):
+            buttonImage(btn, self.playControlImages[name])
+            btn['command'] = self.onClick(func)
+            btn.grid(row=0, column=column, sticky=(E, W))
+            btn.bind('<KeyPress-space>', 
+                     lambda event: self.pressButton(event.widget))
+            self.widgetState(btn, DISABLED)
+        
         if setDefaultButton and self.textEntries:
             if isinstance(setDefaultButton, self.buttonTypes):
                 setattr(self.textEntries[0], 'last_button', setDefaultButton)
             else:
-                gridItems = gridDict(self.operations)
-                nColumns, nRows = self.operations.grid_size()
-                withArgument = [
-                    gridItems[0, row] for row in range(nRows)
-                    if isinstance(gridItems[0, row], self.buttonTypes)]
-                if len(withArgument) == 1:
+                if len(withArgs) == 1:
                     setattr(self.textEntries[0], 'last_button', withArgument[0])
+
+    def createPlayControlImages(self, height=None):
+        if height is None:
+            height = abs(self.CONTROLS_FONT[1])
+        targetSize = (height, height)
+        names = ('play', 'pause', 'skip-next', 'stop')
+        images = dict((name, Img.open(name + '-symbol.png')) for name in names)
+        ratios = dict((name, min(*(V(targetSize) / V(images[name].size))))
+                      for name in names)
+        self.playControlImages = dict(
+            (name, ImageTk.PhotoImage(images[name].resize(
+                (int(round(d)) for d in V(images[name].size) * ratios[name]))))
+            for name in names)
         
     def runOperation(self, command, cleanUpBefore, button=None):
         def animatedOperation(): # If button that uses arguments is provided,
@@ -388,10 +439,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             
     def argumentChanged(self, widget=None):
         args = self.getArguments()
-        gridItems = gridDict(self.operations)  # All operations
-        nColumns, nRows = self.operations.grid_size()
-        for button in [gridItems[0, row] for row in range(nRows)
-                       if isinstance(gridItems[0, row], self.buttonTypes)]:
+        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        for button in withArgs:
             nArgs = getattr(button, 'required_args')
             self.widgetState(
                 button,
@@ -662,13 +711,13 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def wait(self, sleepTime):    # Sleep for a user-adjusted period
         codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
                      if self.callStack else None)
+        if (self.animationState == self.STEP and
+            buttonImage(self.pauseButton) != self.playControlImages['play']):
+            buttonImage(self.pauseButton, self.playControlImages['play'])
         while self.animationState == self.STEP and (
                 self.lastCodeBlock is not codeBlock or
                 codeBlock and
                 self.lastCodeBlockFragments != codeBlock.currentFragments):
-            self.pauseButton['text'] = "Play"
-            self.pauseButton['command'] = self.runOperation(
-                lambda: self.onClick(self.play, self.pauseButton), False)
             self.window.update()
             time.sleep(0.02)
         self.lastCodeBlock = codeBlock
@@ -681,10 +730,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             raise UserStop()      # animation while waiting then raise exception
 
     def onClick(self, command, *parameters): # When user clicks an operations
-        self.enableButtons(False) # button, disable all buttons,
-        command(*parameters)      # run the command, and re-enable the buttons
-        if command not in [self.pause, self.play]: # if it was something
-            self.enableButtons()  # other than pause or play command
+        def handler(event=None):
+            # self.enableButtons(False) # button, disable all buttons,
+            command(*parameters)      # run the command, and re-enable buttons
+            if command in [self.pausePlay, self.step]: # for animation control
+                for btn in (self.pauseButton, self.stepButton, self.stopButton):
+                    self.widgetState(btn, NORMAL)
+            else:                     # For stop or other buttons
+                self.enableButtons()  # other than pause/play or step command
+        return handler
             
     def enableButtons(self, enable=True):
         gridItems = gridDict(self.operations)  # All Tk items in operations 
@@ -692,35 +746,33 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         for col in range(nColumns):
             for btn in [gridItems[col, row] for row in range(nRows)]:
                 # Only change button types, not text entry or other widgets
-                # Pause/Stop buttons can only be enabled here
-                if isinstance(btn, self.buttonTypes) and (
-                        enable or btn not in (self.stopButton, self.stepButton,
-                                              self.pauseButton)):
-                    self.widgetState(
-                        btn, 
-                        NORMAL if enable and (btn != self.stepButton or
-                                              self.codeText) 
-                        else DISABLED)
+                if isinstance(btn, self.buttonTypes):
+                    self.widgetState(btn, NORMAL if enable else DISABLED)
+                elif btn is self.playControlsFrame:
+                    for btn in (
+                            self.pauseButton, self.stepButton, self.stopButton):
+                        self.widgetState(
+                            btn,
+                            NORMAL if enable and (btn != self.stepButton or
+                                                  self.codeText)
+                            else DISABLED)
 
-    def stop(self, pauseButton):
+    def stop(self):
         self.stopAnimations()
         self.animationState = self.STOPPED  # Always stop on user request
-        pauseButton['text'] = "Play"
-        pauseButton['command'] = self.runOperation(
-            lambda: self.onClick(self.play, pauseButton), False)
+        buttonImage(self.pauseButton, self.playControlImages['play'])
 
-    def pause(self, pauseButton):
-        self.pauseAnimations()
-        pauseButton['text'] = "Play"
-        pauseButton['command'] = self.runOperation(
-            lambda: self.onClick(self.play, pauseButton), False)
-        while self.animationState == self.PAUSED:
-            self.wait(0.02)
+    def pausePlay(self):
+        if self.animationState in (self.PAUSED, self.STEP):
+            self.startAnimations(state=self.RUNNING)
+            buttonImage(self.pauseButton, self.playControlImages['pause'])
+        else:
+            self.pauseAnimations()
+            buttonImage(self.pauseButton, self.playControlImages['play'])
+            while self.animationState == self.PAUSED:
+                self.wait(0.02)
 
-    def play(self, pauseButton):
-        self.startAnimations(state=self.RUNNING)
-
-    def step(self, pauseButton):
+    def step(self):
         codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
                      if self.callStack else None)
         self.lastCodeBlock = codeBlock
@@ -735,9 +787,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             else self.RUNNING)
         self.enableButtons(enable=False)
         if self.pauseButton:
-            self.pauseButton['text'] = 'Pause'
-            self.pauseButton['command'] = self.runOperation(
-                lambda: self.onClick(self.pause, self.pauseButton), False)
+            buttonImage(self.pauseButton, self.playControlImages['pause'])
         for btn in (self.pauseButton, self.stopButton):
             if btn and enableStops:
                 self.widgetState(btn, NORMAL)
@@ -764,11 +814,22 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
     def animationsRunning(self):
         return self.animationState != self.STOPPED
+
+    def animationsPaused(self):
+        return self.animationState != self.PAUSED
     
     def runVisualization(self):
         self.window.mainloop()
 
 # Tk widget utilities
+
+def buttonImage(btn, image=None):
+    if image is None:   # Tk stores the actual image in the image attribute
+        return btn.image
+    else:    
+        btn['image'] = image # This triggers an update to the button appearance
+        btn.image = image  # and this puts the aclual image in the attribut
+        return image
 
 def clearHintHandler(hintLabel, textEntry=None):
     'Clear the hint text and set focus to textEntry, if provided'
