@@ -121,17 +121,19 @@ class TestImageButton(VisualizationApp):
          self.testsRun, '' if self.testsRun == 1 else 's'))
       text = self.testButton['text']
       if text == 'Enable':
-          for btn in self.imageBtns:
-              self.widgetState(btn, NORMAL)
-          self.testButton['text'] = 'Disable'
-          print('Enabled')
-          self.wait(1)
+         for btn in self.imageBtns:
+            self.widgetState(btn, NORMAL)
+         self.testButton['text'] = 'Disable'
+         print('Enabled')
       else:
-          for btn in self.imageBtns:
-              self.widgetState(btn, DISABLED)
-          self.testButton['text'] = 'Enable'
-          print('Disabled')
-          self.wait(1)
+         for btn in self.imageBtns:
+            self.widgetState(btn, DISABLED)
+         self.testButton['text'] = 'Enable'
+         print('Disabled')
+      try:
+         self.wait(1)
+      except UserStop:
+         pass
 
 if __name__ == '__main__':
     kwargs = dict(arg.split('=') for arg in sys.argv[1:] if '=' in arg)
