@@ -375,7 +375,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 setattr(self.textEntries[0], 'last_button', setDefaultButton)
             else:
                 if len(withArgs) == 1:
-                    setattr(self.textEntries[0], 'last_button', withArgument[0])
+                    setattr(self.textEntries[0], 'last_button', withArgs[0])
 
     def createPlayControlImages(self, height=None):
         if height is None:
