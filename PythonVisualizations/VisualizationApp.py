@@ -755,6 +755,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         def focusHandler(event=None):
             btn['highlightbackground'] = (
                 'deep sky blue' if hasFocus else 'White')
+            btn['relief'] = (
+                'groove' if hasFocus else 'raised')
         return focusHandler
             
     def enableButtons(self, enable=True):
