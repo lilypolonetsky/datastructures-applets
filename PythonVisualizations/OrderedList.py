@@ -275,35 +275,6 @@ def delete(self, goal={goal!r}):
         self.restorePositions()
                     
         self.cleanUp(callEnviron)
-        
-    def restorePositions(  # Move all links on the canvas to their correct
-            self,          # positions.  Include any additional items to move
-            addItems=[], addCoords=[], # to some target coordinates
-            sleepTime=0.01):
-        if self.first:
-            items = [self.first] + list(addItems)
-            toCoords = [self.nextLinkCoords(0)] + list(addCoords)
-            for i, node in enumerate(self.list):
-                items.extend(node.items())
-                toCoords.extend(self.linkCoords(i + 1))
-                if node.nextPointer:
-                    toCoords.append(self.nextLinkCoords(i + 1))
-            if sleepTime > 0:
-                try:
-                    self.startAnimations()
-                    self.moveItemsLinearly(items, toCoords, sleepTime=sleepTime)
-                    self.stopAnimations()
-                except UserStop:
-                    pass
-            else:
-                for item, coords in zip(items, toCoords):
-                    self.canvas.coords(item, coords)
-                    
-    def cleanUp(self,   # Customize cleanup to restore link positions
-                callEnvironment=None, stopAnimations=True):
-        super().cleanUp(callEnvironment, stopAnimations)
-        if len(self.callStack) == 0:
-            self.restorePositions(sleepTime=0)
 
     findCode = """
 def find(self, goal={goal!r}):

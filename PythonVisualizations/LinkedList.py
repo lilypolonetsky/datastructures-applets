@@ -633,7 +633,7 @@ def delete(self, goal={goal!r}, key=identity):
                     toCoords.append(self.nextLinkCoords(i + 1))
             if sleepTime > 0:
                 try:
-                    self.startAnimations()
+                    self.startAnimations(enableStops=False)
                     self.moveItemsLinearly(items, toCoords, sleepTime=sleepTime)
                     self.stopAnimations()
                 except UserStop:
@@ -643,8 +643,8 @@ def delete(self, goal={goal!r}, key=identity):
                     self.canvas.coords(item, coords)
                     
     def cleanUp(self,   # Customize cleanup to restore link positions
-                callEnvironment=None, stopAnimations=True):
-        super().cleanUp(callEnvironment, stopAnimations)
+                callEnvironment=None, **kwargs):
+        super().cleanUp(callEnvironment, **kwargs)
         if len(self.callStack) == 0:
             self.restorePositions(sleepTime=0)
 
