@@ -542,14 +542,14 @@ def deleteLast(self):
     
         callEnviron = self.createCallEnvironment(
             code=code, startAnimations=start)
-
-        # pop an Element from the list
-        n = self.list.pop()
-        callEnviron |= set(n.items)
         
         #move nItems pointer
         self.highlightCode('self.__nItems -= 1', callEnviron)
         self.moveItemsBy(self.nItems, (-self.CELL_WIDTH, 0), sleepTime=0.01)
+
+        # pop an Element from the list
+        n = self.list.pop()
+        callEnviron |= set(n.items)
     
         # Slide value rectangle up and off screen
         self.highlightCode('self.__a[self.__nItems] = None', callEnviron)
