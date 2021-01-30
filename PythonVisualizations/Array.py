@@ -67,7 +67,7 @@ class Array(SortingBase):
                 "Input value must be an integer from 0 to {}".format(
                     self.valMax))
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
-        elif self.insert(val):
+        elif self.insert(val, start=self.startMode()):
             self.setMessage("Value {} inserted".format(val))
             self.clearArgument()
 

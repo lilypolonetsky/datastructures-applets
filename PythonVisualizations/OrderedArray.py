@@ -44,11 +44,11 @@ def insert(self, item={val}):
    self.__nItems += 1
 '''
 
-    def insert(self, val, code=insertCode):
+    def insert(self, val, code=insertCode, start=True):
         canvasDims = self.widgetDimensions(self.canvas)
         
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
 
         self.highlightCode('self.__nItems >= len(self.__a)', 
@@ -73,7 +73,6 @@ def insert(self, item={val}):
         newItem = cell + (itemLabel,)
         callEnviron |= set(newItem)
         
-        self.list.append(drawnValue(None))
         self.highlightCode('0 < j and self.__a[j - 1] > item', callEnviron)
         
         #  Move bigger items right
@@ -134,7 +133,6 @@ def find(self, item={val}):
     
     def find(self, val, code=findCode):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
         wait = 0.1
 
         self.highlightCode('lo = 0', callEnviron)
@@ -198,9 +196,9 @@ def search(self, item={item}):
       return self.__a[index]
 """
 
-    def search(self, item, code=searchCode):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+    def search(self, item, code=searchCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
         
         self.highlightCode('self.find(item)', callEnviron, wait=wait)
@@ -245,9 +243,9 @@ def delete(self, item):
    return False
 '''
     
-    def delete(self, val, code=deleteCode):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+    def delete(self, val, code=deleteCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
 
         self.highlightCode('self.find(item)', callEnviron, wait=wait)
@@ -329,13 +327,15 @@ def delete(self, item):
             argHelpText=['number of cells'],
             helpText='Create new empty array')
         traverseButton = self.addOperation(
-            "Traverse", lambda: self.traverse(), maxRows=maxRows,
+            "Traverse", 
+            lambda: self.traverse(start=self.startMode()), maxRows=maxRows,
             helpText='Traverse all array cells once')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
             helpText='Fill all array cells with random keys')
         deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
+            "Delete Rightmost", 
+            lambda: self.deleteLast(start=self.startMode()), maxRows=maxRows,
             helpText='Delete last array item')
         self.addAnimationButtons(maxRows=maxRows)
         buttons = [insertButton, searchButton, deleteButton, newButton, 
@@ -347,7 +347,7 @@ def delete(self, item):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            result = self.insert(val)
+            result = self.insert(val, start=self.startMode())
             self.setMessage("Value {} inserted".format(val) if result else
                             "Array overflow")
         self.clearArgument()

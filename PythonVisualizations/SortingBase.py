@@ -40,7 +40,8 @@ class SortingBase(VisualizationApp):
             startAngle=0):
         
         fromValue = self.list[fromIndex]
-        toValue = self.list[toIndex]
+        toValue = (self.list[toIndex] if toIndex < len(self.list) 
+                   else drawnValue(0))
 
         # get positions of "to" cell in array
         toPositions = (self.fillCoords(fromValue.val, 
@@ -70,6 +71,8 @@ class SortingBase(VisualizationApp):
         toValue.val = fromValue.val
         toValue.items = tuple(copyItems)
         callEnviron -= set(copyItems)
+        if toIndex == len(self.list):  # If to localtion is a new cell,
+            self.list.append(toValue)  # append it
 
     def tempCoords(self, index):  # Determine coordinates for a temporary var
         cellCoords = self.currentCellCoords(index) # aligned below an array
@@ -134,10 +137,13 @@ class SortingBase(VisualizationApp):
         if delete:
             if templabel:
                 self.canvas.delete(templabel)
-        for item in self.list[index].items:
-            if item is not None:
-                self.canvas.delete(item)
-        self.list[index] = temp
+        if index == len(self.list):
+            self.list.append(temp)
+        else:
+            for item in self.list[index].items:
+                if item is not None:
+                    self.canvas.delete(item)
+            self.list[index] = temp
         
     def swap(self, a, b, aCellObjects=[], bCellObjects=[]):
         '''Swap items at indices a & b of the array bundled with any extra 
@@ -202,6 +208,7 @@ class SortingBase(VisualizationApp):
         return max(self.CELL_MIN_WIDTH,
                    min(self.CELL_SIZE,
                        (canvasDims[0] - self.ARRAY_X0) // (nCells + 1)))
+    
     def canShowValues(self, width=None):
         if width is None:
             width = self.CELL_WIDTH
@@ -215,7 +222,7 @@ def __init__(self, initialSize={val}):
    self.__nItems = 0
 '''
     
-    def new(self, val, code=newCode):
+    def new(self, val, code=newCode, start=True):
         canvasDims = self.widgetDimensions(self.canvas)
         maxCells = min(
             self.maxCells, 
@@ -228,8 +235,8 @@ def __init__(self, initialSize={val}):
             self.setMessage('Too few cells; must be 1 or more')
             return
 
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         self.canvas.delete('all')
         
         self.size = val
@@ -256,7 +263,7 @@ def insert(self, item={val}):
    self.__nItems += 1
 """
 
-    def insert(self, val, allowGrowth=False, code=insertCode):
+    def insert(self, val, allowGrowth=False, code=insertCode, start=True):
         canvasDims = self.widgetDimensions(self.canvas)
         # Check if inserted cell will be off of the canvas
         offCanvas = canvasDims[0] <= self.cellCoords(len(self.list))[2]
@@ -278,8 +285,8 @@ def insert(self, item={val}):
         if redraw:
             self.display()
         
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
 
         self.highlightCode('self.__a[self.__nItems] = item', callEnviron)
 
@@ -344,15 +351,19 @@ def get(self, n={n}):
 """
 
     def get(self, n, code=getCode):
+        wait=0.1
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
-        self.highlightCode('0 <= n and n < self.__nItems', 
-                           callEnviron, wait=0.2)
-        self.highlightCode('return self.__a[n]', callEnviron, wait=0.2)
-        if 0 <= n and n < len(self.list):
-            result = self.list[n]
+        self.highlightCode('0 <= n', callEnviron, wait=wait)
+        result = None
+        if 0 <= n:
+            self.highlightCode('n < self.__nItems', callEnviron, wait=wait)
+            if n < len(self.list):
+                self.highlightCode('return self.__a[n]', callEnviron, wait=wait)
+                result = self.list[n]
+            else:
+                self.highlightCode([], callEnviron)
         else:
-            result = None
+            self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         return result
     
@@ -361,9 +372,9 @@ def search(self, item={item}):
    return self.get(self.find(item))
 """
 
-    def search(self, item, code=searchCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+    def search(self, item, code=searchCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         self.highlightCode('self.find(item)', callEnviron)
         n = self.find(item)
         if n > -1:
@@ -385,7 +396,6 @@ def find(self, item={val}):
 
     def find(self, val, code=findCode):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
        
         # draw an index for variable j pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
@@ -437,9 +447,9 @@ def delete(self, item={val}):
    return False
 """
         
-    def delete(self, val, code=deleteCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+    def delete(self, val, code=deleteCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
 
         # draw an index for variable j pointing to the first cell
         Jindex = self.createIndex(0, 'j', level=2)
@@ -525,13 +535,13 @@ def deleteLast(self):
    self.__a[self.__nItems] = None
 '''
 
-    def deleteLast(self, code=deleteLastCode):
+    def deleteLast(self, code=deleteLastCode, start=True):
         if len(self.list) == 0:
             self.setMessage('Array is empty!')
             return
     
-        callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
 
         # pop an Element from the list
         n = self.list.pop()
@@ -555,9 +565,9 @@ def traverse(self, function=print):
       function(self.__a[j])
 """
 
-    def traverse(self, code=traverseCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+    def traverse(self, code=traverseCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         
         # draw an index pointing to the first cell
         indexDisplay = self.createIndex(0, 'j')
@@ -750,7 +760,6 @@ def traverse(self, function=print):
     
     def shuffle(self, steps=20):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         nItems = len(self.list)    
         random.shuffle(self.list)  # Randomly move items internally in array
@@ -787,39 +796,6 @@ def traverse(self, function=print):
 
         # Animation stops
         self.cleanUp(callEnviron)
-        
-    def stopMergeSort(self, toX=ARRAY_X0, toY=ARRAY_Y0):
-        # bring all cells up to original position
-    
-        dy = -2
-        dx = [0] * len(self.list)
-        done = [False] * len(self.list)
-        doneCount = 0
-    
-        # calculate dx for each node to move it back to original position
-        for i in range(len(self.list)):
-            fromX, fromY = self.canvas.coords(self.list[i].items[0])
-            if toY < fromY:
-                dx[i] = dy * ((toX + self.CELL_SIZE * i) - fromX) / (toY - fromY)
-            else:
-                done[i] = True
-                doneCount += 1
-    
-        # while some elements are not yet in their original position
-        while doneCount < len(self.list):
-            for i in range(len(self.list)):
-                # move the done elements up by dy and corresponding dx
-                if not done[i]:
-                    self.canvas.move(self.list[i].items, dx[i], dy)
-    
-                    # when the cell is in the correct position, mark it as done
-                    if self.canvas.coords(self.list[i].items[0])[1] <= toY:
-                        doneCount += 1
-                        done[i] = True
-    
-            self.wait(0.01)
-    
-        self.fixCells()
     
     def fixCells(self):  # Move canvas display items to exact cell coords
         for index, ac in enumerate(self.arrayCells):
@@ -864,7 +840,8 @@ def traverse(self, function=print):
             argHelpText=['number of cells'],
             helpText='Create new empty array')
         traverseButton = self.addOperation(
-            "Traverse", lambda: self.traverse(), maxRows=maxRows,
+            "Traverse", 
+            lambda: self.traverse(start=self.startMode()), maxRows=maxRows,
             helpText='Traverse all array cells once')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
@@ -876,7 +853,8 @@ def traverse(self, function=print):
             "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
             helpText='Fill empty array cells with decreasing keys')
         deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
+            "Delete Rightmost", 
+            lambda: self.deleteLast(start=self.startMode()), maxRows=maxRows,
             helpText='Delete last array item')
         shuffleButton = self.addOperation(
             "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
@@ -901,7 +879,7 @@ def traverse(self, function=print):
                 "Input value must be an integer from 0 to {}".format(
                     self.valMax))
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
-        elif self.insert(val, allowGrowth=True):
+        elif self.insert(val, allowGrowth=True, start=self.startMode()):
             self.setMessage("Value {} inserted".format(val))
             self.clearArgument()
      
@@ -913,7 +891,7 @@ def traverse(self, function=print):
                     self.valMax))
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
         else:
-            found = self.search(val)
+            found = self.search(val, start=self.startMode())
             self.setMessage(
                 "Value {} {}found".format(val, "" if found else "not "))
             self.clearArgument() 
@@ -926,7 +904,7 @@ def traverse(self, function=print):
                     self.valMax))
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
         else:
-            result = self.delete(val)
+            result = self.delete(val, start=self.startMode())
             msg = "Value {} {}".format(
                 val, "deleted" if result else "not found")
             self.setMessage(msg)
@@ -939,5 +917,5 @@ def traverse(self, function=print):
             self.clearArgument()
             return
         # If new succeeds, clear the argument
-        if self.new(val):
+        if self.new(val, start=self.startMode()):
             self.clearArgument()

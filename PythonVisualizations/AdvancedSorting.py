@@ -79,7 +79,6 @@ def rightmost(self, lo={lo}, hi={hi}, key=identity):
 '''
     def rightmost(self, lo, hi, code=rightmostCode):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
         self.highlightCode('return self.get(hi)', callEnviron, wait=0.1)
         self.cleanUp(callEnviron)
         return self.list[hi].val
@@ -99,7 +98,6 @@ def medianOfThree(self, lo={lo}, hi={hi}, key=identity):
     def medianOfThree(self, lo, hi, code=medianOfThreeCode):
         wait = 0.1
         codeWait = 0.01
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=codeWait)
 
@@ -150,7 +148,6 @@ def __part(self, pivot={pivot}, lo={lo}, hi={hi}, key=identity):
     def partition(self, pivot, lo, hi, code=__partCode):
         wait = 0.1
         codeWait = 0.01
-        self.startAnimations()
         if not self.useMedianOf3.get():
             code = code.replace('pivot <', 'lo < hi and pivot <')
         callEnviron = self.createCallEnvironment(
@@ -233,28 +230,31 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
     
     def quicksort(
             self, lo=0, hi=None, short=3, code=quicksortCode,
-            bottomCallEnviron=None):
+            bottomCallEnviron=None, start=True):
             
         # Start animation
         wait = 0.1
         codeWait = 0.01
-        self.startAnimations()
         callEnviron = self.createCallEnvironment(
-            code=code.format(**locals()), sleepTime=codeWait)
+            code=code.format(**locals()), sleepTime=codeWait, 
+            startAnimations=start)
         if bottomCallEnviron is None:
             bottomCallEnviron = callEnviron
             callEnviron |= set(self.createShowPartitionsControl())
         
         loIndex = self.createIndex(lo, 'lo')
         callEnviron |= set(loIndex)
+            
+        hiIndex = None if hi is None else self.createIndex(hi, 'hi', level=2)
+        if hiIndex:
+            callEnviron |= set(hiIndex)
 
         self.highlightCode('hi is None', callEnviron, wait=wait)
         if hi is None:
             self.highlightCode('hi = len(self) - 1', callEnviron, wait=wait)
             hi = len(self.list) - 1
-            
-        hiIndex = self.createIndex(hi, 'hi', level=2)
-        callEnviron |= set(hiIndex)
+            hiIndex = self.createIndex(hi, 'hi', level=2)
+            callEnviron |= set(hiIndex)
 
         self.highlightCode('short = max(3, short)', callEnviron, wait=wait)
         short = max(3, short)
@@ -405,7 +405,6 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
     def insertionSort(self, lo, hi):
         'Sort a short range of cells using insertion sort (no code)'
         wait = 0.1
-        self.startAnimations()
         callEnviron = self.createCallEnvironment()
         n = len(self.list)
 
@@ -476,7 +475,7 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
     shellSortCode = """
 def shellSort(self):
     h = 1
-    while h * 3 < len(self):
+    while 3 * h + 1 < len(self):
         h = 3 * h + 1
     nShifts = 0
     while h > 0:
@@ -494,28 +493,29 @@ def shellSort(self):
     return nShifts
     """
 
-    def shellSort(self, code=shellSortCode):
+    def shellSort(self, code=shellSortCode, start=True):
         wait = 0.1
         moveWait = wait / 10
         descend = (0, 16) * 2
-        callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
 
         # calculate h
+        self.highlightCode('h = 1', callEnviron, wait=wait)
         h = 1
         hLabel = None
         hLabel = self.adjustHLabel(h, 0, None)
         callEnviron |= set(hLabel)
-        self.highlightCode('h = 1', callEnviron, wait=wait)
         
-        self.highlightCode('h * 3 < len(self)', callEnviron, wait=wait)
-        while h * 3 < len(self.list):
+        self.highlightCode('3 * h + 1 < len(self)', callEnviron, wait=wait)
+        while 3 * h + 1 < len(self.list):
             self.highlightCode('h = 3 * h + 1', callEnviron)
             h = 3 * h + 1
             self.adjustHLabel(h, 0, hLabel)
             
-            self.highlightCode('h * 3 < len(self)', callEnviron, wait=wait)
+            self.highlightCode('3 * h + 1 < len(self)', callEnviron, wait=wait)
             
+        self.highlightCode('nShifts = 0', callEnviron, wait=wait)
         nShifts = 0
         nShiftsPos = (10, self.ARRAY_Y0 // 3)
         nShiftsValue = "nShifts: {}"
@@ -523,7 +523,6 @@ def shellSort(self):
             *nShiftsPos, anchor=W, text=nShiftsValue.format(nShifts),
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(nShiftsLabel)
-        self.highlightCode('nShifts = 0', callEnviron, wait=wait)
 
         tempLabel, outerArrow, innerArrow = None, None, None
         toRestore = []
@@ -571,11 +570,11 @@ def shellSort(self):
                 callEnviron |= set(tempVal.items + (tempLabel,))
 
                 # create the inner index
+                self.highlightCode('inner = outer', callEnviron, wait=wait)
                 inner = outer
                 if innerArrow is None:
                     innerArrow = self.createIndex(inner, name="inner", level=-1)
                     callEnviron |= set(innerArrow)
-                    self.highlightCode('inner = outer', callEnviron, wait=wait)
                 else:
                     arrowPos = self.indexCoords(inner, level=-1)
                     self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]),
@@ -600,10 +599,10 @@ def shellSort(self):
                     self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]),
                                      sleepTime=moveWait)
 
+                    self.highlightCode('nShifts += 1', callEnviron, wait=wait)
                     nShifts += 1
                     self.canvas.itemconfigure(
                         nShiftsLabel, text=nShiftsValue.format(nShifts))
-                    self.highlightCode('nShifts += 1', callEnviron, wait=wait)
                     
                     self.highlightCode('inner >= h', callEnviron, wait=wait)
                     if inner >= h:
@@ -619,16 +618,18 @@ def shellSort(self):
                     # Take temp out of the cleanup set since it should persist
                     callEnviron -= set(tempVal.items)
 
+                    self.highlightCode(('nShifts += 1', 2), callEnviron,
+                                       wait=wait)
                     nShifts += 1
                     self.canvas.itemconfigure(
                         nShiftsLabel, text=nShiftsValue.format(nShifts))
-                    self.highlightCode('nShifts += 1', callEnviron, wait=wait)
                     
-                    self.highlightCode('outer in range(h, len(self))',
-                                       callEnviron)
                 else:
                     for item in tempVal.items:
                         self.canvas.delete(item)
+
+                self.highlightCode('outer in range(h, len(self))',
+                                   callEnviron, wait=wait)
                     
             # change h
             self.highlightCode('h = (h - 1) // 3', callEnviron)
@@ -655,6 +656,7 @@ def shellSort(self):
         textWidth = self.textWidth(font, hText)
         boxCoords = (spanCenter[0] - textWidth / 2 - 1, spanCoords[1],
                      spanCenter[0] + textWidth / 2 + 1, spanCoords[3])
+        self.wait(0)
         if hLabel:  # Adjust existing hLabel: (span, box, text)
             currentCoords = self.canvas.coords(hLabel[0])
             currentText = self.canvas.itemconfigure(hLabel[2], 'text')[-1]
@@ -741,7 +743,8 @@ def shellSort(self):
             "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
             helpText='Shuffle position of all items')
         shellSortButton = self.addOperation(
-            "Shellsort", lambda: self.shellSort(), maxRows=maxRows,
+            "Shellsort",
+            lambda: self.shellSort(start=self.startMode()), maxRows=maxRows,
             helpText='Sort items using shellsort algorithm')
         quicksortButton = self.addOperation(
             "Quicksort", lambda: self.clickQuicksort(), maxRows=maxRows,
@@ -765,7 +768,6 @@ def shellSort(self):
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
         else:
             callEnviron = self.createCallEnvironment()
-            self.startAnimations()
             self.showPartitions = True
 
             pivotY = self.fillCoords(val, self.cellCoords(0))[3]
@@ -785,7 +787,8 @@ def shellSort(self):
         self.showPartitions = True
         self.quicksort(code=self.quicksortCode if self.useMedianOf3.get() else
                        self.quicksortCode.replace('medianOfThree', 'rightmost')
-                       .replace('lo + 1,', 'lo,'))
+                       .replace('lo + 1,', 'lo,'),
+                       start=self.startMode())
 
     def clickUseMedianOf3(self):
         pass
