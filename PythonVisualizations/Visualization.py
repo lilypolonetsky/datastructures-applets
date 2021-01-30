@@ -3,7 +3,7 @@ Base class for Python visualizations.
 Provides a common drawing canvas and movement tools.
 """
 
-import time, re
+import time, re, sys
 from tkinter import *
 from tkinter import ttk
 import tkinter.font as tkfont
@@ -79,8 +79,7 @@ class Visualization(object):  # Base class for Python visualizations
             window=None,      # Run visualization within given window
             title=None,
             canvasWidth=800,  # Canvas size
-            canvasHeight=400
-    ):
+            canvasHeight=400):
         self.title = title
         # Set up Tk windows for canvas and operational controls
         if window:
@@ -89,6 +88,8 @@ class Visualization(object):  # Base class for Python visualizations
             self.window = Tk()
             if title:
                 self.window.title(title)
+        self.destroyed = False
+        self.window.bind('<Destroy>', self.setDestroyFlag)
         self.targetCanvasWidth = canvasWidth
         self.targetCanvasHeight = canvasHeight
         self.canvas = Canvas(
@@ -98,6 +99,10 @@ class Visualization(object):  # Base class for Python visualizations
 
         # Set up animation state variable
         self.animationState = Animation.STOPPED
+
+    def setDestroyFlag(self, event=None): # Capture destruction of top window
+        if event and event.widget == self.window:
+            self.destroyed = True
         
     # General Tk widget methods
     def widgetDimensions(self, widget):  # Get widget's (width, height)
@@ -399,7 +404,11 @@ class Visualization(object):  # Base class for Python visualizations
     def wait(self, sleepTime): # Sleep for a period of time and handle user stop
         if sleepTime > 0:
             self.window.update()
+            if self.destroyed:
+                sys.exit()
             time.sleep(sleepTime)
+        if self.destroyed:
+            sys.exit()
         if self.animationState == Animation.STOPPED: # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
 

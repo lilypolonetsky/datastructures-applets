@@ -10,7 +10,7 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-import time, re, sys
+import time, re
 from collections import *
 from tkinter import *
 from tkinter import ttk
@@ -761,16 +761,28 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 codeBlock and
                 self.lastCodeBlockFragments != codeBlock.currentFragments):
             self.window.update()
+            if self.destroyed:
+                sys.exit()
             time.sleep(0.02)
+            if self.destroyed:
+                sys.exit()
         self.lastCodeBlock = codeBlock
         self.lastCodeBlockFragments = (
             self.lastCodeBlock.currentFragments if self.lastCodeBlock else None)
         if sleepTime > 0:
             self.window.update()
+            if self.destroyed:
+                sys.exit()
             time.sleep(self.speed(sleepTime))
+            if self.destroyed:
+                sys.exit()
         while self.animationsPaused():
             self.window.update()
+            if self.destroyed:
+                sys.exit()
             time.sleep(0.02)
+            if self.destroyed:
+                sys.exit()
             
         if self.animationsStopped(): # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
