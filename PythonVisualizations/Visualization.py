@@ -7,6 +7,7 @@ import time, re
 from tkinter import *
 from tkinter import ttk
 import tkinter.font as tkfont
+from enum import Enum
 
 try:
     from coordinates import *
@@ -52,6 +53,13 @@ def rangesOverlap(           # Determine if a range overlaps another
 
 geom_delims = re.compile(r'[\sXx+-]')
 
+# Animation states
+class Animation(Enum):
+    STOPPED = 1
+    RUNNING = 2
+    PAUSED = 3
+    STEP = 4
+
 class Visualization(object):  # Base class for Python visualizations
 
     # Default styles for display of values, variables, and their animation
@@ -65,12 +73,6 @@ class Visualization(object):  # Base class for Python visualizations
     FOUND_FONT = ('Helvetica', FONT_SIZE)
     FOUND_COLOR = 'green2'
     SMALL_FONT = ('Helvetica', -9)
-
-    # Animation states
-    STOPPED = 0
-    RUNNING = 1
-    PAUSED = 2
-    STEP = 3
 
     def __init__(  # Constructor
             self,
@@ -95,7 +97,7 @@ class Visualization(object):  # Base class for Python visualizations
         self.canvas.pack(expand=True, fill=BOTH)
 
         # Set up animation state variable
-        self.animationState = self.STOPPED
+        self.animationState = Animation.STOPPED
         
     # General Tk widget methods
     def widgetDimensions(self, widget):  # Get widget's (width, height)
@@ -398,26 +400,32 @@ class Visualization(object):  # Base class for Python visualizations
         if sleepTime > 0:
             self.window.update()
             time.sleep(sleepTime)
-        if self.animationState == self.STOPPED: # If user requested to stop
+        if self.animationState == Animation.STOPPED: # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
 
     def startAnimations(self, enableStops=True, state=None):
         self.animationState = state if state is not None else (
-            self.animationState if self.animationState in (self.RUNNING,
-                                                           self.STEP)
-            else self.RUNNING)
+            self.animationState if self.animationState in (Animation.RUNNING,
+                                                           Animation.STEP)
+            else Animation.RUNNING)
 
     def stopAnimations(self):  # Stop animation
-        self.animationState = self.STOPPED
+        self.animationState = Animation.STOPPED
 
     def pauseAnimations(self):
-        self.animationState = self.PAUSED
+        self.animationState = Animation.PAUSED
 
     def animationsStopped(self):
-        return self.animationState == self.STOPPED
+        return self.animationState == Animation.STOPPED
+
+    def animationsPaused(self):
+        return self.animationState == Animation.PAUSED
 
     def animationsRunning(self):
-        return self.animationState != self.STOPPED
+        return self.animationState != Animation.STOPPED
+
+    def animationsStepping(self):
+        return self.animationState == Animation.STEP
     
     def runVisualization(self):
         self.window.mainloop()

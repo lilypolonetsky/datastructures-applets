@@ -78,7 +78,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def __init__(  # Constructor
             self,
             maxArgWidth=3,    # Maximum length/width of text arguments
-            hoverDelay=1000,  # Milliseconds to wait before showing hints
+            hoverDelay=3000,  # Milliseconds to wait before showing hints
             **kwargs
     ):
         super().__init__(**kwargs)
@@ -91,6 +91,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
         self.pauseButton, self.stopButton, self.stepButton = None, None, None
         self.lastCodeBlock, self.lastCodeBlockFragments = None, None
+        self.modifierKeyState = 0
 
         self.createPlayControlImages()
         self.setUpControlPanel()
@@ -195,6 +196,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 self.operations, text=label, font=self.CONTROLS_FONT, bg=bg,
                 **kwargs)
         button['command'] = self.runOperation(callback, cleanUpBefore, button)
+        button.bind('<Button>', self.recordModifierKeyState)
         setattr(button, 'required_args', numArguments)
 
         # Placement
@@ -323,6 +325,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.setHint(msg)
         return Ehandler
     
+    def recordModifierKeyState(self, event=None):
+        if event and event.type == EventType.ButtonPress:
+            self.modifierKeyState = event.state
+            
+    def startMode(self):
+        'Choose starting animation mode based on last modifier keys used'
+        return (Animation.STEP if self.modifierKeyState & 0x0001 
+                else Animation.RUNNING)
+            
     def returnPressed(self, event):  # Handle press of Return/Enter in text
         button = getattr(            # entry argument widget.
             event.widget, 'last_button', None)
@@ -353,7 +364,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         withArgs, withoutArgs, nColumns, nRows = self.getOperations()
         self.playControlsFrame.grid(
             column=4 + len(withoutArgs) // maxRows,
-            row=len(withoutArgs) % maxRows + 1, sticky=(E,W))
+            row=len(withoutArgs) % maxRows + 1)
 
         self.pauseButton, self.stepButton, self.stopButton = (
             Button(self.playControlsFrame, image=self.playControlImages[name],
@@ -396,15 +407,29 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 for entry in self.textEntries[:getattr( # as the last button
                         button, 'required_args')]: # pressed for all its args
                     setattr(entry, 'last_button', button)
+            animationControls = [
+                b for b in (self.pauseButton, self.stepButton, self.stopButton)
+                if b]
+            withArgs, withoutArgs, nColumns, nRows = self.getOperations()
             try:
                 if cleanUpBefore:
                     self.cleanUp()
-                if button:
+                if button and button in animationControls:
                     button.focus_set()
                 command()
             except UserStop as e:
                 self.cleanUp(self.callStack[0] if self.callStack else None,
                              ignoreStops=True)
+            focus = self.window.focus_get()
+            if (focus and  # If focus ended on an argument button or an
+                (focus in withArgs or  # animation control run on something w/
+                 focus in animationControls and button in withArgs) # args
+                and self.textEntries): # and there are text entry boxes
+                self.textEntries[0].focus_set() # switch focus to 1st entry
+            elif (focus and   # If focus ended on animation control run on
+                  focus in animationControls and # something without args
+                  button in withoutArgs):
+                button.focus_set()     # Set focust back to operation button
         return animatedOperation
                 
     def getArgument(self, index=0, clear=False):
@@ -445,7 +470,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             nArgs = getattr(button, 'required_args')
             self.widgetState(
                 button,
-                DISABLED if self.animationState != self.STOPPED or any(
+                DISABLED if not self.animationsStopped() or any(
                     arg == '' for arg in args[:nArgs]) else NORMAL)
 
         for i, entry in enumerate(self.textEntries):
@@ -567,7 +592,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         if False:     # Set true for debugging printout
             print('Current width is', nCharsWide, 'and desired is', desired)
             if skip and desired != nCharsWide:
-                print('Skipping resize whiler timer {} running'.format(
+                print('Skipping resize while timer {} running'.format(
                     timeout_ID))
         if not skip and desired != nCharsWide:
             ct['width'] = desired
@@ -579,8 +604,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         is 1 for the first instance of the string, 2 for the second, etc.
         '''
         codeBlock = self.getCodeHighlightBlock(callEnviron)
-        if codeBlock is None:  # This should only happen when code is hidden
-            return
+        if self.codeText is None or codeBlock is None: 
+            return        # This should only happen when code is hidden
         if color is None:
             color = self.CODE_HIGHLIGHT
         if isinstance(fragments, (list, tuple)):
@@ -613,8 +638,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         if not found and len(tags) > 0:  # This shouldn't happen so log bug
             print('Unable to find highlight tag(s) {} among {}'.format(
                 ', '.join(tags), ', '.join(codeBlock.cache.keys())))
-        if wait > 0:              # Optionally weit for highlight to show
-            self.wait(wait)
+        if wait > 0 or self.animationsStepping(): # Optionally weit for
+            self.wait(wait)    # highlight to show or to stop at a step
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
@@ -649,10 +674,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         if callEnviron is None:  # Clear any messages if cleaning up everything
             self.setMessage()
         if len(self.callStack) == 0: # When call stack is empty
+            self.codeText = None
             while len(self.codeFrame.children) > 0: # Remove code window
                 tkItem = self.codeFrame.children.popitem()
                 tkItem[1].destroy()
-            self.codeText = None
 
     def cleanUpCallEnviron(    # Clean up a call on the stack
             self, callEnviron, # removing the call environement
@@ -676,7 +701,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 for i in range(1, min(last_line, len(thing.lines) + 2)):
                     if self.codeText:
                         self.codeText.delete('1.0', '2.0')
-                        if sleepTime > 0 and not self.animationsStopped():
+                        if (sleepTime > 0 and not self.animationsStopped() and
+                            not inUserStop):
                             try:
                                 self.wait(sleepTime)
                             except UserStop:
@@ -686,22 +712,36 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         if inUserStop:
             raise UserStop()
 
-    def createCallEnvironment( # Create a call environment on the call stack
-            self,              # for animating a particular call
-            code='',           # code for this call, if any
-            sleepTime=0):      # Wait time between inserting lines of code
-        # The call environment is a set for local variables represented by
-        # canvas items plus a codeHighlightBlock that controls code highlights
+    def createCallEnvironment(self, code='', sleepTime=0, startAnimations=True):
+        '''Creates a call environment, a set for local variables represented by
+        canvas items, plus a codeHighlightBlock that controls code highlights.
+        The set is pushed on the callStack for a particular call.  The code
+        for that call will be shown in the codeText window, and will be added
+        line by line if sleepTime is above 0 (otherwise all at once).  The
+        startAnimations value determines how the animationState is changed,
+        if at all.  True means keep RUNNING or STEP mode or switch to RUNNING.
+        An explicit Animation state means switch to that state.  False or None
+        means don't call startAnimations.
+        '''
         code = code.strip()
         callEnviron = set()
         if len(code) > 0:
-            self.showCode(code, addBoundary=True, sleepTime=sleepTime)
+            self.showCode(
+                code, addBoundary=True,
+                sleepTime=0 if (self.animationsStopped() and startAnimations
+                                and len(self.callStack) == 0) else sleepTime)
             codeHighlightBlock = CodeHighlightBlock(code, self.codeText)
             if self.codeText:
                 codeHighlightBlock.markStart()
             callEnviron.add(codeHighlightBlock)
             
         self.callStack.append(callEnviron) # Push environment on stack
+        if startAnimations:
+            self.startAnimations(
+                state=startAnimations if isinstance(startAnimations, Animation)
+                else self.animationState if startAnimations is True and
+                not self.animationsStopped()
+                else Animation.RUNNING)
         return callEnviron
 
     # ANIMATION CONTROLS
@@ -710,12 +750,13 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             10, sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get())
 
     def wait(self, sleepTime):    # Sleep for a user-adjusted period
+        stateOnEntry = self.animationState
         codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
                      if self.callStack else None)
-        if (self.animationState == self.STEP and
+        if (self.animationsStepping() and
             buttonImage(self.pauseButton) != self.playControlImages['play']):
             buttonImage(self.pauseButton, self.playControlImages['play'])
-        while self.animationState == self.STEP and (
+        while self.animationsStepping() and (
                 self.lastCodeBlock is not codeBlock or
                 codeBlock and
                 self.lastCodeBlockFragments != codeBlock.currentFragments):
@@ -727,7 +768,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         if sleepTime > 0:
             self.window.update()
             time.sleep(self.speed(sleepTime))
-        if self.animationState == self.STOPPED: # If user requested to stop
+        while self.animationsPaused():
+            self.window.update()
+            time.sleep(0.02)
+            
+        if self.animationsStopped(): # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
 
     def onClick(self, command, *parameters):
@@ -742,12 +787,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 self.stepButton.focus_set()
                 
             command(*parameters)      # run the command, and re-enable buttons
-            if command in [self.pausePlay, self.step]: # for animation control
-                for btn in (self.pauseButton, self.stepButton, self.stopButton):
-                    if btn:
-                        self.widgetState(btn, NORMAL)
-            else:                     # For stop or other buttons
-                self.enableButtons()  # other than pause/play or step command
+            if command in [self.stop]: # when Stop is pressed
+                self.enableButtons() 
         return buttonClickHandler
 
     def buttonFocus(self, btn, hasFocus):
@@ -773,24 +814,23 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                         if b:
                             self.widgetState(
                                 b,
-                                NORMAL if enable and (b != self.stepButton or
-                                                      self.codeText)
+                                NORMAL if (
+                                    enable and not self.animationsStopped() and
+                                    (b != self.stepButton or self.codeText))
                                 else DISABLED)
 
     def stop(self):
         self.stopAnimations()
-        self.animationState = self.STOPPED  # Always stop on user request
+        self.animationState = Animation.STOPPED  # Always stop on user request
         buttonImage(self.pauseButton, self.playControlImages['play'])
 
     def pausePlay(self):
-        if self.animationState in (self.PAUSED, self.STEP):
-            self.startAnimations(state=self.RUNNING)
+        if self.animationState in (Animation.PAUSED, Animation.STEP):
+            self.startAnimations(state=Animation.RUNNING)
             buttonImage(self.pauseButton, self.playControlImages['pause'])
         else:
             self.pauseAnimations()
             buttonImage(self.pauseButton, self.playControlImages['play'])
-            while self.animationState == self.PAUSED:
-                self.wait(0.02)
 
     def step(self):
         codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
@@ -798,48 +838,34 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.lastCodeBlock = codeBlock
         self.lastCodeBlockFragments = (
             self.lastCodeBlock.currentFragments if self.lastCodeBlock else None)
-        self.startAnimations(state=self.STEP)
+        self.startAnimations(state=Animation.STEP)
 
     def startAnimations(self, enableStops=True, state=None):
         self.animationState = state if state is not None else (
-            self.animationState if self.animationState in (self.RUNNING,
-                                                           self.STEP)
-            else self.RUNNING)
+            self.animationState if self.animationState in (Animation.RUNNING,
+                                                           Animation.STEP)
+            else Animation.RUNNING)
         self.enableButtons(enable=False)
-        if self.pauseButton:
+        if self.pauseButton and not self.animationsStepping():
             buttonImage(self.pauseButton, self.playControlImages['pause'])
         for btn in (self.pauseButton, self.stopButton):
             if btn and enableStops:
                 self.widgetState(btn, NORMAL)
-        if self.stepButton and (self.codeText or state == self.STEP):
+        if self.stepButton and enableStops and (
+                self.codeText or state == Animation.STEP):
             self.widgetState(self.stepButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
         # Calls from stack level 2+ only stop animation for their level
         # At lowest level, animation stops and play & stop buttons are disabled
         if len(self.callStack) <= 1:
-            self.animationState = self.STOPPED
+            self.animationState = Animation.STOPPED
             self.enableButtons(enable=True)
             for btn in (self.pauseButton, self.stopButton, self.stepButton):
                 if btn:
                     self.widgetState(btn, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
-
-    def pauseAnimations(self):
-        self.animationState = self.PAUSED
-
-    def animationsStopped(self):
-        return self.animationState == self.STOPPED
-
-    def animationsRunning(self):
-        return self.animationState != self.STOPPED
-
-    def animationsPaused(self):
-        return self.animationState != self.PAUSED
-    
-    def runVisualization(self):
-        self.window.mainloop()
 
 # Tk widget utilities
 
