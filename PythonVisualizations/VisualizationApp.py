@@ -479,6 +479,9 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             
     def setMessage(self, val=''):
         self.outputText.set(val)
+
+    def getMessage(self):
+        return self.outputText.get()
         
     vScrollWidth = 10      # Guess for width of vertical scrollbar width
     

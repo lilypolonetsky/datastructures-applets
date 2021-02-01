@@ -382,6 +382,9 @@ def reset(self):
         self.restoreDisks()
 
     def showCompletion(self):
+        msg = 'Puzzle completed!'
+        if self.getMessage() == msg:
+            return
         canvasDimensions = self.widgetDimensions(self.canvas)
         starCenter = V(canvasDimensions) * V(1/3, 1)
         size, ratio, points, angle = 5, 0.38, 5, 270
@@ -390,11 +393,13 @@ def reset(self):
         targetSize = canvasDimensions[0] / 2
         targetAngle = -90
         self.allowUserMoves = False
+        callEnviron = self.createCallEnvironment(startAnimations=False)
         self.startAnimations(enableStops=False)
         starCoords = regularStar(starCenter, size, size * ratio, points, angle)
         star = self.canvas.create_polygon(
             *starCoords, fill='goldenrod', outline='red', 
             width=max(1, size / 100))
+        callEnviron.add(star)
         while size < targetSize or starCenter != targetCenter:
             starCenter = (   # Move star towards target and increase size
                 targetCenter
@@ -410,16 +415,15 @@ def reset(self):
             self.canvas.itemconfigure(star, width=max(1, size / 100))
             self.wait(0.01)
         font = ('Helvetica', -max(12, int(size / 10)))
-        self.canvas.create_text(
+        callEnviron.add(self.canvas.create_text(
             *(V(starCenter) + V(0, font[1])), text='Puzzle Completed',
-            font=font, anchor=S)
-        self.canvas.create_text(
+            font=font, anchor=S))
+        callEnviron.add(self.canvas.create_text(
             *starCenter, text='in {} move{}!'.format(
                 self.moves, '' if self.moves == 1 else 's'), 
-            font=font, anchor=S)
-        self.cleanUp()
-        self.allowUserMoves = True
-        self.setMessage('Puzzle completed!')
+            font=font, anchor=S))
+        self.cleanUp(callEnviron)
+        self.setMessage(msg)
         
     def diskTag(self, ID): return 'disk {}'.format(ID)
             
