@@ -41,7 +41,6 @@ class BinaryTree(BinaryTreeBase):
         if self.size == 0: return None, None
 
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         # start at the root
         level = 0
@@ -77,7 +76,6 @@ class BinaryTree(BinaryTreeBase):
 
     def insertElem(self, key, animation=True):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         inserted = False
 
@@ -147,7 +145,6 @@ class BinaryTree(BinaryTreeBase):
     def delete(self, key):
         # create a call environment and start the animations
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         # find the node with the key
         cur, parent = self.find(key, stopAnimations=False)
