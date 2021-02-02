@@ -687,31 +687,36 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             sleepTime=0,       # waiting sleepTime between removing code lines
             allowSteps=True):  # allowing step pauses if set
         inUserStop = False
+        codeBlock = None
+        toDelete = []
         while len(callEnviron):
             thing = callEnviron.pop()
             if isinstance(thing, (str, int)) and self.canvas.type(thing):
-                self.canvas.delete(thing)
+                toDelete.append(thing)
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
-                self.codeText.configure(state=NORMAL)
-                if allowSteps:
-                    try:
-                        self.wait(0)
-                    except UserStop:
-                        inUserStop = True
-                last_line = int(
-                    float(self.codeText.index(END))
-                    ) if len(thing.lines) > 0 else 0
-                for i in range(1, min(last_line, len(thing.lines) + 2)):
-                    if self.codeText:
-                        self.codeText.delete('1.0', '2.0')
-                        if (sleepTime > 0 and not self.animationsStopped() and
-                            not inUserStop):
-                            try:
-                                self.wait(sleepTime)
-                            except UserStop:
-                                inUserStop = True
+                codeBlock = thing
+        if codeBlock:
+            self.codeText.configure(state=NORMAL)
+            if allowSteps:
+                try:
+                    self.wait(0)
+                except UserStop:
+                    inUserStop = True
+            last_line = int(float(self.codeText.index(END))
+                            if len(codeBlock.lines) > 0 else 0)
+            for i in range(1, min(last_line, len(codeBlock.lines) + 2)):
                 if self.codeText:
-                    self.codeText.configure(state=DISABLED)
+                    self.codeText.delete('1.0', '2.0')
+                    if (sleepTime > 0 and not self.animationsStopped() and
+                        not inUserStop):
+                        try:
+                            self.wait(sleepTime)
+                        except UserStop:
+                            inUserStop = True
+            if self.codeText:
+                self.codeText.configure(state=DISABLED)
+        for item in toDelete:
+            self.canvas.delete(item)
         if inUserStop:
             raise UserStop()
 
