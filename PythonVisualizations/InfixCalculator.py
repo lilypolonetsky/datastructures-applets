@@ -646,6 +646,7 @@ def PostfixTranslate(formula={infixExpression!r}):
         delimValue = self.canvas.create_text(
             labelCoords[0] + 300, labelCoords[1], text='',
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=W)
+        callEnviron |= set((precValue, delimValue))
         
         self.highlightCode(('token', 2), callEnviron, wait=wait)
         while token:
@@ -666,8 +667,9 @@ def PostfixTranslate(formula={infixExpression!r}):
                 if token == '(':
                     
                     self.highlightCode(('s.push(token)', 1), callEnviron)
-                    self.pushToken(tokenItem, callEnviron, arrayID=self.TRstackID,
-                                   color=drawnValue.palette[prec - 1])
+                    self.pushToken(
+                        tokenItem, callEnviron, arrayID=self.TRstackID,
+                        color=drawnValue.palette[prec - 1])
                 else:
                     self.canvas.delete(tokenItem)
                     callEnviron.discard(tokenItem)
@@ -807,8 +809,8 @@ def PostfixTranslate(formula={infixExpression!r}):
         tokenItem = self.canvas.create_text(
             *coords, text=token, font=font, fill=color, anchor=W)
         callEnviron.add(tokenItem)
-        delta = self.extractDelta(fromString, toString)
-        self.moveItemsBy(tokenItem, delta, sleepTime=0.01)
+        self.moveItemsBy(tokenItem, self.extractDelta(fromString, toString),
+                         sleepTime=0.01)
         self.canvas.itemconfigure(tokenItem, anchor=anchor)
         self.canvas.itemconfigure(fromString, text=text[len(token):])
         return tokenItem
