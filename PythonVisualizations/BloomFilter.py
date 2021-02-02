@@ -122,7 +122,6 @@ class BloomFilter(HashBase):
         
     def insert(self, key):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         findDisplayObjects = []
         # before the 1st hash value there is no seed
@@ -178,7 +177,6 @@ class BloomFilter(HashBase):
     # Returns False if key definitely hasn't been inserted into the BF.
     def find(self, key):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         # before the 1st hash value there is no seed
         seed = 0

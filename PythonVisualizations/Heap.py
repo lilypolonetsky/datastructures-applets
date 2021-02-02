@@ -64,7 +64,6 @@ class Heap(VisualizationApp):
 
     def insert(self, val):
         callEnviron = self.createCallEnvironment() 
-        self.startAnimations()       
         
         #If array needs to grow, add cells:
         if self.size <= len(self.list):
