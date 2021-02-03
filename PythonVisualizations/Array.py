@@ -29,7 +29,7 @@ class Array(SortingBase):
 
 
     # Button functions
-    def makeButtons(self, maxRows=3):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         insertButton = self.addOperation(
