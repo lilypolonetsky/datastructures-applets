@@ -74,9 +74,9 @@ def push(self, item={val}):
    self.__stackList[self.__top] = item
 """
 
-    def push(self, val, code=pushCode):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+    def push(self, val, code=pushCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
 
         #move arrow up when new cell is inserted
         self.highlightCode('self.__top += 1', callEnviron)
@@ -119,23 +119,20 @@ def pop(self):
    return top
 """
 
-    def pop(self, code=popCode):
+    def pop(self, code=popCode, start=True):
 
         # pop a DrawnValue from the list
         if len(self.list) == 0:
             return
 
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code)
-        n = self.list.pop()
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
+        wait = 0.1
 
         self.highlightCode('top = self.__stackList[self.__top]', callEnviron)
 
-        # Mark associated display objects as temporary
-        callEnviron |= set(n.items)
-
         # move copies of item to be deleted to top area
-        newItems = [self.copyCanvasItem(i) for i in n.items]
+        newItems = [self.copyCanvasItem(i) for i in self.list[-1].items]
         callEnviron |= set(newItems)
 
         itemPos = self.topBoxCoords()
@@ -149,15 +146,20 @@ def pop(self):
 
         self.moveItemsTo(
             newItems, (itemPos, (labelPos[0], itemPos[1]+self.CELL_HEIGHT//2)),
-            sleepTime=0.02)
+            sleepTime=wait/5)
 
-        # move item out of stack
+        # clear stack cell
         self.highlightCode('self.__stackList[self.__top] = None', callEnviron)
-        self.moveItemsOffCanvas(n.items, W, sleepTime=.02)
+
+        # Update internal data structure
+        n = self.list.pop()
+        callEnviron |= set(n.items)
+        self.moveItemsOffCanvas(n.items, W, sleepTime=wait/5)
 
         # decrement index pointing to the last cell
         self.highlightCode('self.__top -= 1', callEnviron)
-        self.moveItemsBy(self.topIndex, (0, (self.CELL_HEIGHT)), sleepTime=0.02)
+        self.moveItemsBy(self.topIndex, (0, (self.CELL_HEIGHT)), 
+                         sleepTime=wait/5)
 
         self.highlightCode('return top', callEnviron)
 
@@ -173,16 +175,17 @@ def peek(self):
 """
 
     # displays the top val of the stack in a small cell on the bottom right of the window
-    def peek(self, code=peekCode):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code)
-
-        if self.isEmpty():
-            self.cleanUp(callEnviron)
-            return None
+    def peek(self, code=peekCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
+        wait = 0.1
 
         self.highlightCode('not self.isEmpty()', callEnviron)
-        self.wait(0.2)
+
+        if self.isEmpty():
+            self.highlightCode([], callEnviron)
+            self.cleanUp(callEnviron)
+            return None
 
         self.highlightCode('return self.__stackList[self.__top]', callEnviron)
 
@@ -205,7 +208,7 @@ def peek(self):
 
         # move value to output box
         toPositions = (midOutputBoxX, midOutputBoxY)
-        self.moveItemsTo(valueList, (toPositions,), sleepTime=.02)
+        self.moveItemsTo(valueList, (toPositions,), sleepTime=wait/5)
 
         # make the value fit the output box
         newFont = (self.VALUE_FONT[0], -14)
@@ -233,7 +236,6 @@ def isEmpty(self):
 
     def isEmpty(self, code=isEmptyCode):
         callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
         
         callEnviron |= set(self.createIndex(-.5, name = "0"))
         self.highlightCode('return self.__top < 0', callEnviron)
@@ -318,15 +320,14 @@ def __init__(self, max={newSize}):
    self.__top = -1
 '''
     
-    def display(self, newSize=None, code=newCode):
+    def display(self, newSize=None, code=newCode, start=True):
         self.canvas.delete("all")
 
         callEnviron, wait = None, 0
         if newSize is not None:
-            wait=0.1
+            wait = 0.1
             callEnviron = self.createCallEnvironment(
-                code=code.format(**locals()))
-            self.startAnimations()
+                code=code.format(**locals()), startAnimations=start)
             canvasDims = self.widgetDimensions(self.canvas)
             try:
                 self.highlightCode(
@@ -383,7 +384,7 @@ def __init__(self, max={newSize}):
     def makeButtons(self, maxRows=4):
         width_vcmd = (self.window.register(makeWidthValidate(self.maxArgWidth)),
                       '%P')
-        pushButton = self.addOperation(
+        self.pushButton = self.addOperation(
             "Push", lambda: self.clickPush(), numArguments=1,
             argHelpText=['item'], validationCmd=width_vcmd,
             helpText='Push item on stack')
@@ -399,7 +400,7 @@ def __init__(self, max={newSize}):
             "Peek", lambda: self.clickPeek(), helpText='Peek at top stack item',
             maxRows=maxRows)
         self.addAnimationButtons(maxRows=maxRows)
-        return [pushButton, popButton, peekButton, newStackButton]
+        return [self.pushButton, popButton, peekButton, newStackButton]
 
     def validArgument(self):
         entered_text = self.getArgument()
@@ -418,19 +419,19 @@ def __init__(self, max={newSize}):
             if len(self.list) >= self.size:
                 self.setMessage("Error! Stack is already full.")
             else:
-                self.push(val)
+                self.push(val, start=self.startMode())
                 self.setMessage("Value {} pushed!".format(val))
         self.clearArgument()
 
     def clickPop(self):
-        val = self.pop()
+        val = self.pop(start=self.startMode())
         if val is None:
             self.setMessage("Error! Stack is empty.")
         else:
             self.setMessage("Value {} popped!".format(val))
 
     def clickPeek(self):
-        val = self.peek()
+        val = self.peek(start=self.startMode())
         
         self.setMessage(
             "Value {} is at the top of the stack!".format(val) if val else
@@ -452,7 +453,7 @@ def __init__(self, max={newSize}):
             maxCells += 1
 
         if 1 <= newSize and newSize <= maxCells:
-            self.display(newSize)
+            self.display(newSize, start=self.startMode())
             self.setMessage("New stack of size {} created. ".format(newSize))
             self.clearArgument()
         else:
@@ -462,10 +463,7 @@ def __init__(self, max={newSize}):
 
 if __name__ == '__main__':
     stack = Stack()
-    try:
-        for arg in sys.argv[1:]:
-            stack.push(arg)
-            stack.cleanUp()
-    except UserStop:
-        stack.cleanUp()
+    for arg in sys.argv[1:]:
+        stack.setArgument(arg)
+        stack.pushButton.invoke()
     stack.runVisualization()
