@@ -18,7 +18,6 @@ class Link():
         self.text    = None 
         self.y       = None    # x and y coords represent 
         self.x       = None    # the bottom left corner 
-        
             
 class SkipList(VisualizationApp):
     
@@ -61,7 +60,6 @@ class SkipList(VisualizationApp):
         if self.__numLinks == self.maxInserts(): return False
         
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
         
         update = [None] * self.__maxLevel
         x = self.__header
@@ -122,7 +120,6 @@ class SkipList(VisualizationApp):
     
     def search(self, key, wait=0.01):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
         
         x = self.__header
         
@@ -161,7 +158,6 @@ class SkipList(VisualizationApp):
     
     def delete(self, key, wait=0.01):
         callEnviron = self.createCallEnvironment()  
-        self.startAnimations()
         
         found = False
         x = self.__header
@@ -206,7 +202,6 @@ class SkipList(VisualizationApp):
         
     def fill(self, num):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
         
         if num > self.maxInserts(): num = self.maxInserts()
         self.__numLinks = 0
