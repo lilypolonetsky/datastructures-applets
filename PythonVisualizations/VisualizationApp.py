@@ -197,6 +197,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 **kwargs)
         button['command'] = self.runOperation(callback, cleanUpBefore, button)
         button.bind('<Button>', self.recordModifierKeyState)
+        button.bind('<KeyPress>', self.recordModifierKeyState)
         setattr(button, 'required_args', numArguments)
 
         # Placement
@@ -326,7 +327,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         return Ehandler
     
     def recordModifierKeyState(self, event=None):
-        if event and event.type == EventType.ButtonPress:
+        if event and event.type in (EventType.ButtonPress, EventType.KeyPress):
             self.modifierKeyState = event.state
             
     def startMode(self):
