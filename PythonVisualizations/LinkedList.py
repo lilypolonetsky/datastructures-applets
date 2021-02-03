@@ -296,7 +296,7 @@ def first(self):
     def firstData(self, code=firstCode, animateOutput=True, start=True):
         callEnviron = self.createCallEnvironment(
             code=code, startAnimations=start)
-        wait=0.1
+        wait = 0.1
         
         self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
         if self.first is None:
@@ -394,7 +394,7 @@ def traverse(self, func=print):
     def traverse(self, code=traverseCode, start=True):
         callEnviron = self.createCallEnvironment(
             code=code, startAnimations=start)
-        wait=0.1
+        wait = 0.1
 
         outputBoxCoords = self.outputBoxCoords(full=True)
         callEnviron.add(self.createOutputBox(full=True))
@@ -461,7 +461,7 @@ def insert(self, datum={val!r}):
         'Insert a new Link node at the front with a specific value'
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
-        wait=0.1
+        wait = 0.1
 
         self.highlightCode('link = Link(datum, self.getFirst())', callEnviron)
         nodeID = self.generateID()
@@ -524,7 +524,7 @@ def delete(self, goal={goal!r}, key=identity):
     def delete(self, goal, code=deleteCode, start=True):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
-        wait=0.1
+        wait = 0.1
 
         callEnviron.add(self.canvas.create_text(
             *self.outputLabelCoords(), text='goal = {}'.format(goal), 
@@ -682,7 +682,7 @@ def find(self, goal={goal!r}, key=identity):
                                wait=wait)
 
             if self.list[link - 1].key == goal:
-                self.highlightCode('return link', callEnviron, wait=0.1)
+                self.highlightCode('return link', callEnviron, wait=wait)
                 self.cleanUp(callEnviron)
                 return link
 
@@ -694,7 +694,7 @@ def find(self, goal={goal!r}, key=identity):
                 (self.indexCoords(link), self.indexLabelCoords(link)),
                 sleepTime=wait/10)
 
-            self.highlightCode('link is not None', callEnviron, wait=0.1)
+            self.highlightCode('link is not None', callEnviron, wait=wait)
             
         # Failed to find goal key
         self.highlightCode([], callEnviron)

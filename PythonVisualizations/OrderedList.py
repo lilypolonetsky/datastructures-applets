@@ -44,14 +44,16 @@ def __init__(self, key=identity):
 
     # Erases old linked list and draws empty list
     def newLinkedList(self, code=newLinkedListCode):
-        callEnviron = self.createCallEnvironment(code=code)
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=False)
+        wait = 0.1
         self.startAnimations(enableStops=False)
-        self.highlightCode('self.__first = None', callEnviron, wait=0.1)
+        self.highlightCode('self.__first = None', callEnviron, wait=wait)
         self.first = None
         self.list = []
         self.display()
 
-        self.highlightCode('self.__key = key', callEnviron, wait=0.1)
+        self.highlightCode('self.__key = key', callEnviron, wait=wait)
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         
@@ -66,11 +68,11 @@ def insert(self, newDatum={val!r}):
    previous.setNext(newLink)
 '''
     
-    def insert(self, val, code=insertCode):
+    def insert(self, val, code=insertCode, start=True):
         'Insert a new Link node in order based on its key value'
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
-        wait=0.1
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        wait = 0.1
 
         previous, column = 0, -1
         self.highlightCode('goal = self.__key(newDatum)', callEnviron)
@@ -170,10 +172,10 @@ def delete(self, goal={goal!r}):
 """
 
     # Delete a link from the linked list by finding a matching goal key
-    def delete(self, goal, code=deleteCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
-        wait=0.1
+    def delete(self, goal, code=deleteCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        wait = 0.1
 
         previous, column = 0, -1
         goalText = self.canvas.create_text(
@@ -287,7 +289,6 @@ def find(self, goal={goal!r}):
 
     def find(self, goal, code=findCode):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
         wait = 0.1
 
         column = -1
@@ -318,7 +319,7 @@ def find(self, goal={goal!r}):
                  self.cellText(column)),
                 sleepTime=wait/10)
 
-            self.highlightCode('link is not None', callEnviron, wait=0.1)
+            self.highlightCode('link is not None', callEnviron, wait=wait)
             if link <= len(self.list):
                 self.highlightCode(
                     'self.__key(link.getData()) < goal', callEnviron, wait=wait)
@@ -336,9 +337,9 @@ def search(self, goal={goal!r}):
       return link.getData()
 """
 
-    def search(self, goal, code=searchCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+    def search(self, goal, code=searchCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
 
         self.highlightCode('link = self.find(goal)', callEnviron)
@@ -379,7 +380,7 @@ def search(self, goal={goal!r}):
     ### BUTTON FUNCTIONS##
     def clickSearch(self):
         val = self.getArgument()
-        result = self.search(val)
+        result = self.search(val, start=self.startMode())
         if result != None:
             msg = "Found {}!".format(val)
         else:
@@ -393,12 +394,12 @@ def search(self, goal={goal!r}):
             self.setMessage("Error! Linked List is already full.")
             self.clearArgument()
         else:  
-            self.insert(val)
+            self.insert(val, start=self.startMode())
 
     def clickDelete(self):
         empty = self.first is None  # check whether linked list is empty or not
         val = self.getArgument()
-        result = self.delete(val)
+        result = self.delete(val, start=self.startMode())
         self.setMessage(
             'Error! Linked list is empty' if empty else
             '{} eleted'.format(val) if result else
@@ -407,19 +408,19 @@ def search(self, goal={goal!r}):
             self.clearArgument()        
         
     def clickDeleteFirst(self):
-        if self.deleteFirst() is None:
+        if self.deleteFirst(start=self.startMode()) is None:
             self.setMessage('Error! Queue is empty')
         
     def clickNewLinkedList(self):
         self.newLinkedList()
     
     def clickGetFirst(self):
-        first = self.firstData()
+        first = self.firstData(start=self.startMode())
         self.setMessage('Error! Queue is empty' if first is None else
                         "The first link's data is {}".format(first))
 
     def clickTraverse(self):
-        self.traverse()
+        self.traverse(start=self.startMode())
     
     def makeButtons(self):
         vcmd = (self.window.register(self.validate),
