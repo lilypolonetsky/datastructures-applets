@@ -81,17 +81,21 @@ class SortingBase(VisualizationApp):
                      cellCoords[3] + int(self.CELL_HEIGHT * 1.7))
         return add_vector(cellCoords, (0, bottom - cellCoords[3]) * 2)
 
-    def tempLabelCoords(self, index, font):
+    def tempLabelCoords(self, index, font=None):
+        if font is None:
+            font = self.VARIABLE_FONT
         tempPos = self.tempCoords(index)
         return (tempPos[0] + tempPos[2]) // 2, tempPos[1] - abs(font[1])
     
     def assignToTemp(self, index, callEnviron, varName="temp", existing=None,
-                     sleepTime=0.02):
+                     sleepTime=0.02, tempCoords=None):
         """Assign indexed cell to a temporary variable named varName.
         Animate value moving to the temporary variable below the array.
         Return a drawnValue for the new temporary value and a text item for
-        its name.  The existing name item can be passed to avoid creating
-        a new one and for moving the value to that location
+        its name label.  The existing label can be passed to avoid creating
+        a new one with an optional set of coordinates for the label position.
+        The indexed value (and optionally the temp label) are moved along a
+        straight path to their locations
         """
         fromValue = self.list[index]
         posCell = self.canvas.coords(fromValue.items[0])
@@ -103,17 +107,21 @@ class SortingBase(VisualizationApp):
         
         tempPos = self.tempCoords(index)
         if existing:
-            tempLabelPos = self.canvas.coords(existing)
+            tempLabelPos = tempCoords if tempCoords else self.canvas.coords(existing)
             tempLabel = existing
         else:
-            tempLabelPos = self.tempLabelCoords(index, self.VARIABLE_FONT)
+            tempLabelPos = tempCoords if tempCoords else self.tempLabelCoords(
+                index)
             tempLabel = self.canvas.create_text(
                 *tempLabelPos, text=varName, font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
             callEnviron.add(tempLabel)
 
         delta = (tempLabelPos[0] - cellXCenter, tempPos[1] - posCell[1])
-        self.moveItemsBy(copyItems, delta, sleepTime=sleepTime)
+        newCoords = [add_vector(self.canvas.coords(i), delta * 2)
+                     for i in copyItems] + [tempLabelPos]
+        self.moveItemsTo(copyItems + [tempLabel], newCoords,
+                         sleepTime=sleepTime)
 
         return drawnValue(fromValue.val, *copyItems), tempLabel
 
