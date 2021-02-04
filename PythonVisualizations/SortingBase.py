@@ -377,6 +377,7 @@ def search(self, item={item}):
             code=code.format(**locals()), startAnimations=start)
         self.highlightCode('self.find(item)', callEnviron)
         n = self.find(item)
+        callEnviron |= set(self.createIndex(n, '', level=2))
         if n > -1:
             callEnviron.add(self.createFoundCircle(n))
         self.highlightCode('self.get(self.find(item))', callEnviron)
