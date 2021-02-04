@@ -18,6 +18,7 @@ class CodeHighlightBlock(object):
        self.textWidget = textWidget
        self.prefix = '{:04d}-'.format(self._counter)
        self.startMark = None
+       self.currentFragments = None
        CodeHighlightBlock._counter += 1
 
     def __getitem__(self, fragment):

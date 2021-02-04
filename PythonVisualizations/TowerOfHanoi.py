@@ -43,6 +43,7 @@ class TowerOfHanoi(VisualizationApp):
         self.spindleBBoxes = [[]] * 3 # 4 coordinates of spindle's bounding box
         self.disks = []
         self.picked = None
+        self.allowUserMoves = True
         self.moves = 0
         self.spindleWidth = max(4, self.width // 90)
         self.diskThickness = max(self.spindleWidth, 18)
@@ -113,7 +114,7 @@ def reset(self):
         wait = 0.05
         callEnviron = None
         if nDisks > 0:
-            self.startAnimations()
+            self.allowUserMoves = False
             callEnviron = self.createCallEnvironment(
                 code.format(**locals()), sleepTime=wait / 5)
 
@@ -157,6 +158,7 @@ def reset(self):
             self.cleanUp(callEnviron2, sleepTime=wait / 5)
             self.highlightCode([], callEnviron, wait)
             self.cleanUp(callEnviron, sleepTime=wait / 5)
+        self.allowUserMoves = True
 
     def createSpindleDrawing(self, index):
         tags = ('spindle', self.spindleTag(index))
@@ -283,15 +285,18 @@ def reset(self):
         return len(self.spindles[0]) == len(self.disks)
     
     def enterLeaveHandler(self, ID, tag, normal, highlight):
-        def handler(event):
+        def leaveEnterHandler(event):
             kwargs = highlight if (event.type == EventType.Enter and
+                                   self.allowUserMoves and
                                    self.isPickable(ID)) else normal
             self.canvas.itemconfigure(tag, **kwargs)
-        return handler
+        return leaveEnterHandler
     
     def startMoveHandler(self, ID, tag, normal, highlight):
-        def handler(event):
-            self.cleanUp()  # Clean up any items left by solver
+        def startHandler(event):
+            if not self.allowUserMoves:
+                return
+            self.cleanUp(ignoreStops=True)  # Clean up any items left by solver
             spindle, pos = self.diskSpindlePos(ID)
             if spindle and pos and ID != self.spindles[spindle][-1]:
                 print('Cannot pick up disk', ID, 'with',
@@ -305,11 +310,11 @@ def reset(self):
             self.canvas.tag_raise(tag, 'spindle')
             if spindle is not None:
                 self.updateSpindles(spindle)
-        return handler
+        return startHandler
 
     def moveHandler(self, ID, tag, normal, highlight):
-        def handler(event):
-            if self.picked is None:
+        def mvHandler(event):
+            if self.picked is None or not self.allowUserMoves:
                 return
             self.canvas.move(
                 tag, event.x - self.lastPos[0], event.y - self.lastPos[1])
@@ -320,10 +325,12 @@ def reset(self):
                     diskBBox, spindleBBox) and self.isPlacable(ID, spindle)
                           else normal)
                 self.canvas.itemconfigure(self.spindleTag(spindle), **kwargs)
-        return handler
+        return mvHandler
 
     def releaseHandler(self, ID, tag, normal, highlight):
-        def handler(event):
+        def relHandler(event):
+            if not self.allowUserMoves:
+                return
             diskBBox = self.canvas.bbox(tag)
             dropAt = None
             for spindle, spindleBBox in enumerate(self.spindleBBoxes):
@@ -344,7 +351,7 @@ def reset(self):
             self.picked, self.pickedFrom = None, None
             if self.isDone():
                 self.showCompletion()
-        return handler
+        return relHandler
 
     def updateSpindles(self, *spindleIDs):
         for spindle in (spindleIDs if spindleIDs else range(3)):
@@ -357,7 +364,8 @@ def reset(self):
             self.window.update()
 
     def restoreDisks(self, *diskIDs, cleanUpAll=True):
-        callEnviron = None if cleanUpAll else self.createCallEnvironment()
+        callEnviron = None if cleanUpAll else self.createCallEnvironment(
+            startAnimations=None)
         self.startAnimations(enableStops=False)
         for ID in (diskIDs if diskIDs else range(len(self.disks))):
             tag = self.diskTag(ID)
@@ -374,6 +382,9 @@ def reset(self):
         self.restoreDisks()
 
     def showCompletion(self):
+        msg = 'Puzzle completed!'
+        if self.getMessage() == msg:
+            return
         canvasDimensions = self.widgetDimensions(self.canvas)
         starCenter = V(canvasDimensions) * V(1/3, 1)
         size, ratio, points, angle = 5, 0.38, 5, 270
@@ -381,11 +392,14 @@ def reset(self):
         targetCenter = V(canvasDimensions) * V(1/2, 1/2)
         targetSize = canvasDimensions[0] / 2
         targetAngle = -90
+        self.allowUserMoves = False
+        callEnviron = self.createCallEnvironment(startAnimations=False)
         self.startAnimations(enableStops=False)
         starCoords = regularStar(starCenter, size, size * ratio, points, angle)
         star = self.canvas.create_polygon(
             *starCoords, fill='goldenrod', outline='red', 
             width=max(1, size / 100))
+        callEnviron.add(star)
         while size < targetSize or starCenter != targetCenter:
             starCenter = (   # Move star towards target and increase size
                 targetCenter
@@ -401,15 +415,15 @@ def reset(self):
             self.canvas.itemconfigure(star, width=max(1, size / 100))
             self.wait(0.01)
         font = ('Helvetica', -max(12, int(size / 10)))
-        self.canvas.create_text(
+        callEnviron.add(self.canvas.create_text(
             *(V(starCenter) + V(0, font[1])), text='Puzzle Completed',
-            font=font, anchor=S)
-        self.canvas.create_text(
+            font=font, anchor=S))
+        callEnviron.add(self.canvas.create_text(
             *starCenter, text='in {} move{}!'.format(
                 self.moves, '' if self.moves == 1 else 's'), 
-            font=font, anchor=S)
-        self.cleanUp()
-        self.setMessage('Puzzle completed!')
+            font=font, anchor=S))
+        self.cleanUp(callEnviron)
+        self.setMessage(msg)
         
     def diskTag(self, ID): return 'disk {}'.format(ID)
             
@@ -422,14 +436,16 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
    self.solve(nDisks - 1, spare, goal, start)
 '''
     
-    def solve(self, nDisks=None, start=0, goal=2, spare=1):
+    def solve(self, nDisks=None, start=0, goal=2, spare=1, 
+              startAnimations=True):
         if nDisks is None:
             nDisks = self.nDisks()
-        self.startAnimations()
         highlightWait = 0.08
         moveWait = 0.01
+        self.allowUserMoves = False
         callEnviron = self.createCallEnvironment(
-            self.solveCode.format(**locals()), sleepTime=moveWait)
+            self.solveCode.format(**locals()), sleepTime=moveWait,
+            startAnimations=startAnimations)
         labels = ('start', 'goal', 'spare')
         labelPositions = list(zip(labels, (start, goal, spare)))
         for label, pos in labelPositions:
@@ -463,6 +479,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
             self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
             self.canvas.itemconfigure(labelItems[0], text=startLabel)
         self.highlightCode([], callEnviron)
+        self.allowUserMoves = True
         self.cleanUp(callEnviron, sleepTime=0.01)
 
     def moveDisk(self, fromSpindle, toSpindle):
@@ -519,6 +536,11 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
             if self.minDisks <= val and val <= self.maxDisks:
                 return val
 
+    def cleanUp(self, callEnviron=None, **kwargs):
+        super().cleanUp(callEnviron=callEnviron, **kwargs)
+        if callEnviron is None and len(self.callStack) == 0:
+            self.allowUserMoves = True
+    
     # Button functions
     def clickNew(self):
         val = self.validArgument()
@@ -538,7 +560,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
 
     def clickSolve(self):
         if self.leftSpindleFull():
-            self.solve(self.nDisks())
+            self.solve(self.nDisks(), startAnimations=self.startMode())
             self.setMessage('{} total move{} made'.format(
                 self.moves, '' if self.moves == 1 else 's'))
         else:
@@ -552,7 +574,9 @@ def moveAboveCanvas(bbox):
 if __name__ == '__main__':
     tower = TowerOfHanoi()
 
-    if len(sys.argv) > 1 and sys.argv[1].isdigit():
-        tower.setupDisks(int(sys.argv[1]))
+    for arg in sys.argv[1:]:
+        if arg.isdigit():
+            tower.setupDisks(min(tower.maxDisks, int(arg)))
+            break
         
     tower.runVisualization()

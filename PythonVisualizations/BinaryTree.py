@@ -11,29 +11,26 @@ except ModuleNotFoundError:
     from .BinaryTreeBase import *
 
 class BinaryTree(BinaryTreeBase):
-    def __init__(self, canvasWidth=800, canvasHeight=400, title="Binary Search Tree", **kwargs):
-        super().__init__(0, 0, canvasWidth, canvasHeight, title=title,
-                         canvasWidth=canvasWidth, canvasHeight=canvasHeight, 
-                         **kwargs)
+    def __init__(self, title="Binary Search Tree", values=None, **kwargs):
+        super().__init__(title=title, **kwargs)
         self.buttons = self.makeButtons()
         self.title = title
 
         # populate the tree
-        self.fill(20)
+        self.fill(values=20 if values is None else values)
 
-    #Fill the tree with n nodes
-    def fill(self, n):
+    def fill(self, values, animation=False):
+        '''Fill the tree with values which is either a list of integers or
+        an integer number of random values'''
         callEnviron = self.createCallEnvironment()
 
         # empty the tree
         self.emptyTree()
 
-        #randomly generate a tree
-        nums = list(range(1, 99))
-        random.shuffle(nums)
-        while self.size < n and nums:
-            num = nums.pop()
-            self.insertElem(nums.pop(), animation=False)
+        nums = [random.randrange(self.valMax) for i in range(values)] if (
+            isinstance(values, int)) else values
+        for num in nums:
+            self.insertElem(num, animation=animation)
 
         self.cleanUp(callEnviron)
 
@@ -44,7 +41,6 @@ class BinaryTree(BinaryTreeBase):
         if self.size == 0: return None, None
 
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         # start at the root
         level = 0
@@ -80,7 +76,6 @@ class BinaryTree(BinaryTreeBase):
 
     def insertElem(self, key, animation=True):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         inserted = False
 
@@ -150,7 +145,6 @@ class BinaryTree(BinaryTreeBase):
     def delete(self, key):
         # create a call environment and start the animations
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         # find the node with the key
         cur, parent = self.find(key, stopAnimations=False)
@@ -257,10 +251,12 @@ class BinaryTree(BinaryTreeBase):
         entered_text = self.getArgument()
         if entered_text and entered_text.isdigit():
             val = int(entered_text)
-            if val < 100:
+            if val <= self.valMax:
                 return val
             else:
-                self.setMessage("Input value must be an integer from 0 to 99.")
+                self.setMessage("Input value must be an integer from 0 to {}."
+                                .format(self.valMax))
+                self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
 
     def clickInsert(self):
         val = self.validArgument()
@@ -271,9 +267,7 @@ class BinaryTree(BinaryTreeBase):
 
     def clickFind(self):
         val = self.validArgument()
-        if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
-        else:
+        if val is not None:
             result, parent = self.find(val)
             if result != None:
                 msg = "Found {}!".format(val)
@@ -284,10 +278,7 @@ class BinaryTree(BinaryTreeBase):
 
     def clickFill(self):
         val = self.validArgument()
-        if val is None:
-            self.setMessage("Input value must be an integer from 0 to 99.")
-        else:
-            val = int(val)
+        if val is not None:
             if val < 32:
                 self.fill(val)
             else:
@@ -296,14 +287,12 @@ class BinaryTree(BinaryTreeBase):
 
     def clickDelete(self):
         val = self.validArgument()
-        if val < 100:
+        if val is not None:
             deleted = self.delete(val)
             msg = ("Deleted {}".format(val) if deleted else
                    "Value {} not found".format(val))
-        else:
-            msg = "Input value must be an integer from 0 to 99."
-        self.setMessage(msg)
-        self.clearArgument()
+            self.setMessage(msg)
+            self.clearArgument()
         
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
@@ -327,6 +316,7 @@ class BinaryTree(BinaryTreeBase):
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    tree = BinaryTree()
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    tree = BinaryTree(values=numArgs if len(numArgs) > 0 else None)
 
     tree.runVisualization()

@@ -12,15 +12,18 @@ except ModuleNotFoundError:
 
 class OrderedArray(SortingBase):
 
-    def __init__(self, title="Ordered Array", **kwargs):
+    def __init__(self, title="Ordered Array", values=None, **kwargs):
         super().__init__(title=title, **kwargs)
 
         # Fill in initial array values with random but ordered integers
         # The display items representing these array cells are created later
-        for i in sorted([random.randrange(self.valMax) 
-                         for i in range(self.size-1)]):
-            self.list.append(drawnValue(i))
-        
+        if values is None:
+            for i in sorted([random.randrange(self.valMax) 
+                             for i in range(self.size-1)]):
+                self.list.append(drawnValue(i))
+        else:
+            self.list = [drawnValue(val) for val in sorted(values)]
+       
         self.display()
 
         self.buttons = self.makeButtons()
@@ -41,11 +44,11 @@ def insert(self, item={val}):
    self.__nItems += 1
 '''
 
-    def insert(self, val, code=insertCode):
+    def insert(self, val, code=insertCode, start=True):
         canvasDims = self.widgetDimensions(self.canvas)
         
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
 
         self.highlightCode('self.__nItems >= len(self.__a)', 
@@ -70,7 +73,6 @@ def insert(self, item={val}):
         newItem = cell + (itemLabel,)
         callEnviron |= set(newItem)
         
-        self.list.append(drawnValue(None))
         self.highlightCode('0 < j and self.__a[j - 1] > item', callEnviron)
         
         #  Move bigger items right
@@ -131,7 +133,6 @@ def find(self, item={val}):
     
     def find(self, val, code=findCode):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
         wait = 0.1
 
         self.highlightCode('lo = 0', callEnviron)
@@ -195,9 +196,9 @@ def search(self, item={item}):
       return self.__a[index]
 """
 
-    def search(self, item, code=searchCode):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+    def search(self, item, code=searchCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
         
         self.highlightCode('self.find(item)', callEnviron, wait=wait)
@@ -242,9 +243,9 @@ def delete(self, item):
    return False
 '''
     
-    def delete(self, val, code=deleteCode):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+    def delete(self, val, code=deleteCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
 
         self.highlightCode('self.find(item)', callEnviron, wait=wait)
@@ -305,7 +306,7 @@ def delete(self, item):
         return found
             
     # Button functions
-    def makeButtons(self, maxRows=3):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         insertButton = self.addOperation(
@@ -326,13 +327,15 @@ def delete(self, item):
             argHelpText=['number of cells'],
             helpText='Create new empty array')
         traverseButton = self.addOperation(
-            "Traverse", lambda: self.traverse(), maxRows=maxRows,
+            "Traverse", 
+            lambda: self.traverse(start=self.startMode()), maxRows=maxRows,
             helpText='Traverse all array cells once')
         randomFillButton = self.addOperation(
             "Random Fill", lambda: self.randomFill(), maxRows=maxRows,
             helpText='Fill all array cells with random keys')
         deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
+            "Delete Rightmost", 
+            lambda: self.deleteLast(start=self.startMode()), maxRows=maxRows,
             helpText='Delete last array item')
         self.addAnimationButtons(maxRows=maxRows)
         buttons = [insertButton, searchButton, deleteButton, newButton, 
@@ -344,14 +347,14 @@ def delete(self, item):
         if val is None:
             self.setMessage("Input value must be an integer from 0 to 99.")
         else:
-            result = self.insert(val)
+            result = self.insert(val, start=self.startMode())
             self.setMessage("Value {} inserted".format(val) if result else
                             "Array overflow")
         self.clearArgument()
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = OrderedArray()
-
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    array = OrderedArray(values=numArgs if len(numArgs) > 0 else None)
     array.runVisualization()
 

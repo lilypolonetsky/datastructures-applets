@@ -16,14 +16,17 @@ class Mergesort(SortingBase):
     CELL_GAP = 6
     LEVEL_SEPARATION = 25
 
-    def __init__(self, title="Mergesort", **kwargs):
+    def __init__(self, title="Mergesort", values=None, **kwargs):
         super().__init__(title=title, **kwargs)
         self.ARRAY_Y0 = 50
         self.CELL_HEIGHT = 90
         self.LABEL_GAP = abs(self.VARIABLE_FONT[1])
 
-        for i in range(self.size):
-            self.list.append(drawnValue(random.randrange(self.valMax)))
+        if values is None:
+            for i in range(self.size):
+                self.list.append(drawnValue(random.randrange(self.valMax)))
+        else:
+            self.list = [drawnValue(val) for val in values]
         self.display(showNItems=False)
         
         self.buttons = self.makeButtons()
@@ -41,10 +44,9 @@ def __init__(self, unordered, key=identity):
    self.mergesort(0, n)
 '''
         
-    def mergesortInit(self, code=initMergesortCode):
+    def mergesortInit(self, code=initMergesortCode, start=True):
         callEnviron = self.createCallEnvironment(
-            code=code.format(**locals()))
-        self.startAnimations()
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
         self.highlightCode('self.__arr = unordered', callEnviron, wait=wait)
         self.highlightCode('self.__key = key', callEnviron, wait=wait)
@@ -94,7 +96,6 @@ def mergesort(self, lo={lo}, hi={hi}):
         wait = 0.1
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=wait / 10)
-        self.startAnimations()
         self.highlightCode('lo + 1 >= hi', callEnviron, wait=wait)
         if lo + 1 >= hi:
             self.highlightCode('return', callEnviron, wait=wait)
@@ -175,7 +176,6 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
         wait = 0.1
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=wait / 10)
-        self.startAnimations()
 
         n = 0
         nIndex = self.createCellIndex(self.workCells[n], 'n', level=1)
@@ -338,19 +338,21 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
             "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
             helpText='Fill empty array cells with decreasing keys')
         deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
+            "Delete Rightmost", 
+            lambda: self.deleteLast(start=self.startMode()), maxRows=maxRows,
             helpText='Delete last array item')
         shuffleButton = self.addOperation(
             "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
             helpText='Shuffle position of all items')
         mergesortButton = self.addOperation(
-            "Mergesort", lambda: self.mergesortInit(), maxRows=maxRows,
+            "Mergesort", 
+            lambda: self.mergesortInit(start=self.startMode()), maxRows=maxRows,
             helpText='Sort items using mergesort')
         buttons = [btn for btn in self.opButtons]
         self.addAnimationButtons(maxRows=maxRows)
         return buttons  # Buttons managed by play/pause/stop controls
 
-    def new(self, val):
+    def new(self, val, start=None):
         canvasDims = self.widgetDimensions(self.canvas)
         maxCells = min(
             self.maxCells, 
@@ -375,6 +377,6 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
         
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = Mergesort()
-
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    array = Mergesort(values=numArgs if len(numArgs) > 0 else None)
     array.runVisualization()

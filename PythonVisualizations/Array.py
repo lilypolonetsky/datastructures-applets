@@ -12,21 +12,24 @@ except ModuleNotFoundError:
     
 class Array(SortingBase):
 
-    def __init__(self, title="Array", **kwargs):
+    def __init__(self, title="Array", values=None, **kwargs):
         kwargs['title'] = title
         super().__init__(**kwargs)
 
         # Fill in initial array values with random integers
         # The display items representing these array cells are created later
-        for i in range(self.size - 1):
-            self.list.append(drawnValue(random.randrange(self.valMax)))
+        if values is None:
+            for i in range(self.size - 1):
+                self.list.append(drawnValue(random.randrange(self.valMax)))
+        else:
+            self.list = [drawnValue(val) for val in values]
         self.makeButtons()
 
         self.display()
 
 
     # Button functions
-    def makeButtons(self, maxRows=3):
+    def makeButtons(self, maxRows=4):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         insertButton = self.addOperation(
@@ -64,12 +67,13 @@ class Array(SortingBase):
                 "Input value must be an integer from 0 to {}".format(
                     self.valMax))
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
-        elif self.insert(val):
+        elif self.insert(val, start=self.startMode()):
             self.setMessage("Value {} inserted".format(val))
             self.clearArgument()
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = Array()
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    array = Array(values=numArgs if len(numArgs) > 0 else None)
 
     array.runVisualization()

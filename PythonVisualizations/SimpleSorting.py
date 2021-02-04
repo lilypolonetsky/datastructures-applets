@@ -12,12 +12,15 @@ except ModuleNotFoundError:
 
 class SimpleArraySort(SortingBase):
     
-    def __init__(self, title="Simple Sorting", **kwargs):
+    def __init__(self, title="Simple Sorting", values=None, **kwargs):
         kwargs['title'] = title
         super().__init__(**kwargs)
 
-        for i in range(self.size):
-            self.list.append(drawnValue(random.randrange(self.valMax)))
+        if values is None:
+            for i in range(self.size):
+                self.list.append(drawnValue(random.randrange(self.valMax)))
+        else:
+            self.list = [drawnValue(val) for val in values]
         self.display()
 
         self.buttons = self.makeButtons()
@@ -34,28 +37,25 @@ def insertionSort(self):
 """
 
     # SORTING METHODS
-    def insertionSort(self):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(self.insertionSortCode)
+    def insertionSort(self, code=insertionSortCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
         n = len(self.list)
 
         # make an index arrow for the outer loop
         outer = 1
         outerIndex = self.createIndex(outer, "outer", level=2)
         callEnviron |= set(outerIndex)
-
-        # make an index arrow that points to the next cell to check
-        innerIndex = self.createIndex(outer, "inner", level=1)
-        callEnviron |= set(innerIndex)
-        tempVal, label = None, None
+        innerIndex, tempVal, label = None, None, None
 
         # All items beyond the outer index have not been sorted
+        self.highlightCode('outer in range(1, self.__nItems)', callEnviron)
         while outer < len(self.list):
-            self.highlightCode('outer in range(1, self.__nItems)', callEnviron)
 
             # Store item at outer index in temporary mark variable
-            temp = self.list[outer].val
             self.highlightCode('temp = self.__a[outer]', callEnviron)
+            temp = self.list[outer].val
             if tempVal:
                 tempVal, _ = self.assignToTemp(
                     outer, callEnviron, varName="temp", existing=label)
@@ -65,20 +65,26 @@ def insertionSort(self):
                 callEnviron.add(label)
 
             # Inner loop starts at marked temporary item
+            self.highlightCode('inner = outer', callEnviron)
             inner = outer
 
+            # make an index arrow that points to the next cell to check
+            if innerIndex is None:
+                innerIndex = self.createIndex(outer, "inner", level=1)
+                callEnviron |= set(innerIndex)
+
             # Move inner index arrow to point at cell to check
-            self.highlightCode('inner = outer', callEnviron)
             centerX0 = self.cellCenter(inner)[0]
             deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
             if deltaX != 0:
-                self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
+                self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=wait/5)
 
             # Loop down until we find an item less than or equal to the mark
+            self.highlightCode('inner > 0', callEnviron, wait=wait)
+            if inner > 0:
+                self.highlightCode('temp < self.__a[inner-1]',
+                                   callEnviron, wait=wait)
             while inner > 0 and temp < self.list[inner - 1].val:
-                self.highlightCode('inner > 0 and temp < self.__a[inner-1]',
-                                   callEnviron, wait=0.05)
-
                 # Shift cells right that are greater than mark
                 self.highlightCode('self.__a[inner] = self.__a[inner-1]',
                                    callEnviron)
@@ -90,10 +96,12 @@ def insertionSort(self):
                 centerX0 = self.cellCenter(inner)[0]
                 deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
                 if deltaX != 0:
-                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02) 
-
-            # Delay to show discovery of insertion point for mark
-            self.wait(0.1)
+                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=wait/5)
+                    
+                self.highlightCode('inner > 0', callEnviron, wait=wait)
+                if inner > 0:
+                    self.highlightCode('temp < self.__a[inner-1]',
+                                       callEnviron, wait=wait)
 
             # Copy marked temporary value to insertion point
             self.highlightCode('self.__a[inner] = temp', callEnviron)
@@ -105,7 +113,7 @@ def insertionSort(self):
             # Advance outer loop
             outer += 1
             self.highlightCode('outer in range(1, self.__nItems)', callEnviron)
-            self.moveItemsBy(outerIndex, (self.CELL_WIDTH, 0), sleepTime=0.02)
+            self.moveItemsBy(outerIndex, (self.CELL_WIDTH, 0), sleepTime=wait/5)
                  
         self.highlightCode([], callEnviron)
         self.fixCells()     
@@ -121,9 +129,10 @@ def bubbleSort(self):
             self.swap(inner, inner+1)
 """
 
-    def bubbleSort(self):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(self.bubbleSortCode)
+    def bubbleSort(self, code=bubbleSortCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
         n = len(self.list)
 
         # make an index arrow that points to last unsorted element
@@ -133,33 +142,42 @@ def bubbleSort(self):
         callEnviron |= set(lastIndex)
 
         # make an index arrow that points to the next cell to check
-        innerIndex = self.createIndex(0, "inner", level=1)
-        callEnviron |= set(innerIndex)
+        innerIndex = None
         
         # While unsorted cells remain
         while last > 0:
+            
+            self.highlightCode('inner in range(last)', callEnviron)
             for inner in range(last):
-                # Move inner index arrow to cell to check
-                self.highlightCode('inner in range(last)', callEnviron)
-                centerX0 = self.cellCenter(inner)[0]
-                deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
-                if deltaX != 0:
-                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
-
+                if innerIndex is None:
+                    innerIndex = self.createIndex(inner, "inner", level=1)
+                    callEnviron |= set(innerIndex)
+                else:
+                    centerX0 = self.cellCenter(inner)[0]
+                    deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+                    if deltaX != 0:
+                        self.moveItemsBy(
+                            innerIndex, (deltaX, 0), sleepTime=wait/5)
+                    
                 # Compare cell value at inner index with the next value
                 self.highlightCode('self.__a[inner] > self.__a[inner+1]',
-                                   callEnviron, wait=0.2)
+                                   callEnviron, wait=wait)
                 if self.list[inner].val > self.list[inner+1].val:
                     self.highlightCode('self.swap(inner, inner+1)', callEnviron)
                     self.swap(inner, inner+1)
+                    
+                # Move inner index arrow to cell to check
+                self.highlightCode('inner in range(last)', callEnviron)
+                centerX0 = self.cellCenter(inner + 1)[0]
+                deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+                self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=wait/5)
 
-            self.wait(0.01)
 
             # move last index one lower
             last -= 1
             self.highlightCode('last in range(self.__nItems-1, 0, -1)', 
                                callEnviron)
-            self.moveItemsBy(lastIndex, (-self.CELL_WIDTH, 0), sleepTime=0.05)
+            self.moveItemsBy(lastIndex, (-self.CELL_WIDTH, 0), sleepTime=wait/5)
 
         # Animation stops
         self.highlightCode([], callEnviron)
@@ -175,60 +193,66 @@ def selectionSort(self):
       self.swap(outer, min)
 """
 
-    def selectionSort(self):
-        self.startAnimations()
-        callEnviron = self.createCallEnvironment(self.selectionSortCode)
+    def selectionSort(self, code=selectionSortCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
         n = len(self.list)      
 
         # make an index arrow for the outer loop
+        self.highlightCode('outer in range(self.__nItems-1)', callEnviron)
         outer = 0
         outerIndex = self.createIndex(outer, "outer", level=3)
         callEnviron |= set(outerIndex)
-        self.highlightCode('outer in range(self.__nItems-1)', callEnviron)
 
-        # make an index arrow that points to the next cell to check
-        innerIndex = self.createIndex(outer+1, "inner", level=1)
-        callEnviron |= set(innerIndex)
-        minIndex = None
+        innerIndex, minIndex = None, None
 
         # All items beyond the outer index have not been sorted
         while outer < len(self.list) - 1:
 
-            min_idx = outer
             self.highlightCode('min = outer', callEnviron)
-            if minIndex:
+            min_idx = outer
+            if minIndex is None:
+                minIndex = self.createIndex(outer, "min", level=2)
+                callEnviron |= set(minIndex)
+            else:
                 self.moveItemsBy(
                     minIndex,
                     (self.cellCenter(outer)[0] -
-                     self.canvas.coords(minIndex[0])[0], 0), sleepTime=0.02)
-            else:
-                minIndex = self.createIndex(outer, "min", level=2)
-                self.wait(0.1)
-                callEnviron |= set(minIndex)
+                     self.canvas.coords(minIndex[0])[0], 0), sleepTime=wait/5)
             
-            # Find the minimum element in remaining
-            # unsorted array
+            # Find the minimum element in remaining unsorted array
+            self.highlightCode('inner in range(outer+1, self.__nItems)',
+                               callEnviron)
             for inner in range(outer + 1, len(self.list)):
 
                 # Move inner index arrow to point at cell to check
-                self.highlightCode('inner in range(outer+1, self.__nItems)',
-                                   callEnviron)
-                centerX0 = self.cellCenter(inner)[0]
-                deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
-                if deltaX != 0:
-                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=0.02)
+                if innerIndex is None:
+                    innerIndex= self.createIndex(inner, "inner", level=1)
+                    callEnviron |= set(innerIndex)
+                else:
+                    centerX0 = self.cellCenter(inner)[0]
+                    deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+                    if deltaX != 0:
+                        self.moveItemsBy(
+                            innerIndex, (deltaX, 0), sleepTime=wait/5)
 
                 self.highlightCode('self.__a[inner] < self.__a[min]',
-                                   callEnviron, wait=0.2)
+                                   callEnviron, wait=wait)
                 if self.list[inner].val < self.list[min_idx].val:
-                    min_idx = inner
                     self.highlightCode('min = inner', callEnviron)
+                    min_idx = inner
                     self.moveItemsBy(
                         minIndex,
                         (self.canvas.coords(innerIndex[0])[0] -
-                         self.canvas.coords(minIndex[0])[0], 0), sleepTime=0.02)
+                         self.canvas.coords(minIndex[0])[0], 0), 
+                        sleepTime=wait/5)
 
-            self.wait(0.01)
+                self.highlightCode('inner in range(outer+1, self.__nItems)',
+                                   callEnviron)
+                centerX0 = self.cellCenter(inner + 1)[0]
+                deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
+                self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=wait/5)
 
             # Swap the found minimum element with the one indexed by outer
             self.highlightCode('self.swap(outer, min)', callEnviron)
@@ -275,19 +299,23 @@ def selectionSort(self):
             "Decreasing Fill", lambda: self.linearFill(False), maxRows=maxRows,
             helpText='Fill empty array cells with decreasing keys')
         deleteRightmostButton = self.addOperation(
-            "Delete Rightmost", lambda: self.deleteLast(), maxRows=maxRows,
+            "Delete Rightmost", 
+            lambda: self.deleteLast(start=self.startMode()), maxRows=maxRows,
             helpText='Delete last array item')
         shuffleButton = self.addOperation(
             "Shuffle", lambda: self.shuffle(), maxRows=maxRows,
             helpText='Shuffle position of all items')
         bubbleSortButton = self.addOperation(
-            "Bubble Sort", lambda: self.bubbleSort(), maxRows=maxRows,
+            "Bubble Sort", 
+            lambda: self.bubbleSort(start=self.startMode()), maxRows=maxRows,
             helpText='Sort array using bubble sort')
         selectionSortButton = self.addOperation(
-            "Selection Sort", lambda: self.selectionSort(), maxRows=maxRows,
+            "Selection Sort",
+            lambda: self.selectionSort(start=self.startMode()), maxRows=maxRows,
             helpText='Sort array using selelction sort')
         insertionSortButton = self.addOperation(
-            "Insertion Sort", lambda: self.insertionSort(), maxRows=maxRows,
+            "Insertion Sort", 
+            lambda: self.insertionSort(start=self.startMode()), maxRows=maxRows,
             helpText='Sort array using insertion sort')
         buttons = [btn for btn in self.opButtons]
         self.addAnimationButtons(maxRows=maxRows)
@@ -295,6 +323,6 @@ def selectionSort(self):
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
-    array = SimpleArraySort()
-
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    array = SimpleArraySort(values=numArgs if len(numArgs) > 0 else None)
     array.runVisualization()

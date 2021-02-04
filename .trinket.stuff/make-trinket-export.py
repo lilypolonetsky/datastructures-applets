@@ -29,6 +29,9 @@ if __name__ == '__main__':
       '-f', '--force', default=False, action='store_true',
       help='Clear directory if it already exists before exporting')
    parser.add_argument(
+      '-c', '--clean', nargs='*', default=[r'.*\.py'],
+      help='Regex for filenames whose non-ASCII characters should be cleaned')
+   parser.add_argument(
       '-x', '--exclude', nargs='*', default=['__init__.*', '.*[Tt]est.*'],
       help='Regex for filenames to exclude from export')
    parser.add_argument(
@@ -39,6 +42,7 @@ if __name__ == '__main__':
    outdir = args.output_directory[0]
    verbose = args.verbose
    exclude = [re.compile(exp) for exp in args.exclude]
+   clean = [re.compile(exp) for exp in args.clean]
 
    if not all(os.path.exists(f) for f in mustHave):
       print('Missing some files.  Expected to find: {}'.format(
@@ -65,7 +69,7 @@ if __name__ == '__main__':
          print('Creating {} directory'.format(outdir))
       os.mkdir(outdir)
 
-   files = glob.glob('*.py')
+   files = glob.glob('*.py') + glob.glob('*.png')
    for filename in files:
       if filename in specialContent:
          print('Skipping export of {}'.fomrat(filename))
@@ -77,17 +81,22 @@ if __name__ == '__main__':
                filename))
          continue
       
-      with open(filename, 'r') as infile:
-         content = infile.read()
-         revised = content
-         for pair in replacements:
-            revised = revised.replace(*pair)
+      if any(regex.match(filename) for regex in clean):
+         with open(filename, 'r') as infile:
+            content = infile.read()
+            revised = content
+            for pair in replacements:
+               revised = revised.replace(*pair)
+            if verbose > 0:
+               print('Exporting {}{}'.format(
+                  filename, ' with substitions' if content != revised else ''))
+            with open(os.path.join(outdir, filename), 'w') as outfile:
+               outfile.write(revised)
+               outfile.close()
+      else:
          if verbose > 0:
-            print('Exporting {}{}'.format(
-               filename, ' with substitions' if content != revised else ''))
-         with open(os.path.join(outdir, filename), 'w') as outfile:
-            outfile.write(revised)
-            outfile.close()
+            print('Copying {} verbatim'.format(filename))
+         shutil.copyfile(filename, os.path.join(outdir, filename))
 
    for filename in specialContent:
       if verbose > 0:

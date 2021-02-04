@@ -1,7 +1,7 @@
 __doc__ = """
-Base class for Python visualizations.
-Provides common tools for all modules including control panel
-and drawing canvas.
+Base class for Python visualization applications, built on top of
+the basic Visualization class.
+Provides common user interface tools for all modules including control panel.
 The control panel has containers for
  * Functions that take an argument
  * Functions that take no argument
@@ -10,59 +10,29 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-import time, math, operator, re, sys
+import time, re
 from collections import *
 from tkinter import *
 from tkinter import ttk
-import tkinter.font as tkfont
+PRESSED = 'pressed' # Oddly the ttk module does not define this like tk's ACTIVE
 
 try:
-    from coordinates import *
+    from PIL import Image as Img
+    from PIL import ImageTk
+except ModuleNotFoundError as e:
+    print('Pillow module not found.  Did you try running:')
+    print('pip3 install -r requirements.txt')
+    raise e
+
+try:
     from TextHighlight import *
+    from Visualization import *
 except ModuleNotFoundError:
-    from .coordinates import *
     from .TextHighlight import *
+    from .Visualization import *
     
-# Utilities for vector math; used for canvas item coordinates
-V = vector
-def add_vector(v1, v2):
-    return V(v1) + V(v2)
-
-def subtract_vector(v1, v2):
-    return V(v1) - V(v2)
-    return tuple(map(operator.sub, v1, v2))
-
-def divide_vector(v1, v2):   # v2 can be scalar
-    if not isinstance(v2, (list, tuple)):
-        v2 = [v2] * len(v1)  # Copy scalar value for vector dimension
-    return V(v1) / V(v2)
-
-def multiply_vector(v1, v2): # v2 can be scalar
-    if not isinstance(v2, (list, tuple)):
-        v2 = [v2] * len(v1)  # Copy scalar value for vector dimension
-    return V(v1) * V(v2)
-
-def rotate_vector(v1, angle=0): # Rotate vector by angle degrees
-    return V(v1).rotate(angle)
-
-def vector_length2(vect):    # Get the vector's length squared
-    return V(vect).len2()
-
-def vector_length(vect):     # Get the vector's length
-    return V(vect).vlen()
-
-def BBoxesOverlap(bbox1, bbox2): # Determine if bounding boxes overlap
-    return (rangesOverlap(bbox1[0], bbox1[2], bbox2[0], bbox2[2]) and 
-            rangesOverlap(bbox1[1], bbox1[3], bbox2[1], bbox2[3]))
-
-def rangesOverlap(           # Determine if a range overlaps another
-        lo1, hi1, lo2, hi2,  # Allow zero overlap, if requested
-        zeroOK=True):
-    return ((hi1 > lo2 or (zeroOK and hi1 == lo2)) and
-            (lo1 < hi2 or (zeroOK and lo1 == hi2)))
-    
-def gridDict(frame):
-    slaves = frame.grid_slaves()
+def gridDict(frame):    # Get all widget's within a frame's grid indexed by
+    slaves = frame.grid_slaves() # their grid cooordinates (col, row)
     return defaultdict(
         lambda: None,
         zip([(int(s.grid_info()['column']), int(s.grid_info()['row']))
@@ -79,24 +49,12 @@ def makeWidthValidate(maxWidth):
     "Register this with one parameter: %P"
     return lambda value_if_allowed: len(value_if_allowed) <= maxWidth
 
-geom_delims = re.compile(r'[\sXx+-]')
+class VisualizationApp(Visualization): # Base class for visualization apps
 
-class VisualizationApp(object):  # Base class for Python visualizations
-
-    # Default styles for display of values and operational controls
-    DEFAULT_BG = 'white'
-    FONT_SIZE = -20
-    VALUE_FONT = ('Helvetica', FONT_SIZE)
-    VALUE_COLOR = 'black'
-    VARIABLE_FONT = ('Courier', FONT_SIZE * 8 // 10)
-    VARIABLE_COLOR = 'brown3'
-    NONLOCAL_VARIABLE_COLOR = 'bisque'
-    FOUND_FONT = ('Helvetica', FONT_SIZE)
-    FOUND_COLOR = 'green2'
+    # Default styles for display of operational controls
     OPERATIONS_BG = 'beige'
     OPERATIONS_BORDER = 'black'
     CODE_FONT = ('Courier', -12)
-    SMALL_FONT = ('Helvetica', -9)
     CODE_HIGHLIGHT = 'yellow'
     EXCEPTION_HIGHLIGHT = 'orange'
     CONTROLS_FONT = ('Helvetica', -12)
@@ -117,43 +75,26 @@ class VisualizationApp(object):  # Base class for Python visualizations
     SPEED_SCALE_MAX = 500
     SPEED_SCALE_DEFAULT = (SPEED_SCALE_MIN + SPEED_SCALE_MAX) // 2
 
-    # Animation states
-    STOPPED = 0
-    RUNNING = 1
-    PAUSED = 2
-
     def __init__(  # Constructor
             self,
-            window=None,      # Run visualization within given window
-            title=None,
-            canvasWidth=800,  # Canvas size
-            canvasHeight=400,
             maxArgWidth=3,    # Maximum length/width of text arguments
-            hoverDelay=1000,  # Milliseconds to wait before showing hints
+            hoverDelay=3000,  # Milliseconds to wait before showing hints
+            **kwargs
     ):
-        self.title = title
-        # Set up Tk windows for canvas and operational controls
-        if window:
-            self.window = window
-        else:
-            self.window = Tk()
-            if title:
-                self.window.title(title)
-        self.targetCanvasWidth = canvasWidth
-        self.targetCanvasHeight = canvasHeight
-        self.canvas = Canvas(
-            self.window, width=canvasWidth, height=canvasHeight,
-            bg=self.DEFAULT_BG)
-        self.canvas.pack(expand=True, fill=BOTH)
-        self.maxArgWidth = maxArgWidth
+        super().__init__(**kwargs)
 
+        self.maxArgWidth = maxArgWidth
         self.HOVER_DELAY = hoverDelay
-        self.setUpControlPanel()
 
         # Set up instance variables for managing animations and operations
         self.callStack = []    # Stack of local environments for visualziation
-        self.animationState = self.STOPPED
-        self.pauseButton, self.stopButton = None, None
+
+        self.pauseButton, self.stopButton, self.stepButton = None, None, None
+        self.lastCodeBlock, self.lastCodeBlockFragments = None, None
+        self.modifierKeyState = 0
+
+        self.createPlayControlImages()
+        self.setUpControlPanel()
  
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window, bg=self.DEFAULT_BG)
@@ -205,7 +146,30 @@ class VisualizationApp(object):  # Base class for Python visualizations
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
 
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
-    
+
+    def getOperations(self):
+        '''Get all the currently defined operations.  Retrun:
+        withArgument: List of operation buttons that require 1+ argument(s)
+        withoutArgument: List of operation buttons that require no arguments
+        nColumns: number of columns in operations grid
+        nRows: number of rows in opserations grid
+
+        Buttons are returned in the order they were added - top to bottom in
+        grid.  The self.playControlsFrame is returned as a single operation
+        in the withoutArgument list, if it is present.
+        '''
+        gridItems = gridDict(self.operations) # Operations inserted in grid
+        nColumns, nRows = self.operations.grid_size()
+        withArgument = [
+            gridItems[0, row] for row in range(nRows)
+            if isinstance(gridItems[0, row], self.buttonTypes)]
+        withoutArgument = [
+            gridItems[col, row]
+            for row in range(nRows) for col in range(4, nColumns)
+            if isinstance(gridItems[col, row], self.buttonTypes) or
+            gridItems[col, row] is getattr(self, 'playControlsFrame', False)]
+        return withArgument, withoutArgument, nColumns, nRows
+        
     def addOperation(  # Add a button to the operations control panel
             self,      # The button can require N arguments provided by text
             label,     # entry widgets. Button label
@@ -219,15 +183,6 @@ class VisualizationApp(object):  # Base class for Python visualizations
             cleanUpBefore=True, # Clean up all previous animations before Op
             bg=None,        # Background color, default is OPERATIONS_BG
             **kwargs):      # Tk button keyword args
-        gridItems = gridDict(self.operations) # Operations inserted in grid
-        nColumns, nRows = self.operations.grid_size()
-        withArgument = [
-            gridItems[0, row] for row in range(nRows)
-            if isinstance(gridItems[0, row], self.buttonTypes)]
-        withoutArgument = [
-            gridItems[col, row]
-            for row in range(nRows) for col in range(4, nColumns)
-            if isinstance(gridItems[col, row], self.buttonTypes)]
         if buttonType not in self.buttonTypes:
             raise ValueError('Unknown button type: {}'.format(buttonType))
         if bg is None:
@@ -240,9 +195,13 @@ class VisualizationApp(object):  # Base class for Python visualizations
             button = buttonType( # Create button based on type
                 self.operations, text=label, font=self.CONTROLS_FONT, bg=bg,
                 **kwargs)
-        button['command'] = self.runOperation(
-            callback, cleanUpBefore, button if numArguments > 0 else None)
+        button['command'] = self.runOperation(callback, cleanUpBefore, button)
+        button.bind('<Button>', self.recordModifierKeyState)
+        button.bind('<KeyPress>', self.recordModifierKeyState)
         setattr(button, 'required_args', numArguments)
+
+        # Placement
+        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
                 textEntry = self.makeArgumentEntry(validationCmd)
@@ -256,30 +215,30 @@ class VisualizationApp(object):  # Base class for Python visualizations
                 self.setHint()
 
             # Place button in grid of buttons
-            buttonRow = len(withArgument) + 1
+            buttonRow = len(withArgs) + 1
             button.grid(column=0, row=buttonRow, padx=8, sticky=(E, W))
             self.widgetState(button, DISABLED)
             nEntries = len(self.textEntries)
-            rowSpan = max(1, (len(withArgument) + 1) // nEntries)
+            rowSpan = max(1, (len(withArgs) + 1) // nEntries)
             
             # Spread text entries across all rows of buttons with arguments
             # with the hint about what to enter below, if any
             for i, entry in enumerate(self.textEntries):
                 entryRowSpan = rowSpan if i < nEntries - 1 else max(
-                    1, len(withArgument) + 1 - (nEntries - 1) * rowSpan)
+                    1, len(withArgs) + 1 - (nEntries - 1) * rowSpan)
                 entry.grid_configure(row=rowSpan * i + 1, rowspan=entryRowSpan)
             if self.entryHint:
-                self.entryHintRow = max(nEntries, len(withArgument) + 1) + (
+                self.entryHintRow = max(nEntries, len(withArgs) + 1) + (
                     0 if entryRowSpan > 2 else 1)
                 self.entryHint.grid_configure(column=2, row=self.entryHintRow)
 
         else:
-            buttonRow = len(withoutArgument) % maxRows + 1
-            button.grid(column=4 + len(withoutArgument) // maxRows,
+            buttonRow = len(withoutArgs) % maxRows + 1
+            button.grid(column=4 + len(withoutArgs) // maxRows,
                         row=buttonRow, padx=8, sticky=(E, W))
-        if ((len(withoutArgument) if numArguments else len(withArgument)) > 0
-                and not self.opSeparator):  # If both kinds of buttons are present
-            self.opSeparator = Frame(  # but not a separator line, create one
+        if ((len(withoutArgs) if numArguments else len(withArgs)) > 0
+                and not self.opSeparator):  # Add separator if both kinds of
+            self.opSeparator = Frame(  # buttons are present and none built
                 self.operations, width=2, bg=self.OPERATIONS_BORDER)
             self.opSeparator.grid(column=3, row=1, sticky=(N, E, W, S))
         if self.opSeparator:
@@ -367,56 +326,111 @@ class VisualizationApp(object):  # Base class for Python visualizations
             self.setHint(msg)
         return Ehandler
     
+    def recordModifierKeyState(self, event=None):
+        if event and event.type in (EventType.ButtonPress, EventType.KeyPress):
+            self.modifierKeyState = event.state
+            
+    def startMode(self):
+        'Choose starting animation mode based on last modifier keys used'
+        return (Animation.STEP if self.modifierKeyState & 0x0001 
+                else Animation.RUNNING)
+            
     def returnPressed(self, event):  # Handle press of Return/Enter in text
         button = getattr(            # entry argument widget.
             event.widget, 'last_button', None)
         if button:                   # If last_button attribute is defined
-            if self.widgetState(button) == NORMAL:
-                self.widgetState(    # Re-do button press
-                    button, 
-                    'pressed' if isinstance(button, ttk.Button) else ACTIVE)
-                self.window.update()
-                time.sleep(0.05)
-                self.widgetState(
-                    button, 
-                    '!pressed' if isinstance(button, ttk.Button) else NORMAL)
-                button.invoke()
-                
+            self.pressButton(button)
+
+    def pressButton(self, button):  # Simulate button press, if enabled
+        if self.widgetState(button) == NORMAL:
+            self.widgetState(    # Simulate button press
+                button, PRESSED if isinstance(button, ttk.Button) else ACTIVE)
+            self.window.update()
+            time.sleep(0.05)
+            self.widgetState(
+                button, 
+                '!' + PRESSED if isinstance(button, ttk.Button) else NORMAL)
+            button.invoke()
+        
     def addAnimationButtons(self, maxRows=4, setDefaultButton=True):
-        self.pauseButton = self.addOperation(
-            "Pause", lambda: self.onClick(self.pause, self.pauseButton),
-            cleanUpBefore=False, maxRows=maxRows,
-            helpText='Pause or resume playing animation')
-        self.widgetState(self.pauseButton, DISABLED)
-        self.stopButton = self.addOperation(
-            "Stop", lambda: self.onClick(self.stop, self.pauseButton),
-            cleanUpBefore=False, maxRows=maxRows,
-            helpText='Stop animation')
-        self.widgetState(self.stopButton, DISABLED)
+        '''Add the Play/Pause, Step, and Stop buttons to control animation.
+        Add the combined button in a new column to avoid going past maxRows.
+        If setDefaultButton is a button, it will be made the default button
+        when Enter is pressed in the first text entry box.
+        If setDefaultButton is true, and only one operation taking arguments
+        has been defined, that operation will be the default when Enter is
+        pressed.
+        '''
+        self.playControlsFrame = Frame(self.operations, bg=self.OPERATIONS_BG)
+        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        self.playControlsFrame.grid(
+            column=4 + len(withoutArgs) // maxRows,
+            row=len(withoutArgs) % maxRows + 1)
+
+        self.pauseButton, self.stepButton, self.stopButton = (
+            Button(self.playControlsFrame, image=self.playControlImages[name],
+                   state=DISABLED)
+            for name in ('pause', 'skip-next', 'stop'))
+        for btn, name, func, column in zip(
+                (self.pauseButton, self.stepButton, self.stopButton),
+                ('pause', 'skip-next', 'stop'),
+                (self.pausePlay, self.step, self.stop),
+                range(3)):
+            buttonImage(btn, self.playControlImages[name])
+            btn['command'] = self.onClick(func)
+            btn.grid(row=0, column=column, sticky=(E, W))
+            btn.bind('<FocusIn>', self.buttonFocus(btn, True))
+            btn.bind('<FocusOut>', self.buttonFocus(btn, False))
+        
         if setDefaultButton and self.textEntries:
             if isinstance(setDefaultButton, self.buttonTypes):
                 setattr(self.textEntries[0], 'last_button', setDefaultButton)
             else:
-                gridItems = gridDict(self.operations)
-                nColumns, nRows = self.operations.grid_size()
-                withArgument = [
-                    gridItems[0, row] for row in range(nRows)
-                    if isinstance(gridItems[0, row], self.buttonTypes)]
-                if len(withArgument) == 1:
-                    setattr(self.textEntries[0], 'last_button', withArgument[0])
+                if len(withArgs) == 1:
+                    setattr(self.textEntries[0], 'last_button', withArgs[0])
+
+    def createPlayControlImages(self, height=None):
+        if height is None:
+            height = abs(self.CONTROLS_FONT[1])
+        targetSize = (height, height)
+        names = ('play', 'pause', 'skip-next', 'stop')
+        images = dict((name, Img.open(name + '-symbol.png')) for name in names)
+        ratios = dict((name, min(*(V(targetSize) / V(images[name].size))))
+                      for name in names)
+        self.playControlImages = dict(
+            (name, ImageTk.PhotoImage(images[name].resize(
+                (int(round(d)) for d in V(images[name].size) * ratios[name]))))
+            for name in names)
         
     def runOperation(self, command, cleanUpBefore, button=None):
         def animatedOperation(): # If button that uses arguments is provided,
-            if button and hasattr(button, 'required_args'): # record it as the
-                for entry in self.textEntries[:getattr( # last button pressed
-                        button, 'required_args')]: # for all its required args
+            if button and getattr(button, 'required_args', 0) > 0: # record it
+                for entry in self.textEntries[:getattr( # as the last button
+                        button, 'required_args')]: # pressed for all its args
                     setattr(entry, 'last_button', button)
+            animationControls = [
+                b for b in (self.pauseButton, self.stepButton, self.stopButton)
+                if b]
+            withArgs, withoutArgs, nColumns, nRows = self.getOperations()
             try:
                 if cleanUpBefore:
                     self.cleanUp()
+                if button and button in animationControls:
+                    button.focus_set()
                 command()
             except UserStop as e:
-                self.cleanUp(self.callStack[0] if self.callStack else None)
+                self.cleanUp(self.callStack[0] if self.callStack else None,
+                             ignoreStops=True)
+            focus = self.window.focus_get()
+            if (focus and  # If focus ended on an argument button or an
+                (focus in withArgs or  # animation control run on something w/
+                 focus in animationControls and button in withArgs) # args
+                and self.textEntries): # and there are text entry boxes
+                self.textEntries[0].focus_set() # switch focus to 1st entry
+            elif (focus and   # If focus ended on animation control run on
+                  focus in animationControls and # something without args
+                  button in withoutArgs):
+                button.focus_set()     # Set focust back to operation button
         return animatedOperation
                 
     def getArgument(self, index=0, clear=False):
@@ -452,14 +466,12 @@ class VisualizationApp(object):  # Base class for Python visualizations
             
     def argumentChanged(self, widget=None):
         args = self.getArguments()
-        gridItems = gridDict(self.operations)  # All operations
-        nColumns, nRows = self.operations.grid_size()
-        for button in [gridItems[0, row] for row in range(nRows)
-                       if isinstance(gridItems[0, row], self.buttonTypes)]:
+        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        for button in withArgs:
             nArgs = getattr(button, 'required_args')
             self.widgetState(
                 button,
-                DISABLED if self.animationState != self.STOPPED or any(
+                DISABLED if not self.animationsStopped() or any(
                     arg == '' for arg in args[:nArgs]) else NORMAL)
 
         for i, entry in enumerate(self.textEntries):
@@ -468,6 +480,9 @@ class VisualizationApp(object):  # Base class for Python visualizations
             
     def setMessage(self, val=''):
         self.outputText.set(val)
+
+    def getMessage(self):
+        return self.outputText.get()
         
     vScrollWidth = 10      # Guess for width of vertical scrollbar width
     
@@ -581,7 +596,7 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if False:     # Set true for debugging printout
             print('Current width is', nCharsWide, 'and desired is', desired)
             if skip and desired != nCharsWide:
-                print('Skipping resize whiler timer {} running'.format(
+                print('Skipping resize while timer {} running'.format(
                     timeout_ID))
         if not skip and desired != nCharsWide:
             ct['width'] = desired
@@ -593,22 +608,24 @@ class VisualizationApp(object):  # Base class for Python visualizations
         is 1 for the first instance of the string, 2 for the second, etc.
         '''
         codeBlock = self.getCodeHighlightBlock(callEnviron)
-        if codeBlock is None:  # This should only happen when code is hidden
-            return
+        if self.codeText is None or codeBlock is None: 
+            return        # This should only happen when code is hidden
         if color is None:
             color = self.CODE_HIGHLIGHT
-        if isinstance(fragments, (list, tuple, set)):
+        if isinstance(fragments, (list, tuple)):
             if (len(fragments) == 2 and   # Look for (str, int) pair
                 isinstance(fragments[0], str) and
                 isinstance(fragments[1], int)):
-                tags = [codeBlock[fragments]] # Look up by (str, int) pair
+                frags = [tuple(fragments)] # Look up by (str, int) tuple
             else:
-                tags = [
-                    codeBlock[tuple(frag)] if isinstance(frag, (list, tuple))
-                    else codeBlock[frag] 
+                frags = [
+                    tuple(frag) if isinstance(frag, (list, tuple))
+                    else (frag, 1)
                     for frag in fragments]
         else:
-            tags = [codeBlock[fragments]]
+            frags = [(fragments, 1)]
+        codeBlock.currentFragments = frags # Store standardized fragments
+        tags = [codeBlock[frag] for frag in frags]
         found = False       # Assume tag not found
         for tagName in self.codeText.tag_names() if self.codeText else []:
             if not tagName.startswith(codeBlock.prefix):
@@ -625,8 +642,8 @@ class VisualizationApp(object):  # Base class for Python visualizations
         if not found and len(tags) > 0:  # This shouldn't happen so log bug
             print('Unable to find highlight tag(s) {} among {}'.format(
                 ', '.join(tags), ', '.join(codeBlock.cache.keys())))
-        if wait > 0:              # Optionally weit for highlight to show
-            self.wait(wait)
+        if wait > 0 or self.animationsStepping(): # Optionally weit for
+            self.wait(wait)    # highlight to show or to stop at a step
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
@@ -641,373 +658,168 @@ class VisualizationApp(object):  # Base class for Python visualizations
             
     def cleanUp(self,         # Remove Tk items from past animations either
                 callEnviron=None,  # for a particular call or all calls
-                stopAnimations=True, # stop animations if requested and
-                sleepTime=0): # wait between removing code lines from stack
+                stopAnimations=True, # stop animations, if requested
+                sleepTime=0,  # wait between removing code lines from stack
+                ignoreStops=False): # ignore UserStops, if requested
         if stopAnimations:
             self.stopAnimations()
         minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
         while len(self.callStack) > minStack: # 1st call unless cleaning all
             top = self.callStack.pop()
-            self.cleanUpCallEnviron(top, sleepTime)
+            try:
+                self.cleanUpCallEnviron(
+                    top, sleepTime, allowSteps=len(self.callStack) > 0)
+            except UserStop:
+                if not ignoreStops:
+                    raise UserStop
             if callEnviron is not None and callEnviron == top: # Stop popping
                 break         # stack if a particular call was being cleaned up
                 
         if callEnviron is None:  # Clear any messages if cleaning up everything
             self.setMessage()
         if len(self.callStack) == 0: # When call stack is empty
+            self.codeText = None
             while len(self.codeFrame.children) > 0: # Remove code window
                 tkItem = self.codeFrame.children.popitem()
                 tkItem[1].destroy()
-            self.codeText = None
 
     def cleanUpCallEnviron(    # Clean up a call on the stack
             self, callEnviron, # removing the call environement
-            sleepTime=0):      # waiting sleepTime between removing code lines
+            sleepTime=0,       # waiting sleepTime between removing code lines
+            allowSteps=True):  # allowing step pauses if set
         inUserStop = False
+        codeBlock = None
+        toDelete = []
         while len(callEnviron):
             thing = callEnviron.pop()
             if isinstance(thing, (str, int)) and self.canvas.type(thing):
-                self.canvas.delete(thing)
+                toDelete.append(thing)
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
-                self.codeText.configure(state=NORMAL)
-                last_line = int(
-                    float(self.codeText.index(END)) if len(thing.lines) > 0
-                    else 0)
-                for i in range(1, min(last_line, len(thing.lines) + 2)):
-                    if self.codeText:
-                        self.codeText.delete('1.0', '2.0')
-                        if sleepTime > 0 and not self.animationsStopped():
-                            try:
-                                self.wait(sleepTime)
-                            except UserStop:
-                                inUserStop = True
+                codeBlock = thing
+        if codeBlock:
+            self.codeText.configure(state=NORMAL)
+            if allowSteps:
+                try:
+                    self.wait(0)
+                except UserStop:
+                    inUserStop = True
+            last_line = int(float(self.codeText.index(END))
+                            if len(codeBlock.lines) > 0 else 0)
+            for i in range(1, min(last_line, len(codeBlock.lines) + 2)):
                 if self.codeText:
-                    self.codeText.configure(state=DISABLED)
+                    self.codeText.delete('1.0', '2.0')
+                    if (sleepTime > 0 and not self.animationsStopped() and
+                        not inUserStop):
+                        try:
+                            self.wait(sleepTime)
+                        except UserStop:
+                            inUserStop = True
+            if self.codeText:
+                self.codeText.configure(state=DISABLED)
+        for item in toDelete:
+            self.canvas.delete(item)
         if inUserStop:
             raise UserStop()
 
-    def createCallEnvironment( # Create a call environment on the call stack
-            self,              # for animating a particular call
-            code='',           # code for this call, if any
-            sleepTime=0):      # Wait time between inserting lines of code
-        # The call environment is a set for local variables represented by
-        # canvas items plus a codeHighlightBlock that controls code highlights
+    def createCallEnvironment(self, code='', sleepTime=0, startAnimations=True):
+        '''Creates a call environment, a set for local variables represented by
+        canvas items, plus a codeHighlightBlock that controls code highlights.
+        The set is pushed on the callStack for a particular call.  The code
+        for that call will be shown in the codeText window, and will be added
+        line by line if sleepTime is above 0 (otherwise all at once).  The
+        startAnimations value determines how the animationState is changed,
+        if at all.  True means keep RUNNING or STEP mode or switch to RUNNING.
+        An explicit Animation state means switch to that state.  False or None
+        means don't call startAnimations.
+        '''
         code = code.strip()
         callEnviron = set()
         if len(code) > 0:
-            self.showCode(code, addBoundary=True, sleepTime=sleepTime)
+            self.showCode(
+                code, addBoundary=True,
+                sleepTime=0 if (self.animationsStopped() and startAnimations
+                                and len(self.callStack) == 0) else sleepTime)
             codeHighlightBlock = CodeHighlightBlock(code, self.codeText)
             if self.codeText:
                 codeHighlightBlock.markStart()
             callEnviron.add(codeHighlightBlock)
             
         self.callStack.append(callEnviron) # Push environment on stack
+        if startAnimations:
+            self.startAnimations(
+                state=startAnimations if isinstance(startAnimations, Animation)
+                else self.animationState if startAnimations is True and
+                not self.animationsStopped()
+                else Animation.RUNNING)
         return callEnviron
-        
-    # General Tk widget methods
-    def widgetDimensions(self, widget):  # Get widget's (width, height)
-        geom = geom_delims.split(widget.winfo_geometry())
-        if geom[0] == '1' and geom[1] == '1':  # If not yet managed, use config
-            geom = (widget.config('width')[-1], widget.config('height')[-1])
-        return int(geom[0]), int(geom[1])
-
-    def widgetState(self, widget, state=None): # Get or set widget state
-        if isinstance(widget, (ttk.Button,)):
-            if state is None:
-                stateFlags = widget.state()
-                return DISABLED if DISABLED in stateFlags else NORMAL
-            else:
-                widget.state(('!disabled', '!pressed') if state == NORMAL 
-                             else (state, ))
-        else:
-            if state is None:
-                return widget['state']
-            else:
-                widget['state'] = state
-            
-    sizePattern = re.compile(r'-?\d+')
-
-    def textWidth(self, font, text=' '):
-        return self.tkFontFromSpec(font).measure(text)
-        
-    def textHeight(self, font, text=' '):
-        lines = text.split('\n')
-        nLines = len(lines) if lines and len(lines[-1]) > 0 else len(lines) - 1
-        return self.tkFontFromSpec(font).metrics()['linespace'] * nLines
-
-    def tkFontFromSpec(self, spec):
-        family = spec[0]
-        size = spec[1] if (len(spec) > 1 and 
-                           (isinstance(spec[1], int) or
-                            (isinstance(spec[1], str) and 
-                             self.sizePattern.match(spec[1])))) else 0
-        return tkfont.Font(
-            family=family, size=size,
-            weight=self.lookFor(('bold', 'light'), spec, 'normal'),
-            slant=self.lookFor(('italic', 'oblique'), spec, 'roman'),
-            underline=1 if self.lookFor(('underline',), spec, 0) else 0,
-            overstrike=1 if self.lookFor(('overstrike',), spec, 0) else 0)
-        
-    def lookFor(self, keys, spec, default):  # Find keyword in font spec
-        strings = [x.lower() for x in spec if isinstance(x, str)]
-        for key in keys:
-            if key.lower() in strings:
-                return key
-        return default
-
-    # CANVAS ITEM METHODS
-    def canvas_itemconfigure(  # Get a dictionary with the canvas item's
-            self, canvasitem): # configuration
-        config = self.canvas.itemconfigure(canvasitem)
-        for key in config:     # Replace tuple values with the last item
-            if isinstance(config[key], tuple):  # in tuple
-                config[key] = config[key][-1]
-        return config
-
-    def copyCanvasItem(      # Make a copy of an item in the canvas
-            self, canvasitem):
-        creator = getattr(self.canvas,  # Get canvas creation function for type
-                          'create_{}'.format(self.canvas.type(canvasitem)))
-        newItem = creator(*self.canvas.coords(canvasitem),
-                          **self.canvas_itemconfigure(canvasitem))
-        for eventType in self.canvas.tag_bind(canvasitem): # Copy event handlers
-            self.canvas.tag_bind(newItem, eventType,
-                                 self.canvas.tag_bind(canvasitem, eventType))
-        return newItem
-
-    def fadeNonLocalItems(self, items, color=NONLOCAL_VARIABLE_COLOR):
-        'Set fill color of non-local variable canvas items to a faded color'
-        self.setItemsFillColor(items, color)
-        
-    def restoreLocalItems(self, items, color=VARIABLE_COLOR):
-        'Restore fill color of local variable canvas items to normal'
-        self.setItemsFillColor(items, color)
-
-    def setItemsFillColor(self, items, color):
-        for item in items:
-            self.canvas.itemconfigure(item, fill=color)
-
-    #####################################################################
-    #                                                                   #
-    #                       Animation Methods                           #
-    #                                                                   #
-    #####################################################################
-    # These methods animate canvas items moving in increments with an
-    # adjustable speed.  The items are moved together as a group.
-    # They take differing paths to get to their destinations.  The
-    # items parameter for each method can be either a single item ID
-    # or tag, or a list|tuple|set of IDs or tags. The steps parameter
-    # specifies how many incremental steps should be taken in
-    # completing the movement and must be 1 or more.  The sleepTime
-    # specifies how long to wait between incremental steps.  A
-    # sleepTime of 0 will produce the fastest steps, but you may not
-    # see the intermediate positions of the items.  Each moveItems____
-    # method calls a generator called moveItems____Sequence that
-    # iterates over the steps yielding the step from 0 up to steps-1
-    # and the total number of steps (some methods my change the number
-    # of steps) This enables combining animation sequences by using
-    # the *Sequence generator to go through the steps and performing
-    # other animation actions for each step.
-
-    def moveItemsOffCanvas(  # Animate the removal of canvas items by sliding
-            self, items,     # them off one of the canvas edges
-            edge=N,          # One of the 4 tkinter edges: N, E, S, or W
-            steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
-        for step, _ in self.moveItemsOffCanvasSequence(items, edge, steps):
-            self.wait(sleepTime)
-
-    def moveItemsOffCanvasSequence(  # Iterator for moveItemsOffCanvas
-            self, items, edge=N, steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = (items,)
-        curPositions = [self.canvas.coords(i) for i in items if i is not None]
-        bboxes = [self.canvas.bbox(i) for i in items if i is not None]
-        bbox = bboxes[0]  # Get bounding box of all items
-        for bb in bboxes[1:]:
-            bbox = [min(bbox[0], bb[0]), min(bbox[1], bb[1]),
-                    max(bbox[2], bb[2]), max(bbox[3], bb[3])]
-        canvasDimensions = self.widgetDimensions(self.canvas)
-        # Compute delta vector that moves them on a line away from the
-        # center of the canvas
-        delta = ((bbox[0] + bbox[2] - canvasDimensions[0]) / 2,
-                 0 - bbox[3])
-        if edge == S:
-            delta = (delta[0], canvasDimensions[1] - bbox[1])
-        elif edge in (W, E):
-            delta = (0 - bbox[2],
-                     (bbox[1] + bbox[3] - canvasDimensions[1]) / 2)
-            if edge == E:
-                delta = (canvasDimensions[0] - bbox[0], delta[1])
-        # Ensure no more that 45 degree angle to departure boundary
-        if abs(delta[0]) > abs(delta[1]) and edge not in (E, W):
-            delta = (abs(delta[1]) * (-1 if delta[0] < 0 else 1), delta[1])
-        elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
-            delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
-        for step, _ in self.moveItemsBySequence(items, delta, steps):
-            yield (step, _)
-
-    def moveItemsBy(         # Animate canvas items moving from their current
-            self, items,     # location in a direction indicated by a single
-            delta,           # delta vector. items can be 1 item or a list/tuple
-            steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
-        for step, _ in self.moveItemsBySequence(items, delta, steps):
-            self.wait(sleepTime)
-
-    def moveItemsBySequence( # Iterator for moveItemsBy
-            self, items, delta, steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = (items,)
-        if not isinstance(delta, (list, tuple)) or len(delta) != 2:
-            raise ValueError('Delta must be a 2-dimensional vector')
-        if vector_length2(delta) < 0.001: # If delta is tiny
-            return           # then no movement is needed
-        steps = max(1, steps) # Must use at least 1 step
-
-        # move the items in steps along vector
-        moveBy = divide_vector(delta, steps)
-        for step in range(steps):
-            for item in items:
-                if item is not None:
-                    self.canvas.move(item, *moveBy)
-            yield (step, steps) # Yield step in sequence
-
-    def moveItemsTo(         # Animate canvas items moving rigidly 
-            self, items,     # to destination locations along line(s)
-            toPositions,     # items can be a single item or list of items
-            steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
-        for step, _ in self.moveItemsToSequence(items, toPositions, steps):
-            self.wait(sleepTime)
-
-    def moveItemsToSequence( # Iterator for moveItemsTo
-            self, items,     # to destination locations along line(s)
-            toPositions,     # items can be a single item or list of items
-            steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = (items,)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = (toPositions,)
-        steps = max(1, steps) # Must use at least 1 step
-        moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
-                  for toPos, fromPos in zip(
-                          toPositions,
-                          [self.canvas.coords(item)[:2] for item in items])]
-
-        # move the items until they reach the toPositions
-        for step in range(steps):
-            for i, item in enumerate(items):
-                if len(moveBy[i]) == 2:
-                    self.canvas.move(item, *moveBy[i])
-                # else:  # This shouldn't happen, but is a good point to debug
-                #     pdb.set_trace()
-            yield (step, steps) # Yield step in sequence
-            
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
-
-    # The moveItemsLinearly method uses all the coordinates of canvas
-    # items in calculating the movement vectors.  Don't pass the
-    # 'items' arguments with canvas tags attached to multiple items.
-    # If you do, it will only move one of them and the number of
-    # coordinates for it the toPositions argument could be a mismatch.
-    # Pass item IDs to ensure a 1-to-1 mapping.
-    def moveItemsLinearly(   # Animate canvas items moving each of their 
-            self, items,     # coordinates linearly to new destinations
-            toPositions,     # Items can be single or multiple, but not tags
-            steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
-        for step, _ in self.moveItemsLinearlySequence(
-                items, toPositions, steps):
-            self.wait(sleepTime)
-
-    def moveItemsLinearlySequence( # Iterator for moveItemsLinearly
-            self, items, toPositions, steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = (items,)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = (toPositions,)
-        if len(items) != len(toPositions):
-            raise ValueError('Number of items must match length of toPositions')
-        steps = max(1, steps) # Must use at least 1 step
-        moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
-                  for toPos, fromPos in zip(
-                          toPositions,
-                          [self.canvas.coords(item) for item in items])]
-
-        # move the items until they reach the toPositions
-        for step in range(steps):
-            for i, item in enumerate(items):
-                if len(moveBy[i]) >= 2:
-                    self.canvas.coords(
-                        item, *add_vector(self.canvas.coords(item), moveBy[i]))
-            yield (step, steps) # Yield step in sequence
-            
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
-             
-    def moveItemsOnCurve(    # Animate canvas items moving from their current
-            self, items,     # location to destinations along a curve
-            toPositions,     # items can be a single item or list of items
-            startAngle=90,   # Starting angle away from destination
-            steps=10,        # Number of intermediate steps to reach destination
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
-        for step, _ in self.moveItemsOnCurveSequence(
-                items, toPositions, startAngle, steps):
-            self.wait(sleepTime)
-            
-    def moveItemsOnCurveSequence( # Iterator for moveItemsOnCurve
-            self, items, toPositions, startAngle=90, steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = tuple(items)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = tuple(toPositions)
-        steps = max(1, steps) # Must use at least 1 step
-
-        # move the items until they reach the toPositions
-        for step in range(steps):  # Go through all steps of the annimation
-            toGo = steps - 1 - step  # remaining steps to go
-            ang = startAngle * toGo / steps  # angle decreases on each step
-            scale = 1 + abs(ang) / 180  # scale is larger for higher angles
-            for i, item in enumerate(items):
-                coords = self.canvas.coords(item)[:2]
-                if len(coords) == 2:
-                    moveBy = rotate_vector(
-                        divide_vector(subtract_vector(toPositions[i], coords),
-                                      (toGo + 1) / scale),
-                        ang)
-                    self.canvas.move(item, *moveBy)
-            yield (step, steps) # Yield step in sequence
-            
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
 
     # ANIMATION CONTROLS
     def speed(self, sleepTime):
-        return sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get()
+        return min(
+            10, sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get())
 
     def wait(self, sleepTime):    # Sleep for a user-adjusted period
+        stateOnEntry = self.animationState
+        codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
+                     if self.callStack else None)
+        if (self.animationsStepping() and
+            buttonImage(self.pauseButton) != self.playControlImages['play']):
+            buttonImage(self.pauseButton, self.playControlImages['play'])
+        while self.animationsStepping() and (
+                self.lastCodeBlock is not codeBlock or
+                codeBlock and
+                self.lastCodeBlockFragments != codeBlock.currentFragments):
+            self.window.update()
+            if self.destroyed:
+                sys.exit()
+            time.sleep(0.02)
+            if self.destroyed:
+                sys.exit()
+        self.lastCodeBlock = codeBlock
+        self.lastCodeBlockFragments = (
+            self.lastCodeBlock.currentFragments if self.lastCodeBlock else None)
         if sleepTime > 0:
             self.window.update()
+            if self.destroyed:
+                sys.exit()
             time.sleep(self.speed(sleepTime))
-        if self.animationState == self.STOPPED: # If user requested to stop
+            if self.destroyed:
+                sys.exit()
+        while self.animationsPaused():
+            self.window.update()
+            if self.destroyed:
+                sys.exit()
+            time.sleep(0.02)
+            if self.destroyed:
+                sys.exit()
+            
+        if self.animationsStopped(): # If user requested to stop
             raise UserStop()      # animation while waiting then raise exception
 
-    def onClick(self, command, *parameters): # When user clicks an operations
-        self.enableButtons(False) # button, disable all buttons,
-        command(*parameters)      # run the command, and re-enable the buttons
-        if command not in [self.pause, self.play]: # if it was something
-            self.enableButtons()  # other than pause or play command
+    def onClick(self, command, *parameters):
+        ''' Return a handler for user clicks on an animation button.
+        The handler runs a command and enables other buttons as appropriate
+        to the animation state
+        '''
+        def buttonClickHandler(event=None):
+            if command == self.pausePlay:  # Button takes focus if it can be
+                self.pauseButton.focus_set() # repeated (pause/play & step)
+            elif command == self.step:
+                self.stepButton.focus_set()
+                
+            command(*parameters)      # run the command, and re-enable buttons
+            if command in [self.stop]: # when Stop is pressed
+                self.enableButtons() 
+        return buttonClickHandler
+
+    def buttonFocus(self, btn, hasFocus):
+        '''Return a handler for focus change on animation buttons'''
+        def focusHandler(event=None):
+            btn['highlightbackground'] = (
+                'deep sky blue' if hasFocus else 'White')
+            btn['relief'] = (
+                'groove' if hasFocus else 'raised')
+        return focusHandler
             
     def enableButtons(self, enable=True):
         gridItems = gridDict(self.operations)  # All Tk items in operations 
@@ -1015,71 +827,76 @@ class VisualizationApp(object):  # Base class for Python visualizations
         for col in range(nColumns):
             for btn in [gridItems[col, row] for row in range(nRows)]:
                 # Only change button types, not text entry or other widgets
-                # Pause/Stop buttons can only be enabled here
-                if isinstance(btn, self.buttonTypes) and (
-                        enable or btn not in (self.stopButton, 
-                                              self.pauseButton)):
+                if isinstance(btn, self.buttonTypes):
                     self.widgetState(btn, NORMAL if enable else DISABLED)
+                elif btn is getattr(self, 'playControlsFrame', False):
+                    for b in (
+                            self.pauseButton, self.stepButton, self.stopButton):
+                        if b:
+                            self.widgetState(
+                                b,
+                                NORMAL if (
+                                    enable and not self.animationsStopped() and
+                                    (b != self.stepButton or self.codeText))
+                                else DISABLED)
 
-    def stop(self, pauseButton):
+    def stop(self):
         self.stopAnimations()
-        self.animationState = self.STOPPED  # Always stop on user request
-        pauseButton['text'] = "Play"
-        pauseButton['command'] = self.runOperation(
-            lambda: self.onClick(self.play, pauseButton), False)
+        self.animationState = Animation.STOPPED  # Always stop on user request
+        buttonImage(self.pauseButton, self.playControlImages['play'])
 
-    def pause(self, pauseButton):
-        self.pauseAnimations()
-        pauseButton['text'] = "Play"
-        pauseButton['command'] = self.runOperation(
-            lambda: self.onClick(self.play, pauseButton), False)
-        while self.animationState == self.PAUSED:
-            self.wait(0.05)
+    def pausePlay(self):
+        if self.animationState in (Animation.PAUSED, Animation.STEP):
+            self.startAnimations(state=Animation.RUNNING)
+            buttonImage(self.pauseButton, self.playControlImages['pause'])
+        else:
+            self.pauseAnimations()
+            buttonImage(self.pauseButton, self.playControlImages['play'])
 
-    def play(self, pauseButton):
-        self.startAnimations()
+    def step(self):
+        codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
+                     if self.callStack else None)
+        self.lastCodeBlock = codeBlock
+        self.lastCodeBlockFragments = (
+            self.lastCodeBlock.currentFragments if self.lastCodeBlock else None)
+        self.startAnimations(state=Animation.STEP)
 
-    def startAnimations(self, enableStops=True):
-        self.animationState = self.RUNNING
+    def startAnimations(self, enableStops=True, state=None):
+        self.animationState = state if state is not None else (
+            self.animationState if self.animationState in (Animation.RUNNING,
+                                                           Animation.STEP)
+            else Animation.RUNNING)
         self.enableButtons(enable=False)
-        if self.pauseButton:
-            self.pauseButton['text'] = 'Pause'
-            self.pauseButton['command'] = self.runOperation(
-                lambda: self.onClick(self.pause, self.pauseButton), False)
-            if enableStops:
-                self.widgetState(self.pauseButton, NORMAL)
-        if self.stopButton and enableStops:
-            self.widgetState(self.stopButton, NORMAL)
+        if self.pauseButton and not self.animationsStepping():
+            buttonImage(self.pauseButton, self.playControlImages['pause'])
+        for btn in (self.pauseButton, self.stopButton):
+            if btn and enableStops:
+                self.widgetState(btn, NORMAL)
+        if self.stepButton and enableStops and (
+                self.codeText or state == Animation.STEP):
+            self.widgetState(self.stepButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
         # Calls from stack level 2+ only stop animation for their level
         # At lowest level, animation stops and play & stop buttons are disabled
         if len(self.callStack) <= 1:
-            self.animationState = self.STOPPED
+            self.animationState = Animation.STOPPED
             self.enableButtons(enable=True)
-            if self.pauseButton:
-                self.widgetState(self.pauseButton, DISABLED)
-            if self.stopButton:
-                self.widgetState(self.stopButton, DISABLED)
+            for btn in (self.pauseButton, self.stopButton, self.stepButton):
+                if btn:
+                    self.widgetState(btn, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
-    def pauseAnimations(self):
-        self.animationState = self.PAUSED
-
-    def animationsStopped(self):
-        return self.animationState == self.STOPPED
-
-    def animationsRunning(self):
-        return self.animationState != self.STOPPED
-    
-    def runVisualization(self):
-        self.window.mainloop()
-
-class UserStop(Exception):   # Exception thrown when user stops animation
-    pass
-
 # Tk widget utilities
+
+def buttonImage(btn, image=None):
+    if image is None:   # Tk stores the actual image in the image attribute
+        return btn.image
+    else:    
+        btn['image'] = image # This triggers an update to the button appearance
+        btn.image = image  # and this puts the aclual image in the attribut
+        return image
 
 def clearHintHandler(hintLabel, textEntry=None):
     'Clear the hint text and set focus to textEntry, if provided'
