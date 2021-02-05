@@ -657,9 +657,14 @@ def traverse(self, function=print):
         cell_coords = self.cellCoords(index)
         return add_vector(cell_coords, self.arrayCellDelta())
 
-    def currentCellCoords(self, index):  # Compute coords from current position
-        return subtract_vector(self.canvas.coords(self.arrayCells[index]),
-                               self.arrayCellDelta())
+    def currentCellCoords(self, index):
+        '''Compute coords from current position of array cell or based on
+        extreme left or rightmost cell'''
+        closest = max(0, min(len(self.arrayCells), index))
+        return add_vector(
+            subtract_vector(self.canvas.coords(self.arrayCells[closest]),
+                            self.arrayCellDelta()),
+            (self.CELL_WIDTH * (index - closest), 0) * 2)
 
     def currentCellCenter(self, index):
         x1, y1, x2, y2 = self.currentCellCoords(index)
