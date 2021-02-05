@@ -641,9 +641,12 @@ def traverse(self, function=print):
     def newValueCoords(self):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
         canvasDims = self.widgetDimensions(self.canvas)
+        upperOpsDims = self.widgetDimensions(self.operationsUpper)
+        lowerOpsDims = self.widgetDimensions(self.operationsLower)
         return add_vector(
             cell0,
-            (canvasDims[0] // 2 - cell0[0], canvasDims[1] - cell0[1]) * 2)
+            (max(upperOpsDims[0], lowerOpsDims[0]) // 2 - cell0[0],
+             canvasDims[1] - cell0[1]) * 2)
 
     def cellTag(self, index): # Tag name for a particular cell in an array
         return "cell-{}".format(index)
