@@ -660,7 +660,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 callEnviron=None,  # for a particular call or all calls
                 stopAnimations=True, # stop animations, if requested
                 sleepTime=0,  # wait between removing code lines from stack
-                ignoreStops=False): # ignore UserStops, if requested
+                ignoreStops=False,   # ignore UserStops, if requested
+                allowSteps=False):   # Allow stepping to pause clean up
         if stopAnimations:
             self.stopAnimations()
         minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
@@ -668,7 +669,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             top = self.callStack.pop()
             try:
                 self.cleanUpCallEnviron(
-                    top, sleepTime, allowSteps=len(self.callStack) > 0)
+                    top, sleepTime, 
+                    allowSteps=allowSteps and len(self.callStack) > 0)
             except UserStop:
                 if not ignoreStops:
                     raise UserStop
@@ -711,7 +713,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                     if (sleepTime > 0 and not self.animationsStopped() and
                         not inUserStop):
                         try:
-                            self.wait(sleepTime)
+                            self.wait(sleepTime, pauseOnStep=allowSteps)
                         except UserStop:
                             inUserStop = True
             if self.codeText:
@@ -758,14 +760,17 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         return min(
             10, sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get())
 
-    def wait(self, sleepTime):    # Sleep for a user-adjusted period
+    def wait(self, sleepTime, pauseOnStep=True):
+        ''' Pause for a user-adjusted time period, checking for step changes
+        in stepping mode, and raising a UserStop when user stops the animation.
+        '''
         stateOnEntry = self.animationState
         codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
                      if self.callStack else None)
         if (self.animationsStepping() and
             buttonImage(self.pauseButton) != self.playControlImages['play']):
             buttonImage(self.pauseButton, self.playControlImages['play'])
-        while self.animationsStepping() and (
+        while pauseOnStep and self.animationsStepping() and (
                 self.lastCodeBlock is not codeBlock or
                 codeBlock and
                 self.lastCodeBlockFragments != codeBlock.currentFragments):
