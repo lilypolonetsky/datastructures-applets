@@ -666,11 +666,12 @@ def traverse(self, function=print):
         return (x1 + x2) // 2, (y1 + y2) // 2
     
     def createArrayCell(     # Create a box representing an array cell
-            self, index, tags=["arrayBox"]):
+            self, index, tags=["arrayBox"], color=None, width=None):
+        if color is None: color = self.CELL_BORDER_COLOR
+        if width is None: width = self.CELL_BORDER
         rect = self.canvas.create_rectangle(
-            *self.arrayCellCoords(index),
-            fill=None, outline=self.CELL_BORDER_COLOR, width=self.CELL_BORDER, 
-            tags=tags + [self.cellTag(index)])
+            *self.arrayCellCoords(index), fill=None, outline=color,
+            width=width, tags=tags + [self.cellTag(index)])
         self.canvas.lower(rect)
         return rect        
     
