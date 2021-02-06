@@ -237,9 +237,9 @@ def delete(self, goal={goal!r}):
         
         foundHighlight = self.createFoundHighlight(previous + 1)
         callEnviron.add(foundHighlight)
-        toDeleteIndex = self.createIndex(previous + 1, 'toDelete')
         self.highlightCode('toDelete = previous.getNext()', callEnviron, 
                            wait=wait)
+        toDeleteIndex = self.createIndex(previous + 1, 'toDelete')
         
         # Prepare to update next pointer from previous
         self.highlightCode(
