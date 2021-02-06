@@ -35,11 +35,11 @@ def insert(self, item={val}):
    if self.__nItems >= len(self.__a):
       raise Exception("Array overflow")
 
-   index = self.find(item)     # Find index where item should go
-   for j in range(self.__nItems, index, -1): # Move bigger items
-      self.__a[j] = self.__a[j-1]            # to the right
+   index = self.find(item)
+   for j in range(self.__nItems, index, -1):
+      self.__a[j] = self.__a[j-1]
          
-   self.__a[index] = item      # Insert the item
+   self.__a[index] = item
    self.__nItems += 1
 '''
 
