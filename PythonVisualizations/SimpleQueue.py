@@ -192,10 +192,25 @@ class Queue(VisualizationApp):
             font=self.valueFont, fill=self.valueColor)
         return (arc, text, cover)
 
-    def isEmpty(self):
+    isEmptyCode = '''
+def isEmpty(self): return self.__nItems == 0
+'''
+
+    def isEmpty(self, code=isEmptyCode):
+        callEnviron = self.createCallEnvironment(code=code)
+        self.highlightCode('return self.__nItems == 0', callEnviron, wait=0.1)
+        self.cleanUp(callEnviron)
         return self.nItems == 0
 
-    def isFull(self):
+    isFullCode = '''
+def isFull(self): return self.__nItems == self.__maxSize
+'''
+
+    def isFull(self, code=isFullCode):
+        callEnviron = self.createCallEnvironment(code=code)
+        self.highlightCode('return self.__nItems == self.__maxSize',
+                           callEnviron, wait=0.1)
+        self.cleanUp(callEnviron)
         return self.nItems >= self.size
     
     insertCode = '''
@@ -339,15 +354,15 @@ def peek(self):
 
         self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
         if self.isEmpty():
-            self.highlightCode('None', callEnviron, wait=wait)
+            self.highlightCode('return None', callEnviron, wait=wait)
             self.cleanUp(callEnviron)
             return None
 
         # create the output box
-        self.highlightCode('self.__que[self.__front]', callEnviron)
+        self.highlightCode(['return', 'self.__que[self.__front]'], callEnviron)
         font, pad = self.outputBoxFontAndPadding()
         outputBox = self.createOutputBox()
-        callEnviron.add(outputBox)
+        callEnviron |= set(outputBox)
 
         # calculate where the value will need to move to
         peekValCoords = self.outputBoxLineCoords()
