@@ -1,5 +1,5 @@
 from tkinter import *
-import time, random
+import random
 
 try:
     from drawable import *

@@ -1,5 +1,5 @@
 from tkinter import *
-import time, random
+import random
 from enum import Enum
 
 try:
