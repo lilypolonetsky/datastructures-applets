@@ -3,10 +3,10 @@ import random
 from enum import Enum
 
 try:
-    from drawable import *
+    from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
-    from .drawable import *
+    from .drawnValue import *
     from .VisualizationApp import *
 
 class Child(Enum):
@@ -14,16 +14,16 @@ class Child(Enum):
     RIGHT = 1
 
 class Node(object):
-    def __init__(self, drawable, coords, tag):
-        self.drawable = drawable
+    def __init__(self, drawnValue, coords, tag):
+        self.drawnValue = drawnValue
         self.coords = coords
         self.tag = tag
 
     def getKey(self):
-        return self.drawable.val
+        return self.drawnValue.val
 
     def setKey(self, k):
-        self.drawable.val = k
+        self.drawnValue.val = k
 
     def __str__(self):
         return "{" + str(self.getKey()) + "}"
@@ -240,22 +240,25 @@ class BinaryTreeBase(VisualizationApp):
         return parent.coords + node.coords
 
     # highlight or unhighlight the line that points to the node
-    def createHighlightedLine(self, node, callEnviron=None, color= drawable.palette[0]):
+    def createHighlightedLine(self, node, callEnviron=None, color=None):
         line = self.getLine(node)
         if line is None:
             return
+        if color is None: color = drawnValue.palette[0]
         highlightLine = self.copyCanvasItem(line)
         self.canvas.tag_lower(highlightLine,
-                            self.getRoot().drawable.display_shape)
+                              self.getRoot().drawnValue.items[0])
 
-        self.canvas.itemconfig(highlightLine, fill=color, width=4, tags= "highlight line")
+        self.canvas.itemconfig(
+            highlightLine, fill=color, width=4, tags= "highlight line")
 
         if callEnviron: callEnviron.add(highlightLine)
 
         return highlightLine
 
-    def createHighlightedCircle(self, node, callEnviron=None, color=drawable.palette[0]):
-        circle = self.copyCanvasItem(node.drawable.display_shape)
+    def createHighlightedCircle(self, node, callEnviron=None, color=None):
+        if color is None: color = drawnValue.palette[0]
+        circle = self.copyCanvasItem(node.drawnValue.items[0])
         self.canvas.itemconfig(circle, outline=color, fill= '', width=2,
                                tags="highlight circle")
 
@@ -264,7 +267,8 @@ class BinaryTreeBase(VisualizationApp):
         return circle
 
     # creates a highlighted value on top of the normal value associated with the node
-    def createHighlightedValue(self, node, callEnviron=None, color=drawable.palette[0]):
+    def createHighlightedValue(self, node, callEnviron=None, color=None):
+        if color is None: color = drawnValue.palette[0]
         text = self.canvas.create_text(
             *node.coords, text=node.getKey(), font=self.VALUE_FONT, fill=color,
             tags="highlight value")
@@ -274,16 +278,20 @@ class BinaryTreeBase(VisualizationApp):
         return text
 
     # draws the circle and the key value
-    def createNodeShape(self, x, y, key, tag, color= drawable.palette[2]):
-        circle = self.canvas.create_circle(x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
-        circle_text = self.canvas.create_text(x,y, text=key, font=self.VALUE_FONT, tag = tag)
+    def createNodeShape(self, x, y, key, tag, color=None):
+        if color is None: color = drawnValue.palette[2]
+        circle = self.canvas.create_circle(
+            x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
+        circle_text = self.canvas.create_text(
+            x, y, text=key, font=self.VALUE_FONT, tag = tag)
         for item in (circle, circle_text):
             self.canvas.tag_bind(
                 item, '<Button>', lambda e: self.setArgument(key))
 
         return circle, circle_text
 
-    # moves all the nodes in moveItems to their proper place (as defined by their place in the array)
+    # moves all the nodes in moveItems to their proper place
+    # as defined by their place in the array
     def restoreNodesPosition(self, moveItems, sleepTime=0.05, includeLines=True):
         # get the coords for the node to move to
         items, moveCoords = [], []
@@ -352,11 +360,11 @@ class BinaryTreeBase(VisualizationApp):
         # create the shape and text
         circle, circle_text = self.createNodeShape(x, y, key, tag)
       
-        # create the drawable object
-        drawableObj = drawable(key, self.canvas.itemconfigure(circle, 'fill')[-1], *(circle, circle_text))
+        # create the drawnValue object
+        drawnValueObj = drawnValue(key, circle, circle_text)
       
         # create the Node object
-        node = Node(drawableObj, coords, tag)
+        node = Node(drawnValueObj, coords, tag)
 
         # increment size
         self.size += 1
@@ -376,18 +384,19 @@ class BinaryTreeBase(VisualizationApp):
         tag = self.generateTag()
 
         # get the circle and key drawing
-        circle, circle_text = self.createNodeShape(*(node.coords), node.getKey(), tag)
+        circle, circle_text = self.createNodeShape(
+            *node.coords, node.getKey(), tag)
 
         # get the key
         key = node.getKey()
-        # create the drawable obj
-        drawableObj = drawable(key, self.canvas.itemconfigure(circle, 'fill')[-1], circle, circle_text)
+        # create the drawnValue obj
+        drawnValueObj = drawnValue(key, circle, circle_text)
 
         # add the tag
         self.canvas.itemconfig(circle, tags=tag)
         self.canvas.itemconfig(circle_text, tags=tag)
       
-        return Node(drawableObj, node.coords, tag)
+        return Node(drawnValueObj, node.coords, tag)
 
     def setRoot(self, node):
         self.nodes[0] = node
