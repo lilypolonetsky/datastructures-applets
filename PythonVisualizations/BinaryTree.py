@@ -2,11 +2,11 @@ from tkinter import *
 import random
 
 try:
-    from drawable import *
+    from drawnValue import *
     from VisualizationApp import *
     from BinaryTreeBase import *
 except ModuleNotFoundError:
-    from .drawable import *
+    from .drawnValue import *
     from .VisualizationApp import *
     from .BinaryTreeBase import *
 
@@ -228,8 +228,7 @@ class BinaryTree(BinaryTreeBase):
 
         # replace node to delete with successor's key and data
         newSuccessor = self.copyNode(successor)
-        callEnviron |= set((newSuccessor.drawable.display_shape,
-                            newSuccessor.drawable.display_val))
+        callEnviron |= set(newSuccessor.drawnValue.items)
         
         # a. internal replacement
         newSuccessor.coords = node.coords
@@ -238,8 +237,7 @@ class BinaryTree(BinaryTreeBase):
         
         # b. drawing replacement
         self.restoreNodesPosition((newSuccessor,), includeLines=False)
-        callEnviron -= set((newSuccessor.drawable.display_shape,
-                            newSuccessor.drawable.display_val))
+        callEnviron -= set(newSuccessor.drawnValue.items)
         self.removeNodeDrawing(node)
         self.canvas.delete(highlight)
         callEnviron.discard(highlight)
