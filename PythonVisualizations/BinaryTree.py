@@ -271,7 +271,7 @@ class BinaryTree(BinaryTreeBase):
             self.window.update()
         self.clearArgument()
 
-    def clickFind(self):
+    def clickSearch(self):
         val = self.validArgument()
         if val is not None:
             result, parent = self.find(val)
@@ -303,22 +303,25 @@ class BinaryTree(BinaryTreeBase):
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        fillButton = self.addOperation(
-            "Fill", lambda: self.clickFill(), numArguments=1,
-            validationCmd=vcmd)
-        findButton = self.addOperation(
-            "Find", lambda: self.clickFind(), numArguments=1,
-            validationCmd=vcmd)
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd= vcmd)
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Insert item in tree')
+        searchButton = self.addOperation(
+            "Search", lambda: self.clickSearch(), numArguments=1,
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Search for item in tree')
         deleteButton = self.addOperation(
             "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd= vcmd)
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Delete item from tree')
+        fillButton = self.addOperation(
+            "Random fill", lambda: self.clickFill(), numArguments=1,
+            validationCmd=vcmd, argHelpText=['number of items'], 
+            helpText='Insert a number of random\nitems in an empty tree')
         #this makes the pause, play and stop buttons 
         self.addAnimationButtons()
-        return [fillButton, findButton, 
-                insertButton,deleteButton]
+        return [fillButton, searchButton, insertButton, deleteButton]
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
