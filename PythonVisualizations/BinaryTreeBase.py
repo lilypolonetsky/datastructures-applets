@@ -214,19 +214,21 @@ class BinaryTreeBase(VisualizationApp):
         of the tree.
         '''
         fieldFont, labelFont = self.treeObjectFonts(font)
-        fieldWidths = [self.textWidth(fieldFont, ' {} '.format(field))
-                       for field in fields]
+        fieldWidths = self.treeObjectFieldWidths(font=fieldFont, fields=fields)
         ffHeight = self.textHeight(fieldFont)
         x0, y0, x1, y1 = self.treeObjectCoords(
             offsetAngle, offset, fields, fieldFont)
         rect = self.canvas.create_rectangle(
             x0, y0, x1, y1, fill=color, tags=(label, "treeObject"))
         fieldLabels = [self.canvas.create_text(
-            x0 + sum(fieldWidths[:i]) + fieldWidth[i] // 2, y0 + ffHeight,
+            x0 + sum(fieldWidths[:i]) + fieldWidths[i] // 2, y0 + ffHeight,
             text=field, font=fieldFont, fill='black', anchor=S,
             tags=(label + "fieldLabel"))
                        for i, field in enumerate(fields)]
         dotCenter = V(x0, y0) + V(self.treeDotCenter(fields, fieldFont))
+        arrow = self.canvas.create_line(
+            *dotCenter, *dotCenter, arrow=LAST, fill='black')
+        self.updateTreeObjectRootPointer(arrow=arrow, root=self.getRoot())
         rootLabel = self.canvas.create_text(
             dotCenter[0], y0 + ffHeight, text=root, font=fieldFont,
             fill='black', anchor=S, tags=(label + "fieldLabel"))
@@ -236,23 +238,31 @@ class BinaryTreeBase(VisualizationApp):
             width=0, tags=(label, 'dot'))
         treeLabel = self.canvas.create_text(
             x0 - 5, (y0 + y1) // 2, text=label, font=labelFont, anchor=E)
-        return (rect, rootLabel, oval, *fieldLabels, treeLabel)
+        return (rect, arrow, rootLabel, oval, *fieldLabels, treeLabel)
 
     def treeObjectFonts(self, font=None):
         fieldFont = (self.VARIABLE_FONT[0] if font is None else font[0],
                      -10 if font is None else font[1])
         return fieldFont, (fieldFont[0], 14 * fieldFont[1] // 10)
 
+    def treeObjectFieldWidths(self, fields=[], font=None):
+        if font is None: fieldFont, _ = self.treeObjectFonts()
+        return [self.textWidth(fieldFont, ' {} '.format(field))
+                for field in fields]
+    
     def treeObjectCoords(
             self, offsetAngle=180, offset=30, fields=[], font=None):
         fieldFont, _ = self.treeObjectFonts(font)
+        ffHeight = self.textHeight(fieldFont)
         rootWidth = self.textWidth(fieldFont, ' root ')
         fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
         x0, y0 = V(self.ROOT_X0, self.ROOT_Y0) + V(
             V(V(V(1, 0).rotate(offsetAngle)) * (offset + self.CIRCLE_SIZE)) -
-            V(fieldsWidth + rootWidth, self.CIRCLE_SIZE))
-        return x0, y0, x0 + fieldsWidth + rootWidth, y0 + 2 * self.CIRCLE_SIZE
+            V(fieldsWidth + rootWidth, self.CIRCLE_SIZE + ffHeight))
+        return (x0, y0, 
+                x0 + fieldsWidth + rootWidth,
+                y0 + 2 * self.CIRCLE_SIZE + ffHeight)
 
     def treeDotCenter(self, fields=[], font=None):
         '''Relative coords of dot center within tree object rectangle'''
@@ -260,9 +270,20 @@ class BinaryTreeBase(VisualizationApp):
         rootWidth = self.textWidth(fieldFont, ' root ')
         fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
-        fontHeight = self.textHeight(fieldFont)
-        return fieldsWidth + rootWidth // 2, (
-            fontHeight + 2 * self.CIRCLE_SIZE) // 2
+        ffHeight = self.textHeight(fieldFont)
+        return fieldsWidth + rootWidth // 2, ffHeight + self.CIRCLE_SIZE
+
+    def updateTreeObjectRootPointer(self, arrow=None, root=None):
+        '''Extend pointer of tree object to point at the root node if present
+        otherwise make it zero length to be invisible'''
+        if arrow is None and getattr(self, 'treeObject', None) is None:
+            return
+        if arrow is None:
+            arrow = self.treeObject[1]
+        arrowCoords = self.canvas.coords(arrow)
+        self.canvas.coords(arrow, *arrowCoords[:2],
+                           *(arrowCoords[:2] if root is None else
+                             V(root.coords) - V(self.CIRCLE_SIZE, 0)))
         
     # Create an arrow to point at a node
     def createArrow(self, node):
@@ -519,9 +540,10 @@ class BinaryTreeBase(VisualizationApp):
         self.size = 0
         self.nodes = [None] * (2**self.MAX_LEVEL)
 
-    def display(self):
+    def display(self, fields=[]):
         self.canvas.delete("all")
-        treeObjectItems = self.createTreeObject()
+        self.treeObject = self.createTreeObject(fields=fields)
+        self.fieldwidths = self.treeObjectFieldWidths(fields=fields)
         newNodes = [self.createNode(
             node.getKey(), None if i == 0 else self.nodes[(i - 1) // 2],
             Child.LEFT if i % 2 == 1 else Child.RIGHT) if node else None

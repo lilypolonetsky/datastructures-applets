@@ -88,6 +88,7 @@ class BinaryTree(BinaryTreeBase):
         # if tree is empty, then initialize root to the new node
         if not self.getRoot():
             self.createNode(key, None)
+            self.updateTreeObjectRootPointer(root=self.getRoot())
             self.cleanUp(callEnviron)
             return True
 
@@ -162,6 +163,7 @@ class BinaryTree(BinaryTreeBase):
         else:
             # go through the process of deleting the item
             result = self.__delete(cur, callEnviron)
+            self.updateTreeObjectRootPointer(root=self.getRoot())
         self.cleanUp(callEnviron)
         return result
         
