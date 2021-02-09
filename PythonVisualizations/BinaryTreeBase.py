@@ -3,11 +3,15 @@ import random
 from enum import Enum
 
 try:
+    from coordinates import *
     from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
+
+V = vector
 
 class Child(Enum):
     LEFT = 0
@@ -80,7 +84,7 @@ class BinaryTreeBase(VisualizationApp):
     # return's the node's left child's index
     def getLeftChildIndex(self, node):
         nodeIndex = self.getIndex(node)
-        childIndex = 2*nodeIndex + 1
+        childIndex = 2 * nodeIndex + 1
 
         if childIndex >= self.maxElems: return -1
         else: return childIndex
@@ -89,7 +93,7 @@ class BinaryTreeBase(VisualizationApp):
     def getRightChildIndex(self, node):
         nodeIndex = self.getIndex(node)
         if nodeIndex == -1: return -1
-        childIndex = 2*nodeIndex + 2
+        childIndex = 2 * nodeIndex + 2
 
         if childIndex >= self.maxElems: return -1
         else: return childIndex
@@ -200,6 +204,66 @@ class BinaryTreeBase(VisualizationApp):
         return self.create_oval(x-r, y-r, x+r, y+r, **kwargs)
     Canvas.create_circle = _create_circle
 
+    def createTreeObject(
+            self, label="BinarySearchTree", offsetAngle=180, offset=30,
+            color='powder blue', root='root', dotColor='red', fields=[], 
+            font=None):
+        '''Create the tree object that points to the root of a tree.
+        The object is represented with a filled rectangle holding a list
+        of fields plus a final field with an arrow pointing to the root
+        of the tree.
+        '''
+        fieldFont, labelFont = self.treeObjectFonts(font)
+        fieldWidths = [self.textWidth(fieldFont, ' {} '.format(field))
+                       for field in fields]
+        ffHeight = self.textHeight(fieldFont)
+        x0, y0, x1, y1 = self.treeObjectCoords(
+            offsetAngle, offset, fields, fieldFont)
+        rect = self.canvas.create_rectangle(
+            x0, y0, x1, y1, fill=color, tags=(label, "treeObject"))
+        fieldLabels = [self.canvas.create_text(
+            x0 + sum(fieldWidths[:i]) + fieldWidth[i] // 2, y0 + ffHeight,
+            text=field, font=fieldFont, fill='black', anchor=S,
+            tags=(label + "fieldLabel"))
+                       for i, field in enumerate(fields)]
+        dotCenter = V(x0, y0) + V(self.treeDotCenter(fields, fieldFont))
+        rootLabel = self.canvas.create_text(
+            dotCenter[0], y0 + ffHeight, text=root, font=fieldFont,
+            fill='black', anchor=S, tags=(label + "fieldLabel"))
+        radiusV = V((self.CIRCLE_SIZE // 2, ) * 2)
+        oval = self.canvas.create_oval(
+            *(V(dotCenter) - radiusV), *(V(dotCenter) + radiusV), fill=dotColor,
+            width=0, tags=(label, 'dot'))
+        treeLabel = self.canvas.create_text(
+            x0 - 5, (y0 + y1) // 2, text=label, font=labelFont, anchor=E)
+        return (rect, rootLabel, oval, *fieldLabels, treeLabel)
+
+    def treeObjectFonts(self, font=None):
+        fieldFont = (self.VARIABLE_FONT[0] if font is None else font[0],
+                     -10 if font is None else font[1])
+        return fieldFont, (fieldFont[0], 14 * fieldFont[1] // 10)
+
+    def treeObjectCoords(
+            self, offsetAngle=180, offset=30, fields=[], font=None):
+        fieldFont, _ = self.treeObjectFonts(font)
+        rootWidth = self.textWidth(fieldFont, ' root ')
+        fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
+                          for field in fields)
+        x0, y0 = V(self.ROOT_X0, self.ROOT_Y0) + V(
+            V(V(V(1, 0).rotate(offsetAngle)) * (offset + self.CIRCLE_SIZE)) -
+            V(fieldsWidth + rootWidth, self.CIRCLE_SIZE))
+        return x0, y0, x0 + fieldsWidth + rootWidth, y0 + 2 * self.CIRCLE_SIZE
+
+    def treeDotCenter(self, fields=[], font=None):
+        '''Relative coords of dot center within tree object rectangle'''
+        fieldFont, _ = self.treeObjectFonts(font)
+        rootWidth = self.textWidth(fieldFont, ' root ')
+        fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
+                          for field in fields)
+        fontHeight = self.textHeight(fieldFont)
+        return fieldsWidth + rootWidth // 2, (
+            fontHeight + 2 * self.CIRCLE_SIZE) // 2
+        
     # Create an arrow to point at a node
     def createArrow(self, node):
         arrow = self.canvas.create_line(node.coords[0], node.coords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
@@ -347,18 +411,16 @@ class BinaryTreeBase(VisualizationApp):
     # parent should be a Node object
     def createNode(self, key, parent = None, direction = None):
         # calculate the level
-        if not parent: level = 0
-        else: level = self.getLevel(parent) + 1                                                
+        level = 0 if parent is None else self.getLevel(parent) + 1
       
         # calculate the coords
         coords = self.calculateCoordinates(parent, level, direction)
-        x,y = coords
 
         # generate a tag
         tag = self.generateTag()
 
         # create the shape and text
-        circle, circle_text = self.createNodeShape(x, y, key, tag)
+        circle, circle_text = self.createNodeShape(*coords, key, tag)
       
         # create the drawnValue object
         drawnValueObj = drawnValue(key, circle, circle_text)
@@ -454,10 +516,18 @@ class BinaryTreeBase(VisualizationApp):
     # remove the tree's drawing
     # empty the tree's data
     def emptyTree(self):
-        self.canvas.delete("all")
         self.size = 0
         self.nodes = [None] * (2**self.MAX_LEVEL)
 
+    def display(self):
+        self.canvas.delete("all")
+        treeObjectItems = self.createTreeObject()
+        newNodes = [self.createNode(
+            node.getKey(), None if i == 0 else self.nodes[(i - 1) // 2],
+            Child.LEFT if i % 2 == 1 else Child.RIGHT) if node else None
+                    for i, node in enumerate(self.nodes)]
+        self.nodes = newNodes
+        
     # remove the node's drawing
     def removeNodeDrawing(self, node, line=False):
         # should the line pointing to the node be removed?

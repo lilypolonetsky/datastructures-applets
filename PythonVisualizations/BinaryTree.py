@@ -16,21 +16,27 @@ class BinaryTree(BinaryTreeBase):
         self.buttons = self.makeButtons()
         self.title = title
 
+        # empty the tree
+        self.emptyTree()
+        
         # populate the tree
         self.fill(values=20 if values is None else values)
 
+        # Display it
+        self.display()
+        
     def fill(self, values, animation=False):
         '''Fill the tree with values which is either a list of integers or
         an integer number of random values'''
         callEnviron = self.createCallEnvironment()
 
-        # empty the tree
-        self.emptyTree()
-
+        
         nums = [random.randrange(self.valMax) for i in range(values)] if (
             isinstance(values, int)) else values
+        self.emptyTree()
         for num in nums:
             self.insertElem(num, animation=animation)
+        self.display()
 
         self.cleanUp(callEnviron)
 
