@@ -144,7 +144,36 @@ def __find(self, goal={goal}):
                 'return (current, parent)', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
         return current, parent
-    
+
+    searchCode = '''
+def search(self, goal={goal}):
+   node, p = self.__find(goal)
+   return node.data if node else None
+'''
+    def search(self, goal, code=searchCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        wait = 0.1
+
+        self.highlightCode('node, p = self.__find(goal)', callEnviron)
+        node, p = self._find(goal)
+
+        nodeIndex = self.createArrow(node, label='node')
+        pIndex = self.createArrow(p, label='p', level=2)
+        callEnviron |= set(nodeIndex + pIndex)
+        self.highlightCode(('node', 3), callEnviron, wait=wait)
+
+        if 0 <= node and node < self.maxElems and self.nodes[node]:
+            self.highlightCode('return node.data', callEnviron, wait=wait)
+            callEnviron.add(self.createNodeHighlight(node))
+            result =  self.nodes[node].getKey()
+        else:
+            self.highlightCode(['return', 'None'], callEnviron, wait=wait)
+            result = None
+
+        self.cleanUp(callEnviron)
+        return result
+        
     insertCode = '''
 def insert(self, key={key}, data):
    node, parent = self.__find(key)
@@ -351,23 +380,21 @@ def insert(self, key={key}, data):
 
     def clickSearch(self):
         val = self.validArgument()
-        if val is not None:
-            result, parent = self.find(val)
-            if result != None:
-                msg = "Found {}!".format(val)
-            else:
-                msg = "Value {} not found".format(val)
-            self.setMessage(msg)
+        self.setMessage(
+            "Key {} not found".format(val) if self.search(
+                val, start=self.startMode()) is None else 
+            "Found key {}!".format(val))
         self.clearArgument()
 
     def clickFill(self):
         val = self.validArgument()
         if val is not None:
-            if val < 32:
+            if val <= self.maxElems:
                 self.fill(val)
             else:
-                self.setMessage("Input value must be an integer from 0 to 31.")
-        self.clearArgument()
+                self.setMessage("Number of keys must be between 0 and {}"
+                                .format(self.maxElems))
+            self.clearArgument()
 
     def clickDelete(self):
         val = self.validArgument()
