@@ -12,7 +12,9 @@ except ModuleNotFoundError:
 
 class BinaryTree(BinaryTreeBase):
     def __init__(self, title="Binary Search Tree", values=None, **kwargs):
-        super().__init__(title=title, **kwargs)
+        height = kwargs.get('canvasHeight', 400)
+        width = kwargs.get('canvasWidth', 800)
+        super().__init__(RECT=(0, 30, width, height - 30), title=title, **kwargs)
         self.buttons = self.makeButtons()
         self.title = title
 
@@ -35,7 +37,7 @@ class BinaryTree(BinaryTreeBase):
             isinstance(values, int)) else values
         self.emptyTree()
         for num in nums:
-            self.insertElem(num, animation=animation)
+            self.insert(num, animation=animation)
         self.display()
 
         self.cleanUp(callEnviron)
@@ -80,75 +82,151 @@ class BinaryTree(BinaryTreeBase):
         self.cleanUp(callEnviron, stopAnimations=stopAnimations)
         return None, None
 
-    def insertElem(self, key, animation=True):
-        callEnviron = self.createCallEnvironment()
+    _findCode = '''
+def __find(self, goal={goal}):
+   current = self.__root
+   parent = self
+   while (current and goal != current.key):
+      parent = current
+      current = (
+         current.leftChild if goal < current.key else
+         current.rightChild)
 
-        inserted = False
+   return (current, parent)
+'''
 
-        # if tree is empty, then initialize root to the new node
-        if not self.getRoot():
-            self.createNode(key, None)
-            self.updateTreeObjectRootPointer(root=self.getRoot())
-            self.cleanUp(callEnviron)
-            return True
+    def _find(self, goal, animation=True, code=_findCode):
+        callEnviron = self.createCallEnvironment(
+            code='' if not animation else code.format(**locals()))
+        wait = 0.1
 
-        # start at the root
-        cur = self.getRoot()
-        level = 1
-
-        # create arrow
+        current = 0
+        parent = -1
         if animation:
-            arrow = self.createArrow(cur)
-            callEnviron |= set(arrow)
+            self.highlightCode('current = self.__root', callEnviron, wait=wait)
+            currentIndex = self.createArrow(0, label='current')
+            callEnviron |= set(currentIndex)
 
-        while not inserted:
-            # if the key is to the left of current node, follow to the left
-            if key < cur.getKey():
-                # if no left child, insert on left
-                if not self.getLeftChild(cur):
-                    if animation:
-                        # calculate where new node will be
-                        coords = self.calculateCoordinates(cur, level, Child.LEFT)
-                        # move arrow to new node
-                        self.moveArrow(arrow, coords)
-                        self.wait(0.2)
+            self.highlightCode('parent = self', callEnviron, wait=wait)
+            parentIndex = self.createArrow(parent, label='parent', level=2)
+            callEnviron |= set(parentIndex)
 
-                    self.createNode(key, cur, Child.LEFT)
-                    inserted = True
-                cur = self.getLeftChild(cur)
+            self.highlightCode(('current', 2), callEnviron, wait=wait)
+            if self.nodes[current]:
+                self.highlightCode(
+                    'goal != current.key', callEnviron, wait=wait)
 
-            # otherwise, key must be to right of current node
-            else:  
-                if not self.getRightChild(cur):
-                    if animation:
-                        # calculate where new node will be
-                        coords = self.calculateCoordinates(cur, level, Child.RIGHT)
-                        # move arrow to new node
-                        self.moveArrow(arrow, coords)
-                        self.wait(0.2)
+        while (current < self.maxElems and self.nodes[current] and
+               goal != self.nodes[current].getKey()):
+            if animation:
+                self.highlightCode('parent = current', callEnviron)
+                self.moveArrow(parentIndex, current, level=2)
+            parent = current
 
-                    self.createNode(key, cur, Child.RIGHT)
-                    inserted = True
-                cur = self.getRightChild(cur)
+            goLeft = goal < self.nodes[current].getKey()
+            if animation:
+                self.highlightCode('goal < current.key', callEnviron, wait=wait)
+                self.highlightCode(
+                    [('current = ', 2),
+                     'current.leftChild' if goLeft else 'current.rightChild'],
+                    callEnviron, wait=wait)
+            current = 2 * current + (1 if goLeft else 2)
+            
+            if animation:
+                self.moveArrow(currentIndex, current)
+                self.highlightCode(('current', 2), callEnviron, wait=wait)
+                if current < self.maxElems and self.nodes[current]:
+                    self.highlightCode(
+                        'goal != current.key', callEnviron, wait=wait)
 
-            level+=1
-
-            # move arrow
-            if animation and not inserted:
-                self.moveArrow(arrow, cur)
-                self.wait(0.3)
-
-            if level >= self.MAX_LEVEL and not inserted:
-                if animation:
-                    self.setMessage(
-                        "Error! Cannot insert at level " + str(level) + 
-                        " or below")
-                self.cleanUp(callEnviron)
-                return False
-
+        if animation:
+            self.highlightCode(
+                'return (current, parent)', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
-        return True
+        return current, parent
+    
+    insertCode = '''
+def insert(self, key={key}, data):
+   node, parent = self.__find(key)
+   if node:
+      node.data = data
+      return False
 
+   if parent is self:
+      self.__root = self.__Node(key, data)
+   elif key < parent.key:
+      parent.leftChild = self.__Node(
+         key, data, right=node)
+   else:
+      parent.rightChild = self.__Node(
+         key, data, right=node)
+   return True
+'''
+    
+    def insert(self, key, animation=True, code=insertCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code='' if not animation else code.format(**locals()),
+            startAnimations=start if animation else False)
+        inserted = False
+        wait = 0.1
+
+        if animation:
+            self.highlightCode('node, parent = self.__find(key)', callEnviron)
+        node, parent = self._find(key, animation=animation)
+
+        if animation:
+            nodeIndex = self.createArrow(node, label='node')
+            parentIndex = self.createArrow(parent, label='parent', level=2)
+            callEnviron |= set(nodeIndex + parentIndex)
+            self.highlightCode(('node', 2), callEnviron, wait=wait)
+        if 0 <= node and node < self.maxElems and self.nodes[node]:
+            nodeHighlight = self.createNodeHighlight(node)
+            callEnviron.add(nodeHighlight)
+            if animation:
+                self.highlightCode('node.data = data', callEnviron, wait=wait)
+                self.highlightCode('return False', callEnviron, wait=wait)
+            self.cleanUp(callEnviron)
+            return inserted
+
+        if animation:
+            self.highlightCode('parent is self', callEnviron, wait=wait)
+        if parent == -1:
+            if animation:
+                self.highlightCode('self.__root = self.__Node(key, data)',
+                                   callEnviron, wait=wait)
+            self.createNode(key)
+            inserted = True
+            self.updateTreeObjectRootPointer(root=self.getRoot())
+            
+        elif node >= self.maxElems:
+            if animation:
+                self.setMessage(
+                    "Error! Cannot insert at level {} or below".format(
+                        self.MAX_LEVEL))
+                self.highlightCode([], callEnviron)
+
+        else:
+            if animation:
+                self.highlightCode('key < parent.key', callEnviron, wait=wait)
+                
+            dir = 'left' if key < self.nodes[parent].getKey() else 'right'
+            if animation:
+                self.highlightCode(
+                    'parent.{}Child = self.__Node('.format(dir) +
+                    '\n         key, data, right=node)',
+                    callEnviron, wait=wait)
+            self.createNode(key, self.nodes[parent], 
+                            Child.LEFT if dir == 'left' else Child.RIGHT)
+            if animation:
+                self.moveArrow(nodeIndex, node * 2 + 2, sleepTime=0)
+            inserted = True
+ 
+        if animation and inserted:
+            self.highlightCode('return True', callEnviron, wait=wait)
+            
+        self.cleanUp(callEnviron)
+        return inserted
+        
     def delete(self, key):
         # create a call environment and start the animations
         callEnviron = self.createCallEnvironment()
@@ -267,9 +345,9 @@ class BinaryTree(BinaryTreeBase):
     def clickInsert(self):
         val = self.validArgument()
         if val:
-            self.insertElem(val)
-            self.window.update()
-        self.clearArgument()
+            if self.insert(val, start=self.startMode()):
+                self.setMessage('Key {} inserted'.format(val))
+            self.clearArgument()
 
     def clickSearch(self):
         val = self.validArgument()

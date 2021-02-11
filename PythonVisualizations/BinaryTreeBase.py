@@ -39,7 +39,7 @@ class BinaryTreeBase(VisualizationApp):
     FOUND_FONT = ('Helvetica', FONT_SIZE)
 
     def __init__(self, RECT=None, CIRCLE_SIZE = 15, VAL_MAX=99, 
-               ARROW_HEIGHT = 30,MAX_LEVEL = 5, **kwargs):
+               ARROW_HEIGHT = 5, MAX_LEVEL = 5, **kwargs):
         """Build a VisualizationApp that will show a binary tree on part of the
         canvas within the rectangle bounded by RECT (X0, Y0, X1, Y1) which
         defaults to (0, 0, canvas width, canvas height).
@@ -49,15 +49,16 @@ class BinaryTreeBase(VisualizationApp):
         """
         super().__init__(**kwargs)
         if RECT is None:
-            RECT =  (0, 0, self.targetCanvasWidth, self.targetCanvasHeight)
+            RECT = (0, 0, self.targetCanvasWidth, self.targetCanvasHeight)
         X0, Y0, X1, Y1 = RECT
         self.valMax = VAL_MAX
         
         self.CIRCLE_SIZE = CIRCLE_SIZE       # radius of each node
         self.ARROW_HEIGHT = ARROW_HEIGHT     # indicator arrow height
         self.MAX_LEVEL = MAX_LEVEL           # the max level of the tree plus 1
-        self.ROOT_X0 = (X0 + X1) // 2        # root's x center
-        self.ROOT_Y0 = Y0 + ARROW_HEIGHT + CIRCLE_SIZE # root's y center
+        self.ROOT_X0 = (X0 + X1) // 2        # root's center
+        self.ROOT_Y0 = Y0 + CIRCLE_SIZE + ARROW_HEIGHT + 2 * abs(
+            self.VARIABLE_FONT[1])
         self.TREE_WIDTH = X1 - X0 - 2 * CIRCLE_SIZE # max tree width
         # the vertical gap between levels
         self.LEVEL_GAP = (Y1 - CIRCLE_SIZE - self.ROOT_Y0) / max(1, MAX_LEVEL - 1)
@@ -65,7 +66,7 @@ class BinaryTreeBase(VisualizationApp):
         # tree will be stored in array
         # root will be index 0
         # root's left child will be index 1, root's right child will be index 2
-        self.maxElems = 2 ** self.MAX_LEVEL     
+        self.maxElems = 2 ** self.MAX_LEVEL - 1
         self.nodes = [None] * self.maxElems
         self.size = 0
 
@@ -205,7 +206,7 @@ class BinaryTreeBase(VisualizationApp):
     Canvas.create_circle = _create_circle
 
     def createTreeObject(
-            self, label="BinarySearchTree", offsetAngle=180, offset=30,
+            self, label="BinarySearchTree", offsetAngle=180, offset=40,
             color='powder blue', root='root', dotColor='red', fields=[], 
             font=None):
         '''Create the tree object that points to the root of a tree.
@@ -238,7 +239,9 @@ class BinaryTreeBase(VisualizationApp):
             width=0, tags=(label, 'dot'))
         treeLabel = self.canvas.create_text(
             x0 - 5, (y0 + y1) // 2, text=label, font=labelFont, anchor=E)
-        return (rect, arrow, rootLabel, oval, *fieldLabels, treeLabel)
+        self.treeObject = (
+            rect, arrow, rootLabel, oval, *fieldLabels, treeLabel)
+        return self.treeObject
 
     def treeObjectFonts(self, font=None):
         fieldFont = (self.VARIABLE_FONT[0] if font is None else font[0],
@@ -258,7 +261,7 @@ class BinaryTreeBase(VisualizationApp):
         fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
         x0, y0 = V(self.ROOT_X0, self.ROOT_Y0) + V(
-            V(V(V(1, 0).rotate(offsetAngle)) * (offset + self.CIRCLE_SIZE)) -
+            V(V(offset + self.CIRCLE_SIZE, 0).rotate(offsetAngle)) -
             V(fieldsWidth + rootWidth, self.CIRCLE_SIZE + ffHeight))
         return (x0, y0, 
                 x0 + fieldsWidth + rootWidth,
@@ -285,38 +288,96 @@ class BinaryTreeBase(VisualizationApp):
                            *(arrowCoords[:2] if root is None else
                              V(root.coords) - V(self.CIRCLE_SIZE, 0)))
         
-    # Create an arrow to point at a node
-    def createArrow(self, node):
-        arrow = self.canvas.create_line(node.coords[0], node.coords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
-                                   node.coords[0], node.coords[1] - self.CIRCLE_SIZE, arrow="last", fill='red')
-        return (arrow, )
+    def createArrow(
+            self, node, label=None, level=1, color='red', width=1,
+            tags=['arrow'], font=None):
+        '''Create an arrow pointing at either an existing node or an index
+        to cell in the array of nodes.  Optionally give a text label.
+        '''
+        if font is None: font = self.VARIABLE_FONT
+        x0, y0, x1, y1 = self.indexCoords(node, level, font)
+        arrow = self.canvas.create_line(
+            x0, y0, x1, y1, arrow="last", fill=color, width=width, tags=tags)
+        if label is None:
+            return (arrow, )
+        label = self.canvas.create_text(
+            x0, y0, text=label, anchor=SW, font=font, fill=color, tags=tags)
+        return (arrow, label)
 
-    # move the arrow to point above the node
-    def moveArrow(self, arrow, node, numSteps=10, sleepTime=0.02):
-        # was a node passed in?
-        if isinstance(node, Node):
-            toPos = (node.coords[0], node.coords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
-            node.coords[0], node.coords[1] - self.CIRCLE_SIZE)
-        # were the coords passed?
+    def indexCoords(self, node, level, font=None):
+        '''Compute coordinates of an arrow pointing at either an existing
+         node or an index to cell in the array of nodes.
+        '''
+        if font is None: font = self.VARIABLE_FONT
+        center = (node.coords if isinstance(node, Node)
+                  else self.nodeCenterCoords(node))
+        x0 = center[0]
+        y0 = center[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT - level * abs(
+            font[1])
+        x1, y1 = center[0], center[1] - self.CIRCLE_SIZE
+        return x0, y0, x1, y1
+        
+    def moveArrow(
+            self, arrow, node, level=1, numSteps=10, sleepTime=0.02, font=None):
+        '''Move an arrow to point at a node.  The node can be either a Node
+        object, a coordinate pair, or an index to the nodes array where index
+        -1 is the binary tree object.
+        '''
+        if isinstance(node, (int, Node)):
+            newCoords = self.indexCoords(node, level, font)
         elif isinstance(node, tuple):
-            toPos = (node[0], node[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
-            node[0], node[1] - self.CIRCLE_SIZE)
+            if font is None: font = self.VARIABLE_FONT
+            newCoords = (
+                node[0], node[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT - 
+                level * abs(font[1]),
+                node[0], node[1] - self.CIRCLE_SIZE)
+        else:
+            raise ValueError('Unrecognized node type: {}'.formt(type(node)))
 
-        self.moveItemsTo(arrow, (toPos,), steps = numSteps, sleepTime=sleepTime)
+        self.moveItemsTo(
+            arrow, 
+            (newCoords,) if len(arrow) == 1 else (newCoords, newCoords[:2]), 
+            steps=numSteps, sleepTime=sleepTime)
 
-    # calculate the coordinates for the node shape
+    # calculate the coordinates for the node shape based on its parent node
     def calculateCoordinates(self, parent, level, childDirection):
         if level == 0:
             return self.ROOT_X0, self.ROOT_Y0
-        elif childDirection == Child.LEFT:
-            return parent.coords[0] - 1/2**(level+1)* self.TREE_WIDTH, self.ROOT_Y0+level* self.LEVEL_GAP
-        else:
-            return parent.coords[0] + 1/2**(level+1)* self.TREE_WIDTH, self.ROOT_Y0+level* self.LEVEL_GAP
+        dx = 1/2**(level+1) * self.TREE_WIDTH
+        return V(parent.coords) + V(
+            -dx if childDirection == Child.LEFT else dx, self.LEVEL_GAP)
+
+    def nodeCenterCoords(self, nodeIndex):
+        '''Calculate the coordinates for node based on its index in the nodes
+        array.  The index -1 indicates the binary tree object
+        '''
+        if nodeIndex < 0:
+            treeObjectBox = (
+                (0, 0, 40, 30) if getattr(self, 'treeObject', None) is None else
+                self.canvas.coords(self.treeObject[0]))
+            return V(V(treeObjectBox[:2]) + V(treeObjectBox[2:])) / 2 
+        level, i = 0, nodeIndex
+        x, y = 0, 0
+        while 0 < i:
+            x = x / 2 + self.TREE_WIDTH / (4 if i % 2 == 0 else -4)
+            y += self.LEVEL_GAP
+            i = (i - 1) // 2
+        return self.ROOT_X0 + x, self.ROOT_Y0 + y
         
     def nodeShapeCoordinates(self, center):
         return (center[0] - self.CIRCLE_SIZE, center[1] - self.CIRCLE_SIZE,
                 center[0] + self.CIRCLE_SIZE, center[1] + self.CIRCLE_SIZE)
 
+    def createNodeHighlight(self, node, highlightWidth=2, color=None):
+        if color is None: color = self.FOUND_COLOR
+        nCoords = self.nodeShapeCoordinates(
+            node.coords if isinstance(node, Node) else 
+            self.nodeCenterCoords(node))
+        delta = (highlightWidth, highlightWidth)
+        highlightCoords = (V(nCoords[:2]) - delta) + (V(nCoords[2:]) + delta)
+        return self.canvas.create_oval(
+            *highlightCoords, fill=None, outline=color, width=highlightWidth)
+        
     # calculate the coordinates for the line attached to the node
     def calculateLineCoordinates(self, node, parent=None):
         # get node's parent
