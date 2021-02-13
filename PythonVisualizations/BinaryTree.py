@@ -14,7 +14,9 @@ class BinaryTree(BinaryTreeBase):
     def __init__(self, title="Binary Search Tree", values=None, **kwargs):
         height = kwargs.get('canvasHeight', 400)
         width = kwargs.get('canvasWidth', 800)
-        super().__init__(RECT=(0, 30, width, height - 30), title=title, **kwargs)
+        padY = 30
+        super().__init__(RECT=(0, padY, width, height - padY), 
+                         title=title, **kwargs)
         self.buttons = self.makeButtons()
         self.title = title
 
@@ -116,8 +118,7 @@ def __find(self, goal={goal}):
                 self.highlightCode(
                     'goal != current.key', callEnviron, wait=wait)
 
-        while (current < self.maxElems and self.nodes[current] and
-               goal != self.nodes[current].getKey()):
+        while self.getNode(current) and goal != self.nodes[current].getKey():
             if animation:
                 self.highlightCode('parent = current', callEnviron)
                 self.moveArrow(parentIndex, current, level=2)
@@ -135,13 +136,13 @@ def __find(self, goal={goal}):
             if animation:
                 self.moveArrow(currentIndex, current)
                 self.highlightCode(('current', 2), callEnviron, wait=wait)
-                if current < self.maxElems and self.nodes[current]:
+                if self.getNode(current):
                     self.highlightCode(
                         'goal != current.key', callEnviron, wait=wait)
 
         if animation:
             self.highlightCode(
-                'return (current, parent)', callEnviron, wait=wait)
+                'return (current, parent)', callEnviron)
         self.cleanUp(callEnviron)
         return current, parent
 
@@ -163,7 +164,7 @@ def search(self, goal={goal}):
         callEnviron |= set(nodeIndex + pIndex)
         self.highlightCode(('node', 3), callEnviron, wait=wait)
 
-        if 0 <= node and node < self.maxElems and self.nodes[node]:
+        if self.getNode(node):
             self.highlightCode('return node.data', callEnviron, wait=wait)
             callEnviron.add(self.createNodeHighlight(node))
             result =  self.nodes[node].getKey()
@@ -208,7 +209,7 @@ def insert(self, key={key}, data):
             parentIndex = self.createArrow(parent, label='parent', level=2)
             callEnviron |= set(nodeIndex + parentIndex)
             self.highlightCode(('node', 2), callEnviron, wait=wait)
-        if 0 <= node and node < self.maxElems and self.nodes[node]:
+        if self.getNode(node):
             nodeHighlight = self.createNodeHighlight(node)
             callEnviron.add(nodeHighlight)
             if animation:
@@ -247,7 +248,10 @@ def insert(self, key={key}, data):
             self.createNode(key, self.nodes[parent], 
                             Child.LEFT if dir == 'left' else Child.RIGHT)
             if animation:
-                self.moveArrow(nodeIndex, node * 2 + 2, sleepTime=0)
+                if dir == 'left':
+                    self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
+                self.moveItemsBy(
+                    nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait/10)
             inserted = True
  
         if animation and inserted:
@@ -255,111 +259,242 @@ def insert(self, key={key}, data):
             
         self.cleanUp(callEnviron)
         return inserted
-        
-    def delete(self, key):
-        # create a call environment and start the animations
-        callEnviron = self.createCallEnvironment()
+    
+    deleteCode = '''
+def delete(self, goal={goal}):
+   node, parent = self.__find(goal)
+   if node is not None:
+      return self.__delete(parent, node)
+   return
+'''
 
-        # find the node with the key
-        cur, parent = self.find(key, stopAnimations=False)
+    def delete(self, goal, code=deleteCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        wait = 0.1
 
-        # node with key does not exist
-        if not cur: 
-            result = None
-            self.stopAnimations()
+        self.highlightCode('node, parent = self.__find(goal)', callEnviron)
+        node, parent = self._find(goal)
+
+        nodeIndex = self.createArrow(node, label='node')
+        parentIndex = self.createArrow(parent, label='parent', level=2)
+        callEnviron |= set(nodeIndex + parentIndex)
+
+        self.highlightCode('node is not None', callEnviron, wait=wait)
+        if self.getNode(node):
+            self.highlightCode('return self.__delete(parent, node)',
+                               callEnviron)
+            localVars = parentIndex + nodeIndex
+            colors = self.fadeNonLocalItems(localVars)
+            result = self.__delete(parent, node)
+            self.restoreLocalItems(localVars, colors)
+            deletedNodeCoords = self.deletedNodeCoords(level=1)
+            deletedNode = self.createNodeShape(
+                *deletedNodeCoords, result, 'deleted')
+            callEnviron |= set(deletedNode)
+
+            if self.getNode(node):
+                if node % 2 == 1:
+                    self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
+                self.moveItemsBy(
+                    nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait/10)
         else:
-            # go through the process of deleting the item
-            result = self.__delete(cur, callEnviron)
-            self.updateTreeObjectRootPointer(root=self.getRoot())
+            self.highlightCode(('return', 2), callEnviron, wait=wait)
+            result = None
+
         self.cleanUp(callEnviron)
         return result
-        
-    def __delete(self, cur, callEnviron):
+    
+    __deleteCode = '''
+def __delete(self, parent, node):
+   deleted = node.data
+   if node.leftChild:
+      if node.rightChild:
+         self.__promote_successor(node)
+      else:
+         if parent is self:
+            self.__root = node.leftChild
+         elif parent.leftChild is node:
+            parent.leftChild = node.leftChild
+         else:
+            parent.rightChild = node.leftChild
+   else:
+      if parent is self:
+         self.__root = node.rightChild
+      elif parent.leftChild is node:
+         parent.leftChild = node.rightChild
+      else:
+         parent.rightChild = node.rightChild
+   return deleted
+'''
+    
+    def __delete(self, parent, node, code=__deleteCode, level=1):
+        'parent and node must be integer indices'
+        callEnviron = self.createCallEnvironment(code=code)
+        wait = 0.1
 
-        #save the deleted key and its index
-        deleted = cur.getKey()
-        
-        #determine the correct process for removing the node from the tree
-        if self.getLeftChild(cur):
-            if self.getRightChild(cur):    # cur has left and right child
-                self.__promoteSuccessor(cur, callEnviron)
-                self.removeNodeDrawing(cur) # Remove deleted node's canvas items
-            else:                          # cur only has left child
-                self.removeNodeDrawing(cur) # Remove deleted node's canvas items
-                # get cur's left child that will be moving up
-                curLeft = self.getLeftChild(cur)
-                # remove current and promote left child
-                self.removeAndReconnectNodes(cur, curLeft)
-        else:                        # a right child exists or no children
-            self.removeNodeDrawing(cur)  # Remove deleted node's canvas items
-            # get cur's right child that will be moving up
-            curRight = self.getRightChild(cur)
-            # remove current and promote right child
-            self.removeAndReconnectNodes(cur, curRight)
+        parentIndex = self.createArrow(parent, 'parent', level=2)
+        nodeIndex = self.createArrow(node, label='node')
+        callEnviron |= set(parentIndex + nodeIndex)
+        self.highlightCode('deleted = node.data', callEnviron, wait=wait)
+        deleted = self.getNode(node).getKey()
+        deletedNodeCoords = self.deletedNodeCoords(level)
+        deletedLabel = self.canvas.create_text(
+            *(V(deletedNodeCoords) - V(self.CIRCLE_SIZE + 5, 0)), anchor=E,
+            text='deleted', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        callEnviron.add(deletedLabel)
+        deletedNode = self.createNodeShape(
+            *self.nodeCenter(node), deleted, 'deleted')
+        callEnviron |= set(deletedNode)
+        self.moveItemsTo(deletedNode, self.nodeItemCoords(deletedNodeCoords),
+                         sleepTime=wait / 10)
 
-        return deleted
-        
-    def removeAndReconnectNodes(self, cur, curRightOrLeft):
-        
-        # 1. Note the indices of the current node and the child to move up
-        curIndex, childIndex = self.getIndex(cur), self.getIndex(curRightOrLeft)
+        self.highlightCode('node.leftChild', callEnviron, wait=wait)
+        if self.getLeftChild(node):
 
-        # 2. delete the key and line to its parent 
-        line = self.getLine(cur)
-        if line:
-            self.canvas.delete(line)
-        elif curRightOrLeft and self.getLine(curRightOrLeft):
-            self.canvas.delete(self.getLine(curRightOrLeft))
-        self.removeNodeInternal(cur)
-
-        # 3. move child subtree to be rooted at current node
-        self.moveSubtree(curIndex, childIndex)
-
-        # 4. move cur's right/left and its children up in the drawing
-        #does cur have children?
-        if curRightOrLeft:
-            moveItems = [curRightOrLeft] + self.getAllDescendants(curRightOrLeft)
-            self.restoreNodesPosition(moveItems)
-
-        self.redrawLines()
-
-    def __promoteSuccessor(self, node, callEnviron):
-        successor = self.getRightChild(node)
-        parent = node
-
-        self.createHighlightedLine(successor, callEnviron=callEnviron)
+            self.highlightCode('node.rightChild', callEnviron, wait=wait)
+            if self.getRightChild(node):
                 
-        #hunt for the right child's most left child
-        while self.getLeftChild(successor):
-            parent = successor
-            successor = self.getLeftChild(successor)
+                self.highlightCode('self.__promote_successor(node)', 
+                                   callEnviron, wait=wait)
+                localVars = deletedNode + parentIndex + nodeIndex + (
+                    deletedLabel,)
+                colors = self.fadeNonLocalItems(localVars)
+                self.__promote_successor(node)
+                self.restoreLocalItems(localVars, colors)
+                
+            else:
+                self.highlightCode('parent is self', callEnviron, wait=wait)
+                if parent == -1:
+                    self.highlightCode('self.__root = node.leftChild',
+                                       callEnviron)
+                    self.replaceSubtree(
+                        parent, Child.RIGHT,
+                        self.getLeftChildIndex(node), callEnviron)
+
+                else:
+                    self.highlightCode('parent.leftChild is node',
+                                       callEnviron, wait=wait)
+                    nodeIsLeft = self.getLeftChildIndex(parent) == node
+                    self.highlightCode(
+                        'parent.leftChild = node.leftChild' if nodeIsLeft else
+                        'parent.rightChild = node.leftChild',
+                        callEnviron, wait=wait)
+                    self.replaceSubtree(
+                        parent, Child.LEFT if nodeIsLeft else Child.RIGHT,
+                        self.getLeftChildIndex(node), callEnviron)
+        else:
+            self.highlightCode(('parent is self', 2), callEnviron, wait=wait)
+            if parent == -1:
+                self.highlightCode('self.__root = node.rightChild',
+                                   callEnviron)
+                rightChildIndex = self.getRightChildIndex(node)
+                rightChild = self.getNode(rightChildIndex)
+                self.replaceSubtree(
+                    parent, Child.RIGHT, rightChildIndex, callEnviron)
+                if rightChild is None:
+                    self.updateTreeObjectRootPointer(root=self.getRoot())
+
+            else:
+                self.highlightCode(('parent.leftChild is node', 2),
+                                   callEnviron, wait=wait)
+                nodeIsLeft = self.getLeftChildIndex(parent) == node
+                self.highlightCode(
+                    'parent.leftChild = node.rightChild' if nodeIsLeft else
+                    'parent.rightChild = node.rightChild',
+                    callEnviron, wait=wait)
+                self.replaceSubtree(
+                    parent, Child.LEFT if nodeIsLeft else Child.RIGHT,
+                    self.getRightChildIndex(node), callEnviron)
             
-            self.wait(0.2)
-            self.createHighlightedLine(successor, callEnviron=callEnviron)
+        self.highlightCode('return deleted', callEnviron)
+        self.cleanUp(callEnviron)
+        return deleted
 
-        self.wait(0.2)
-        highlight = self.createHighlightedCircle(
-            successor, callEnviron=callEnviron)
+    __promote_successorCode = '''
+def __promote_successor(self, node):
+   successor = node.rightChild
+   parent = node
+   while successor.leftChild:
+      parent = successor
+      successor = successor.leftChild
+   node.key = successor.key
+   node.data = successor.data
+   self.__delete(parent, successor)
+'''
 
-        # replace node to delete with successor's key and data
-        newSuccessor = self.copyNode(successor)
-        callEnviron |= set(newSuccessor.drawnValue.items)
+    def __promote_successor(
+            self, nodeIndex, code=__promote_successorCode):
+        callEnviron = self.createCallEnvironment(code=code)
+        wait = 0.1
+        node = self.getNode(nodeIndex)
+
+        nodeArrow = self.createArrow(nodeIndex, 'node')
+        callEnviron |= set(nodeArrow)
         
-        # a. internal replacement
-        newSuccessor.coords = node.coords
-        deletedIndex = self.getIndex(node)
-        self.nodes[deletedIndex] = newSuccessor
+        self.highlightCode(
+            'successor = node.rightChild', callEnviron, wait=wait)
+        successor = self.getRightChildIndex(nodeIndex)
+        successorIndex = self.createArrow(successor, 'successor')
+        callEnviron |= set(successorIndex)
+
+        self.highlightCode('parent = node', callEnviron, wait=wait)
+        parent = nodeIndex
+        parentIndex = self.createArrow(parent, 'parent', level=2)
+        callEnviron |= set(parentIndex)
         
-        # b. drawing replacement
-        self.restoreNodesPosition((newSuccessor,), includeLines=False)
-        callEnviron -= set(newSuccessor.drawnValue.items)
-        self.removeNodeDrawing(node)
-        self.canvas.delete(highlight)
-        callEnviron.discard(highlight)
+        self.highlightCode('successor.leftChild', callEnviron, wait=wait)
+        while self.getLeftChild(successor):
+            self.highlightCode('parent = successor', callEnviron, wait=wait)
+            parent = successor
+            self.moveArrow(parentIndex, parent, level=2, sleepTime=wait / 10)
 
-        # remove successor node
-        self.__delete(successor, callEnviron)
+            self.highlightCode('successor = successor.leftChild',
+                               callEnviron, wait=wait)
+            successor = self.getLeftChildIndex(successor)
+            self.moveArrow(successorIndex, successor, sleepTime=wait / 10)
+            
+            self.highlightCode('successor.leftChild', callEnviron, wait=wait)
 
+        self.highlightCode('node.key = successor.key', callEnviron, wait=wait)
+        drawnValueToDelete = node.drawnValue
+        successorKey = self.getNode(successor).getKey()
+        tag = self.generateTag()
+        successorCopy = self.createNodeShape(
+            *self.nodeCenter(successor), successorKey, tag)
+        callEnviron |= set(successorCopy)
+        keyCopy = self.copyCanvasItem(successorCopy[2])
+        callEnviron.add(keyCopy)
+        self.moveItemsTo(
+            keyCopy, self.nodeCenter(nodeIndex), sleepTime=wait / 10)
+        self.canvas.tag_lower(drawnValueToDelete.items[2])
+
+        self.highlightCode('node.data = successor.data', callEnviron, wait=wait)
+        self.moveItemsTo(
+            successorCopy, self.nodeItemCoords(node), sleepTime=wait / 10)
+        self.canvas.delete(keyCopy)
+        callEnviron.discard(keyCopy)
+        node.drawnValue = drawnValue(successorKey, drawnValueToDelete.items[0],
+                                     *successorCopy[1:])
+        node.tag = tag
+        callEnviron -= set(successorCopy[1:])
+        for item in drawnValueToDelete.items[1:]:
+            if item:
+                self.canvas.delete(item)
+        
+        self.highlightCode('self.__delete(parent, successor)', callEnviron)
+        localVars = nodeArrow + parentIndex + successorIndex
+        colors = self.fadeNonLocalItems(localVars)
+        self.__delete(parent, successor, level=2)
+        self.restoreLocalItems(localVars, colors)
+        
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron)
+        
+    def deletedNodeCoords(self, level=1):
+        return (self.RECT[2] - self.CIRCLE_SIZE,
+                self.RECT[1] + self.CIRCLE_SIZE * (3 * level - 2))
+        
     def validArgument(self):
         entered_text = self.getArgument()
         if entered_text and entered_text.isdigit():
@@ -399,7 +534,7 @@ def insert(self, key={key}, data):
     def clickDelete(self):
         val = self.validArgument()
         if val is not None:
-            deleted = self.delete(val)
+            deleted = self.delete(val, start=self.startMode())
             msg = ("Deleted {}".format(val) if deleted else
                    "Value {} not found".format(val))
             self.setMessage(msg)

@@ -18,16 +18,27 @@ class Child(Enum):
     RIGHT = 1
 
 class Node(object):
-    def __init__(self, drawnValue, coords, tag):
+    '''Drawing of a node in a binary tree.  The node is represented by
+    a shape with some text centered at particular place on the canvas. A
+    line connects it with its parent (unless it's the root node).  The
+    drawn value's items should be the (line, shape, text) items on the canvas.
+    '''
+    def __init__(self, drawnValue, center, tag):
         self.drawnValue = drawnValue
-        self.coords = coords
+        self.center = center
         self.tag = tag
 
     def getKey(self):
         return self.drawnValue.val
 
-    def setKey(self, k):
-        self.drawnValue.val = k
+    def setKey(self, key):
+        self.drawnValue.val = key
+
+    def getLine(self):
+        return self.drawnValue.items[0]
+
+    def setLine(self, lineItem):
+        self.drawnValue.items = (lineItem,) + self.drawnValue.items[1:] 
 
     def __str__(self):
         return "{" + str(self.getKey()) + "}"
@@ -51,6 +62,7 @@ class BinaryTreeBase(VisualizationApp):
         if RECT is None:
             RECT = (0, 0, self.targetCanvasWidth, self.targetCanvasHeight)
         X0, Y0, X1, Y1 = RECT
+        self.RECT = RECT
         self.valMax = VAL_MAX
         
         self.CIRCLE_SIZE = CIRCLE_SIZE       # radius of each node
@@ -82,121 +94,91 @@ class BinaryTreeBase(VisualizationApp):
       
         return -1
 
-    # return's the node's left child's index
+    # return's the node or node index's left child index
     def getLeftChildIndex(self, node):
-        nodeIndex = self.getIndex(node)
-        childIndex = 2 * nodeIndex + 1
+        return self.getChildIndex(node, Child.LEFT)
 
-        if childIndex >= self.maxElems: return -1
-        else: return childIndex
-
-    # return's the node's right child's index
+    # return's the node or node index's right child index
     def getRightChildIndex(self, node):
-        nodeIndex = self.getIndex(node)
-        if nodeIndex == -1: return -1
-        childIndex = 2 * nodeIndex + 2
+        return self.getChildIndex(node, Child.RIGHT)
 
-        if childIndex >= self.maxElems: return -1
-        else: return childIndex
+    def getChildIndex(self, node, leftOrRight):
+        nodeIndex = self.getIndex(node) if isinstance(node, Node) else node
+        return max(0, 2 * nodeIndex + (2 if leftOrRight == Child.RIGHT else 1))
 
-    # returns the node's left child
+    # return's the node or node index's parent index
+    def getParentIndex(self, node):
+        nodeIndex = self.getIndex(node) if isinstance(node, Node) else node
+        return max(-1, (nodeIndex - 1) // 2)
+
+    # returns the node's left child node
     def getLeftChild(self, node):
-        childIndex = self.getLeftChildIndex(node)
+        return self.getChild(node, Child.LEFT)
 
-        if childIndex != -1: return self.nodes[childIndex]
-        else: return None
-
-    # returns the node's right child
+    # returns the node's right child node
     def getRightChild(self, node):
-        childIndex = self.getRightChildIndex(node)
+        return self.getChild(node, Child.RIGHT)
 
-        if childIndex != -1: return self.nodes[childIndex]
-        else: return None
+    def getChild(self, node, leftOrRight):
+        childIndex = self.getChildIndex(node, leftOrRight)
+        return self.getNode(childIndex)
+
+    def getNode(self, nodeIndex):  # Get a node by its index, if valid
+        if isinstance(nodeIndex, Node):
+            return nodeIndex
+        if 0 <= nodeIndex and nodeIndex < self.maxElems:
+            return self.nodes[nodeIndex]
+        
+    # returns the node or node index's parent node
+    def getParent(self, node):
+        if self.isRoot(node): return None
+        return self.getNode(self.getParentIndex(node))
 
     # returns the root node
     def getRoot(self):
         return self.nodes[0]
 
-    # returns True if node is the root
+    # returns True if node or node index is the root
     def isRoot(self, node):
-        return self.nodes[0] is node
+        return (
+            (self.nodes[0] is node) if isinstance(node, Node) else (node == 0))
 
     # returns True if the node has no children, false otherwise
     def isLeaf(self, node):
         # if neither a right or left child exists
-        if not (self.getRightChild(node) or self.getLeftChild(node)):
-            return True
-        else: return False
+        return not (self.getRightChild(node) or self.getLeftChild(node))
 
-    # returns True if node is a right child, false otherwise
-    def isRightChild(self, node):
-        # is it the root?
-        if self.isRoot(node): return False
-
-        # right child will always be an even index
-        index = self.getIndex(node)
-        return index % 2 == 0
-
-    # returns True if node is a left child, false otherwise
-    def isLeftChild(self, node):
-        # left child will always be an odd index
-        index = self.getIndex(node)
-        return index % 2 == 1
-
-    # returns enum if node is right or left child
-    # returns None if node is the root
+    # returns enum if node or node index is right or left child of its parent
+    # returns None if node is None or the root
     def getChildDirection(self, node):
-        if self.isRoot(node):
-            direction = None
-        elif self.isRightChild(node):
-            direction = Child.RIGHT
-        else:
-            direction = Child.LEFT
-        return direction
-
-    # returns the node's parent
-    def getParent(self, node):
-        # is it the root?
-        if self.isRoot(node): return None
-
-        parentIndex = self.getParentIndex(node)
-        return self.nodes[parentIndex]
-
-    def getParentIndex(self, node):
-        # get node's index
-        index = self.getIndex(node)
-        return (index - 1) // 2
+        if node is None or self.isRoot(node):
+            return None
+        nodeIndex = self.getIndex(node) if isinstance(node, Node) else node
+        return Child.RIGHT if nodeIndex % 2 == 0 else Child.LEFT
 
     # returns the level of the node
     def getLevel(self, node):
-        if self.isRoot(node): return 0
-        else: return self.getLevel(self.getParent(node)) + 1
+        if node is None: return -1
+        return 0 if self.isRoot(node) else self.getLevel(
+            self.getParent(node)) + 1
 
     def getHeight(self, node):
         if not node: return -1
-
-        rightChild = self.getRightChild(node)
-        leftChild = self.getLeftChild(node)
-
-        return max(self.getHeight(rightChild), self.getHeight(leftChild)) + 1
-
-    # returns the line pointing to the node from its parent
-    def getLine(self, node, highlight=False):
-        items = self.canvas.find_withtag(node.tag + " line")
-        return None if len(items) == 0 else set(items).pop()
+        return max(self.getHeight(self.getRightChild(node)),
+                   self.getHeight(self.getLeftChild(node))) + 1
       
     # returns a tuple of the left and right child of node
     def getChildren(self, node):
         return self.getLeftChild(node), self.getRightChild(node)
 
-    # returns a list of all the nodes that descend from node
+    # returns a list of all the nodes that descend from a node or node index
     def getAllDescendants(self, node):
-        if not node: return []
-
-        left, right = self.getChildren(node)
-        return (([left] if left else []) + ([right] if right else []) +
-                self.getAllDescendants(left) + self.getAllDescendants(right))
-      
+        if isinstance(node, int):
+            node = self.getNode(node)
+        if node is None or not isinstance(node, (int, Node)): return []
+        return [node] + (
+            self.getAllDescendants(self.getLeftChild(node)) +
+            self.getAllDescendants(self.getRightChild(node)))
 
     # ----------- DRAWING METHODS -------------------
    
@@ -286,7 +268,7 @@ class BinaryTreeBase(VisualizationApp):
         arrowCoords = self.canvas.coords(arrow)
         self.canvas.coords(arrow, *arrowCoords[:2],
                            *(arrowCoords[:2] if root is None else
-                             V(root.coords) - V(self.CIRCLE_SIZE, 0)))
+                             V(root.center) - V(self.CIRCLE_SIZE, 0)))
         
     def createArrow(
             self, node, label=None, level=1, color='red', width=1,
@@ -309,8 +291,8 @@ class BinaryTreeBase(VisualizationApp):
          node or an index to cell in the array of nodes.
         '''
         if font is None: font = self.VARIABLE_FONT
-        center = (node.coords if isinstance(node, Node)
-                  else self.nodeCenterCoords(node))
+        center = (node.center if isinstance(node, Node)
+                  else self.nodeCenter(node))
         x0 = center[0]
         y0 = center[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT - level * abs(
             font[1])
@@ -344,10 +326,10 @@ class BinaryTreeBase(VisualizationApp):
         if level == 0:
             return self.ROOT_X0, self.ROOT_Y0
         dx = 1/2**(level+1) * self.TREE_WIDTH
-        return V(parent.coords) + V(
+        return V(parent.center) + V(
             -dx if childDirection == Child.LEFT else dx, self.LEVEL_GAP)
 
-    def nodeCenterCoords(self, nodeIndex):
+    def nodeCenter(self, nodeIndex):
         '''Calculate the coordinates for node based on its index in the nodes
         array.  The index -1 indicates the binary tree object
         '''
@@ -368,11 +350,33 @@ class BinaryTreeBase(VisualizationApp):
         return (center[0] - self.CIRCLE_SIZE, center[1] - self.CIRCLE_SIZE,
                 center[0] + self.CIRCLE_SIZE, center[1] + self.CIRCLE_SIZE)
 
+    def nodeItemCoords(self, node, parent=None):
+        '''Return coordinates for line to parent, shape, and text label items
+        that represent a node.  The node and parent parameters can be either
+        a node, a node index, or a coordinate tuple for the center of the node.
+        '''
+        if isinstance(node, Node):
+            nodeCenter = node.center
+        elif isinstance(node, int):
+            nodeCenter = self.getNode(node).center
+        elif isinstance(node, (tuple, list)):
+            nodeCenter = node
+        if isinstance(parent, Node):
+            parentCenter = parent.center
+        elif isinstance(parent, int) and 0 <= parent:
+            parentCenter = self.getNode(parent).center
+        elif isinstance(parent, (tuple, list)):
+            parentCenter = parent
+        else:
+            parentCenter = nodeCenter
+            
+        return (nodeCenter + parentCenter, 
+                self.nodeShapeCoordinates(nodeCenter), nodeCenter)
+
     def createNodeHighlight(self, node, highlightWidth=2, color=None):
         if color is None: color = self.FOUND_COLOR
         nCoords = self.nodeShapeCoordinates(
-            node.coords if isinstance(node, Node) else 
-            self.nodeCenterCoords(node))
+            node.center if isinstance(node, Node) else self.nodeCenter(node))
         delta = (highlightWidth, highlightWidth)
         highlightCoords = (V(nCoords[:2]) - delta) + (V(nCoords[2:]) + delta)
         return self.canvas.create_oval(
@@ -383,17 +387,17 @@ class BinaryTreeBase(VisualizationApp):
         # get node's parent
         if parent is None:
             parent = self.getParent(node)
-        return parent.coords + node.coords
+        return parent.center + node.center
 
-    # highlight or unhighlight the line that points to the node
+    # highlight or unhighlight the line that points from the node to its parent
     def createHighlightedLine(self, node, callEnviron=None, color=None):
-        line = self.getLine(node)
+        line = node.getLine()
         if line is None:
             return
         if color is None: color = drawnValue.palette[0]
         highlightLine = self.copyCanvasItem(line)
         self.canvas.tag_lower(highlightLine,
-                              self.getRoot().drawnValue.items[0])
+                              self.getRoot().drawnValue.items[1])
 
         self.canvas.itemconfig(
             highlightLine, fill=color, width=4, tags= "highlight line")
@@ -404,7 +408,7 @@ class BinaryTreeBase(VisualizationApp):
 
     def createHighlightedCircle(self, node, callEnviron=None, color=None):
         if color is None: color = drawnValue.palette[0]
-        circle = self.copyCanvasItem(node.drawnValue.items[0])
+        circle = self.copyCanvasItem(node.drawnValue.items[1])
         self.canvas.itemconfig(circle, outline=color, fill= '', width=2,
                                tags="highlight circle")
 
@@ -416,109 +420,118 @@ class BinaryTreeBase(VisualizationApp):
     def createHighlightedValue(self, node, callEnviron=None, color=None):
         if color is None: color = drawnValue.palette[0]
         text = self.canvas.create_text(
-            *node.coords, text=node.getKey(), font=self.VALUE_FONT, fill=color,
+            *node.center, text=node.getKey(), font=self.VALUE_FONT, fill=color,
             tags="highlight value")
       
         if callEnviron: callEnviron.add(text)
 
         return text
 
-    # draws the circle and the key value
-    def createNodeShape(self, x, y, key, tag, color=None):
+    def createNodeShape(
+            self, x, y, key, tag, color=None, parent=None, lineColor='black',
+            lineWidth=1):
+        '''Create canvas items for the circular node, its key label, and
+        a line to the node centered at the parent coordinates. If parent
+        is None, the line will be zero length to become invisible.
+        Returns the line, circular background, and text label items
+        '''
         if color is None: color = drawnValue.palette[2]
         circle = self.canvas.create_circle(
             x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
         circle_text = self.canvas.create_text(
             x, y, text=key, font=self.VALUE_FONT, tag = tag)
+        line = self.canvas.create_line(
+            x, y, *(parent if parent else (x, y)),
+            tags = ("line", tag + "_line"), fill=lineColor, width=lineWidth)
+        self.canvas.tag_lower(line)
         for item in (circle, circle_text):
             self.canvas.tag_bind(
                 item, '<Button>', lambda e: self.setArgument(key))
 
-        return circle, circle_text
+        return line, circle, circle_text
 
-    # moves all the nodes in moveItems to their proper place
-    # as defined by their place in the array
-    def restoreNodesPosition(self, moveItems, sleepTime=0.05, includeLines=True):
+    def restoreNodePositions(self, nodes, sleepTime=0.05, includeLines=True):
+        '''Moves all the nodes to their proper place on the canvas
+        as defined by their indices in the array.  Lines are moved if
+        requested.  If sleepTime is 0, no animation is done, just update'''
         # get the coords for the node to move to
-        items, moveCoords = [], []
-        for node in moveItems:
-            parent = self.getParent(node)
-            node.coords = self.calculateCoordinates(parent, self.getLevel(node), self.getChildDirection(node))
-            for item in self.canvas.find_withtag(node.tag):
-                items.append(item)
-                moveCoords.append(
-                    node.coords if len(self.canvas.coords(item)) == len(node.coords)
-                    else self.nodeShapeCoordinates(node.coords))
-            if includeLines and parent:
-                items.append(self.getLine(node))
-                moveCoords.append(self.calculateLineCoordinates(node, parent))
+        moveItems, moveCoords = [], []
+        for node in nodes:
+            nodeIndex = self.getIndex(node)
+            if nodeIndex < 0:
+                continue
+            node.center = self.nodeCenter(nodeIndex)
+            i = 0
+            for item, coords in zip(
+                    node.drawnValue.items,
+                    self.nodeItemCoords(node.center, 
+                                        parent=self.getParentIndex(nodeIndex))):
+                if item and (includeLines or i > 0):
+                    moveItems.append(item)
+                    moveCoords.append(coords)
+                i += 1
       
-        self.moveItemsLinearly(items, moveCoords, sleepTime=sleepTime)
+        if sleepTime > 0:
+            self.moveItemsLinearly(moveItems, moveCoords, sleepTime=sleepTime)
+        else:
+            for item, coords in zip(moveItems, moveCoords):
+                self.canvas.coords(item, coords)
+
+    def restoreNodes(self, nodes=None):
+        '''Restore canvas items to match internal representation of nodes.
+        If nodes in None, all nodes in the tree are restored.'''
+        if nodes is None:
+            nodes = self.getAllDescendants(self.getRoot())
+        self.restoreNodePositions(nodes, sleepTime=0)
+        for node in nodes:
+            key = node.getKey()
+            self.canvas.itemconfigure(node.drawnValue.items[2], text=str(key))
+            
+    def cleanUp(self, *args, **kwargs):
+        '''Customize cleanUp to restore nodes when call stack is empty'''
+        super().cleanUp(*args, **kwargs)
+        if len(self.callStack) == 0:
+            self.restoreNodes()
 
     # draw a line pointing to node
     def createLine(self, node):
         parent = self.getParent(node)
         lineCoords = self.calculateLineCoordinates(node, parent)
-        line = self.canvas.create_line(*lineCoords, tags = ("line", node.tag + " line"))
+        line = self.canvas.create_line(
+            *lineCoords, tags = ("line", node.tag + "_line"))
         self.canvas.tag_lower(line)
 
     # remove all the line drawings
     def clearAllLines(self):
         self.canvas.delete("line")
 
-    # draw all the lines
-    def drawAllLines(self):
-        cur = self.getRoot()
-        if cur:
-            left = self.getLeftChild(cur)
-            right = self.getRightChild(cur)
-            self.__drawLines(left, right)
-
-    def __drawLines(self, left, right):
-        if left: 
-            self.createLine(left)
-            self.__drawLines(self.getLeftChild(left), self.getRightChild(left))
-        if right: 
-            self.createLine(right)
-            self.__drawLines(self.getLeftChild(right), self.getRightChild(right))
-
-    # remove any existing lines and draw lines
-    def redrawLines(self):
-        self.clearAllLines()
-        self.drawAllLines()
 
     # ----------- SETTER METHODS --------------------
    
     # create a Node object with key and parent specified
     # parent should be a Node object
     def createNode(self, key, parent = None, direction = None):
-        # calculate the level
-        level = 0 if parent is None else self.getLevel(parent) + 1
+        # calculate the node index
+        nodeIndex = self.getChildIndex(parent, direction) if parent else 0
       
-        # calculate the coords
-        coords = self.calculateCoordinates(parent, level, direction)
+        # calculate the node's center
+        center = self.nodeCenter(nodeIndex)
 
         # generate a tag
         tag = self.generateTag()
-
-        # create the shape and text
-        circle, circle_text = self.createNodeShape(*coords, key, tag)
       
-        # create the drawnValue object
-        drawnValueObj = drawnValue(key, circle, circle_text)
+        # create the canvas items and the drawnValue object
+        drawnValueObj = drawnValue(key, *self.createNodeShape(
+            *center, key, tag, parent=parent.center if parent else None))
       
         # create the Node object
-        node = Node(drawnValueObj, coords, tag)
+        node = Node(drawnValueObj, center, tag)
 
         # increment size
         self.size += 1
 
         # add the node object to the internal representation
         self.setChildNode(node, direction, parent)
-
-        # draw the lines
-        if parent:
-            self.createLine(node)
 
         return node 
 
@@ -527,20 +540,14 @@ class BinaryTreeBase(VisualizationApp):
         # create a tag
         tag = self.generateTag()
 
-        # get the circle and key drawing
-        circle, circle_text = self.createNodeShape(
-            *node.coords, node.getKey(), tag)
-
         # get the key
         key = node.getKey()
-        # create the drawnValue obj
-        drawnValueObj = drawnValue(key, circle, circle_text)
-
-        # add the tag
-        self.canvas.itemconfig(circle, tags=tag)
-        self.canvas.itemconfig(circle_text, tags=tag)
+        
+        # create the shapes and drawnValue obj
+        drawnValueObj = drawnValue(key, *self.createNodeShape(
+            *node.center, node.getKey(), tag))
       
-        return Node(drawnValueObj, node.coords, tag)
+        return Node(drawnValueObj, node.center, tag)
 
     def setRoot(self, node):
         self.nodes[0] = node
@@ -575,15 +582,55 @@ class BinaryTreeBase(VisualizationApp):
         else:
             return self.setRightChild(parent, child)
 
+    def replaceSubtree(
+            self, nodeIndex, leftOrRight, replacementIndex, callEnviron,
+            wait=0.1):
+        '''Move the subtree at replacementIndex to be the left or right
+        child of the node at nodeIndex. Discard the current subtree of
+        that node.'''
+        childIndex = self.getChildIndex(nodeIndex, leftOrRight)
+        child = self.getNode(childIndex)
+        replacement = self.getNode(replacementIndex)
+        replacementSubtree = self.getAllDescendants(replacementIndex)
+        
+        if child:
+            if nodeIndex < 0:  # When the parent is tree object
+                childLine = None # there's no child->parent line
+            else:
+                # Reparent child->node line to a replacement->node line
+                childLine = child.getLine()
+                highlightLine = self.createHighlightedLine(child, callEnviron)
+                child.setLine(None)
+                replacementCenter = self.nodeCenter(
+                    replacementIndex if replacement else nodeIndex)
+                newLineCoords = replacementCenter + self.nodeCenter(nodeIndex)
+                self.moveItemsLinearly(
+                    (childLine, highlightLine), (newLineCoords, newLineCoords),
+                    sleepTime=wait / 10)
+                self.canvas.delete(highlightLine)
+                callEnviron.discard(highlightLine)
+            
+            # The moved line becomes the parent line of the replacemnt node
+            if replacement:
+                self.canvas.delete(replacement.getLine())
+                replacement.setLine(childLine)
+            
+            for node in self.getAllDescendants(childIndex):
+                if node not in replacementSubtree:
+                    self.removeNodeDrawing(node)
+                    self.removeNodeInternal(node)
+
+        self.moveSubtree(childIndex, replacementIndex)
+        self.restoreNodePositions(replacementSubtree, sleepTime=wait /10)
+        
     def moveSubtree(self, toIndex, fromIndex):
-        "Move subtree rooted at fromIndex to be rooted at toIndex"
+        "Move internal subtree rooted at fromIndex to be rooted at toIndex"
         if (toIndex < 0 or toIndex >= len(self.nodes) or
             fromIndex < 0 or fromIndex >= len(self.nodes)):
             return           # Do nothing if to or from index out of bounds
         toDo = [(toIndex, fromIndex)] # Queue of assignments to make
         while len(toDo):      # While there are subtrees to move
-            top = toDo.pop(0) # Get next subtree to move from front of queue
-            tIndex, fIndex = top
+            tIndex, fIndex = toDo.pop(0) # Get next move from front of queue
             fNode = self.nodes[fIndex] if fIndex < len(self.nodes) else None
             self.nodes[tIndex] = fNode
             if fNode:         # If from node exists
@@ -611,21 +658,18 @@ class BinaryTreeBase(VisualizationApp):
                     for i, node in enumerate(self.nodes)]
         self.nodes = newNodes
         
-    # remove the node's drawing
+    # remove the node's drawing and optionally its line
     def removeNodeDrawing(self, node, line=False):
-        # should the line pointing to the node be removed?
-        if line: self.removeLine(node)
-
+        if isinstance(node, int): node = self.getNode(node)
         self.canvas.delete(node.tag)
+        # should the line pointing to the node be removed?
+        if line: 
+            self.canvas.delete(node.getLine())
 
-    # remove the line that was pointing to node
-    def removeLine(self, node):
-        line = self.getLine(node)
-        if line: self.canvas.delete(line)
-
-    # remove the node from the internal array
+    # remove the node from the internal array (can be a node index)
     def removeNodeInternal(self, node):
-        self.nodes[self.getIndex(node)] = None
+        nodeIndex = self.getIndex(node) if isinstance(node, Node) else node
+        self.nodes[nodeIndex] = None
         self.size -= 1
 
     # rotate the node left in the array representation and animate it
