@@ -175,17 +175,29 @@ class Visualization(object):  # Base class for Python visualizations
                                  self.canvas.tag_bind(canvasitem, eventType))
         return newItem
 
-    def fadeNonLocalItems(self, items, color=NONLOCAL_VARIABLE_COLOR):
-        'Set fill color of non-local variable canvas items to a faded color'
-        self.setItemsFillColor(items, color)
+    def fadeNonLocalItems(self, items, colors=NONLOCAL_VARIABLE_COLOR):
+        '''Set fill color of non-local variable canvas items to a faded color
+        or sequence of colors.  If the length of items exceeds the length of
+        colors, the last color in the sequence is used.
+        Returns a list of the current fill color of each item that can be used
+        to restore them later.
+        '''
+        return self.setItemsFillColor(items, colors)
         
-    def restoreLocalItems(self, items, color=VARIABLE_COLOR):
-        'Restore fill color of local variable canvas items to normal'
-        self.setItemsFillColor(items, color)
+    def restoreLocalItems(self, items, colors=VARIABLE_COLOR):
+        '''Restore fill color of local variable canvas items to either a given
+        color or list of colors'''
+        self.setItemsFillColor(items, colors)
 
-    def setItemsFillColor(self, items, color):
-        for item in items:
-            self.canvas.itemconfigure(item, fill=color)
+    def setItemsFillColor(self, items, colors):
+        if not isinstance(colors, (list, tuple)):
+            colors = [colors]
+        nColors = len(colors)
+        itemColors = []
+        for i, item in enumerate(items):
+            itemColors.append(self.canvas.itemconfigure(item, 'fill')[-1])
+            self.canvas.itemconfigure(item, fill=colors[min(i, nColors - 1)])
+        return itemColors
 
     #####################################################################
     #                                                                   #
@@ -224,31 +236,33 @@ class Visualization(object):  # Base class for Python visualizations
             self, items, edge=N, steps=10):
         if not isinstance(items, (list, tuple, set)):
             items = (items,)
-        curPositions = [self.canvas.coords(i) for i in items if i is not None]
-        bboxes = [self.canvas.bbox(i) for i in items if i is not None]
-        bbox = bboxes[0]  # Get bounding box of all items
-        for bb in bboxes[1:]:
-            bbox = [min(bbox[0], bb[0]), min(bbox[1], bb[1]),
-                    max(bbox[2], bb[2]), max(bbox[3], bb[3])]
-        canvasDimensions = self.widgetDimensions(self.canvas)
-        # Compute delta vector that moves them on a line away from the
-        # center of the canvas
-        delta = ((bbox[0] + bbox[2] - canvasDimensions[0]) / 2,
-                 0 - bbox[3])
-        if edge == S:
-            delta = (delta[0], canvasDimensions[1] - bbox[1])
-        elif edge in (W, E):
-            delta = (0 - bbox[2],
-                     (bbox[1] + bbox[3] - canvasDimensions[1]) / 2)
-            if edge == E:
-                delta = (canvasDimensions[0] - bbox[0], delta[1])
-        # Ensure no more that 45 degree angle to departure boundary
-        if abs(delta[0]) > abs(delta[1]) and edge not in (E, W):
-            delta = (abs(delta[1]) * (-1 if delta[0] < 0 else 1), delta[1])
-        elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
-            delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
-        for step, _ in self.moveItemsBySequence(items, delta, steps):
-            yield (step, _)
+        if items:
+            curPositions = [
+                self.canvas.coords(i) for i in items if i is not None]
+            bboxes = [self.canvas.bbox(i) for i in items if i is not None]
+            bbox = bboxes[0]  # Get bounding box of all items
+            for bb in bboxes[1:]:
+                bbox = [min(bbox[0], bb[0]), min(bbox[1], bb[1]),
+                        max(bbox[2], bb[2]), max(bbox[3], bb[3])]
+            canvasDimensions = self.widgetDimensions(self.canvas)
+            # Compute delta vector that moves them on a line away from the
+            # center of the canvas
+            delta = ((bbox[0] + bbox[2] - canvasDimensions[0]) / 2,
+                     0 - bbox[3])
+            if edge == S:
+                delta = (delta[0], canvasDimensions[1] - bbox[1])
+            elif edge in (W, E):
+                delta = (0 - bbox[2],
+                         (bbox[1] + bbox[3] - canvasDimensions[1]) / 2)
+                if edge == E:
+                    delta = (canvasDimensions[0] - bbox[0], delta[1])
+            # Ensure no more that 45 degree angle to departure boundary
+            if abs(delta[0]) > abs(delta[1]) and edge not in (E, W):
+                delta = (abs(delta[1]) * (-1 if delta[0] < 0 else 1), delta[1])
+            elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
+                delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
+            for step, _ in self.moveItemsBySequence(items, delta, steps):
+                yield (step, _)
 
     def moveItemsBy(         # Animate canvas items moving from their current
             self, items,     # location in a direction indicated by a single
@@ -265,17 +279,17 @@ class Visualization(object):  # Base class for Python visualizations
             items = (items,)
         if not isinstance(delta, (list, tuple)) or len(delta) != 2:
             raise ValueError('Delta must be a 2-dimensional vector')
-        if vector_length2(delta) < 0.001: # If delta is tiny
-            return           # then no movement is needed
-        steps = max(1, steps) # Must use at least 1 step
+        if items and vector_length2(delta) >= 0.001: # If some items and delta
 
-        # move the items in steps along vector
-        moveBy = divide_vector(delta, steps)
-        for step in range(steps):
-            for item in items:
-                if item is not None:
-                    self.canvas.move(item, *moveBy)
-            yield (step, steps) # Yield step in sequence
+            steps = max(1, steps) # Must use at least 1 step
+
+            # move the items in steps along vector
+            moveBy = divide_vector(delta, steps)
+            for step in range(steps):
+                for item in items:
+                    if item is not None:
+                        self.canvas.move(item, *moveBy)
+                yield (step, steps) # Yield step in sequence
 
     def moveItemsTo(         # Animate canvas items moving rigidly 
             self, items,     # to destination locations along line(s)
@@ -290,30 +304,24 @@ class Visualization(object):  # Base class for Python visualizations
             self, items,     # to destination locations along line(s)
             toPositions,     # items can be a single item or list of items
             steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = (items,)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = (toPositions,)
-        steps = max(1, steps) # Must use at least 1 step
-        moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
-                  for toPos, fromPos in zip(
-                          toPositions,
-                          [self.canvas.coords(item)[:2] for item in items])]
+        items, toPositions = self.reconcileItemPositions(items, toPositions)
+        if items and toPositions:
+            steps = max(1, steps) # Must use at least 1 step
+            moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
+                      for toPos, fromPos in zip(
+                              toPositions,
+                              [self.canvas.coords(item)[:2] for item in items])]
 
-        # move the items until they reach the toPositions
-        for step in range(steps):
-            for i, item in enumerate(items):
-                if len(moveBy[i]) == 2:
-                    self.canvas.move(item, *moveBy[i])
-                # else:  # This shouldn't happen, but is a good point to debug
-                #     pdb.set_trace()
-            yield (step, steps) # Yield step in sequence
+            # move the items until they reach the toPositions
+            for step in range(steps):
+                for i, item in enumerate(items):
+                    if len(moveBy[i]) == 2:
+                        self.canvas.move(item, *moveBy[i])
+                yield (step, steps) # Yield step in sequence
             
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
+            # Force position of new objects to their exact destinations
+            for pos, item in zip(toPositions, items):
+                self.canvas.coords(item, *pos)
 
     # The moveItemsLinearly method uses all the coordinates of canvas
     # items in calculating the movement vectors.  Don't pass the
@@ -333,31 +341,25 @@ class Visualization(object):  # Base class for Python visualizations
 
     def moveItemsLinearlySequence( # Iterator for moveItemsLinearly
             self, items, toPositions, steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = (items,)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = (toPositions,)
-        if len(items) != len(toPositions):
-            raise ValueError('Number of items must match length of toPositions')
-        steps = max(1, steps) # Must use at least 1 step
-        moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
-                  for toPos, fromPos in zip(
-                          toPositions,
-                          [self.canvas.coords(item) for item in items])]
+        items, toPositions = self.reconcileItemPositions(items, toPositions)
+        if items and toPositions:
+            steps = max(1, steps) # Must use at least 1 step
+            moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
+                      for toPos, fromPos in zip(
+                              toPositions,
+                              [self.canvas.coords(item) for item in items])]
 
-        # move the items until they reach the toPositions
-        for step in range(steps):
-            for i, item in enumerate(items):
-                if len(moveBy[i]) >= 2:
-                    self.canvas.coords(
-                        item, *add_vector(self.canvas.coords(item), moveBy[i]))
-            yield (step, steps) # Yield step in sequence
+            # move the items until they reach the toPositions
+            for step in range(steps):
+                for i, item in enumerate(items):
+                    if len(moveBy[i]) >= 2:
+                        self.canvas.coords(
+                            item, *add_vector(self.canvas.coords(item), moveBy[i]))
+                yield (step, steps) # Yield step in sequence
             
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
+            # Force position of new objects to their exact destinations
+            for pos, item in zip(toPositions, items):
+                self.canvas.coords(item, *pos)
              
     def moveItemsOnCurve(    # Animate canvas items moving from their current
             self, items,     # location to destinations along a curve
@@ -372,33 +374,44 @@ class Visualization(object):  # Base class for Python visualizations
             
     def moveItemsOnCurveSequence( # Iterator for moveItemsOnCurve
             self, items, toPositions, startAngle=90, steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = tuple(items)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = tuple(toPositions)
-        steps = max(1, steps) # Must use at least 1 step
+        items, toPositions = self.reconcileItemPositions(items, toPositions)
+        if items and toPositions:
+            steps = max(1, steps) # Must use at least 1 step
 
-        # move the items until they reach the toPositions
-        for step in range(steps):  # Go through all steps of the annimation
-            toGo = steps - 1 - step  # remaining steps to go
-            ang = startAngle * toGo / steps  # angle decreases on each step
-            scale = 1 + abs(ang) / 180  # scale is larger for higher angles
-            for i, item in enumerate(items):
-                coords = self.canvas.coords(item)[:2]
-                if len(coords) == 2:
-                    moveBy = rotate_vector(
-                        divide_vector(subtract_vector(toPositions[i], coords),
-                                      (toGo + 1) / scale),
-                        ang)
-                    self.canvas.move(item, *moveBy)
-            yield (step, steps) # Yield step in sequence
+            # move the items until they reach the toPositions
+            for step in range(steps):  # Go through all steps of the annimation
+                toGo = steps - 1 - step  # remaining steps to go
+                ang = startAngle * toGo / steps  # angle decreases on each step
+                scale = 1 + abs(ang) / 180  # scale is larger for higher angles
+                for i, item in enumerate(items):
+                    coords = self.canvas.coords(item)[:2]
+                    if len(coords) == 2:
+                        moveBy = rotate_vector(
+                            divide_vector(
+                                subtract_vector(toPositions[i], coords),
+                                (toGo + 1) / scale),
+                            ang)
+                        self.canvas.move(item, *moveBy)
+                yield (step, steps) # Yield step in sequence
             
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
+            # Force position of new objects to their exact destinations
+            for pos, item in zip(toPositions, items):
+                self.canvas.coords(item, *pos)
 
+    def reconcileItemPositions(self, items, positions):
+        'Standardize items paired with positions for moveItems routines'
+        if not isinstance(items, (list, tuple, set)):
+            items = (items,)
+            if (isinstance(positions, (list, tuple)) and len(positions) > 0
+                and isinstance(positions[0], (int, float))):
+                positions = (positions, )
+        if not isinstance(positions, (list, tuple)):
+            raise ValueError('positions must be a list or tuple of positions')
+        if len(items) != len(positions):
+            raise ValueError(
+                'Number of items must match length of positions')
+        return items, positions
+        
     # ANIMATION CONTROLS
 
     def wait(self, sleepTime): # Sleep for a period of time and handle user stop
