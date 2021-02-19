@@ -15,7 +15,7 @@ class BinaryTree(BinaryTreeBase):
         height = kwargs.get('canvasHeight', 400)
         width = kwargs.get('canvasWidth', 800)
         padY = 30
-        self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 8 // 10)
+        self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
         outputBoxHeight = abs(self.outputFont[1]) * 2 + 6
         super().__init__(RECT=(0, padY, width, height - outputBoxHeight), 
                          title=title, **kwargs)
