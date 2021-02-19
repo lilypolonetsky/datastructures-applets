@@ -272,12 +272,12 @@ class BinaryTreeBase(VisualizationApp):
         
     def createArrow(
             self, node, label=None, level=1, color='red', width=1,
-            tags=['arrow'], font=None):
+            tags=['arrow'], font=None, orientation=-90):
         '''Create an arrow pointing at either an existing node or an index
         to cell in the array of nodes.  Optionally give a text label.
         '''
         if font is None: font = self.VARIABLE_FONT
-        x0, y0, x1, y1 = self.indexCoords(node, level, font)
+        x0, y0, x1, y1 = self.indexCoords(node, level, font, orientation)
         arrow = self.canvas.create_line(
             x0, y0, x1, y1, arrow="last", fill=color, width=width, tags=tags)
         if label is None:
@@ -286,27 +286,27 @@ class BinaryTreeBase(VisualizationApp):
             x0, y0, text=label, anchor=SW, font=font, fill=color, tags=tags)
         return (arrow, label)
 
-    def indexCoords(self, node, level, font=None):
+    def indexCoords(self, node, level, font=None, orientation=-90):
         '''Compute coordinates of an arrow pointing at either an existing
          node or an index to cell in the array of nodes.
         '''
         if font is None: font = self.VARIABLE_FONT
         center = (node.center if isinstance(node, Node)
                   else self.nodeCenter(node))
-        x0 = center[0]
-        y0 = center[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT - level * abs(
-            font[1])
-        x1, y1 = center[0], center[1] - self.CIRCLE_SIZE
-        return x0, y0, x1, y1
+        tip = V(self.CIRCLE_SIZE, 0).rotate(orientation)
+        base = V(self.CIRCLE_SIZE + self.ARROW_HEIGHT + level * abs(font[1]),
+                 0).rotate(orientation)
+        return (V(center) + V(base)) + (V(center) + V(tip))
         
     def moveArrow(
-            self, arrow, node, level=1, numSteps=10, sleepTime=0.02, font=None):
+            self, arrow, node, level=1, numSteps=10, sleepTime=0.02, font=None,
+            orientation=-90):
         '''Move an arrow to point at a node.  The node can be either a Node
         object, a coordinate pair, or an index to the nodes array where index
         -1 is the binary tree object.
         '''
         if isinstance(node, (int, Node)):
-            newCoords = self.indexCoords(node, level, font)
+            newCoords = self.indexCoords(node, level, font, orientation)
         elif isinstance(node, tuple):
             if font is None: font = self.VARIABLE_FONT
             newCoords = (

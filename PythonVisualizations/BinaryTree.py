@@ -480,11 +480,12 @@ for key, data in tree.traverse("{traverseType}"):
         for node, key, items in self.traverse(traverseType):
             self.restoreLocalItems(localVars, colors)
             if dataIndex is None:
-                dataIndex = self.createArrow(node, 'key, data')
+                dataIndex = self.createArrow(
+                    node, 'key, data', orientation=-135)
                 callEnviron |= set(dataIndex)
                 localVars += dataIndex
             else:
-                dataCoords = self.indexCoords(node, 1)
+                dataCoords = self.indexCoords(node, 1, orientation=-135)
                 self.moveItemsTo(dataIndex, (dataCoords, dataCoords[:2]),
                                  sleepTime=wait / 10)
 
@@ -592,12 +593,13 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 self.getLeftChildIndex(node), traverseType):
             self.restoreLocalItems(localVars, colors)
             if childArrow is None:
-                childArrow = self.createArrow(childIndex, 'childData')
+                childArrow = self.createArrow(
+                    childIndex, 'childData', orientation=-115)
                 callEnviron |= set(childArrow)
                 localVars += childArrow
                 colors = self.itemsFillColor(localVars)
             else:
-                childCoords = self.indexCoords(childIndex, 1)
+                childCoords = self.indexCoords(childIndex, 1, orientation=-115)
                 self.moveItemsTo(childArrow, (childCoords, childCoords[:2]),
                                  sleepTime=wait / 10)
             self.highlightCode(
