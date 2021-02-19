@@ -182,23 +182,39 @@ class Visualization(object):  # Base class for Python visualizations
         Returns a list of the current fill color of each item that can be used
         to restore them later.
         '''
-        return self.setItemsFillColor(items, colors)
+        if isinstance(colors, (list, tuple)):
+            return self.itemsFillColor(items, *colors)
+        return self.itemsFillColor(items, colors)
         
-    def restoreLocalItems(self, items, colors=VARIABLE_COLOR):
+    def restoreLocalItems(self, items, colors=VARIABLE_COLOR, top=True):
         '''Restore fill color of local variable canvas items to either a given
-        color or list of colors'''
-        self.setItemsFillColor(items, colors)
+        color or list of colors.  Optionally, raise the items to display on
+        top of other canvas items'''
+        if isinstance(colors, (list, tuple)):
+            self.itemsFillColor(items, *colors)
+        else:
+            self.itemsFillColor(items, colors)
+        if top:
+            for item in items:
+                if isinstance(item, int):
+                    self.canvas.tag_raise(item)
 
-    def setItemsFillColor(self, items, colors):
-        if not isinstance(colors, (list, tuple)):
-            colors = [colors]
+    def itemsFillColor(self, items, *colors):
+        '''Get or set item fill color for a list of items.  When colors is
+        not provided, it returns the list of configured colors.  When provided
+        1 or more colors are provided, the corresponding items are configured
+        to use that fill color.  If there are more items than colors, the
+        last color is used for the remaining items.
+        '''
         nColors = len(colors)
         itemColors = []
         for i, item in enumerate(items):
             itemColors.append(self.canvas.itemconfigure(item, 'fill')[-1])
-            self.canvas.itemconfigure(item, fill=colors[min(i, nColors - 1)])
+            if nColors > 0:
+                self.canvas.itemconfigure(
+                    item, fill=colors[min(i, nColors - 1)])
         return itemColors
-
+    
     #####################################################################
     #                                                                   #
     #                       Animation Methods                           #
