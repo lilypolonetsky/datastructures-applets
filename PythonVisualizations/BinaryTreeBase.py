@@ -691,24 +691,467 @@ class BinaryTreeBase(VisualizationApp):
         nodeIndex = self.getIndex(node) if isinstance(node, Node) else node
         self.nodes[nodeIndex] = None
         self.size -= 1
+        
+    def fill(self, values, animation=False):
+        '''Fill the tree with values which is either a list of integers or
+        an integer number of random values'''
+        callEnviron = self.createCallEnvironment()
+        
+        nums = [random.randrange(self.valMax) for i in range(values)] if (
+            isinstance(values, int)) else values
+        self.emptyTree()
+        for num in nums:
+            self.insert(num, animation=animation)
+        self.display()
 
-    # rotate the node left in the array representation and animate it
-    # RETURN TO FIX
-    def rotateLeft(self, node):
-        pass
+        self.cleanUp(callEnviron)
 
-    # rotate the nodes right in the drawing and in the array representation
-    # RETURN TO FIX
-    def rotateRight(self, node):
-        pass
+    _findCode = '''
+def __find(self, goal={goal}):
+   current = self.__root
+   parent = self
+   while (current and goal != current.key):
+      parent = current
+      current = (
+         current.leftChild if goal < current.key else
+         current.rightChild)
 
-    # ----------- TESTING METHODS --------------------
+   return (current, parent)
+'''
+
+    def _find(self, goal, animation=True, code=_findCode):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code='' if not animation else code.format(**locals()), 
+            sleepTime=wait / 10)
+
+        current = 0
+        parent = -1
+        if animation:
+            self.highlightCode('current = self.__root', callEnviron, wait=wait)
+            currentIndex = self.createArrow(0, label='current')
+            callEnviron |= set(currentIndex)
+
+            self.highlightCode('parent = self', callEnviron, wait=wait)
+            parentIndex = self.createArrow(parent, label='parent', level=2)
+            callEnviron |= set(parentIndex)
+
+            self.highlightCode(('current', 2), callEnviron, wait=wait)
+            if self.nodes[current]:
+                self.highlightCode(
+                    'goal != current.key', callEnviron, wait=wait)
+
+        while self.getNode(current) and goal != self.nodes[current].getKey():
+            if animation:
+                self.highlightCode('parent = current', callEnviron)
+                self.moveArrow(parentIndex, current, level=2)
+            parent = current
+
+            goLeft = goal < self.nodes[current].getKey()
+            if animation:
+                self.highlightCode('goal < current.key', callEnviron, wait=wait)
+                self.highlightCode(
+                    [('current = ', 2),
+                     'current.leftChild' if goLeft else 'current.rightChild'],
+                    callEnviron, wait=wait)
+            current = 2 * current + (1 if goLeft else 2)
+            
+            if animation:
+                self.moveArrow(currentIndex, current)
+                self.highlightCode(('current', 2), callEnviron, wait=wait)
+                if self.getNode(current):
+                    self.highlightCode(
+                        'goal != current.key', callEnviron, wait=wait)
+
+        if animation:
+            self.highlightCode(
+                'return (current, parent)', callEnviron)
+        self.cleanUp(callEnviron)
+        return current, parent
+
+    searchCode = '''
+def search(self, goal={goal}):
+   node, p = self.__find(goal)
+   return node.data if node else None
+'''
+    def search(self, goal, code=searchCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start, 
+            sleepTime=wait / 10)
+
+        self.highlightCode('node, p = self.__find(goal)', callEnviron)
+        node, p = self._find(goal)
+
+        nodeIndex = self.createArrow(node, label='node')
+        pIndex = self.createArrow(p, label='p', level=2)
+        callEnviron |= set(nodeIndex + pIndex)
+        self.highlightCode(('node', 3), callEnviron, wait=wait)
+
+        if self.getNode(node):
+            self.highlightCode('return node.data', callEnviron, wait=wait)
+            callEnviron.add(self.createNodeHighlight(node))
+            result =  self.nodes[node].getKey()
+        else:
+            self.highlightCode(['return', 'None'], callEnviron, wait=wait)
+            result = None
+
+        self.cleanUp(callEnviron)
+        return result
+        
+    insertCode = '''
+def insert(self, key={key}, data):
+   node, parent = self.__find(key)
+   if node:
+      node.data = data
+      return False
+
+   if parent is self:
+      self.__root = self.__Node(key, data)
+   elif key < parent.key:
+      parent.leftChild = self.__Node(
+         key, data, right=node)
+   else:
+      parent.rightChild = self.__Node(
+         key, data, right=node)
+   return True
+'''
+    
+    def insert(self, key, animation=True, code=insertCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code='' if not animation else code.format(**locals()),
+            startAnimations=start if animation else False, sleepTime=wait / 10)
+        inserted = False
+
+        if animation:
+            self.highlightCode('node, parent = self.__find(key)', callEnviron)
+        node, parent = self._find(key, animation=animation)
+
+        if animation:
+            nodeIndex = self.createArrow(node, label='node')
+            parentIndex = self.createArrow(parent, label='parent', level=2)
+            callEnviron |= set(nodeIndex + parentIndex)
+            self.highlightCode(('node', 2), callEnviron, wait=wait)
+        if self.getNode(node):
+            nodeHighlight = self.createNodeHighlight(node)
+            callEnviron.add(nodeHighlight)
+            if animation:
+                self.highlightCode('node.data = data', callEnviron, wait=wait)
+                self.highlightCode('return False', callEnviron, wait=wait)
+            self.cleanUp(callEnviron)
+            return inserted
+
+        if animation:
+            self.highlightCode('parent is self', callEnviron, wait=wait)
+        if parent == -1:
+            if animation:
+                self.highlightCode('self.__root = self.__Node(key, data)',
+                                   callEnviron, wait=wait)
+            self.createNode(key)
+            inserted = True
+            self.updateTreeObjectRootPointer(root=self.getRoot())
+            
+        elif node >= self.maxElems:
+            if animation:
+                self.setMessage(
+                    "Error! Cannot insert at level {} or below".format(
+                        self.MAX_LEVEL))
+                self.highlightCode([], callEnviron)
+
+        else:
+            if animation:
+                self.highlightCode('key < parent.key', callEnviron, wait=wait)
+                
+            dir = 'left' if key < self.nodes[parent].getKey() else 'right'
+            if animation:
+                self.highlightCode(
+                    'parent.{}Child = self.__Node('.format(dir) +
+                    '\n         key, data, right=node)',
+                    callEnviron, wait=wait)
+            self.createNode(key, self.nodes[parent], 
+                            Child.LEFT if dir == 'left' else Child.RIGHT)
+            if animation:
+                if dir == 'left':
+                    self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
+                self.moveItemsBy(
+                    nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait/10)
+            inserted = True
+ 
+        if animation and inserted:
+            self.highlightCode('return True', callEnviron, wait=wait)
+            
+        self.cleanUp(callEnviron)
+        return inserted
+
+    traverseExampleCode = '''
+for key, data in tree.traverse("{traverseType}"):
+   print(key)
+'''
+    def traverseExample(
+            self, traverseType, code=traverseExampleCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=wait / 10, 
+            startAnimations=start)
+
+        deletedNodeCoords = self.deletedNodeCoords()
+        traverseTypeText = self.canvas.create_text(
+            *deletedNodeCoords, text='traverseType: "{}"'.format(traverseType),
+            anchor=E, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        callEnviron.add(traverseTypeText)
+        
+        outBoxCoords = self.outputBoxCoords(font=self.outputFont)
+        outBoxMidY = (outBoxCoords[1] + outBoxCoords[3]) // 2
+        callEnviron.add(self.createOutputBox(coords=outBoxCoords))
+        outputText = self.canvas.create_text(
+            outBoxCoords[0] + 5, outBoxMidY, text='', anchor=W, 
+            font=self.outputFont)
+        callEnviron.add(outputText)
+        
+        iteratorCall = 'key, data in tree.traverse("{traverseType}")'.format(
+            **locals())
+        self.iteratorStack = []
+        self.highlightCode(iteratorCall, callEnviron, wait=wait)
+        dataIndex = None
+        localVars = ()
+        colors = self.fadeNonLocalItems(localVars)
+        for node, key, items in self.traverse(traverseType):
+            self.restoreLocalItems(localVars, colors)
+            if dataIndex is None:
+                dataIndex = self.createArrow(
+                    node, 'key, data', orientation=-135)
+                callEnviron |= set(dataIndex)
+                localVars += dataIndex
+            else:
+                dataCoords = self.indexCoords(node, 1, orientation=-135)
+                self.moveItemsTo(dataIndex, (dataCoords, dataCoords[:2]),
+                                 sleepTime=wait / 10)
+
+            self.highlightCode('print(key)', callEnviron, wait=wait)
+            keyItem = self.copyCanvasItem(items[2])
+            callEnviron.add(keyItem)
+            currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
+            textBBox = self.canvas.bbox(outputText)
+            newTextWidth = self.textWidth(self.outputFont, ' ' + str(key))
+            self.moveItemsTo(
+                keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
+                sleepTime=wait / 10)
+            self.canvas.itemconfigure(
+                outputText,
+                text=currentText + (' ' if len(currentText) > 0 else '') +
+                str(key))
+            self.canvas.delete(keyItem)
+            callEnviron.discard(keyItem)
+
+            self.highlightCode(iteratorCall, callEnviron, wait=wait)
+            colors = self.fadeNonLocalItems(localVars)
+
+        self.restoreLocalItems(localVars, colors)
+        while self.iteratorStack:
+            self.cleanUp(self.iteratorStack.pop())
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron)
+        
+    traverseCode = '''
+def traverse(self, traverseType="{traverseType}"):
+   if traverseType in ['pre', 'in', 'post']:
+      return self.__traverse(self.__root, traverseType)
    
-    def inOrderTraversal(self, cur):
-        if cur:
-            self.inOrderTraversal(self.getLeftChild(cur))
-            print(" " + str(cur), end="")
-            self.inOrderTraversal(self.getRightChild(cur))
+   raise Exception("Unknown traversal type: " + str(traverseType))
+'''
+
+    def traverse(self, traverseType='in', code=traverseCode):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=wait / 10)
+
+        self.highlightCode("traverseType in ['pre', 'in', 'post']", callEnviron,
+                           wait=wait)
+        if traverseType in ['pre', 'in', 'post']:
+            self.highlightCode(
+                'return self.__traverse(self.__root, traverseType)',
+                callEnviron)
+            self.iteratorStack.append(callEnviron)
+            return self.__traverse(0, traverseType)
+            
+        else:
+            self.highlightCode(
+                'raise Exception("Unknown traversal type: " + str(traverseType))',
+                callEnviron, color=self.EXCEPTION_HIGHLIGHT)
+        
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait /10)
+        
+    __traverseCode = '''
+def __traverse(self, node={node}, traverseType="{traverseType}"):
+   if node is None:
+      return
+   if traverseType == "pre":
+      yield (node.key, node.data)
+   for childKey, childData in self.__traverse(
+         node.leftChild, traverseType):
+      yield (childKey, childData)
+   if traverseType == "in":
+      yield (node.key, node.data)
+   for childKey, childData in self.__traverse(
+         node.rightChild, traverseType):
+      yield (childKey, childData)
+   if traverseType == "post":
+      yield (node.key, node.data)
+'''
+
+    def __traverse(self, node, traverseType, code=__traverseCode):
+        kwargs = locals().copy()
+        internalNode = self.getNode(node)
+        kwargs['node'] = internalNode.getKey() if internalNode else None
+        code = code.format(**kwargs)
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
+
+        nodeArrow = self.createArrow(node, 'node')
+        callEnviron |= set(nodeArrow)
+
+        self.highlightCode('node is None', callEnviron, wait=wait)
+        if internalNode is None:
+            self.highlightCode('return', callEnviron)
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
+            return
+
+        self.highlightCode('traverseType == "pre"', callEnviron, wait=wait)
+        if traverseType == "pre":
+            self.highlightCode(
+                ('yield (node.key, node.data)', 1), callEnviron, wait=wait)
+            itemCoords = self.yieldCallEnvironment(
+                callEnviron, sleepTime=wait / 10)
+            yield (node, internalNode.drawnValue.val,
+                   internalNode.drawnValue.items)
+            self.resumeCallEnvironment(
+                callEnviron, itemCoords, sleepTime=wait / 10)
+
+        self.highlightCode(
+            ('childKey, childData in self.__traverse(\n         node.leftChild, traverseType)', 1),
+            callEnviron, wait=wait)
+        localVars = nodeArrow
+        childArrow = None
+        colors = self.fadeNonLocalItems(localVars)
+        for childIndex, childKey, childData in self.__traverse(
+                self.getLeftChildIndex(node), traverseType):
+            self.restoreLocalItems(localVars, colors)
+            if childArrow is None:
+                childArrow = self.createArrow(
+                    childIndex, 'childData', orientation=-115)
+                callEnviron |= set(childArrow)
+                localVars += childArrow
+                colors = self.itemsFillColor(localVars)
+            else:
+                childCoords = self.indexCoords(childIndex, 1, orientation=-115)
+                self.moveItemsTo(childArrow, (childCoords, childCoords[:2]),
+                                 sleepTime=wait / 10)
+            self.highlightCode(
+                ('yield (childKey, childData)', 1), callEnviron, wait=wait)
+            itemCoords = self.yieldCallEnvironment(
+                callEnviron, sleepTime=wait / 10)
+            yield (childIndex, childKey, childData)
+            self.resumeCallEnvironment(
+                callEnviron, itemCoords, sleepTime=wait / 10)
+
+            self.highlightCode(
+                ('childKey, childData in self.__traverse(\n         node.leftChild, traverseType)', 1),
+                callEnviron, wait=wait)
+            colors = self.fadeNonLocalItems(localVars)
+        self.restoreLocalItems(localVars, colors)
+
+        self.highlightCode('traverseType == "in"', callEnviron, wait=wait)
+        if traverseType == "in":
+            self.highlightCode(
+                ('yield (node.key, node.data)', 2), callEnviron, wait=wait)
+            itemCoords = self.yieldCallEnvironment(
+                callEnviron, sleepTime=wait / 10)
+            yield (node, internalNode.drawnValue.val,
+                   internalNode.drawnValue.items)
+            self.resumeCallEnvironment(
+                callEnviron, itemCoords, sleepTime=wait / 10)
+
+        self.highlightCode(
+            ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
+            callEnviron, wait=wait)
+        colors = self.fadeNonLocalItems(localVars)
+        for childIndex, childKey, childData in self.__traverse(
+                self.getRightChildIndex(node), traverseType):
+            self.restoreLocalItems(localVars, colors)
+            if childArrow is None:
+                childArrow = self.createArrow(
+                    childIndex, 'childData', orientation=-115)
+                callEnviron |= set(childArrow)
+                localVars += childArrow
+                colors = self.itemsFillColor(localVars)
+            else:
+                childCoords = self.indexCoords(childIndex, 1, orientation=-115)
+                self.moveItemsTo(childArrow, (childCoords, childCoords[:2]),
+                                 sleepTime=wait / 10)
+            self.highlightCode(
+                ('yield (childKey, childData)', 1), callEnviron, wait=wait)
+            itemCoords = self.yieldCallEnvironment(
+                callEnviron, sleepTime=wait / 10)
+            yield (childIndex, childKey, childData)
+            self.resumeCallEnvironment(
+                callEnviron, itemCoords, sleepTime=wait / 10)
+
+            self.highlightCode(
+                ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
+                callEnviron, wait=wait)
+            colors = self.fadeNonLocalItems(localVars)
+        self.restoreLocalItems(localVars, colors)
+
+        self.highlightCode('traverseType == "post"', callEnviron, wait=wait)
+        if traverseType == "post":
+            self.highlightCode(
+                ('yield (node.key, node.data)', 3), callEnviron, wait=wait)
+            itemCoords = self.yieldCallEnvironment(
+                callEnviron, sleepTime=wait / 10)
+            yield (node, internalNode.drawnValue.val, 
+                   internalNode.drawnValue.items)
+            self.resumeCallEnvironment(
+                callEnviron, itemCoords, sleepTime=wait / 10)
+        
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
+    
+    def validArgument(self):
+        entered_text = self.getArgument()
+        if entered_text and entered_text.isdigit():
+            val = int(entered_text)
+            if val <= self.valMax:
+                return val
+            else:
+                self.setMessage("Input value must be an integer from 0 to {}."
+                                .format(self.valMax))
+                self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
+
+    def clickInsert(self):
+        val = self.validArgument()
+        if val:
+            if self.insert(val, start=self.startMode()):
+                self.setMessage('Key {} inserted'.format(val))
+            self.clearArgument()
+
+    def clickSearch(self):
+        val = self.validArgument()
+        self.setMessage(
+            "Key {} not found".format(val) if self.search(
+                val, start=self.startMode()) is None else 
+            "Found key {}!".format(val))
+        self.clearArgument()
+
+    def clickFill(self):
+        val = self.validArgument()
+        if val is not None:
+            self.fill(val)
+            self.clearArgument()
+        
+    def clickTraverse(self, traverseType):
+        self.traverseExample(traverseType, start=self.startMode())
 
     def printTree(self, indentBy=4):
         self.__pTree(self.nodes[0], "ROOT:  ", "", indentBy)
