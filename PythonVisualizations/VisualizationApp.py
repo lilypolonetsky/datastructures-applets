@@ -713,7 +713,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def cleanUpCallEnviron(    # Clean up a call on the stack
             self, callEnviron, # removing the call environement
             sleepTime=0,       # waiting sleepTime between removing code lines
-            allowSteps=False):  # allowing step pauses if set
+            allowSteps=False): # allowing step pauses if set
         inUserStop = False
         codeBlock = None
         toDelete = []
