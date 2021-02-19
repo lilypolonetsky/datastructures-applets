@@ -489,7 +489,7 @@ class BinaryTreeBase(VisualizationApp):
 
     def outputBoxSpacing(self, font=None):
         if font is None: font = self.VALUE_FONT
-        return self.textWidth(font, self.valMax) + abs(font[1])
+        return self.textWidth(font, ' ' + str(self.valMax))
     
     def outputBoxCoords(self, font=None, padding=6, N=None):
         '''Coordinates for an output box in lower right of canvas with enough
@@ -676,6 +676,7 @@ class BinaryTreeBase(VisualizationApp):
             Child.LEFT if i % 2 == 1 else Child.RIGHT) if node else None
                     for i, node in enumerate(self.nodes)]
         self.nodes = newNodes
+        self.size = sum(1 if node else 0 for node in self.nodes)
         
     # remove the node's drawing and optionally its line
     def removeNodeDrawing(self, node, line=False):
