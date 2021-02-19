@@ -470,6 +470,12 @@ for key, data in tree.traverse("{traverseType}"):
             code=code.format(**locals()), sleepTime=wait / 10, 
             startAnimations=start)
 
+        deletedNodeCoords = self.deletedNodeCoords()
+        traverseTypeText = self.canvas.create_text(
+            *deletedNodeCoords, text='traverseType: "{}"'.format(traverseType),
+            anchor=E, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        callEnviron.add(traverseTypeText)
+        
         outBoxCoords = self.outputBoxCoords(font=self.outputFont)
         outBoxMidY = (outBoxCoords[1] + outBoxCoords[3]) // 2
         callEnviron.add(self.createOutputBox(coords=outBoxCoords))
