@@ -486,7 +486,26 @@ class BinaryTreeBase(VisualizationApp):
         for node in nodes:
             key = node.getKey()
             self.canvas.itemconfigure(node.drawnValue.items[2], text=str(key))
-            
+
+    def outputBoxSpacing(self, font=None):
+        if font is None: font = self.VALUE_FONT
+        return self.textWidth(font, self.valMax) + abs(font[1])
+    
+    def outputBoxCoords(self, font=None, padding=6, N=None):
+        '''Coordinates for an output box in lower right of canvas with enough
+        space to hold N values, defaulting to current tree size'''
+        if N is None: N = self.size
+        if font is None: font = self.VALUE_FONT
+        spacing = self.outputBoxSpacing(font)
+        canvasDims = self.widgetDimensions(self.canvas)
+        left = max(0, canvasDims[0] - N * spacing - padding) // 2
+        return (left, canvasDims[1] - abs(font[1]) * 2 - padding,
+                left + N * spacing + padding, canvasDims[1] - padding)
+
+    def createOutputBox(self, coords=None, font=None):
+        if coords is None: coords = self.outputBoxCoords(font=font)
+        return self.canvas.create_rectangle(*coords, fill=self.OPERATIONS_BG)
+        
     def cleanUp(self, *args, **kwargs):
         '''Customize cleanUp to restore nodes when call stack is empty'''
         super().cleanUp(*args, **kwargs)

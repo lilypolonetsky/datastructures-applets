@@ -15,7 +15,9 @@ class BinaryTree(BinaryTreeBase):
         height = kwargs.get('canvasHeight', 400)
         width = kwargs.get('canvasWidth', 800)
         padY = 30
-        super().__init__(RECT=(0, padY, width, height - padY), 
+        self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 8 // 10)
+        outputBoxHeight = abs(self.outputFont[1]) * 2 + 6
+        super().__init__(RECT=(0, padY, width, height - outputBoxHeight), 
                          title=title, **kwargs)
         self.buttons = self.makeButtons()
         self.title = title
@@ -33,7 +35,6 @@ class BinaryTree(BinaryTreeBase):
         '''Fill the tree with values which is either a list of integers or
         an integer number of random values'''
         callEnviron = self.createCallEnvironment()
-
         
         nums = [random.randrange(self.valMax) for i in range(values)] if (
             isinstance(values, int)) else values
@@ -469,11 +470,18 @@ for key, data in tree.traverse("{traverseType}"):
             code=code.format(**locals()), sleepTime=wait / 10, 
             startAnimations=start)
 
+        outBoxCoords = self.outputBoxCoords(font=self.outputFont)
+        outBoxMidY = (outBoxCoords[1] + outBoxCoords[3]) // 2
+        callEnviron.add(self.createOutputBox(coords=outBoxCoords))
+        outputText = self.canvas.create_text(
+            outBoxCoords[0] + 5, outBoxMidY, text='', anchor=W, 
+            font=self.outputFont)
+        callEnviron.add(outputText)
+        
         iteratorCall = 'key, data in tree.traverse("{traverseType}")'.format(
             **locals())
         self.iteratorStack = []
         self.highlightCode(iteratorCall, callEnviron, wait=wait)
-        count = 1
         dataIndex = None
         localVars = ()
         colors = self.fadeNonLocalItems(localVars)
@@ -490,13 +498,20 @@ for key, data in tree.traverse("{traverseType}"):
                                  sleepTime=wait / 10)
 
             self.highlightCode('print(key)', callEnviron, wait=wait)
-            nodeData = [self.copyCanvasItem(i) for i in items[1:]]
-            callEnviron |= set(nodeData)
+            keyItem = self.copyCanvasItem(items[2])
+            callEnviron.add(keyItem)
+            currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
+            textBBox = self.canvas.bbox(outputText)
+            newTextWidth = self.textWidth(self.outputFont, ' ' + str(key))
             self.moveItemsTo(
-                nodeData, 
-                self.nodeItemCoords(self.deletedNodeCoords(level=count))[1:],
+                keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
                 sleepTime=wait / 10)
-            count += 1
+            self.canvas.itemconfigure(
+                outputText,
+                text=currentText + (' ' if len(currentText) > 0 else '') +
+                str(key))
+            self.canvas.delete(keyItem)
+            callEnviron.discard(keyItem)
 
             self.highlightCode(iteratorCall, callEnviron, wait=wait)
             colors = self.fadeNonLocalItems(localVars)
@@ -627,6 +642,37 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
             self.resumeCallEnvironment(
                 callEnviron, itemCoords, sleepTime=wait / 10)
 
+        self.highlightCode(
+            ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
+            callEnviron, wait=wait)
+        colors = self.fadeNonLocalItems(localVars)
+        for childIndex, childKey, childData in self.__traverse(
+                self.getRightChildIndex(node), traverseType):
+            self.restoreLocalItems(localVars, colors)
+            if childArrow is None:
+                childArrow = self.createArrow(
+                    childIndex, 'childData', orientation=-115)
+                callEnviron |= set(childArrow)
+                localVars += childArrow
+                colors = self.itemsFillColor(localVars)
+            else:
+                childCoords = self.indexCoords(childIndex, 1, orientation=-115)
+                self.moveItemsTo(childArrow, (childCoords, childCoords[:2]),
+                                 sleepTime=wait / 10)
+            self.highlightCode(
+                ('yield (childKey, childData)', 1), callEnviron, wait=wait)
+            itemCoords = self.yieldCallEnvironment(
+                callEnviron, sleepTime=wait / 10)
+            yield (childIndex, childKey, childData)
+            self.resumeCallEnvironment(
+                callEnviron, itemCoords, sleepTime=wait / 10)
+
+            self.highlightCode(
+                ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
+                callEnviron, wait=wait)
+            colors = self.fadeNonLocalItems(localVars)
+        self.restoreLocalItems(localVars, colors)
+
         self.highlightCode('traverseType == "post"', callEnviron, wait=wait)
         if traverseType == "post":
             self.highlightCode(
@@ -670,11 +716,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
     def clickFill(self):
         val = self.validArgument()
         if val is not None:
-            if val <= self.maxElems:
-                self.fill(val)
-            else:
-                self.setMessage("Number of keys must be between 0 and {}"
-                                .format(self.maxElems))
+            self.fill(val)
             self.clearArgument()
 
     def clickDelete(self):
