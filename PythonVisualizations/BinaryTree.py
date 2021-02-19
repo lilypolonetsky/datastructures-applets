@@ -2,13 +2,17 @@ from tkinter import *
 import random
 
 try:
+    from coordinates import *
     from drawnValue import *
     from VisualizationApp import *
     from BinaryTreeBase import *
 except ModuleNotFoundError:
+    from .coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
     from .BinaryTreeBase import *
+
+V = vector
 
 class BinaryTree(BinaryTreeBase):
     def __init__(self, title="Binary Search Tree", values=None, **kwargs):
@@ -60,16 +64,23 @@ def delete(self, goal={goal}):
             colors = self.fadeNonLocalItems(localVars)
             result = self.__delete(parent, node)
             self.restoreLocalItems(localVars, colors)
+
+            outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
+            callEnviron.add(self.createOutputBox(coords=outBoxCoords))
+            outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
+            
             deletedNodeCoords = self.deletedNodeCoords(level=1)
-            deletedNode = self.createNodeShape(
-                *deletedNodeCoords, result, 'deleted')
-            callEnviron |= set(deletedNode)
+            deletedKey = self.canvas.create_text(
+                *deletedNodeCoords, text=str(result), font=self.VALUE_FONT,
+                fill=self.VALUE_COLOR)
+            callEnviron.add(deletedKey)
+            self.moveItemsTo(deletedKey, outBoxCenter, sleepTime=wait / 10)
 
             if self.getNode(node):
                 if node % 2 == 1:
                     self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
                 self.moveItemsBy(
-                    nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait/10)
+                    nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait / 10)
         else:
             self.highlightCode(('return', 2), callEnviron, wait=wait)
             result = None
