@@ -677,8 +677,8 @@ if __name__ == '__main__':
     HEAP = Heap()
     try:
         for arg in numArgs:
-            HEAP.insert(arg)
-            HEAP.cleanUp()
+            HEAP.setArgument(str(arg))
+            HEAP.insertButton.invoke()
     except UserStop:
         HEAP.cleanUp()
     HEAP.runVisualization()
