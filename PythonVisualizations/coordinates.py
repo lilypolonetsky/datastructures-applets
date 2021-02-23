@@ -90,6 +90,15 @@ class vector(object):
             return tuple(c / other for c in self.coords)
         raise ValueError('Invalid vector type')
 
+    def __floordiv__(self, other):
+        if isinstance(other, vector):
+            return tuple(map(floordiv, self.coords, other.coords))
+        elif isinstance(other, (list, tuple)):
+            return self // vector(other)
+        elif isinstance(other, (int, float)):
+            return tuple(c // other for c in self.coords)
+        raise ValueError('Invalid vector type')
+
     def dot(self, other):
         return sum(self * other)
      

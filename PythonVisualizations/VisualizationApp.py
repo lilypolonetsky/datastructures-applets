@@ -90,7 +90,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.callStack = []    # Stack of local environments for visualziation
 
         self.pauseButton, self.stopButton, self.stepButton = None, None, None
-        self.lastCodeBlock, self.lastCodeBlockFragments = None, None
+        self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
 
         self.createPlayControlImages()
@@ -489,9 +489,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def showCode(self,     # Show algorithm code in a scrollable text box
                  code,     # Code to display, plus optional boundary line
                  addBoundary=False, # to separate calls on the stack
-                 prefix='',      # Prefix to apply to snippet labels
-                 snippets={},    # Dict of snippet label -> text indices
-                 sleepTime=0):   # Wait time between adding lines of text
+                 sleepTime=0,       # Wait time between adding lines of text
+                 allowStepping=True): # Allow stepping on waits
         code = code.strip()
         if len(code) == 0:  # Empty code string?
             return          # then nothing to show
@@ -535,21 +534,50 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             for line in reversed(code.split('\n')):
                 if self.codeText:
                     self.codeText.insert('1.0', line + '\n')
-                self.wait(sleepTime)
+                self.wait(sleepTime, allowStepping=allowStepping)
         else:
             self.codeText.insert('1.0', code + '\n')
+
+        # The codeText widget might have been removed during the wait() above
         if self.codeText:
             self.codeText.see('1.0')
-            
-        # Doing a window update here can cause multiple resize events
-        self.window.update()
-        
-        # Tag the snippets with unique tag name
-        if self.codeText:
-            for tagName in snippets:
-                self.codeText.tag_add(prefix + tagName, *snippets[tagName])
             self.codeText.configure(state=DISABLED)
 
+            # Doing a window update here can cause multiple resize events
+            self.window.update()
+            
+    def removeCode(self,     # Remove algorithm code from the codeText box
+                   code,     # Code to remove
+                   boundary=True, # Remove optional boundary line after code
+                   sleepTime=0,   # Wait time between removing lines of text
+                   ignoreStops=True, # Ignore any user stops during waits
+                   allowSteps=False): # Allow step mode pauses before and during
+        if not self.codeText:  # The codeText window must be present
+            return
+        inUserStop = False
+        code = code.strip()
+        lines = code.split('\n')
+        self.codeText.configure(state=NORMAL)
+        if allowSteps:
+            try:
+                self.wait(0)
+            except UserStop:
+                inUserStop = True
+        last_line = int(float(self.codeText.index(END))
+                        if len(lines) > 0 else 0)
+        for i in range(1, min(last_line, len(lines) + (2 if boundary else 1))):
+            if self.codeText:
+                self.codeText.delete('1.0', '2.0')
+                if (sleepTime > 0 and not self.animationsStopped() and
+                    not inUserStop):
+                    try:
+                        self.wait(sleepTime, allowStepping=allowSteps)
+                    except UserStop:
+                        inUserStop = True
+        if self.codeText:
+            self.codeText.configure(state=DISABLED)
+        return inUserStop
+        
     def codeTextWidth(      # Compute width available for code text
             self,           # This can be called before the codeText widget
             padX,           # is created. Provide padX setting for codeText
@@ -642,8 +670,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         if not found and len(tags) > 0:  # This shouldn't happen so log bug
             print('Unable to find highlight tag(s) {} among {}'.format(
                 ', '.join(tags), ', '.join(codeBlock.cache.keys())))
-        if wait > 0 or self.animationsStepping(): # Optionally weit for
-            self.wait(wait)    # highlight to show or to stop at a step
+        if wait > 0 or self.animationsStepping(): # Optionally weit for a time
+            self.wait(wait)                       # or pause at a step
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
@@ -668,9 +696,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         while len(self.callStack) > minStack: # 1st call unless cleaning all
             top = self.callStack.pop()
             try:
-                self.cleanUpCallEnviron(
-                    top, sleepTime, 
-                    allowSteps=allowSteps and len(self.callStack) > 0)
+                self.cleanUpCallEnviron(top, sleepTime, allowSteps=allowSteps)
             except UserStop:
                 if not ignoreStops:
                     raise UserStop
@@ -688,7 +714,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def cleanUpCallEnviron(    # Clean up a call on the stack
             self, callEnviron, # removing the call environement
             sleepTime=0,       # waiting sleepTime between removing code lines
-            allowSteps=True):  # allowing step pauses if set
+            allowSteps=False): # allowing step pauses if set
         inUserStop = False
         codeBlock = None
         toDelete = []
@@ -699,25 +725,9 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             elif isinstance(thing, CodeHighlightBlock) and self.codeText:
                 codeBlock = thing
         if codeBlock:
-            self.codeText.configure(state=NORMAL)
-            if allowSteps:
-                try:
-                    self.wait(0)
-                except UserStop:
-                    inUserStop = True
-            last_line = int(float(self.codeText.index(END))
-                            if len(codeBlock.lines) > 0 else 0)
-            for i in range(1, min(last_line, len(codeBlock.lines) + 2)):
-                if self.codeText:
-                    self.codeText.delete('1.0', '2.0')
-                    if (sleepTime > 0 and not self.animationsStopped() and
-                        not inUserStop):
-                        try:
-                            self.wait(sleepTime, pauseOnStep=allowSteps)
-                        except UserStop:
-                            inUserStop = True
-            if self.codeText:
-                self.codeText.configure(state=DISABLED)
+            inUserStop = self.removeCode(
+                codeBlock.code, sleepTime=sleepTime, allowSteps=allowSteps
+            ) or inUserStop
         for item in toDelete:
             self.canvas.delete(item)
         if inUserStop:
@@ -755,34 +765,72 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 else Animation.RUNNING)
         return callEnviron
 
+    def yieldCallEnvironment(self, callEnviron, sleepTime=0):
+        '''Remove the call environment from an iterator right before
+        yielding its value.  The callEnviron must be on top of the
+        call stack.  Returns a dictionary mapping item numbers to
+        coordinates for canvas items that are moved off canvas'''
+        if callEnviron is not self.callStack[-1]:
+            raise Exception(
+                'Cannot yield from call environment that is not current')
+        codeBlock = self.getCodeHighlightBlock(callEnviron)
+        if codeBlock:
+            self.removeCode(codeBlock.code, sleepTime=sleepTime)
+        self.callStack.pop()
+        itemCoords = {}
+        for item in callEnviron:
+            if isinstance(item, int) and self.canvas.type(item):
+                coords = self.canvas.coords(item)
+                if any(x >= 0 and y >= 0 for x, y in
+                       [(coords[j], coords[j + 1]) 
+                        for j in range(0, len(coords), 2)]):
+                    itemCoords[item] = coords
+                    self.canvas.coords(item, *multiply_vector(coords, -1))
+        return itemCoords
+
+    def resumeCallEnvironment(self, callEnviron, itemCoords, sleepTime=0):
+        self.callStack.append(callEnviron)
+        codeBlock = self.getCodeHighlightBlock(callEnviron)
+        if codeBlock:
+            self.showCode(codeBlock.code, sleepTime=sleepTime,
+                          addBoundary=True, allowStepping=False)
+            codeBlock.markStart()
+            self.highlightCode(codeBlock.currentFragments, callEnviron, wait=0)
+        for item in itemCoords:
+            self.canvas.coords(item, *itemCoords[item])
+            self.canvas.tag_raise(item)
+
+    def callStackHighlights(self):
+        '''Return list of code fragments highlighted on every level of the call
+        stack'''
+        codeBlocks = [self.getCodeHighlightBlock(env) for env in self.callStack]
+        return [block.currentFragments if block else [] for block in codeBlocks]
+    
     # ANIMATION CONTROLS
     def speed(self, sleepTime):
         return min(
             10, sleepTime * 50 * self.SPEED_SCALE_MIN / self.speedScale.get())
 
-    def wait(self, sleepTime, pauseOnStep=True):
-        ''' Pause for a user-adjusted time period, checking for step changes
-        in stepping mode, and raising a UserStop when user stops the animation.
+    def wait(self, sleepTime, allowStepping=True):
+        '''Sleep for a user-adjusted period, pausing optionally for steps
+        and for user requested pauses.
+        Stepping pauses when the current highlighted fragments on the call
+        stack don't match those encountered in the last call to wait.
         '''
         stateOnEntry = self.animationState
-        codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
-                     if self.callStack else None)
         if (self.animationsStepping() and
             buttonImage(self.pauseButton) != self.playControlImages['play']):
             buttonImage(self.pauseButton, self.playControlImages['play'])
-        while pauseOnStep and self.animationsStepping() and (
-                self.lastCodeBlock is not codeBlock or
-                codeBlock and
-                self.lastCodeBlockFragments != codeBlock.currentFragments):
+        highlights = self.callStackHighlights()
+        while (allowStepping and self.animationsStepping() and
+               self.lastHighlights != highlights):
             self.window.update()
             if self.destroyed:
                 sys.exit()
             time.sleep(0.02)
             if self.destroyed:
                 sys.exit()
-        self.lastCodeBlock = codeBlock
-        self.lastCodeBlockFragments = (
-            self.lastCodeBlock.currentFragments if self.lastCodeBlock else None)
+        self.lastHighlights = self.callStackHighlights()
         if sleepTime > 0:
             self.window.update()
             if self.destroyed:
@@ -859,11 +907,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             buttonImage(self.pauseButton, self.playControlImages['play'])
 
     def step(self):
-        codeBlock = (self.getCodeHighlightBlock(self.callStack[-1])
-                     if self.callStack else None)
-        self.lastCodeBlock = codeBlock
-        self.lastCodeBlockFragments = (
-            self.lastCodeBlock.currentFragments if self.lastCodeBlock else None)
+        '''Step forward by recording current call stack highlighted fragments
+        as having been seen, so that waits will pause when stack highlights
+        change.
+        '''
+        self.lastHighlights = self.callStackHighlights()
         self.startAnimations(state=Animation.STEP)
 
     def startAnimations(self, enableStops=True, state=None):
