@@ -1134,6 +1134,8 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
         if val:
             if self.insert(val, start=self.startMode()):
                 self.setMessage('Key {} inserted'.format(val))
+            else:
+                self.setMessage('Could not insert key {}'.format(val))
             self.clearArgument()
 
     def clickSearch(self):
