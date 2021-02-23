@@ -421,6 +421,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             except UserStop as e:
                 self.cleanUp(self.callStack[0] if self.callStack else None,
                              ignoreStops=True)
+            self.enableButtons()
             focus = self.window.focus_get()
             if (focus and  # If focus ended on an argument button or an
                 (focus in withArgs or  # animation control run on something w/
