@@ -41,8 +41,9 @@ class Heap(VisualizationApp):
     # Create index arrow to point at an array cell with an optional name label
     def createArrayIndex(self, index, name='nItems', level=1, color=None):
         if color is None: color = self.VARIABLE_COLOR
+        arrowCoords, labelCoords = self.arrayIndexCoords(index, level)
         return self.drawArrow(
-            *self.arrayIndexCoords(index, level), color, self.SMALL_FONT, name)
+            arrowCoords, labelCoords, color, self.SMALL_FONT, name)
 
     def arrayIndexCoords(self, index, level=1):
         cell_coords = self.cellCoords(index)
@@ -55,18 +56,17 @@ class Heap(VisualizationApp):
             x0 = self.ARRAY_X0 + 1.8 * self.CELL_WIDTH - level * level_spacing
             x1 = self.ARRAY_X0 + self.CELL_WIDTH * 1.3
         y0 = y1 = cell_center[1]
-        return x0, y0, x1, y1
+        leftPointing = level < 0
+        separation = 3 if leftPointing else -3
+        return (x0, y0, x1, y1), (x0 + separation, y0)
     
     # draw the actual arrow 
-    def drawArrow(
-            self, x0, y0, x1, y1, color, font, name=None):
-        arrow = self.canvas.create_line(
-            x0, y0, x1, y1, arrow="last", fill=color)
-        leftPointing = x1 < x0
-        separation = 3 if leftPointing else -3
+    def drawArrow(self, arrowCoords, labelCoords, color, font, name=None):
+        arrow = self.canvas.create_line(*arrowCoords, arrow="last", fill=color)
+        leftPointing = arrowCoords[0] > arrowCoords[2]
         if name:
             label = self.canvas.create_text(
-                x0 + separation, y0, text=name, anchor=W if leftPointing else E,
+                *labelCoords, text=name, anchor=W if leftPointing else E,
                 font=font, fill=color)
 
         return (arrow, label) if name else (arrow,) 
@@ -116,8 +116,7 @@ def insert(self, item={val}):
         
         # Move nItems index to one past inserted item
         self.highlightCode('self._nItems += 1', callEnviron)
-        coords = self.arrayIndexCoords(self.nItems)
-        self.moveItemsTo(self.nItemsIndex, (coords, coords[:2]), 
+        self.moveItemsTo(self.nItemsIndex, self.arrayIndexCoords(self.nItems), 
                          sleepTime=wait / 10)
             
         self.highlightCode('self._siftUp(self._nItems - 1)', callEnviron)
@@ -230,8 +229,7 @@ def _siftUp(self, i={i}):
                 parentIndex = self.createArrayIndex(parent, name='parent')
                 callEnviron |= set(parentIndex)
             else:
-                parentCoords = self.arrayIndexCoords(parent)
-                self.moveItemsTo(parentIndex, (parentCoords, parentCoords[:2]),
+                self.moveItemsTo(parentIndex, self.arrayIndexCoords(parent),
                                  sleepTime=wait / 10)
 
             self.highlightCode('self._key(self._arr[parent]) < itemkey',
@@ -345,11 +343,10 @@ def _siftDown(self, i={i}):
                 rightIndex = self.createArrayIndex(right, 'right', level=-1)
                 callEnviron |= set(leftIndex + rightIndex)
             else:
-                leftCoords = self.arrayIndexCoords(left, level=-1)
-                rightCoords = self.arrayIndexCoords(right, level=-1)
                 self.moveItemsTo(
                     leftIndex + rightIndex, 
-                    (leftCoords, leftCoords[:2], rightCoords, rightCoords[:2]),
+                    self.arrayIndexCoords(left, level=-1) +
+                    self.arrayIndexCoords(right, level=-1),
                     sleepTime=wait / 10)
 
             self.highlightCode('maxi = left', callEnviron)
@@ -358,9 +355,9 @@ def _siftDown(self, i={i}):
                 maxIndex = self.createArrayIndex(maxi, name='maxi', level=-4)
                 callEnviron |= set(maxIndex)
             else:
-                maxCoords = self.arrayIndexCoords(maxi, level=-4)
                 self.moveItemsTo(
-                    maxIndex, (maxCoords, maxCoords[:2]), sleepTime=wait / 10)
+                    maxIndex, self.arrayIndexCoords(maxi, level=-4),
+                    sleepTime=wait / 10)
            
             self.highlightCode('right < len(self)', callEnviron, wait=wait)
             if right < self.nItems:
@@ -372,9 +369,9 @@ def _siftDown(self, i={i}):
                 self.list[right].val): 
                 self.highlightCode('maxi = right', callEnviron)
                 maxi = right    # then use right child
-                maxCoords = self.arrayIndexCoords(right, level=-4)
                 self.moveItemsTo(
-                    maxIndex, (maxCoords, maxCoords[:2]), sleepTime=wait / 10)
+                    maxIndex, self.arrayIndexCoords(right, level=-4),
+                    sleepTime=wait / 10)
 
             self.highlightCode('itemkey < self._key(self._arr[maxi])',
                                callEnviron, wait=wait)
@@ -420,7 +417,7 @@ def _siftDown(self, i={i}):
         self.cleanUp(callEnviron)
 
     siftDownCode = '''
-def siftDown(array, j={j}, N=None, key=identity):
+def siftDown(array, j={j}, N={N}, key=identity):
    if N is None:
       N = len(array)
    firstleaf = N // 2
@@ -442,7 +439,7 @@ def siftDown(array, j={j}, N=None, key=identity):
    array[j] = item
 '''
         
-    def siftDown(self, j=0, code=siftDownCode):
+    def siftDown(self, j=0, N=None, code=siftDownCode):
         'Sift item j down to preserve heap condition'
         wait = 0.1
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
@@ -450,11 +447,15 @@ def siftDown(array, j={j}, N=None, key=identity):
         jIndex = self.createArrayIndex(j, name='j', level=-1)
         callEnviron |= set(jIndex)
 
+        if N is not None:
+            NIndex = self.createArrayIndex(N, name='N', level=2)
+            callEnviron |= set(NIndex)
         self.highlightCode('N is None', callEnviron, wait=wait)
-        self.highlightCode('N = len(array)', callEnviron, wait=wait)
-        N = len(self.list)
-        NIndex = self.createArrayIndex(N, name='N', level=2)
-        callEnviron |= set(NIndex)
+        if N is None:
+            self.highlightCode('N = len(array)', callEnviron, wait=wait)
+            N = len(self.list)
+            NIndex = self.createArrayIndex(N, name='N', level=2)
+            callEnviron |= set(NIndex)
 
         self.highlightCode('firstleaf = N // 2', callEnviron, wait=wait)
         firstleaf = len(self.list) // 2 # Get index of first leaf
@@ -494,11 +495,10 @@ def siftDown(array, j={j}, N=None, key=identity):
                 rightIndex = self.createArrayIndex(right, 'right', level=-1)
                 callEnviron |= set(leftIndex + rightIndex)
             else:
-                leftCoords = self.arrayIndexCoords(left, level=-1)
-                rightCoords = self.arrayIndexCoords(right, level=-1)
                 self.moveItemsTo(
-                    leftIndex + rightIndex, 
-                    (leftCoords, leftCoords[:2], rightCoords, rightCoords[:2]),
+                    leftIndex + rightIndex,
+                    self.arrayIndexCoords(left, level=-1) +
+                    self.arrayIndexCoords(right, level=-1),
                     sleepTime=wait / 10)
 
             self.highlightCode('maxi = left', callEnviron)
@@ -507,9 +507,9 @@ def siftDown(array, j={j}, N=None, key=identity):
                 maxIndex = self.createArrayIndex(maxi, name='maxi', level=-4)
                 callEnviron |= set(maxIndex)
             else:
-                maxCoords = self.arrayIndexCoords(maxi, level=-4)
                 self.moveItemsTo(
-                    maxIndex, (maxCoords, maxCoords[:2]), sleepTime=wait / 10)
+                    maxIndex, self.arrayIndexCoords(maxi, level=-4),
+                    sleepTime=wait / 10)
            
             self.highlightCode('right < N', callEnviron, wait=wait)
             if right < len(self.list):
@@ -520,9 +520,9 @@ def siftDown(array, j={j}, N=None, key=identity):
                 self.list[right].val): 
                 self.highlightCode('maxi = right', callEnviron)
                 maxi = right    # then use right child
-                maxCoords = self.arrayIndexCoords(right, level=-4)
                 self.moveItemsTo(
-                    maxIndex, (maxCoords, maxCoords[:2]), sleepTime=wait / 10)
+                    maxIndex, self.arrayIndexCoords(right, level=-4),
+                    sleepTime=wait / 10)
 
             self.highlightCode('itemkey < key(array[maxi])',
                                callEnviron, wait=wait)
@@ -599,22 +599,20 @@ def heapify(array, N=None, key=identity):
         while heapLo > 0:        # Heapify until the entire array is a heap
             self.highlightCode('heapLo -= 1', callEnviron, wait=wait)
             heapLo -= 1           # Decrement heap's lower boundary
-            heapLoCoords = self.arrayIndexCoords(heapLo)
-            self.moveItemsTo(heapLoIndex, (heapLoCoords, heapLoCoords[:2]),
+            self.moveItemsTo(heapLoIndex, self.arrayIndexCoords(heapLo),
                              sleepTime=wait / 10)
             
             self.highlightCode('siftDown(array, heapLo, N, key)',
                                callEnviron)
             colors = self.fadeNonLocalItems(localVars)
-            self.siftDown(heapLo) # Sift down item at heapLo
-            self.restoreLocalItems(localVars) # colors TBD
+            self.siftDown(heapLo, N) # Sift down item at heapLo
+            self.restoreLocalItems(localVars, colors)
 
             self.highlightCode('heapLo > 0', callEnviron, wait=wait)
 
         # Adjust nItems pointer to indicate heap condition is satisfied
         self.nItems = N
-        coords = self.arrayIndexCoords(self.nItems)
-        self.moveItemsTo(self.nItemsIndex, (coords, coords[:2]),
+        self.moveItemsTo(self.nItemsIndex, self.arrayIndexCoords(self.nItems),
                          sleepTime=wait / 10)
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
@@ -623,6 +621,7 @@ def heapify(array, N=None, key=identity):
     def newArray(self):
         #gets rid of old elements in the list
         del self.list[:]
+        self.nItems = 0
         self.size = 2
         self.display()
 
@@ -640,7 +639,7 @@ def peek(self):
         
         # draw output box
         outBoxCoords = self.outputBoxCoords()
-        outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) / 2 # TBD //
+        outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
         outputBox = self.canvas.create_rectangle(
             *outBoxCoords, fill=self.OPERATIONS_BG)
         callEnviron.add(outputBox)
@@ -664,7 +663,7 @@ def peek(self):
         self.cleanUp(callEnviron)
         return root
 
-    removeCode = '''
+    removeMaxCode = '''
 def remove(self):
    if self.isEmpty():
       raise Exception("Heap underflow")
@@ -675,7 +674,7 @@ def remove(self):
    return root
 '''
     
-    def removeMax(self, code=removeCode, start=True):
+    def removeMax(self, code=removeMaxCode, start=True):
         wait = 0.1
         callEnviron = self.createCallEnvironment(
             code=code, startAnimations=start)
@@ -692,7 +691,7 @@ def remove(self):
         self.highlightCode('root = self._arr[0]', callEnviron, wait=wait)
         root = self.list[0]
         outBoxCoords = self.outputBoxCoords()
-        outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) / 2 # TBD //
+        outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
         callEnviron.add(self.canvas.create_text(
             *(V(outBoxCenter) - V(0, outBoxCoords[3] - outBoxCoords[1])),
             text='root', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
@@ -702,9 +701,8 @@ def remove(self):
         self.highlightCode('self._nItems -= 1', callEnviron)
         last = self.list[self.nItems - 1]
         self.nItems = min(self.nItems - 1, len(self.list) - 1)
-        lastCoords = self.arrayIndexCoords(self.nItems)
-        self.moveItemsTo(self.nItemsIndex, (lastCoords, lastCoords[:2]),
-                         sleepTime=wait / 10)
+        lastIndexCoords = self.arrayIndexCoords(self.nItems)
+        self.moveItemsTo(self.nItemsIndex, lastIndexCoords, sleepTime=wait / 10)
 
         itemsToMove = last.items if self.nItems > 0 else []
         self.highlightCode('self._arr[0] = self._arr[self._nItems]',
@@ -712,7 +710,8 @@ def remove(self):
         if itemsToMove:
             cellCoords = self.cellCoords(0)
             cellCenter = self.cellCenter(0)
-            startAngle = 90 * 50 / (50 + abs(cellCoords[1] - lastCoords[1]))
+            startAngle = 90 * 50 / (
+                50 + abs(cellCoords[1] - lastIndexCoords[0][1]))
             self.moveItemsOnCurve(
                 last.items, (cellCoords, cellCenter), startAngle=startAngle,
                 sleepTime=wait / 10)
@@ -830,9 +829,9 @@ def remove(self):
                 self.canvas.coords(item, *self.arrayCellCoords(i))
             
         # Restore nItems index to one past end of array
-        coords = self.arrayIndexCoords(self.nItems)
-        self.canvas.coords(self.nItemsIndex[0], coords)
-        self.canvas.coords(self.nItemsIndex[1], coords[:2])
+        arrowCoords, labelCoords = self.arrayIndexCoords(self.nItems)
+        self.canvas.coords(self.nItemsIndex[0], arrowCoords)
+        self.canvas.coords(self.nItemsIndex[1], labelCoords)
 
     def cleanUp(self, *args, **kwargs): # Customize clean up for sorting
         super().cleanUp(*args, **kwargs) # Do the VisualizationApp clean up
@@ -846,7 +845,7 @@ def remove(self):
         self.insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd, argHelpText=['item'],
-            helpText='Insert a new item in the heap')
+            helpText='Insert an item in the heap')
         randomFillButton = self.addOperation(
             "Random Fill ", lambda: self.clickRandomFill(), numArguments=1,
             validationCmd=vcmd, argHelpText=['number of items'],
