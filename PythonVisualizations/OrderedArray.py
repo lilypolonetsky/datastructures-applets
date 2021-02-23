@@ -210,14 +210,13 @@ def search(self, item={item}):
         self.highlightCode('self.find(item)', callEnviron, wait=wait)
         index = self.find(item)
         callEnviron |= set(self.createIndex(index, 'index'))
-        if index < len(self.list) and self.list[index].val == item:
-            callEnviron.add(self.createFoundCircle(index))
 
         result = None
         self.highlightCode('index < self.__nItems', callEnviron, wait=wait)
         if index < len(self.list):
             self.highlightCode('self.__a[index] == item', callEnviron, wait=wait)
             if self.list[index].val == item:
+                callEnviron.add(self.createFoundCircle(index))
                 self.highlightCode('return self.__a[index]', callEnviron, wait=wait)
                 result = self.list[index].val
             else:
