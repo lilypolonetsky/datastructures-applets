@@ -12,7 +12,6 @@ except ModuleNotFoundError:
 
 class Mergesort(SortingBase):
 
-    STORED_VARIABLE = 'bisque'
     CELL_GAP = 6
     LEVEL_SEPARATION = 25
 
@@ -65,17 +64,22 @@ def __init__(self, unordered, key=identity):
             anchor=E))
         tags = ["workArray"]
         self.workCells, self.workArray = [], []
+        self.highlightCode('i in range(n)', callEnviron, wait=wait / 2)
         for i in range(self.size):
-            self.highlightCode('i in range(n)', callEnviron, wait=wait / 2)
             self.highlightCode(
-                'self.__work.insert(None)', callEnviron, wait=wait / 5)
+                'self.__work.insert(None)', callEnviron, wait=wait / 50)
             rect = self.createArrayCell(i, tags=tags)
             self.canvas.move(rect, *delta)
             self.workCells.append(rect)
             self.workArray.append(None)
             callEnviron.add(rect)
-            self.highlightCode('i in range(n)', callEnviron, wait=wait / 2)
-        
+            self.highlightCode('i in range(n)', callEnviron, wait=wait / 20)
+
+        self.loIndex, self.hiIndex = None, None
+        if len(self.arrayCells) == self.size:  # Create an invisible array cell
+            self.arrayCells.append(self.createArrayCell( # at the right end
+                len(self.arrayCells),          # to use for hi index
+                tags=["hidden", "arrayBox"], width=0, color=self.DEFAULT_BG))
         self.highlightCode('self.mergesort(0, n)', callEnviron)
         self.mergesort(0, len(self.list))
         self.fixCells()
@@ -96,49 +100,59 @@ def mergesort(self, lo={lo}, hi={hi}):
         wait = 0.1
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=wait / 10)
+        for idx, val in (('loIndex', lo), ('hiIndex', hi)):
+            arrayCell = self.arrayCells[val]
+            if getattr(self, idx, None) is None:
+                setattr(self, idx, self.createCellIndex(
+                    arrayCell, idx[:2], level=2))
+                callEnviron.add(getattr(self, idx))
+            else:
+                self.moveIndex(getattr(self, idx), arrayCell)
+            
         self.highlightCode('lo + 1 >= hi', callEnviron, wait=wait)
         if lo + 1 >= hi:
             self.highlightCode('return', callEnviron, wait=wait)
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             return
         
-        self.highlightCode('mid = (lo + hi) // 2', callEnviron, wait=wait)
+        self.highlightCode('mid = (lo + hi) // 2', callEnviron)
         mid = (lo + hi) // 2
         midLabel = self.createCellIndex(self.list[mid].items[0], 'mid', level=1)
         callEnviron.add(midLabel)
+        local = [midLabel]
         self.wait(wait)
 
-        for item in callEnviron:
-            self.canvas.itemconfigure(item, fill=self.STORED_VARIABLE)
-        self.highlightCode('self.mergesort(lo, mid)', callEnviron)
+        self.highlightCode('self.mergesort(lo, mid)', callEnviron, wait=wait)
         delta = (-self.CELL_GAP, self.LEVEL_SEPARATION)
         self.moveItemsBy(
             flat(*([self.arrayCells[j]] + [item for item in self.list[j].items]
                    for j in range(lo, mid))),
             delta, sleepTime=wait / 10)
+        self.fadeNonLocalItems(local)
         self.mergesort(lo, mid, level=level + 1)
-        for item in callEnviron:
-            self.canvas.itemconfigure(item, fill=self.VARIABLE_COLOR)
+        self.restoreLocalItems(local)
         self.moveItemsBy(
             flat(*([self.arrayCells[j]] + [item for item in self.list[j].items]
                    for j in range(lo, mid))),
             multiply_vector(delta, -1), sleepTime=wait / 10)
+        self.moveIndex(self.loIndex, self.arrayCells[lo])
+        self.moveIndex(self.hiIndex, self.arrayCells[hi])
 
-        for item in callEnviron:
-            self.canvas.itemconfigure(item, fill=self.STORED_VARIABLE)
-        self.highlightCode('self.mergesort(mid, hi)', callEnviron)
+        self.highlightCode('self.mergesort(mid, hi)', callEnviron, wait=wait)
         delta = (self.CELL_GAP, self.LEVEL_SEPARATION)
         self.moveItemsBy(
             flat(*([self.arrayCells[j]] + [item for item in self.list[j].items]
                    for j in range(mid, hi))),
             delta, sleepTime=wait / 10)
+        self.fadeNonLocalItems(local)
         self.mergesort(mid, hi, level=level + 1)
-        for item in callEnviron:
-            self.canvas.itemconfigure(item, fill=self.VARIABLE_COLOR)
+        self.restoreLocalItems(local)
         self.moveItemsBy(
             flat(*([self.arrayCells[j]] + [item for item in self.list[j].items]
                    for j in range(mid, hi))),
             multiply_vector(delta, -1), sleepTime=wait / 10)
+        self.moveIndex(self.loIndex, self.arrayCells[lo])
+        self.moveIndex(self.hiIndex, self.arrayCells[hi])
             
         self.highlightCode('self.merge(lo, mid, hi)', callEnviron)
         self.merge(lo, mid, hi)
@@ -177,28 +191,29 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=wait / 10)
 
+        self.highlightCode('n = 0', callEnviron, wait=wait)
         n = 0
         nIndex = self.createCellIndex(self.workCells[n], 'n', level=1)
         callEnviron.add(nIndex)
-        self.highlightCode('n = 0', callEnviron, wait=wait)
 
+        self.highlightCode('idxLo = lo', callEnviron, wait=wait)
         idxLo = lo
         idxLoIndex = self.createCellIndex(
             self.arrayCells[idxLo], 'idxLo', level=-1)
         callEnviron.add(idxLoIndex)
-        self.highlightCode('idxLo = lo', callEnviron, wait=wait)
 
+        self.highlightCode('idxHi = mid', callEnviron, wait=wait)
         idxHi = mid
         idxHiIndex = self.createCellIndex(
             self.arrayCells[idxHi], 'idxHi', level=-2)
         callEnviron.add(idxHiIndex)
-        self.highlightCode('idxHi = mid', callEnviron, wait=wait)
 
         idxDelta = (self.CELL_WIDTH, 0)
 
-        self.highlightCode('idxLo < mid and idxHi < hi', callEnviron, wait=wait)
+        self.highlightCode('idxLo < mid', callEnviron, wait=wait)
+        if idxLo < mid:
+            self.highlightCode('idxHi < hi', callEnviron, wait=wait)
         while idxLo < mid and idxHi < hi:
-            self.highlightCode('idxLo < mid and idxHi < hi', callEnviron, wait=wait)
             self.highlightCode(
                 'itemLo = self.__arr.get(idxLo)', callEnviron, wait=wait)
             self.highlightCode(
@@ -232,8 +247,9 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
             n += 1
             self.moveItemsBy(nIndex, idxDelta, sleepTime=wait / 10)
 
-            self.highlightCode(
-                'idxLo < mid and idxHi < hi', callEnviron, wait=wait)
+            self.highlightCode('idxLo < mid', callEnviron, wait=wait)
+            if idxLo < mid:
+                self.highlightCode('idxHi < hi', callEnviron, wait=wait)
 
         self.highlightCode(('idxLo < mid', 2), callEnviron, wait=wait)
         while idxLo < mid:
@@ -274,6 +290,11 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
             
         self.cleanUp(callEnviron)
 
+    def moveIndex(self, index, rectID): # Move an index to be above a rectangle
+        self.canvas.coords(
+            index,
+            (self.cellIndexCoords(rectID, 1)[0], self.canvas.coords(index)[1]))
+        
     def setArrayValue(
             self, toArray, toCells, toIndex, fromArray, fromCells, fromIndex,
             callEnviron):

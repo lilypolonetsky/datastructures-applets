@@ -84,10 +84,12 @@ class CodeHighlightBlock(object):
                     'fragment "{}"'.format(fragment))
             return first, '{}.{}'.format(line, start + len(fragment) - chars)
         
-    def markStart(self, ind='1.0'):
+    def markStart(self, ind='1.0', resetCache=True):
         '''Mark the start of this code block inside the Tk text widget'''
         self.startMark = self.prefix + '▶'
         self.textWidget.mark_set(self.startMark, ind)
+        if resetCache:
+            self.cache = {}
 
 if __name__ == '__main__':
 
