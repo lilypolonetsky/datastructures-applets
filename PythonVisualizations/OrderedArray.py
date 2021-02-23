@@ -154,10 +154,9 @@ def find(self, item={val}):
         self.wait(wait)
 
         midIndex = None
+        self.highlightCode('lo <= hi', callEnviron, wait=wait)
 
         while lo <= hi:
-            self.highlightCode('lo <= hi', callEnviron, wait=wait)
-
             self.highlightCode('mid = (lo + hi) // 2', callEnviron)
             mid = (lo + hi) // 2
             if midIndex:
@@ -189,8 +188,9 @@ def find(self, item={val}):
                 hiCoords = self.indexCoords(hi, level=3)
                 self.moveItemsTo(hiIndex, (hiCoords, hiCoords[:2]),
                                  sleepTime=wait / 10)
+
+            self.highlightCode('lo <= hi', callEnviron, wait=wait)
                 
-        self.wait(wait)        # Pause for final loop comparison
         self.highlightCode('return lo', callEnviron)
         self.cleanUp(callEnviron)
         return lo
@@ -208,17 +208,18 @@ def search(self, item={item}):
         wait = 0.1
         
         self.highlightCode('self.find(item)', callEnviron, wait=wait)
-        nIndex = self.find(item)
-        if nIndex < len(self.list) and self.list[nIndex].val == item:
-            callEnviron.add(self.createFoundCircle(nIndex))
+        index = self.find(item)
+        callEnviron |= set(self.createIndex(index, 'index'))
+        if index < len(self.list) and self.list[index].val == item:
+            callEnviron.add(self.createFoundCircle(index))
 
         result = None
         self.highlightCode('index < self.__nItems', callEnviron, wait=wait)
-        if nIndex < len(self.list):
+        if index < len(self.list):
             self.highlightCode('self.__a[index] == item', callEnviron, wait=wait)
-            if self.list[nIndex].val == item:
+            if self.list[index].val == item:
                 self.highlightCode('return self.__a[index]', callEnviron, wait=wait)
-                result = self.list[nIndex].val
+                result = self.list[index].val
             else:
                 self.highlightCode([], callEnviron)
         else:
