@@ -273,7 +273,7 @@ def insert(self, item={val!r}):
         self.cleanUp(callEnviron)
         return True
 
-    removeCode = '''
+    removeFrontCode = '''
 def remove(self):
    if self.isEmpty():
       raise Exception("Queue underflow")
@@ -287,7 +287,7 @@ def remove(self):
 '''
     
     # remove the front element of the queue, or None if empty
-    def removeFront(self, code=removeCode, start=True):
+    def removeFront(self, code=removeFrontCode, start=True):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
         wait = 0.1

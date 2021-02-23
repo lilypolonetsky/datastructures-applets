@@ -227,7 +227,7 @@ def __init__(self, size={val}, pri=identity):
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
-    removeCode = '''
+    removeLastCode = '''
 def remove(self):
    if self.isEmpty():
       raise Exception("Queue underflow")
@@ -238,7 +238,7 @@ def remove(self):
 '''
     
     # delete the last element of the queue, or None if empty
-    def remove(self, code=removeCode, start=True):
+    def remove(self, code=removeLastCode, start=True):
         callEnviron = self.createCallEnvironment(
             code=code, startAnimations=start)
 
