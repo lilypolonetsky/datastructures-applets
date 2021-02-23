@@ -237,9 +237,10 @@ def delete(self, goal={goal!r}):
         
         foundHighlight = self.createFoundHighlight(previous + 1)
         callEnviron.add(foundHighlight)
-        toDeleteIndex = self.createIndex(previous + 1, 'toDelete')
         self.highlightCode('toDelete = previous.getNext()', callEnviron, 
                            wait=wait)
+        toDelete = self.list[previous]
+        toDeleteIndex = self.createIndex(previous + 1, 'toDelete')
         
         # Prepare to update next pointer from previous
         self.highlightCode(
@@ -277,6 +278,7 @@ def delete(self, goal={goal!r}):
         self.restorePositions()
                     
         self.cleanUp(callEnviron)
+        return toDelete.key
 
     findCode = """
 def find(self, goal={goal!r}):
@@ -402,7 +404,7 @@ def search(self, goal={goal!r}):
         result = self.delete(val, start=self.startMode())
         self.setMessage(
             'Error! Linked list is empty' if empty else
-            '{} eleted'.format(val) if result else
+            '"{}" was deleted'.format(val) if result else
             'Value {} not found'.format(val))
         if result:
             self.clearArgument()        

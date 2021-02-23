@@ -65,6 +65,8 @@ def insert(self, item={val}):
         indexJ = self.createIndex(j, 'j')
         callEnviron |= set(indexJ)
 
+        self.highlightCode('0 < j', callEnviron, wait=wait)
+        
         startPosition = self.tempCoords(j - 1)
         cell = self.createCellValue(startPosition, val)
         itemLabel = self.canvas.create_text(
@@ -73,12 +75,11 @@ def insert(self, item={val}):
         newItem = cell + (itemLabel,)
         callEnviron |= set(newItem)
         
-        self.highlightCode('0 < j and self.__a[j - 1] > item', callEnviron)
+        if 0 < j:
+            self.highlightCode('self.__a[j - 1] > item', callEnviron, wait)
         
         #  Move bigger items right
         while 0 < j and self.list[j-1].val > val:
-            self.wait(wait) # Pause to compare values
-
             self.highlightCode('self.__a[j] = self.__a[j-1]', callEnviron)
             self.assignElement(j - 1, j, callEnviron, sleepTime=wait / 10)
             
@@ -87,7 +88,10 @@ def insert(self, item={val}):
             self.moveItemsBy(indexJ + newItem, (-self.CELL_WIDTH, 0), 
                              sleepTime=wait / 10)
             
-        self.wait(wait) # Pause for last loop comparison
+            self.highlightCode('0 < j', callEnviron, wait=wait)
+            if 0 < j:
+                self.highlightCode('self.__a[j - 1] > item', callEnviron, wait)
+            
         
         self.highlightCode('self.__a[j] = item', callEnviron, wait=wait)
         
@@ -97,18 +101,20 @@ def insert(self, item={val}):
             toPositions += (self.cellCenter(j),)
         self.moveItemsTo(cell, toPositions, sleepTime=wait / 10)
 
-        for item in self.list[j].items: # Delete items covered by the new item
-            if item is not None:
-                self.canvas.delete(item)
-        self.list[j] = drawnValue(val, *cell)
+        if j < len(self.list):
+            for item in self.list[j].items: # Delete items covered by new item
+                if item is not None:
+                    self.canvas.delete(item)
+            self.list[j] = drawnValue(val, *cell)
+        else:
+            self.list.append(drawnValue(val, *cell))
         callEnviron ^= set(cell)  # New item is no longer temporary
         self.canvas.delete(itemLabel)
         callEnviron.discard(itemLabel)
         
         # Move nItems pointer
         self.highlightCode('self.__nItems += 1', callEnviron)
-        self.moveItemsBy(self.nItems, (self.CELL_WIDTH, 0))
-        self.wait(wait)        
+        self.moveItemsBy(self.nItems, (self.CELL_WIDTH, 0), sleepTime=wait/10)
 
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
@@ -148,10 +154,9 @@ def find(self, item={val}):
         self.wait(wait)
 
         midIndex = None
+        self.highlightCode('lo <= hi', callEnviron, wait=wait)
 
         while lo <= hi:
-            self.highlightCode('lo <= hi', callEnviron, wait=wait)
-
             self.highlightCode('mid = (lo + hi) // 2', callEnviron)
             mid = (lo + hi) // 2
             if midIndex:
@@ -183,8 +188,9 @@ def find(self, item={val}):
                 hiCoords = self.indexCoords(hi, level=3)
                 self.moveItemsTo(hiIndex, (hiCoords, hiCoords[:2]),
                                  sleepTime=wait / 10)
+
+            self.highlightCode('lo <= hi', callEnviron, wait=wait)
                 
-        self.wait(wait)        # Pause for final loop comparison
         self.highlightCode('return lo', callEnviron)
         self.cleanUp(callEnviron)
         return lo
@@ -202,17 +208,18 @@ def search(self, item={item}):
         wait = 0.1
         
         self.highlightCode('self.find(item)', callEnviron, wait=wait)
-        nIndex = self.find(item)
-        if nIndex < len(self.list) and self.list[nIndex].val == item:
-            callEnviron.add(self.createFoundCircle(nIndex))
+        index = self.find(item)
+        callEnviron |= set(self.createIndex(index, 'index'))
+        if index < len(self.list) and self.list[index].val == item:
+            callEnviron.add(self.createFoundCircle(index))
 
         result = None
         self.highlightCode('index < self.__nItems', callEnviron, wait=wait)
-        if nIndex < len(self.list):
+        if index < len(self.list):
             self.highlightCode('self.__a[index] == item', callEnviron, wait=wait)
-            if self.list[nIndex].val == item:
+            if self.list[index].val == item:
                 self.highlightCode('return self.__a[index]', callEnviron, wait=wait)
-                result = self.list[nIndex].val
+                result = self.list[index].val
             else:
                 self.highlightCode([], callEnviron)
         else:
@@ -293,12 +300,12 @@ def delete(self, item):
                 
                 # remove the last item in the list
                 n = self.list.pop()
-                # delete the associated display objects
+                
+                self.highlightCode('return True', callEnviron, wait=wait)
+                # delete the associated display objects 
                 for item in n.items:
                     if item is not None:
                         self.canvas.delete(item)
-                    
-                self.highlightCode('return True', callEnviron, wait=wait)
                 
         if not found:
             self.highlightCode('return False', callEnviron, wait=wait * 2)

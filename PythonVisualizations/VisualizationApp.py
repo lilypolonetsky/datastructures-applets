@@ -688,14 +688,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 callEnviron=None,  # for a particular call or all calls
                 stopAnimations=True, # stop animations, if requested
                 sleepTime=0,  # wait between removing code lines from stack
-                ignoreStops=False): # ignore UserStops, if requested
+                ignoreStops=False,   # ignore UserStops, if requested
+                allowSteps=False):   # Allow stepping to pause clean up
         if stopAnimations:
             self.stopAnimations()
         minStack = 1 if callEnviron else 0 # Don't clean beyond minimum, keep
         while len(self.callStack) > minStack: # 1st call unless cleaning all
             top = self.callStack.pop()
             try:
-                self.cleanUpCallEnviron(top, sleepTime)
+                self.cleanUpCallEnviron(top, sleepTime, allowSteps=allowSteps)
             except UserStop:
                 if not ignoreStops:
                     raise UserStop

@@ -48,13 +48,14 @@ class TowerOfHanoi(VisualizationApp):
         self.spindleWidth = max(4, self.width // 90)
         self.diskThickness = max(self.spindleWidth, 18)
         self.padX = self.spindleWidth
-        self.spindleX = [
-           self.X0 + self.width // 2 + ((self.width - self.padX * 2) // 3) * x
-           for x in range(-1, 2)]
         self.buttons = self.makeButtons()
         self.display()
         self.setupDisks(0)
 
+    def spindleX(self, index):
+        return (self.X0 + self.width // 2 + 
+                ((self.width - self.padX * 2) // 3) * (index - 1))
+    
     def __str__(self):
         return str(self.spindles)
 
@@ -110,49 +111,73 @@ def reset(self):
             self.__stacks[spindle].push(disk)
 '''
 
-    def setupDisks(self, nDisks, code=_init__Code):
+    def setupDisks(self, nDisks, code=_init__Code, start=True):
         wait = 0.05
         callEnviron = None
         if nDisks > 0:
             self.allowUserMoves = False
             callEnviron = self.createCallEnvironment(
-                code.format(**locals()), sleepTime=wait / 5)
+                code.format(**locals()), sleepTime=wait / 5, 
+                startAnimations=start)
 
         self.spindles = [[] for _ in range(3)]   # Prepare to create spindles
         if callEnviron:
             self.highlightCode('self.__stacks = [None] * 3', callEnviron, wait)
             self.highlightCode("self.__labels = ['L', 'M', 'R']",
                                callEnviron, wait)
+            spindleLabels = [
+                self.createSpindleLabel(label, spindle) 
+                for spindle, label in enumerate(['L', 'M', 'R'])]
+            callEnviron |= set(spindleLabels)
             self.highlightCode('self.__nDisks = nDisks', callEnviron, wait)
             self.highlightCode('self.reset()', callEnviron, wait)
             callEnviron2 = self.createCallEnvironment(
                 self.resetCode, sleepTime=wait / 5)
+            for label in spindleLabels:
+                self.canvas.delete(label)
+                callEnviron.discard(label)
             self.highlightCode('spindle in range(3)', callEnviron2)
 
         self.disks = [None] * nDisks # Prepare to create disks
+        spindleLabel = None
         for spindle in range(3):
             if callEnviron:
-                self.highlightCode('spindle in range(3)', callEnviron2, wait)
+                if spindleLabel is None:
+                    spindleLabel = self.createSpindleLabel('spindle', spindle)
+                    callEnviron2.add(spindleLabel)
+
                 self.highlightCode(
                     'self.__stacks[spindle] = Stack(\n         self.__nDisks)',
                     callEnviron2, wait)
                 self.highlightCode('spindle == 0', callEnviron2, wait)
                 
             if spindle == 0: # On left spindle
-                for ID in range(nDisks - 1, -1, -1):
+                if callEnviron:
                     self.highlightCode(
                         'disk in range(\n               self.__nDisks, 0, -1)',
                         callEnviron2, wait)
+                for ID in range(nDisks - 1, -1, -1):
+                    if callEnviron:
+                        self.highlightCode('self.__stacks[spindle].push(disk)',
+                                           callEnviron2, wait)
                     # Internally put disk on spindle
                     self.spindles[spindle].append(ID)
                     self.disks[ID] = self.createDiskDrawing(ID)
-                    self.highlightCode('self.__stacks[spindle].push(disk)',
-                                       callEnviron2, wait)
                     self.moveItemsTo(self.disks[ID], self.diskCoords(ID),
-                                     sleepTime=0.01)
+                                     sleepTime=wait / 5)
                     self.updateSpindles(spindle)
+                    if callEnviron:
+                        self.highlightCode(
+                            'disk in range(\n               self.__nDisks, 0, -1)',
+                            callEnviron2, wait)
             else:
                 self.updateSpindles(spindle)
+
+            if callEnviron:
+                self.highlightCode('spindle in range(3)', callEnviron2)
+                self.moveItemsTo(
+                    spindleLabel, self.spindleLabelCenter(spindle + 1),
+                    sleepTime=wait / 5)
 
         if callEnviron:
             self.cleanUp(callEnviron2, sleepTime=wait / 5)
@@ -190,18 +215,18 @@ def reset(self):
         # Bottom of spindle goes to top of stack of disks
         bottom = baseY - len(self.spindles[index]) * dt
         return ( # Bottom disk
-            (self.spindleX[index] - half, bottom - quarter,
-             self.spindleX[index] + (sw - half), bottom + (half - quarter)),
+            (self.spindleX(index) - half, bottom - quarter,
+             self.spindleX(index) + (sw - half), bottom + (half - quarter)),
             # Rectangle shaft
-            (self.spindleX[index] - half, bottom,
-             self.spindleX[index] + (sw - half), topY),
+            (self.spindleX(index) - half, bottom,
+             self.spindleX(index) + (sw - half), topY),
             # Top disk
-            (self.spindleX[index] - half, topY - quarter,
-             self.spindleX[index] + (sw - half), topY + (half - quarter))
+            (self.spindleX(index) - half, topY - quarter,
+             self.spindleX(index) + (sw - half), topY + (half - quarter))
         )
 
     def spindleLabelCenter(self, index):
-        return (self.spindleX[index], self.bbox[3] - self.labelHeight // 2)
+        return (self.spindleX(index), self.bbox[3] - self.labelHeight // 2)
 
     def createSpindleLabel(self, text, index):
         return self.canvas.create_text(
@@ -248,14 +273,14 @@ def reset(self):
         baseY = baseBottom - 3 * sw - pos * dt
         topY = baseY - dt
         return ( # Bottom disk
-            (self.spindleX[spindle] - radius, baseY - half,
-             self.spindleX[spindle] + radius, baseY + tilt - half),
+            (self.spindleX(spindle) - radius, baseY - half,
+             self.spindleX(spindle) + radius, baseY + tilt - half),
             # Rectangle plate
-            (self.spindleX[spindle] - radius, topY,
-             self.spindleX[spindle] + radius, baseY),
+            (self.spindleX(spindle) - radius, topY,
+             self.spindleX(spindle) + radius, baseY),
             # Top disk
-            (self.spindleX[spindle] - radius, topY - half,
-             self.spindleX[spindle] + radius, topY + tilt - half),
+            (self.spindleX(spindle) - radius, topY - half,
+             self.spindleX(spindle) + radius, topY + tilt - half),
         )
 
     def diskSpindlePos(self, diskID):
@@ -442,10 +467,14 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
             nDisks = self.nDisks()
         highlightWait = 0.08
         moveWait = 0.01
-        self.allowUserMoves = False
         callEnviron = self.createCallEnvironment(
             self.solveCode.format(**locals()), sleepTime=moveWait,
             startAnimations=startAnimations)
+
+        self.highlightCode(
+            'nDisks={nDisks}, start={start}, goal={goal}, spare={spare}'
+            .format(**locals()), callEnviron)
+        
         labels = ('start', 'goal', 'spare')
         labelPositions = list(zip(labels, (start, goal, spare)))
         for label, pos in labelPositions:
@@ -454,32 +483,34 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
                 self.spindleLabels[label] = self.createSpindleLabel(label, pos)
                 callEnviron.add(self.spindleLabels[label])
         labelItems = [self.spindleLabels[label] for label in labels]
+        startLabel = 'start  nDisks={}'.format(nDisks)
+        self.canvas.itemconfigure(labelItems[0], text=startLabel)
         labelCoords = [
             self.canvas.coords(labelItem) for labelItem in labelItems]
         toCoords = [self.spindleLabelCenter(lp[1]) for lp in labelPositions]
         if flat(*labelCoords) != flat(*toCoords):
             self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
-        startLabel = 'start  nDisks={}'.format(nDisks)
-        self.canvas.itemconfigure(labelItems[0], text=startLabel)
-        self.highlightCode('nDisks <= 0', callEnviron, highlightWait)
+
+        self.highlightCode('nDisks <= 0', callEnviron)
         if nDisks <= 0:
             self.highlightCode('return', callEnviron, highlightWait)
-        else:
-            self.highlightCode('self.solve(nDisks - 1, start, spare, goal)',
-                               callEnviron)
-            self.solve(nDisks - 1, start, spare, goal)
-            self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
-            self.canvas.itemconfigure(labelItems[0], text=startLabel)
-            self.highlightCode('self.move(start, goal)', callEnviron)
-            self.moveDisk(start, goal)
-            self.moves += 1
-            self.highlightCode('self.solve(nDisks - 1, spare, goal, start)',
-                               callEnviron)
-            self.solve(nDisks - 1, spare, goal, start)
-            self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
-            self.canvas.itemconfigure(labelItems[0], text=startLabel)
+            self.cleanUp(callEnviron, sleepTime=0.01)
+            return
+        
+        self.highlightCode('self.solve(nDisks - 1, start, spare, goal)',
+                           callEnviron)
+        self.solve(nDisks - 1, start, spare, goal)
+        self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
+        self.canvas.itemconfigure(labelItems[0], text=startLabel)
+        self.highlightCode('self.move(start, goal)', callEnviron)
+        self.moveDisk(start, goal)
+        self.moves += 1
+        self.highlightCode('self.solve(nDisks - 1, spare, goal, start)',
+                           callEnviron)
+        self.solve(nDisks - 1, spare, goal, start)
+        self.moveItemsTo(labelItems, toCoords, sleepTime=moveWait)
+        self.canvas.itemconfigure(labelItems[0], text=startLabel)
         self.highlightCode([], callEnviron)
-        self.allowUserMoves = True
         self.cleanUp(callEnviron, sleepTime=0.01)
 
     def moveDisk(self, fromSpindle, toSpindle):
@@ -511,7 +542,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        newButton = self.addOperation(
+        self.newButton = self.addOperation(
             "New", self.clickNew, numArguments=1, validationCmd=vcmd,
             argHelpText=['Number of disks'], 
             helpText='Create a new puzzle of N disks')
@@ -520,7 +551,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
         self.solveButton['state'] = DISABLED
         #this makes the pause, play and stop buttons 
         self.addAnimationButtons()
-        return [newButton, self.solveButton]
+        return [self.newButton, self.solveButton]
 
     def enableButtons(self, enable=True): # Customize enableButtons
         super().enableButtons(enable)  # Perform common operation
@@ -551,7 +582,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
             nDisks = int(val)
             self.spindles = [[] for _ in range(3)] # Clear all spindles
             self.display()            # Display empty puzzle
-            self.setupDisks(nDisks)   # Setup initial disks
+            self.setupDisks(nDisks, start=self.startMode()) # Setup disks
             self.moves = 0
             self.setMessage('You need at least {} move{}.  Good luck!'.format(
                 pow(2, nDisks) - 1, '' if nDisks == 1 else 's'))
@@ -560,7 +591,9 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
 
     def clickSolve(self):
         if self.leftSpindleFull():
+            self.allowUserMoves = False
             self.solve(self.nDisks(), startAnimations=self.startMode())
+            self.allowUserMoves = True
             self.setMessage('{} total move{} made'.format(
                 self.moves, '' if self.moves == 1 else 's'))
         else:
@@ -576,7 +609,8 @@ if __name__ == '__main__':
 
     for arg in sys.argv[1:]:
         if arg.isdigit():
-            tower.setupDisks(min(tower.maxDisks, int(arg)))
+            tower.setArgument(arg)
+            tower.newButton.invoke()
             break
         
     tower.runVisualization()
