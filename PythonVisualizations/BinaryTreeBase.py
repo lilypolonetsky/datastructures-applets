@@ -486,6 +486,8 @@ class BinaryTreeBase(VisualizationApp):
         for node in nodes:
             key = node.getKey()
             self.canvas.itemconfigure(node.drawnValue.items[2], text=str(key))
+            self.canvas.tag_raise(
+                node.drawnValue.items[2], node.drawnValue.items[1])
 
     def outputBoxSpacing(self, font=None):
         if font is None: font = self.VALUE_FONT
