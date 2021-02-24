@@ -277,18 +277,21 @@ class BinaryTreeBase(VisualizationApp):
         to cell in the array of nodes.  Optionally give a text label.
         '''
         if font is None: font = self.VARIABLE_FONT
-        x0, y0, x1, y1 = self.indexCoords(node, level, font, orientation)
+        arrowCoords, labelCoords = self.indexCoords(
+            node, level, font, orientation)
         arrow = self.canvas.create_line(
-            x0, y0, x1, y1, arrow="last", fill=color, width=width, tags=tags)
+            *arrowCoords, arrow="last", fill=color, width=width, tags=tags)
         if label is None:
             return (arrow, )
         label = self.canvas.create_text(
-            x0, y0, text=label, anchor=SW, font=font, fill=color, tags=tags)
+            *labelCoords, text=label, anchor=SW, font=font, fill=color,
+            tags=tags)
         return (arrow, label)
 
     def indexCoords(self, node, level, font=None, orientation=-90):
         '''Compute coordinates of an arrow pointing at either an existing
-         node or an index to cell in the array of nodes.
+        node or an index to cell in the array of nodes, as well as the
+        anchor coordinates of label at the arrow's base.
         '''
         if font is None: font = self.VARIABLE_FONT
         center = (node.center if isinstance(node, Node)
@@ -296,7 +299,7 @@ class BinaryTreeBase(VisualizationApp):
         tip = V(self.CIRCLE_SIZE, 0).rotate(orientation)
         base = V(self.CIRCLE_SIZE + self.ARROW_HEIGHT + level * abs(font[1]),
                  0).rotate(orientation)
-        return (V(center) + V(base)) + (V(center) + V(tip))
+        return (V(center) + V(base)) + (V(center) + V(tip)), V(center) + V(base)
         
     def moveArrow(
             self, arrow, node, level=1, numSteps=10, sleepTime=0.02, font=None,
@@ -306,19 +309,17 @@ class BinaryTreeBase(VisualizationApp):
         -1 is the binary tree object.
         '''
         if isinstance(node, (int, Node)):
-            newCoords = self.indexCoords(node, level, font, orientation)
+            newArrow, newLabel = self.indexCoords(node, level, font, orientation)
         elif isinstance(node, tuple):
-            if font is None: font = self.VARIABLE_FONT
-            newCoords = (
-                node[0], node[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT - 
-                level * abs(font[1]),
-                node[0], node[1] - self.CIRCLE_SIZE)
+            n0Arrow, n0Label = self.indexCoords(0, level, font, orientation)
+            center = self.nodeCenter(0)
+            newArrow = V(V(n0Arrow) - V(center * 2)) + V(node * 2)
+            newLabel = V(V(n0Label) - V(center)) + V(node)
         else:
             raise ValueError('Unrecognized node type: {}'.formt(type(node)))
 
         self.moveItemsTo(
-            arrow, 
-            (newCoords,) if len(arrow) == 1 else (newCoords, newCoords[:2]), 
+            arrow, (newArrow,) if len(arrow) == 1 else (newArrow, newLabel), 
             steps=numSteps, sleepTime=sleepTime)
 
     # calculate the coordinates for the node shape based on its parent node
@@ -927,8 +928,8 @@ for key, data in tree.traverse("{traverseType}"):
                 callEnviron |= set(dataIndex)
                 localVars += dataIndex
             else:
-                dataCoords = self.indexCoords(node, 1, orientation=-135)
-                self.moveItemsTo(dataIndex, (dataCoords, dataCoords[:2]),
+                self.moveItemsTo(dataIndex, 
+                                 self.indexCoords(node, 1, orientation=-135),
                                  sleepTime=wait / 10)
 
             self.highlightCode('print(key)', callEnviron, wait=wait)
@@ -1048,9 +1049,10 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 localVars += childArrow
                 colors = self.itemsFillColor(localVars)
             else:
-                childCoords = self.indexCoords(childIndex, 1, orientation=-115)
-                self.moveItemsTo(childArrow, (childCoords, childCoords[:2]),
-                                 sleepTime=wait / 10)
+                self.moveItemsTo(
+                    childArrow, 
+                    self.indexCoords(childIndex, 1, orientation=-115),
+                    sleepTime=wait / 10)
             self.highlightCode(
                 ('yield (childKey, childData)', 1), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
@@ -1090,9 +1092,10 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 localVars += childArrow
                 colors = self.itemsFillColor(localVars)
             else:
-                childCoords = self.indexCoords(childIndex, 1, orientation=-115)
-                self.moveItemsTo(childArrow, (childCoords, childCoords[:2]),
-                                 sleepTime=wait / 10)
+                self.moveItemsTo(
+                    childArrow, 
+                    self.indexCoords(childIndex, 1, orientation=-115),
+                    sleepTime=wait / 10)
             self.highlightCode(
                 ('yield (childKey, childData)', 1), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
