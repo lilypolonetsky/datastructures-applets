@@ -531,7 +531,7 @@ class BinaryTreeBase(VisualizationApp):
    
     # create a Node object with key and parent specified
     # parent should be a Node object
-    def createNode(self, key, parent = None, direction = None):
+    def createNode(self, key, parent=None, direction=None, color=None):
         # calculate the node index
         nodeIndex = self.getChildIndex(parent, direction) if parent else 0
       
@@ -543,7 +543,8 @@ class BinaryTreeBase(VisualizationApp):
       
         # create the canvas items and the drawnValue object
         drawnValueObj = drawnValue(key, *self.createNodeShape(
-            *center, key, tag, parent=parent.center if parent else None))
+            *center, key, tag, parent=parent.center if parent else None,
+            color=color))
       
         # create the Node object
         node = Node(drawnValueObj, center, tag)
