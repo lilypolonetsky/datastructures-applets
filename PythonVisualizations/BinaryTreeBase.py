@@ -347,11 +347,12 @@ class BinaryTreeBase(VisualizationApp):
             i = (i - 1) // 2
         return self.ROOT_X0 + x, self.ROOT_Y0 + y
         
-    def nodeShapeCoordinates(self, center):
-        return (center[0] - self.CIRCLE_SIZE, center[1] - self.CIRCLE_SIZE,
-                center[0] + self.CIRCLE_SIZE, center[1] + self.CIRCLE_SIZE)
+    def nodeShapeCoordinates(self, center, radius=None):
+        if radius is None: radius = self.CIRCLE_SIZE
+        offset = V(radius, radius)
+        return (V(center) - offset) + (V(center) + offset)
 
-    def nodeItemCoords(self, node, parent=None):
+    def nodeItemCoords(self, node, parent=None, radius=None):
         '''Return coordinates for line to parent, shape, and text label items
         that represent a node.  The node and parent parameters can be either
         a node, a node index, or a coordinate tuple for the center of the node.
@@ -372,12 +373,15 @@ class BinaryTreeBase(VisualizationApp):
             parentCenter = nodeCenter
             
         return (nodeCenter + parentCenter, 
-                self.nodeShapeCoordinates(nodeCenter), nodeCenter)
+                self.nodeShapeCoordinates(nodeCenter, radius=radius),
+                nodeCenter)
 
-    def createNodeHighlight(self, node, highlightWidth=2, color=None):
+    def createNodeHighlight(
+            self, node, highlightWidth=2, color=None, radius=None):
         if color is None: color = self.FOUND_COLOR
         nCoords = self.nodeShapeCoordinates(
-            node.center if isinstance(node, Node) else self.nodeCenter(node))
+            node.center if isinstance(node, Node) else self.nodeCenter(node),
+            radius=radius)
         delta = (highlightWidth, highlightWidth)
         highlightCoords = (V(nCoords[:2]) - delta) + (V(nCoords[2:]) + delta)
         return self.canvas.create_oval(
@@ -429,18 +433,20 @@ class BinaryTreeBase(VisualizationApp):
         return text
 
     def createNodeShape(
-            self, x, y, key, tag, color=None, parent=None, lineColor='black',
-            lineWidth=1):
+            self, x, y, key, tag, color=None, parent=None, radius=None,
+            font=None, lineColor='black', lineWidth=1):
         '''Create canvas items for the circular node, its key label, and
         a line to the node centered at the parent coordinates. If parent
         is None, the line will be zero length to become invisible.
         Returns the line, circular background, and text label items
         '''
         if color is None: color = drawnValue.palette[2]
+        if radius is None: radius = self.CIRCLE_SIZE
+        if font is None: font = self.VALUE_FONT
         circle = self.canvas.create_circle(
-            x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
+            x, y, radius, tag = tag, fill=color, outline='')
         circle_text = self.canvas.create_text(
-            x, y, text=key, font=self.VALUE_FONT, tag = tag)
+            x, y, text=key, font=font, tag=tag)
         line = self.canvas.create_line(
             x, y, *(parent if parent else (x, y)),
             tags = ("line", tag + "_line"), fill=lineColor, width=lineWidth)
