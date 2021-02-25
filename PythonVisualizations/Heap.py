@@ -815,15 +815,15 @@ def remove(self):
                 itemsToMove, 
                 (cellCoords, cellCenter) + self.nodeItemCoords(0)[1:],
                 startAngle=startAngle, sleepTime=wait / 10)
-            for item in lastNode.drawnValue.items + (
-                    lastItem.items if lastItem is self.list[-1] else ()):
-                self.canvas.delete(item)
-            if lastItem is self.list[-1]:
-                self.list.pop()
             self.list[0] = drawnValue(lastItem.val, *itemsToMove[:2])
             rootNode.drawnValue.val = lastItem.val
             rootNode.drawnValue.items = (
                 rootNode.drawnValue.items[0],) + itemsToMove[2:]
+        for item in lastNode.drawnValue.items + (
+                lastItem.items if lastItem is self.list[-1] else ()):
+            self.canvas.delete(item)
+        if lastItem is self.list[-1]:
+            self.list.pop()
         
         self.highlightCode('self._siftDown(0)', callEnviron)
         self._siftDown(0)
@@ -900,6 +900,18 @@ def remove(self):
             self.canvas.tag_bind(item, '<Button>', handler)
 
         return cell_rect, cell_val
+    
+    def outputBoxCoords(self, font=None, padding=6, N=None):
+        '''Coordinates for an output box in lower right of canvas with enough
+        space to hold N values, defaulting to current heap size.  Normally
+        it is centered under the tree.'''
+        if N is None: N = len(self.list)
+        if font is None: font = self.VALUE_FONT
+        spacing = self.outputBoxSpacing(font)
+        canvasDims = self.widgetDimensions(self.canvas)
+        left = max(0, self.RECT[0] + self.RECT[2] - N * spacing - padding) // 2
+        return (left, canvasDims[1] - abs(font[1]) * 2 - padding,
+                left + N * spacing + padding, canvasDims[1] - padding)
         
     def display(self):
         self.canvas.delete("all")
