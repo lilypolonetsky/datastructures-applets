@@ -484,11 +484,12 @@ class BinaryTreeBase(VisualizationApp):
         if nodes is None:
             nodes = self.getAllDescendants(self.getRoot())
         self.restoreNodePositions(nodes, sleepTime=0)
-        for node in nodes:
-            key = node.getKey()
-            self.canvas.itemconfigure(node.drawnValue.items[2], text=str(key))
-            self.canvas.tag_raise(
-                node.drawnValue.items[2], node.drawnValue.items[1])
+        for node in nodes: # Restore text label above shape background
+            shape, text = node.drawnValue.items[1:3]
+            if self.canvas.type(text):
+                self.canvas.itemconfigure(text, text=str(node.getKey()))
+                if self.canvas.type(shape):
+                    self.canvas.tag_raise(text ,shape)
 
     def outputBoxSpacing(self, font=None):
         if font is None: font = self.VALUE_FONT
