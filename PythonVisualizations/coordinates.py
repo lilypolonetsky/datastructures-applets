@@ -117,7 +117,7 @@ class vector(object):
         return (self.dot(vector(c, -s)), self.dot(vector(s, c)))
 
 def flat(*vectors): # Flatten a sequence of vectors into a tuple of coordinates
-    return tuple(v[i] for v in vectors for i in range(len(v)))
+    return tuple(elem for v in vectors for elem in v)
 
 def points(*coords, dimension=2): # Unflatten a list of coords into points of
     return [                      # a given dimension
