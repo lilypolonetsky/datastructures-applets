@@ -527,12 +527,18 @@ def siftDown(array, j={j}, N={N}, key=identity):
 '''
         
     def siftDown(self, j=0, N=None, code=siftDownCode):
-        'Sift item j down to preserve heap condition'
+        'Sift item j down to preserve heap condition as part of heapify'
         wait = 0.1
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         
         jIndex = self.createArrayIndex(j, name='j', level=-1)
-        callEnviron |= set(jIndex)
+        jNodeIndex = self.createArrow(
+            j, label='j', orientation=-30, color=self.VARIABLE_COLOR)
+        callEnviron |= set(jIndex + jNodeIndex)
+        jNode = self.getNode(j)
+        if jNode is None:
+            jNode = self.createTreeNode(j)
+        self.restoreChildLinks(j, jNode)
 
         if N is not None:
             NIndex = self.createArrayIndex(N, name='N', level=2)
@@ -545,9 +551,12 @@ def siftDown(array, j={j}, N={N}, key=identity):
             callEnviron |= set(NIndex)
 
         self.highlightCode('firstleaf = N // 2', callEnviron, wait=wait)
-        firstleaf = len(self.list) // 2 # Get index of first leaf
+        firstleaf = N // 2
         leafIndex = self.createArrayIndex(firstleaf, name='firstleaf')
-        callEnviron |= set(leafIndex)
+        leafNodeIndex = self.createArrow(
+            firstleaf, label='firstleaf', orientation=-135,
+            color=self.VARIABLE_COLOR)
+        callEnviron |= set(leafIndex + leafNodeIndex)
         
         self.highlightCode('j >= firstleaf', callEnviron, wait=wait)
         if j >= firstleaf: # If item j is at or below leaf level, nothing to do
@@ -557,12 +566,15 @@ def siftDown(array, j={j}, N={N}, key=identity):
 
         self.highlightCode('item = array[j]', callEnviron, wait=wait)
         downItem = self.list[j].copy()   # Store item at cell j
-        copyItem = tuple(self.copyCanvasItem(i) for i in downItem.items)
-        callEnviron |= set(copyItem)
-        self.moveItemsBy(copyItem, self.siftDelta, sleepTime=wait / 10)
+        itemCopy = tuple(self.copyCanvasItem(i) for i in downItem.items)
+        nodeCopy = tuple(
+            self.copyCanvasItem(i) for i in jNode.drawnValue.items[1:])
+        callEnviron |= set(itemCopy + nodeCopy)
+        self.moveItemsBy(
+            itemCopy + nodeCopy, self.siftDelta, sleepTime=wait / 10)
 
         self.highlightCode('itemkey = key(item)', callEnviron, wait=wait)
-        copyItemCenter = self.canvas.coords(copyItem[1])
+        copyItemCenter = self.canvas.coords(itemCopy[1])
         itemLabel = self.canvas.create_text(
             *(V(copyItemCenter) - V(0, self.CELL_HEIGHT)), text='itemkey',
             font=self.SMALL_FONT, fill=self.VARIABLE_COLOR)
@@ -579,24 +591,34 @@ def siftDown(array, j={j}, N={N}, key=identity):
             left, right = j + j + 1, j + j + 2
             if leftIndex is None:
                 leftIndex = self.createArrayIndex(left, 'left', level=-1)
+                leftNodeIndex = self.createArrow(
+                    left, label='left', color=self.VARIABLE_COLOR)
                 rightIndex = self.createArrayIndex(right, 'right', level=-1)
-                callEnviron |= set(leftIndex + rightIndex)
+                rightNodeIndex = self.createArrow(
+                    right, label='right', color=self.VARIABLE_COLOR)
+                callEnviron |= set(leftIndex + leftNodeIndex +
+                                   rightIndex + rightNodeIndex)
             else:
                 self.moveItemsTo(
-                    leftIndex + rightIndex,
+                    leftIndex + leftNodeIndex + rightIndex + rightNodeIndex, 
                     self.arrayIndexCoords(left, level=-1) +
-                    self.arrayIndexCoords(right, level=-1),
+                    self.indexCoords(left, 1) +
+                    self.arrayIndexCoords(right, level=-1) +
+                    self.indexCoords(right, 1),
                     sleepTime=wait / 10)
 
             self.highlightCode('maxi = left', callEnviron)
             maxi = left        # Assume left child has larger key
             if maxIndex is None:
                 maxIndex = self.createArrayIndex(maxi, name='maxi', level=-4)
-                callEnviron |= set(maxIndex)
+                maxNodeIndex = self.createArrow(
+                    maxi, label='maxi', level=2, color=self.VARIABLE_COLOR)
+                callEnviron |= set(maxIndex + maxNodeIndex)
             else:
                 self.moveItemsTo(
-                    maxIndex, self.arrayIndexCoords(maxi, level=-4),
-                    sleepTime=wait / 10)
+                    maxIndex + maxNodeIndex, 
+                    self.arrayIndexCoords(maxi, level=-4) + 
+                    self.indexCoords(maxi, 2), sleepTime=wait / 10)
            
             self.highlightCode('right < N', callEnviron, wait=wait)
             if right < len(self.list):
@@ -608,8 +630,9 @@ def siftDown(array, j={j}, N={N}, key=identity):
                 self.highlightCode('maxi = right', callEnviron)
                 maxi = right    # then use right child
                 self.moveItemsTo(
-                    maxIndex, self.arrayIndexCoords(right, level=-4),
-                    sleepTime=wait / 10)
+                    maxIndex + maxNodeIndex, 
+                    self.arrayIndexCoords(maxi, level=-4) + 
+                    self.indexCoords(maxi, 2), sleepTime=wait / 10)
 
             self.highlightCode('itemkey < key(array[maxi])',
                                callEnviron, wait=wait)
@@ -617,24 +640,39 @@ def siftDown(array, j={j}, N={N}, key=identity):
                 # move a copy of the max child up to node j
                 self.highlightCode('array[j] = array[maxi]',
                                    callEnviron)
+                maxNode = self.getNode(maxi)
                 copyVal = tuple(
-                    self.copyCanvasItem(i) for i in self.list[maxi].items)
+                    self.copyCanvasItem(i) 
+                    for i in self.list[maxi].items + 
+                    maxNode.drawnValue.items[1:])
                 callEnviron |= set(copyVal)
                 self.moveItemsOnCurve(
-                    copyVal, (self.cellCoords(j), self.cellCenter(j)),
+                    copyVal,
+                    (self.cellCoords(j), self.cellCenter(j),
+                     *self.nodeItemCoords(j)[1:]),
                     sleepTime=wait / 10)
                 for item in self.list[j].items:
                     self.canvas.delete(item)
                 self.list[j].val = self.list[maxi].val
-                self.list[j].items = copyVal
+                self.list[j].items = copyVal[0:2]
+                jNode.drawnValue.val = self.list[maxi].val
+                jNode.drawnValue.items = (
+                    jNode.drawnValue.items[0],) + copyVal[2:]
                 callEnviron -= set(copyVal)
                 
                 self.highlightCode('j = maxi', callEnviron)
                 # Advance j to max child, move original item along with j Index
-                delta = self.cellCenter(maxi)[1] - self.cellCenter(j)[1]
-                self.moveItemsBy(jIndex + copyItem + (itemLabel,), (0, delta), 
-                                 sleepTime=wait / 10)
+                delta = (0, self.cellCenter(maxi)[1] - self.cellCenter(j)[1])
+                toMove = jIndex + itemCopy + (itemLabel,)
+                toPositions = tuple(V(self.canvas.coords(t)) + V(delta * 2)
+                                    for t in toMove)
+                delta = V(maxNode.center) - V(jNode.center)
+                toMove += jNodeIndex + nodeCopy
+                toPositions += tuple(V(self.canvas.coords(t)) + V(delta * 2)
+                                     for t in (jNodeIndex + nodeCopy))
+                self.moveItemsTo(toMove, toPositions, sleepTime=wait / 10)
                 j = maxi
+                jNode = self.getNode(j)
                  
             else:              # If item j's key is greater than or equal
                 self.highlightCode('break', callEnviron, wait=wait)
@@ -644,16 +682,63 @@ def siftDown(array, j={j}, N={N}, key=identity):
 
         # Move copied item into appropriate location
         self.highlightCode('array[j] = item', callEnviron, wait=wait)
-        self.moveItemsBy(copyItem, V(self.siftDelta) * -1,
+        self.moveItemsBy(itemCopy + nodeCopy, V(self.siftDelta) * -1,
                          sleepTime=wait / 10)
         for item in self.list[j].items:
             self.canvas.delete(item)
-        self.list[j].val, self.list[j].items = downItem.val, copyItem
-        callEnviron -= set(copyItem)
+        self.list[j].val, self.list[j].items = downItem.val, itemCopy
+        jNode.drawnValue.val = downItem.val
+        jNode.drawnValue.items = (jNode.drawnValue.items[0],) + nodeCopy
+        callEnviron -= set(itemCopy + nodeCopy)
 
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
+    def createTreeNode(self, index, parent=None, children=False,
+                       center=None, radius=None, color=None, font=None):
+        '''Create a tree node at a particular node index copying the
+        values from the heap array and filling in any links to existing
+        children.  The parent link is only made visible (non-zero length)
+        if the parent is provided.  If children is true, the links from
+        existing children are moved to connect to this node.
+        The center, radius, color, and font can all be set.
+        '''
+        item = self.list[index]
+        if color is None: 
+            color = self.canvas.itemconfigure(item.items[0], 'fill')[-1]
+        if center is None:
+            center = self.nodeCenter(index)
+
+        # generate a tag
+        tag = self.generateTag()
+      
+        # create the canvas items and the drawnValue object
+        drawnValueObj = drawnValue(item.val, *self.createNodeShape(
+            *center, item.val, tag, color=color, radius=radius, font=font,
+            parent=self.getNode(parent).center if parent else None))
+      
+        # create the Node object
+        node = Node(drawnValueObj, center, tag)
+
+        # add the node object to the internal representation
+        self.nodes[index] = node
+
+        # Connect it with any existing children, if requested
+        if children:
+            self.restoreChildLinks(index, node)
+
+        return node
+
+    def restoreChildLinks(self, index, node=None):
+        if node is None:
+            node = self.getNode(index)
+        for child in (self.getLeftChildIndex(index),
+                      self.getRightChildIndex(index)):
+            childNode = self.getNode(child)
+            if childNode:    # Restore link from child to parent
+                self.canvas.coords(childNode.drawnValue.items[0],
+                                   *childNode.center, *node.center)
+    
     heapifyCode = '''
 def heapify(array, N=None, key=identity):
    if N is None:
@@ -680,6 +765,16 @@ def heapify(array, N=None, key=identity):
         heapLo = N // 2          # The heap lies in the range [heapLo, N)
         heapLoIndex = self.createArrayIndex(heapLo, name='heapLo')
         callEnviron |= set(heapLoIndex)
+        leaves = [self.createTreeNode(j, font=self.SMALL_FONT, radius=0,
+                                      center=self.cellCenter(j))
+                  for j in range(heapLo, N)]
+        leafCoords = [self.nodeItemCoords(j) for j in range(heapLo, N)]
+        self.moveItemsLinearly(
+            flat(*(leaf.drawnValue.items for leaf in leaves)),
+            flat(*leafCoords), sleepTime=wait / 10, startFont=self.SMALL_FONT,
+            endFont=self.VALUE_FONT)
+        for l, leaf in enumerate(leaves):
+            leaf.center = leafCoords[l][2]
         
         self.highlightCode('heapLo > 0', callEnviron, wait=wait)
         localVars = NIndex + heapLoIndex
@@ -688,6 +783,15 @@ def heapify(array, N=None, key=identity):
             heapLo -= 1           # Decrement heap's lower boundary
             self.moveItemsTo(heapLoIndex, self.arrayIndexCoords(heapLo),
                              sleepTime=wait / 10)
+            if heapLo > 0:
+                leaf = self.createTreeNode(
+                    heapLo, font=self.SMALL_FONT, radius=0, 
+                    center=self.cellCenter(heapLo))
+                leafCoords = self.nodeItemCoords(heapLo)
+                self.moveItemsLinearly(
+                    leaf.drawnValue.items, leafCoords, sleepTime=wait / 10,
+                    startFont=self.SMALL_FONT, endFont=self.VALUE_FONT)
+                leaf.center = leafCoords[2]
             
             self.highlightCode('siftDown(array, heapLo, N, key)',
                                callEnviron)
