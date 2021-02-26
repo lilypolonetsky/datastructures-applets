@@ -330,16 +330,19 @@ class BinaryTreeBase(VisualizationApp):
         return V(parent.center) + V(
             -dx if childDirection == Child.LEFT else dx, self.LEVEL_GAP)
 
-    def nodeCenter(self, nodeIndex):
+    def nodeCenter(self, node):
         '''Calculate the coordinates for node based on its index in the nodes
-        array.  The index -1 indicates the binary tree object
+        array or from its center attribute, if a Node is passed.  The index -1
+        indicates the binary tree object.
         '''
-        if nodeIndex < 0:
+        if isinstance(node, Node):
+            return node.center
+        if node < 0:
             treeObjectBox = (
                 (0, 0, 40, 30) if getattr(self, 'treeObject', None) is None else
                 self.canvas.coords(self.treeObject[0]))
             return V(V(treeObjectBox[:2]) + V(treeObjectBox[2:])) / 2 
-        level, i = 0, nodeIndex
+        level, i = 0, node
         x, y = 0, 0
         while 0 < i:
             x = x / 2 + self.TREE_WIDTH / (4 if i % 2 == 0 else -4)
@@ -357,16 +360,12 @@ class BinaryTreeBase(VisualizationApp):
         that represent a node.  The node and parent parameters can be either
         a node, a node index, or a coordinate tuple for the center of the node.
         '''
-        if isinstance(node, Node):
-            nodeCenter = node.center
-        elif isinstance(node, int):
-            nodeCenter = self.getNode(node).center
+        if isinstance(node, (Node, int)):
+            nodeCenter = self.nodeCenter(node)
         elif isinstance(node, (tuple, list)):
             nodeCenter = node
-        if isinstance(parent, Node):
-            parentCenter = parent.center
-        elif isinstance(parent, int) and 0 <= parent:
-            parentCenter = self.getNode(parent).center
+        if isinstance(parent, Node) or isinstance(parent, int) and 0 <= parent:
+            parentCenter = self.nodeCenter(parent)
         elif isinstance(parent, (tuple, list)):
             parentCenter = parent
         else:
