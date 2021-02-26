@@ -769,12 +769,13 @@ def heapify(array, N=None, key=identity):
                                       center=self.cellCenter(j))
                   for j in range(heapLo, N)]
         leafCoords = [self.nodeItemCoords(j) for j in range(heapLo, N)]
+        for leaf, coords in zip(leaves, leafCoords):
+            leaf.center = coords[2]
+            callEnviron |= set(leaf.drawnValue.items)
         self.moveItemsLinearly(
             flat(*(leaf.drawnValue.items for leaf in leaves)),
             flat(*leafCoords), sleepTime=wait / 10, startFont=self.SMALL_FONT,
             endFont=self.VALUE_FONT)
-        for l, leaf in enumerate(leaves):
-            leaf.center = leafCoords[l][2]
         
         self.highlightCode('heapLo > 0', callEnviron, wait=wait)
         localVars = NIndex + heapLoIndex
@@ -788,10 +789,12 @@ def heapify(array, N=None, key=identity):
                     heapLo, font=self.SMALL_FONT, radius=0, 
                     center=self.cellCenter(heapLo))
                 leafCoords = self.nodeItemCoords(heapLo)
+                leaf.center = leafCoords[2]
+                callEnviron |= set(leaf.drawnValue.items)
+                leaves.append(leaf)
                 self.moveItemsLinearly(
                     leaf.drawnValue.items, leafCoords, sleepTime=wait / 10,
                     startFont=self.SMALL_FONT, endFont=self.VALUE_FONT)
-                leaf.center = leafCoords[2]
             
             self.highlightCode('siftDown(array, heapLo, N, key)',
                                callEnviron)
@@ -803,12 +806,14 @@ def heapify(array, N=None, key=identity):
 
         # Adjust nItems pointer to indicate heap condition is satisfied
         self.nItems = N
+        for leaf in leaves:  # Leaves are no longer temporary
+            callEnviron -= set(leaf.drawnValue.items)
         self.moveItemsTo(self.nItemsIndex, self.arrayIndexCoords(self.nItems),
                          sleepTime=wait / 10)
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
               
-    # lets user input an int argument that determines max size of the Heap
+    # lets user input an integer argument that determines max size of the Heap
     def newArray(self):
         #gets rid of old elements in the list
         del self.list[:]
@@ -839,11 +844,14 @@ def peek(self):
         if self.nItems > 0:
             self.highlightCode(['return', 'self._arr[0]'], callEnviron)
             # create the value to move to output box
-            valueOutput = self.copyCanvasItem(self.list[0].items[1])
-            callEnviron.add(valueOutput)
-            self.moveItemsTo(valueOutput, outBoxCenter, sleepTime=wait / 10)
-            # Convert to output font
-            self.canvas.itemconfig(valueOutput, font=self.outputFont)
+            outputValues = tuple(self.copyCanvasItem(i) for i in
+                                 (self.list[0].items[1], 
+                                  self.getRoot().drawnValue.items[2]))
+            callEnviron |= set(outputValues)
+            self.moveItemsTo(
+                outputValues, (outBoxCenter,) * 2, sleepTime=wait / 10,
+                startFont=self.VALUE_FONT, endFont=self.outputFont)
+
             root = self.list[0].val
 
         else:
@@ -893,10 +901,8 @@ def remove(self):
         keyCopies = tuple(self.copyCanvasItem(item) for item in
                           (root.items[1], rootNode.drawnValue.items[2]))
         callEnviron |= set(keyCopies)
-        self.moveItemsTo(keyCopies, (outBoxCenter, outBoxCenter),
-                         sleepTime=wait / 10)
-        for keyCopy in keyCopies:
-            self.canvas.itemconfigure(keyCopy, font=self.outputFont)
+        self.moveItemsTo(keyCopies, (outBoxCenter,) * 2, sleepTime=wait / 10,
+                         startFont=self.VALUE_FONT, endFont=self.outputFont)
 
         self.highlightCode('self._nItems -= 1', callEnviron)
         lastItem = self.list[self.nItems - 1]
