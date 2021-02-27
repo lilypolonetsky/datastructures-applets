@@ -238,7 +238,7 @@ class LinkedList(VisualizationApp):
         
     def createIndex(self, pos, name=None, level=0):
         arrow = self.canvas.create_line(
-            *self.indexCoords(pos, level), arrow="last",
+            *self.indexCoords(pos, level), arrow=LAST,
             fill=self.VARIABLE_COLOR)
         if name:
             name = self.canvas.create_text(

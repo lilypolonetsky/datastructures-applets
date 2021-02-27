@@ -180,7 +180,8 @@ def __part(self, pivot={pivot}, lo={lo}, hi={hi}, key=identity):
             if lo < hi or self.useMedianOf3.get():
                 self.highlightCode('pivot < key(self.get(hi))', callEnviron,
                                    wait=wait)
-            while lo < hi and pivot < self.list[hi].val:
+            while (self.useMedianOf3.get() or lo < hi) and (
+                    pivot < self.list[hi].val):
                 self.highlightCode('hi -= 1', callEnviron)
                 hi -= 1
                 self.moveItemsBy(hiIndex, leftDelta, sleepTime=wait / 10)
@@ -210,7 +211,7 @@ def __part(self, pivot={pivot}, lo={lo}, hi={hi}, key=identity):
             
             self.highlightCode('lo <= hi', callEnviron, wait=wait)
         
-        self.highlightCode('return lo', callEnviron, wait=wait)
+        self.highlightCode(('return lo', 2), callEnviron, wait=wait)
         self.cleanUp(callEnviron, sleepTime=codeWait)
         return lo
 

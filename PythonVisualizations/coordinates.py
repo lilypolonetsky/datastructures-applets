@@ -90,6 +90,15 @@ class vector(object):
             return tuple(c / other for c in self.coords)
         raise ValueError('Invalid vector type')
 
+    def __floordiv__(self, other):
+        if isinstance(other, vector):
+            return tuple(map(floordiv, self.coords, other.coords))
+        elif isinstance(other, (list, tuple)):
+            return self // vector(other)
+        elif isinstance(other, (int, float)):
+            return tuple(c // other for c in self.coords)
+        raise ValueError('Invalid vector type')
+
     def dot(self, other):
         return sum(self * other)
      
@@ -108,7 +117,7 @@ class vector(object):
         return (self.dot(vector(c, -s)), self.dot(vector(s, c)))
 
 def flat(*vectors): # Flatten a sequence of vectors into a tuple of coordinates
-    return tuple(v[i] for v in vectors for i in range(len(v)))
+    return tuple(elem for v in vectors for elem in v)
 
 def points(*coords, dimension=2): # Unflatten a list of coords into points of
     return [                      # a given dimension

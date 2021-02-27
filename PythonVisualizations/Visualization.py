@@ -175,18 +175,46 @@ class Visualization(object):  # Base class for Python visualizations
                                  self.canvas.tag_bind(canvasitem, eventType))
         return newItem
 
-    def fadeNonLocalItems(self, items, color=NONLOCAL_VARIABLE_COLOR):
-        'Set fill color of non-local variable canvas items to a faded color'
-        self.setItemsFillColor(items, color)
+    def fadeNonLocalItems(self, items, colors=NONLOCAL_VARIABLE_COLOR):
+        '''Set fill color of non-local variable canvas items to a faded color
+        or sequence of colors.  If the length of items exceeds the length of
+        colors, the last color in the sequence is used.
+        Returns a list of the current fill color of each item that can be used
+        to restore them later.
+        '''
+        if isinstance(colors, (list, tuple)):
+            return self.itemsFillColor(items, *colors)
+        return self.itemsFillColor(items, colors)
         
-    def restoreLocalItems(self, items, color=VARIABLE_COLOR):
-        'Restore fill color of local variable canvas items to normal'
-        self.setItemsFillColor(items, color)
+    def restoreLocalItems(self, items, colors=VARIABLE_COLOR, top=True):
+        '''Restore fill color of local variable canvas items to either a given
+        color or list of colors.  Optionally, raise the items to display on
+        top of other canvas items'''
+        if isinstance(colors, (list, tuple)):
+            self.itemsFillColor(items, *colors)
+        else:
+            self.itemsFillColor(items, colors)
+        if top:
+            for item in items:
+                if isinstance(item, int):
+                    self.canvas.tag_raise(item)
 
-    def setItemsFillColor(self, items, color):
-        for item in items:
-            self.canvas.itemconfigure(item, fill=color)
-
+    def itemsFillColor(self, items, *colors):
+        '''Get or set item fill color for a list of items.  When colors is
+        not provided, it returns the list of configured colors.  When provided
+        1 or more colors are provided, the corresponding items are configured
+        to use that fill color.  If there are more items than colors, the
+        last color is used for the remaining items.
+        '''
+        nColors = len(colors)
+        itemColors = []
+        for i, item in enumerate(items):
+            itemColors.append(self.canvas.itemconfigure(item, 'fill')[-1])
+            if nColors > 0:
+                self.canvas.itemconfigure(
+                    item, fill=colors[min(i, nColors - 1)])
+        return itemColors
+    
     #####################################################################
     #                                                                   #
     #                       Animation Methods                           #
@@ -201,15 +229,20 @@ class Visualization(object):  # Base class for Python visualizations
     # completing the movement and must be 1 or more.  The sleepTime
     # specifies how long to wait between incremental steps.  A
     # sleepTime of 0 will produce the fastest steps, but you may not
-    # see the intermediate positions of the items.  Each moveItems____
-    # method calls a generator called moveItems____Sequence that
-    # iterates over the steps yielding the step from 0 up to steps-1
-    # and the total number of steps (some methods my change the number
-    # of steps) This enables combining animation sequences by using
-    # the *Sequence generator to go through the steps and performing
-    # other animation actions for each step.  Each moveItems____
-    # method calls self.wait(0) at the beginning to wait if step mode
-    # has been engaged
+    # see the intermediate positions of the items.  If startFont and
+    # endFont are given, the font size will smoothly transition to
+    # the endFont over the animation (using integer font sizes).
+    # The font paramenters should be Tk (fontname, fontsize) tuples
+    # and the fontsizes should be integers of the same sign.
+    #
+    # Each moveItems____ method calls a generator called
+    # moveItems____Sequence that iterates over the steps yielding the
+    # step from 0 up to steps-1 and the total number of steps (some
+    # methods my change the number of steps) This enables combining
+    # animation sequences by using the *Sequence generator to go
+    # through the steps and performing other animation actions for
+    # each step.  Each moveItems____ method calls self.wait(0) at the
+    # beginning to wait if step mode has been engaged
 
     def moveItemsOffCanvas(  # Animate the removal of canvas items by sliding
             self, items,     # them off one of the canvas edges
@@ -224,96 +257,120 @@ class Visualization(object):  # Base class for Python visualizations
             self, items, edge=N, steps=10):
         if not isinstance(items, (list, tuple, set)):
             items = (items,)
-        curPositions = [self.canvas.coords(i) for i in items if i is not None]
-        bboxes = [self.canvas.bbox(i) for i in items if i is not None]
-        bbox = bboxes[0]  # Get bounding box of all items
-        for bb in bboxes[1:]:
-            bbox = [min(bbox[0], bb[0]), min(bbox[1], bb[1]),
-                    max(bbox[2], bb[2]), max(bbox[3], bb[3])]
-        canvasDimensions = self.widgetDimensions(self.canvas)
-        # Compute delta vector that moves them on a line away from the
-        # center of the canvas
-        delta = ((bbox[0] + bbox[2] - canvasDimensions[0]) / 2,
-                 0 - bbox[3])
-        if edge == S:
-            delta = (delta[0], canvasDimensions[1] - bbox[1])
-        elif edge in (W, E):
-            delta = (0 - bbox[2],
-                     (bbox[1] + bbox[3] - canvasDimensions[1]) / 2)
-            if edge == E:
-                delta = (canvasDimensions[0] - bbox[0], delta[1])
-        # Ensure no more that 45 degree angle to departure boundary
-        if abs(delta[0]) > abs(delta[1]) and edge not in (E, W):
-            delta = (abs(delta[1]) * (-1 if delta[0] < 0 else 1), delta[1])
-        elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
-            delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
-        for step, _ in self.moveItemsBySequence(items, delta, steps):
-            yield (step, _)
+        if items:
+            curPositions = [
+                self.canvas.coords(i) for i in items if i is not None]
+            bboxes = [self.canvas.bbox(i) for i in items if i is not None]
+            bbox = bboxes[0]  # Get bounding box of all items
+            for bb in bboxes[1:]:
+                bbox = [min(bbox[0], bb[0]), min(bbox[1], bb[1]),
+                        max(bbox[2], bb[2]), max(bbox[3], bb[3])]
+            canvasDimensions = self.widgetDimensions(self.canvas)
+            # Compute delta vector that moves them on a line away from the
+            # center of the canvas
+            delta = ((bbox[0] + bbox[2] - canvasDimensions[0]) / 2,
+                     0 - bbox[3])
+            if edge == S:
+                delta = (delta[0], canvasDimensions[1] - bbox[1])
+            elif edge in (W, E):
+                delta = (0 - bbox[2],
+                         (bbox[1] + bbox[3] - canvasDimensions[1]) / 2)
+                if edge == E:
+                    delta = (canvasDimensions[0] - bbox[0], delta[1])
+            # Ensure no more that 45 degree angle to departure boundary
+            if abs(delta[0]) > abs(delta[1]) and edge not in (E, W):
+                delta = (abs(delta[1]) * (-1 if delta[0] < 0 else 1), delta[1])
+            elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
+                delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
+            for step, _ in self.moveItemsBySequence(items, delta, steps):
+                yield (step, _)
 
     def moveItemsBy(         # Animate canvas items moving from their current
             self, items,     # location in a direction indicated by a single
             delta,           # delta vector. items can be 1 item or a list/tuple
             steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
+            sleepTime=0.1,   # Base time between steps (adjusted by user)
+            startFont=None,  # Change font size from start to endFont, if
+            endFont=None):   # given
         self.wait(0)
-        for step, _ in self.moveItemsBySequence(items, delta, steps):
+        for step, _ in self.moveItemsBySequence(
+                items, delta, steps, startFont=startFont, endFont=endFont):
             self.wait(sleepTime)
 
     def moveItemsBySequence( # Iterator for moveItemsBy
-            self, items, delta, steps=10):
+            self, items, delta, steps=10, startFont=None, endFont=None):
         if not isinstance(items, (list, tuple, set)):
             items = (items,)
         if not isinstance(delta, (list, tuple)) or len(delta) != 2:
             raise ValueError('Delta must be a 2-dimensional vector')
-        if vector_length2(delta) < 0.001: # If delta is tiny
-            return           # then no movement is needed
-        steps = max(1, steps) # Must use at least 1 step
+        if items and vector_length2(delta) >= 0.001: # If some items and delta
 
-        # move the items in steps along vector
-        moveBy = divide_vector(delta, steps)
-        for step in range(steps):
-            for item in items:
-                if item is not None:
-                    self.canvas.move(item, *moveBy)
-            yield (step, steps) # Yield step in sequence
+            steps = max(1, steps) # Must use at least 1 step
+            changeFont = startFont and endFont and startFont != endFont
 
+            # move the items in steps along vector
+            moveBy = divide_vector(delta, steps)
+            for step in range(steps):
+                font = changeFont and (endFont[0], 
+                                       (startFont[1] * (steps - (step + 1)) +
+                                        endFont[1] * (step + 1)) // steps)
+                for item in items:
+                    if item is not None:
+                        self.canvas.move(item, *moveBy)
+                        if changeFont and self.canvas.type(item) == 'text':
+                            self.canvas.itemconfigure(item, font=font)
+                yield (step, steps) # Yield step in sequence
+                
+            # Force end font if provided
+            if changeFont:
+                for item in items:
+                    if self.canvas.type(item) == 'text':
+                        self.canvas.itemconfigure(item, font=endFont)
+                
     def moveItemsTo(         # Animate canvas items moving rigidly 
             self, items,     # to destination locations along line(s)
             toPositions,     # items can be a single item or list of items
             steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
+            sleepTime=0.1,   # Base time between steps (adjusted by user)
+            startFont=None,  # Transition text item fonts from start to
+            endFont=None):   # end font, if provided
         self.wait(0)
-        for step, _ in self.moveItemsToSequence(items, toPositions, steps):
+        for step, _ in self.moveItemsToSequence(
+                items, toPositions, steps, startFont=startFont, endFont=endFont):
             self.wait(sleepTime)
 
     def moveItemsToSequence( # Iterator for moveItemsTo
             self, items,     # to destination locations along line(s)
             toPositions,     # items can be a single item or list of items
-            steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = (items,)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = (toPositions,)
-        steps = max(1, steps) # Must use at least 1 step
-        moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
-                  for toPos, fromPos in zip(
-                          toPositions,
-                          [self.canvas.coords(item)[:2] for item in items])]
+            steps=10,        # Number of steps in movement
+            startFont=None,  # Change font size from start to endFont, if
+            endFont=None):   # given
+        items, toPositions = self.reconcileItemPositions(items, toPositions)
+        if items and toPositions:
+            steps = max(1, steps) # Must use at least 1 step
+            moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
+                      for toPos, fromPos in zip(
+                              toPositions,
+                              [self.canvas.coords(item)[:2] for item in items])]
+            changeFont = startFont and endFont and startFont != endFont
 
-        # move the items until they reach the toPositions
-        for step in range(steps):
-            for i, item in enumerate(items):
-                if len(moveBy[i]) == 2:
-                    self.canvas.move(item, *moveBy[i])
-                # else:  # This shouldn't happen, but is a good point to debug
-                #     pdb.set_trace()
-            yield (step, steps) # Yield step in sequence
+            # move the items until they reach the toPositions
+            for step in range(steps):
+                font = changeFont and (endFont[0], 
+                                       (startFont[1] * (steps - (step + 1)) +
+                                        endFont[1] * (step + 1)) // steps)
+                for i, item in enumerate(items):
+                    if len(moveBy[i]) == 2:
+                        self.canvas.move(item, *moveBy[i])
+                        if changeFont and self.canvas.type(item) == 'text':
+                            self.canvas.itemconfigure(item, font=font)
+                yield (step, steps) # Yield step in sequence
             
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
+            # Force position of new objects to their exact destinations
+            for pos, item in zip(toPositions, items):
+                self.canvas.coords(item, *pos)
+                if changeFont and self.canvas.type(item) == 'text':
+                    self.canvas.itemconfigure(item, font=endFont)
 
     # The moveItemsLinearly method uses all the coordinates of canvas
     # items in calculating the movement vectors.  Don't pass the
@@ -325,80 +382,107 @@ class Visualization(object):  # Base class for Python visualizations
             self, items,     # coordinates linearly to new destinations
             toPositions,     # Items can be single or multiple, but not tags
             steps=10,        # Number of intermediate steps along line
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
+            sleepTime=0.1,   # Base time between steps (adjusted by user)
+            startFont=None,  # Change font size from start to endFont, if
+            endFont=None):   # given
         self.wait(0)
         for step, _ in self.moveItemsLinearlySequence(
-                items, toPositions, steps):
+                items, toPositions, steps, startFont=startFont, endFont=endFont):
             self.wait(sleepTime)
 
     def moveItemsLinearlySequence( # Iterator for moveItemsLinearly
-            self, items, toPositions, steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = (items,)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = (toPositions,)
-        if len(items) != len(toPositions):
-            raise ValueError('Number of items must match length of toPositions')
-        steps = max(1, steps) # Must use at least 1 step
-        moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
-                  for toPos, fromPos in zip(
-                          toPositions,
-                          [self.canvas.coords(item) for item in items])]
+            self, items, toPositions, steps=10, startFont=None, endFont=None):
+        items, toPositions = self.reconcileItemPositions(items, toPositions)
+        if items and toPositions:
+            steps = max(1, steps) # Must use at least 1 step
+            moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
+                      for toPos, fromPos in zip(
+                              toPositions,
+                              [self.canvas.coords(item) for item in items])]
+            changeFont = startFont and endFont and startFont != endFont
 
-        # move the items until they reach the toPositions
-        for step in range(steps):
-            for i, item in enumerate(items):
-                if len(moveBy[i]) >= 2:
-                    self.canvas.coords(
-                        item, *add_vector(self.canvas.coords(item), moveBy[i]))
-            yield (step, steps) # Yield step in sequence
+            # move the items until they reach the toPositions
+            for step in range(steps):
+                font = changeFont and (endFont[0], 
+                                       (startFont[1] * (steps - (step + 1)) +
+                                        endFont[1] * (step + 1)) // steps)
+                for i, item in enumerate(items):
+                    if len(moveBy[i]) >= 2:
+                        self.canvas.coords(
+                            item, *add_vector(self.canvas.coords(item), moveBy[i]))
+                        if changeFont and self.canvas.type(item) == 'text':
+                            self.canvas.itemconfigure(item, font=font)
+                yield (step, steps) # Yield step in sequence
             
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
+            # Force position of new objects to their exact destinations
+            for pos, item in zip(toPositions, items):
+                self.canvas.coords(item, *pos)
+                if changeFont and self.canvas.type(item) == 'text':
+                    self.canvas.itemconfigure(item, font=endFont)
              
     def moveItemsOnCurve(    # Animate canvas items moving from their current
             self, items,     # location to destinations along a curve
             toPositions,     # items can be a single item or list of items
             startAngle=90,   # Starting angle away from destination
             steps=10,        # Number of intermediate steps to reach destination
-            sleepTime=0.1):  # Base time between steps (adjusted by user)
+            sleepTime=0.1,   # Base time between steps (adjusted by user)
+            startFont=None,  # Change font size from start to endFont, if
+            endFont=None):   # given
         self.wait(0)
         for step, _ in self.moveItemsOnCurveSequence(
-                items, toPositions, startAngle, steps):
+                items, toPositions, startAngle, steps, startFont=startFont,
+                endFont=endFont):
             self.wait(sleepTime)
             
     def moveItemsOnCurveSequence( # Iterator for moveItemsOnCurve
-            self, items, toPositions, startAngle=90, steps=10):
-        if not isinstance(items, (list, tuple, set)):
-            items = tuple(items)
-        if not isinstance(toPositions, (list, tuple)):
-            raise ValueError('toPositions must be a list or tuple of positions')
-        if not isinstance(toPositions[0], (list, tuple)):
-            toPositions = tuple(toPositions)
-        steps = max(1, steps) # Must use at least 1 step
+            self, items, toPositions, startAngle=90, steps=10, startFont=None,
+            endFont=None):
+        items, toPositions = self.reconcileItemPositions(items, toPositions)
+        if items and toPositions:
+            steps = max(1, steps) # Must use at least 1 step
+            changeFont = startFont and endFont and startFont != endFont
 
-        # move the items until they reach the toPositions
-        for step in range(steps):  # Go through all steps of the annimation
-            toGo = steps - 1 - step  # remaining steps to go
-            ang = startAngle * toGo / steps  # angle decreases on each step
-            scale = 1 + abs(ang) / 180  # scale is larger for higher angles
-            for i, item in enumerate(items):
-                coords = self.canvas.coords(item)[:2]
-                if len(coords) == 2:
-                    moveBy = rotate_vector(
-                        divide_vector(subtract_vector(toPositions[i], coords),
-                                      (toGo + 1) / scale),
-                        ang)
-                    self.canvas.move(item, *moveBy)
-            yield (step, steps) # Yield step in sequence
+            # move the items until they reach the toPositions
+            for step in range(steps):  # Go through all steps of the annimation
+                toGo = steps - 1 - step  # remaining steps to go
+                font = changeFont and (endFont[0], 
+                                       (startFont[1] * toGo +
+                                        endFont[1] * (step + 1)) // steps)
+                ang = startAngle * toGo / steps  # angle decreases on each step
+                scale = 1 + abs(ang) / 180  # scale is larger for higher angles
+                for i, item in enumerate(items):
+                    coords = self.canvas.coords(item)[:2]
+                    if len(coords) == 2:
+                        moveBy = rotate_vector(
+                            divide_vector(
+                                subtract_vector(toPositions[i], coords),
+                                (toGo + 1) / scale),
+                            ang)
+                        self.canvas.move(item, *moveBy)
+                        if changeFont and self.canvas.type(item) == 'text':
+                            self.canvas.itemconfigure(item, font=font)
+                yield (step, steps) # Yield step in sequence
             
-        # Force position of new objects to their exact destinations
-        for pos, item in zip(toPositions, items):
-            self.canvas.coords(item, *pos)
+            # Force position of new objects to their exact destinations
+            for pos, item in zip(toPositions, items):
+                self.canvas.coords(item, *pos)
+                if changeFont and self.canvas.type(item) == 'text':
+                    self.canvas.itemconfigure(item, font=endFont)
 
+    def reconcileItemPositions(self, items, positions):
+        'Standardize items paired with positions for moveItems routines'
+        if not isinstance(items, (list, tuple, set)):
+            items = (items,)
+            if (isinstance(positions, (list, tuple)) and len(positions) > 0
+                and isinstance(positions[0], (int, float))):
+                positions = (positions, )
+        if not isinstance(positions, (list, tuple)):
+            raise ValueError('positions must be a list or tuple of positions')
+        if len(items) != len(positions):
+            raise ValueError(
+                'Number of items must match length of positions')
+        return items, positions
+        
     # ANIMATION CONTROLS
 
     def wait(self, sleepTime): # Sleep for a period of time and handle user stop
