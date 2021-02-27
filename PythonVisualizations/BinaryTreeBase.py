@@ -277,18 +277,21 @@ class BinaryTreeBase(VisualizationApp):
         to cell in the array of nodes.  Optionally give a text label.
         '''
         if font is None: font = self.VARIABLE_FONT
-        x0, y0, x1, y1 = self.indexCoords(node, level, font, orientation)
+        arrowCoords, labelCoords = self.indexCoords(
+            node, level, font, orientation)
         arrow = self.canvas.create_line(
-            x0, y0, x1, y1, arrow="last", fill=color, width=width, tags=tags)
+            *arrowCoords, arrow="last", fill=color, width=width, tags=tags)
         if label is None:
             return (arrow, )
         label = self.canvas.create_text(
-            x0, y0, text=label, anchor=SW, font=font, fill=color, tags=tags)
+            *labelCoords, text=label, anchor=SW, font=font, fill=color,
+            tags=tags)
         return (arrow, label)
 
     def indexCoords(self, node, level, font=None, orientation=-90):
         '''Compute coordinates of an arrow pointing at either an existing
-         node or an index to cell in the array of nodes.
+        node or an index to cell in the array of nodes, as well as the
+        anchor coordinates of label at the arrow's base.
         '''
         if font is None: font = self.VARIABLE_FONT
         center = (node.center if isinstance(node, Node)
@@ -296,7 +299,7 @@ class BinaryTreeBase(VisualizationApp):
         tip = V(self.CIRCLE_SIZE, 0).rotate(orientation)
         base = V(self.CIRCLE_SIZE + self.ARROW_HEIGHT + level * abs(font[1]),
                  0).rotate(orientation)
-        return (V(center) + V(base)) + (V(center) + V(tip))
+        return (V(center) + V(base)) + (V(center) + V(tip)), V(center) + V(base)
         
     def moveArrow(
             self, arrow, node, level=1, numSteps=10, sleepTime=0.02, font=None,
@@ -306,19 +309,17 @@ class BinaryTreeBase(VisualizationApp):
         -1 is the binary tree object.
         '''
         if isinstance(node, (int, Node)):
-            newCoords = self.indexCoords(node, level, font, orientation)
+            newArrow, newLabel = self.indexCoords(node, level, font, orientation)
         elif isinstance(node, tuple):
-            if font is None: font = self.VARIABLE_FONT
-            newCoords = (
-                node[0], node[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT - 
-                level * abs(font[1]),
-                node[0], node[1] - self.CIRCLE_SIZE)
+            n0Arrow, n0Label = self.indexCoords(0, level, font, orientation)
+            center = self.nodeCenter(0)
+            newArrow = V(V(n0Arrow) - V(center * 2)) + V(node * 2)
+            newLabel = V(V(n0Label) - V(center)) + V(node)
         else:
             raise ValueError('Unrecognized node type: {}'.formt(type(node)))
 
         self.moveItemsTo(
-            arrow, 
-            (newCoords,) if len(arrow) == 1 else (newCoords, newCoords[:2]), 
+            arrow, (newArrow,) if len(arrow) == 1 else (newArrow, newLabel), 
             steps=numSteps, sleepTime=sleepTime)
 
     # calculate the coordinates for the node shape based on its parent node
@@ -329,16 +330,19 @@ class BinaryTreeBase(VisualizationApp):
         return V(parent.center) + V(
             -dx if childDirection == Child.LEFT else dx, self.LEVEL_GAP)
 
-    def nodeCenter(self, nodeIndex):
+    def nodeCenter(self, node):
         '''Calculate the coordinates for node based on its index in the nodes
-        array.  The index -1 indicates the binary tree object
+        array or from its center attribute, if a Node is passed.  The index -1
+        indicates the binary tree object.
         '''
-        if nodeIndex < 0:
+        if isinstance(node, Node):
+            return node.center
+        if node < 0:
             treeObjectBox = (
                 (0, 0, 40, 30) if getattr(self, 'treeObject', None) is None else
                 self.canvas.coords(self.treeObject[0]))
             return V(V(treeObjectBox[:2]) + V(treeObjectBox[2:])) / 2 
-        level, i = 0, nodeIndex
+        level, i = 0, node
         x, y = 0, 0
         while 0 < i:
             x = x / 2 + self.TREE_WIDTH / (4 if i % 2 == 0 else -4)
@@ -346,37 +350,37 @@ class BinaryTreeBase(VisualizationApp):
             i = (i - 1) // 2
         return self.ROOT_X0 + x, self.ROOT_Y0 + y
         
-    def nodeShapeCoordinates(self, center):
-        return (center[0] - self.CIRCLE_SIZE, center[1] - self.CIRCLE_SIZE,
-                center[0] + self.CIRCLE_SIZE, center[1] + self.CIRCLE_SIZE)
+    def nodeShapeCoordinates(self, center, radius=None):
+        if radius is None: radius = self.CIRCLE_SIZE
+        offset = V(radius, radius)
+        return (V(center) - offset) + (V(center) + offset)
 
-    def nodeItemCoords(self, node, parent=None):
+    def nodeItemCoords(self, node, parent=None, radius=None):
         '''Return coordinates for line to parent, shape, and text label items
         that represent a node.  The node and parent parameters can be either
         a node, a node index, or a coordinate tuple for the center of the node.
         '''
-        if isinstance(node, Node):
-            nodeCenter = node.center
-        elif isinstance(node, int):
-            nodeCenter = self.getNode(node).center
+        if isinstance(node, (Node, int)):
+            nodeCenter = self.nodeCenter(node)
         elif isinstance(node, (tuple, list)):
             nodeCenter = node
-        if isinstance(parent, Node):
-            parentCenter = parent.center
-        elif isinstance(parent, int) and 0 <= parent:
-            parentCenter = self.getNode(parent).center
+        if isinstance(parent, Node) or isinstance(parent, int) and 0 <= parent:
+            parentCenter = self.nodeCenter(parent)
         elif isinstance(parent, (tuple, list)):
             parentCenter = parent
         else:
             parentCenter = nodeCenter
             
         return (nodeCenter + parentCenter, 
-                self.nodeShapeCoordinates(nodeCenter), nodeCenter)
+                self.nodeShapeCoordinates(nodeCenter, radius=radius),
+                nodeCenter)
 
-    def createNodeHighlight(self, node, highlightWidth=2, color=None):
+    def createNodeHighlight(
+            self, node, highlightWidth=2, color=None, radius=None):
         if color is None: color = self.FOUND_COLOR
         nCoords = self.nodeShapeCoordinates(
-            node.center if isinstance(node, Node) else self.nodeCenter(node))
+            node.center if isinstance(node, Node) else self.nodeCenter(node),
+            radius=radius)
         delta = (highlightWidth, highlightWidth)
         highlightCoords = (V(nCoords[:2]) - delta) + (V(nCoords[2:]) + delta)
         return self.canvas.create_oval(
@@ -428,18 +432,20 @@ class BinaryTreeBase(VisualizationApp):
         return text
 
     def createNodeShape(
-            self, x, y, key, tag, color=None, parent=None, lineColor='black',
-            lineWidth=1):
+            self, x, y, key, tag, color=None, parent=None, radius=None,
+            font=None, lineColor='black', lineWidth=1):
         '''Create canvas items for the circular node, its key label, and
         a line to the node centered at the parent coordinates. If parent
         is None, the line will be zero length to become invisible.
         Returns the line, circular background, and text label items
         '''
         if color is None: color = drawnValue.palette[2]
+        if radius is None: radius = self.CIRCLE_SIZE
+        if font is None: font = self.VALUE_FONT
         circle = self.canvas.create_circle(
-            x, y, self.CIRCLE_SIZE, tag = tag, fill=color, outline='')
+            x, y, radius, tag = tag, fill=color, outline='')
         circle_text = self.canvas.create_text(
-            x, y, text=key, font=self.VALUE_FONT, tag = tag)
+            x, y, text=key, font=font, tag=tag)
         line = self.canvas.create_line(
             x, y, *(parent if parent else (x, y)),
             tags = ("line", tag + "_line"), fill=lineColor, width=lineWidth)
@@ -483,11 +489,12 @@ class BinaryTreeBase(VisualizationApp):
         if nodes is None:
             nodes = self.getAllDescendants(self.getRoot())
         self.restoreNodePositions(nodes, sleepTime=0)
-        for node in nodes:
-            key = node.getKey()
-            self.canvas.itemconfigure(node.drawnValue.items[2], text=str(key))
-            self.canvas.tag_raise(
-                node.drawnValue.items[2], node.drawnValue.items[1])
+        for node in nodes: # Restore text label above shape background
+            shape, text = node.drawnValue.items[1:3]
+            if self.canvas.type(text):
+                self.canvas.itemconfigure(text, text=str(node.getKey()))
+                if self.canvas.type(shape):
+                    self.canvas.tag_raise(text, shape)
 
     def outputBoxSpacing(self, font=None):
         if font is None: font = self.VALUE_FONT
@@ -531,7 +538,7 @@ class BinaryTreeBase(VisualizationApp):
    
     # create a Node object with key and parent specified
     # parent should be a Node object
-    def createNode(self, key, parent = None, direction = None):
+    def createNode(self, key, parent=None, direction=None, color=None):
         # calculate the node index
         nodeIndex = self.getChildIndex(parent, direction) if parent else 0
       
@@ -543,7 +550,8 @@ class BinaryTreeBase(VisualizationApp):
       
         # create the canvas items and the drawnValue object
         drawnValueObj = drawnValue(key, *self.createNodeShape(
-            *center, key, tag, parent=parent.center if parent else None))
+            *center, key, tag, parent=parent.center if parent else None,
+            color=color))
       
         # create the Node object
         node = Node(drawnValueObj, center, tag)
@@ -683,10 +691,8 @@ class BinaryTreeBase(VisualizationApp):
     # remove the node's drawing and optionally its line
     def removeNodeDrawing(self, node, line=False):
         if isinstance(node, int): node = self.getNode(node)
-        self.canvas.delete(node.tag)
-        # should the line pointing to the node be removed?
-        if line: 
-            self.canvas.delete(node.getLine())
+        for item in node.drawnValue.items[0 if line else 1:]:
+            self.canvas.delete(item)
 
     # remove the node from the internal array (can be a node index)
     def removeNodeInternal(self, node):
@@ -926,8 +932,8 @@ for key, data in tree.traverse("{traverseType}"):
                 callEnviron |= set(dataIndex)
                 localVars += dataIndex
             else:
-                dataCoords = self.indexCoords(node, 1, orientation=-135)
-                self.moveItemsTo(dataIndex, (dataCoords, dataCoords[:2]),
+                self.moveItemsTo(dataIndex, 
+                                 self.indexCoords(node, 1, orientation=-135),
                                  sleepTime=wait / 10)
 
             self.highlightCode('print(key)', callEnviron, wait=wait)
@@ -1047,9 +1053,10 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 localVars += childArrow
                 colors = self.itemsFillColor(localVars)
             else:
-                childCoords = self.indexCoords(childIndex, 1, orientation=-115)
-                self.moveItemsTo(childArrow, (childCoords, childCoords[:2]),
-                                 sleepTime=wait / 10)
+                self.moveItemsTo(
+                    childArrow, 
+                    self.indexCoords(childIndex, 1, orientation=-115),
+                    sleepTime=wait / 10)
             self.highlightCode(
                 ('yield (childKey, childData)', 1), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
@@ -1089,9 +1096,10 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 localVars += childArrow
                 colors = self.itemsFillColor(localVars)
             else:
-                childCoords = self.indexCoords(childIndex, 1, orientation=-115)
-                self.moveItemsTo(childArrow, (childCoords, childCoords[:2]),
-                                 sleepTime=wait / 10)
+                self.moveItemsTo(
+                    childArrow, 
+                    self.indexCoords(childIndex, 1, orientation=-115),
+                    sleepTime=wait / 10)
             self.highlightCode(
                 ('yield (childKey, childData)', 1), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
