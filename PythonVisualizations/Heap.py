@@ -97,7 +97,7 @@ def insert(self, item={val}):
         
         #If array needs to grow, add cells:
         self.highlightCode('self.isFull()', callEnviron, wait=wait)
-        if self.heapSize <= len(self.list):
+        if self.heapSize <= self.nItems:
             self.highlightCode('self._growHeap()', callEnviron)
             self._growHeap()
 
@@ -122,21 +122,41 @@ def insert(self, item={val}):
             val, parent=self.getNode((self.nItems - 1) // 2),
             direction=Child.LEFT if self.nItems % 2 == 1 else Child.RIGHT,
             color=self.canvas.itemconfigure(cellPair[0], 'fill')[-1])
+        self.canvas.delete(nodeKey)
+        callEnviron.discard(nodeKey)
+        
         if self.nItems == len(self.list):
-            self.list.append(d)    #store item at the end of the list
+            self.list.append(d)    # store item at the end of the list
             self.nItems = len(self.list)
         else:
             self.list[self.nItems] = d
             self.nItems += 1
         callEnviron -= set(cellPair)
-        
-        # Move nItems index to one past inserted item
-        self.highlightCode('self._nItems += 1', callEnviron)
-        self.moveItemsTo(self.nItemsIndex, self.arrayIndexCoords(self.nItems), 
-                         sleepTime=wait / 10)
+        isHeap = self.nItems <= 1    # New item could violate heap condition
+        try:
             
-        self.highlightCode('self._siftUp(self._nItems - 1)', callEnviron)
-        self.siftUp(self.nItems - 1)  # Sift up new item
+            # Move nItems index to one past inserted item
+            self.highlightCode('self._nItems += 1', callEnviron)
+            self.moveItemsTo(
+                self.nItemsIndex, self.arrayIndexCoords(self.nItems), 
+                sleepTime=wait / 10)
+            
+            self.highlightCode('self._siftUp(self._nItems - 1)', callEnviron)
+            self.siftUp(self.nItems - 1)  # Sift up new item
+            isHeap = True
+        except UserStop:
+            if not isHeap:
+                self.setMessage('Sift up interrupted.\n'
+                                'Only top item in heap')
+                self.nItems = 1
+                for item, coords in zip(self.nItemsIndex,
+                                        self.arrayIndexCoords(self.nItems)):
+                    self.canvas.coords(item, *coords)
+                for i in range(self.nItems, len(self.nodes)):
+                    if self.nodes[i]:
+                        self.removeNodeDrawing(node, line=True)
+                        self.removeNodeInternal(i)
+            raise UserStop()
                     
         # finish the animation
         self.highlightCode([], callEnviron)
@@ -904,39 +924,77 @@ def remove(self):
         self.moveItemsTo(keyCopies, (outBoxCenter,) * 2, sleepTime=wait / 10,
                          startFont=self.VALUE_FONT, endFont=self.outputFont)
 
-        self.highlightCode('self._nItems -= 1', callEnviron)
-        lastItem = self.list[self.nItems - 1]
-        lastNode = self.nodes[self.nItems - 1]
-        self.nItems = min(self.nItems - 1, len(self.list) - 1)
-        lastIndexCoords = self.arrayIndexCoords(self.nItems)
-        self.moveItemsTo(self.nItemsIndex, lastIndexCoords, sleepTime=wait / 10)
+        isHeap = True
+        itemsToMove = ()
+        toRemove = set()
+        try:
+            self.highlightCode('self._nItems -= 1', callEnviron)
+            lastItem = self.list[self.nItems - 1]
+            lastNode = self.nodes[self.nItems - 1]
+            self.nItems = min(self.nItems - 1, len(self.list) - 1)
+            lastIndexCoords = self.arrayIndexCoords(self.nItems)
+            self.moveItemsTo(self.nItemsIndex, lastIndexCoords,
+                             sleepTime=wait / 10)
 
-        itemsToMove = [] if self.nItems <= 0 else tuple(
-            self.copyCanvasItem(i) 
-            for i in lastItem.items + lastNode.drawnValue.items[1:])
-        self.highlightCode('self._arr[0] = self._arr[self._nItems]',
-                           callEnviron, wait=0 if itemsToMove else wait)
-        if itemsToMove:
-            cellCoords = self.cellCoords(0)
-            cellCenter = self.cellCenter(0)
-            startAngle = 90 * 50 / (
-                50 + abs(cellCoords[1] - lastIndexCoords[0][1]))
-            self.moveItemsOnCurve(
-                itemsToMove, 
-                (cellCoords, cellCenter) + self.nodeItemCoords(0)[1:],
-                startAngle=startAngle, sleepTime=wait / 10)
-            self.list[0] = drawnValue(lastItem.val, *itemsToMove[:2])
-            rootNode.drawnValue.val = lastItem.val
-            rootNode.drawnValue.items = (
-                rootNode.drawnValue.items[0],) + itemsToMove[2:]
-        for item in lastNode.drawnValue.items + (
-                lastItem.items if lastItem is self.list[-1] else ()):
-            self.canvas.delete(item)
-        if lastItem is self.list[-1]:
-            self.list.pop()
-        
-        self.highlightCode('self._siftDown(0)', callEnviron)
-        self._siftDown(0)
+            if self.nItems == 0:     # When last item is removed, empty tree
+                toRemove = set(self.list[0].items)  # Only cell 0 to be replaced
+                for item in rootNode.drawnValue.items: # root node gone now
+                    self.canvas.delete(item)
+            else:                 # Otherwise prepare to move copies and remove
+                itemsToMove = tuple( # originals later
+                    self.copyCanvasItem(i)
+                    for i in lastItem.items + lastNode.drawnValue.items[1:])
+                toRemove = set(self.list[0].items +
+                               rootNode.drawnValue.items[1:] +
+                               lastNode.drawnValue.items)
+                callEnviron |= set(itemsToMove)
+            
+            self.highlightCode('self._arr[0] = self._arr[self._nItems]',
+                               callEnviron, wait=0 if itemsToMove else wait)
+            if itemsToMove:
+                cellCoords = self.cellCoords(0)
+                cellCenter = self.cellCenter(0)
+                startAngle = 90 * 50 / (
+                    50 + abs(cellCoords[1] - lastIndexCoords[0][1]))
+                self.moveItemsOnCurve(
+                    itemsToMove, 
+                    (cellCoords, cellCenter) + self.nodeItemCoords(0)[1:],
+                    startAngle=startAngle, sleepTime=wait / 10)
+                self.list[0] = drawnValue(lastItem.val, *itemsToMove[:2])
+                rootNode.drawnValue.val = lastItem.val
+                rootNode.drawnValue.items = (
+                    rootNode.drawnValue.items[0],) + itemsToMove[2:]
+                isHeap = self.nItems <= 1  # heap condition might no longer hold
+                callEnviron -= set(itemsToMove)
+                itemsToMove = ()
+            if lastItem is self.list[-1]:   # Whan last item is removed
+                for item in toRemove | set(lastItem.items):
+                    self.canvas.delete(item) # remove last and obsolete items
+                self.list.pop()
+            else:                          # Otherwise keep extra items in array
+                for item in toRemove - set(
+                        self.list[0].items + 
+                        (rootNode.drawnValue.items if self.nItems > 0 else ())):
+                    self.canvas.delete(item)
+            self.nodes[self.nItems] = None
+
+            self.highlightCode('self._siftDown(0)', callEnviron)
+            self._siftDown(0)
+            isHeap = True
+        except UserStop:
+            if not isHeap:
+                self.setMessage('Sift down interrupted.\n'
+                                'Only top item in heap')
+                self.nItems = min(self.nItems, 1)
+                for item, coords in zip(self.nItemsIndex,
+                                        self.arrayIndexCoords(self.nItems)):
+                    self.canvas.coords(item, *coords)
+            for node in self.nodes[self.nItems:]:
+                if node:
+                    self.removeNodeDrawing(node, line=True)
+                    self.removeNodeInternal(node)
+            for item in toRemove if len(itemsToMove) == 0 else itemsToMove:
+                self.canvas.delete(item)
         
         # Finish animation
         self.highlightCode('return root', callEnviron, wait=wait)
@@ -1094,19 +1152,9 @@ def remove(self):
             "Heapify", lambda: self.clickHeapify(), maxRows=maxRows,
             helpText='Organize items into heap')
         self.addAnimationButtons(maxRows=maxRows)
-        self.enableButtons()
         return [self.insertButton, randomFillButton,
                 newHeapButton, self.peekButton, self.removeMaxButton, 
                 self.heapifyButton]
-
-    def enableButtons(self, enable=True, **kwargs):
-        super().enableButtons(enable, **kwargs)
-        self.argumentChanged()
-        isHeap = self.nItems >= len(self.list)
-        self.widgetState(
-            self.insertButton,
-            NORMAL if self.widgetState(self.insertButton) == NORMAL 
-            and isHeap and len(self.list) < self.MAX_SIZE else DISABLED)
 
     # Button functions
     def clickInsert(self):
