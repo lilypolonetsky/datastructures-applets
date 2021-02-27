@@ -494,7 +494,7 @@ class BinaryTreeBase(VisualizationApp):
             if self.canvas.type(text):
                 self.canvas.itemconfigure(text, text=str(node.getKey()))
                 if self.canvas.type(shape):
-                    self.canvas.tag_raise(text ,shape)
+                    self.canvas.tag_raise(text, shape)
 
     def outputBoxSpacing(self, font=None):
         if font is None: font = self.VALUE_FONT
@@ -691,10 +691,8 @@ class BinaryTreeBase(VisualizationApp):
     # remove the node's drawing and optionally its line
     def removeNodeDrawing(self, node, line=False):
         if isinstance(node, int): node = self.getNode(node)
-        self.canvas.delete(node.tag)
-        # should the line pointing to the node be removed?
-        if line: 
-            self.canvas.delete(node.getLine())
+        for item in node.drawnValue.items[0 if line else 1:]:
+            self.canvas.delete(item)
 
     # remove the node from the internal array (can be a node index)
     def removeNodeInternal(self, node):
