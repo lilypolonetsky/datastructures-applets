@@ -12,22 +12,23 @@ with a prefix 'folder' name.  The rest are added in alphabetical
 order in a folder called 'Other'.
 """
 
-import argparse, sys, re, webbrowser, os, glob
+import argparse, sys, re, webbrowser, os, glob, random
 from importlib import *
 from tkinter import *
 from tkinter import ttk
 
 try:
-    from VisualizationApp import *
+    import VisualizationApp
+    VAP = VisualizationApp.VisualizationApp
 except ModuleNotFoundError:
-    from .VisualizationApp import *
+    from .VisualizationApp import VisualizationApp as VAP
 
 PREFERRED_ARRANGEMENT = [
     ['Chapter 2', ['Array', 'OrderedArray']],
     ['Chapter 3', ['SimpleArraySort']],
     ['Chapter 4', ['Stack', 'Queue', 'PriorityQueue', 'InfixCalculator']],
     ['Chapter 5', ['LinkedList', 'OrderedList']],
-    ['Chapter 6', [ 'TowerOfHanoi', 'MergeSort']],
+    ['Chapter 6', [ 'TowerOfHanoi', 'Mergesort']],
     ['Chapter 7', ['AdvancedArraySort']],
     ['Chapter 8', ['BinaryTree']],
     ['Chapter 9', ['Tree234']],
@@ -46,12 +47,16 @@ def findVisualizations(filesAndDirectories, verbose=0):
     classes = set()
     for fileOrDir in filesAndDirectories:
         isDir = os.path.isdir(fileOrDir)
-        if verbose > 1:
-            print('Looking for "runVisualization()" in',
-                  'python files in {}'.format(fileOrDir) if isDir else isDir,
-                  file=sys.stderr)
         files = glob.glob(os.path.join(fileOrDir, '*.py')) if isDir else [
                    fileOrDir]
+        if verbose > 1:
+            print(
+                'Looking for "runVisualization()" in',
+                '{} python files in {}'.format(len(files), fileOrDir) if isDir
+                else fileOrDir,
+                file=sys.stderr)
+            if verbose > 2 and isDir:
+                print('Files:', '\n'.join(files), file=sys.stderr)
         for filename in [f for f in files 
                          if isStringInFile('runVisualization()', f)]:
             dirs = pathsep.split(os.path.normpath(os.path.dirname(filename)))
@@ -61,13 +66,24 @@ def findVisualizations(filesAndDirectories, verbose=0):
             if modulename:
                 try:
                     fullmodulename = '.'.join(dirs + [modulename])
+                    if verbose > 1:
+                        print('Attempting to import {} ... ' .format(
+                            fullmodulename), file=sys.stderr, end='')
                     module = import_module(fullmodulename)
                     if verbose > 1:
-                        print('Imported {} and looking for VisualizationApp'
+                        print('Imported. Looking for VisualizationApp'
                               .format(fullmodulename),
                               file=sys.stderr)
-                    classes |= set(findVisualizationClasses(
-                        module, verbose=verbose))
+                    newclasses = findVisualizationClasses(module, verbose)
+                    if verbose > 1:
+                        print('Found {} matching classes: {}'
+                              .format(len(newclasses), newclasses),
+                              file=sys.stderr)
+                        previouslyFound = set(newclasses) & classes
+                        if len(previouslyFound) > 0:
+                            print('Previously found:', previouslyFound,
+                                  file=sys.stderr)
+                    classes |= set(newclasses)
                 except ModuleNotFoundError:
                     if verbose > 0:
                         print('Unable to import module', modulename,
@@ -81,14 +97,10 @@ def isStringInFile(text, filename):
 def findVisualizationClasses(module, verbose=0):
     classes = []
     for name in dir(module):
-        this = getattr(module, name)
-        if isinstance(this, type(VisualizationApp)) and (
-                hasattr(this, 'runVisualization') and
-                len(this.__subclasses__()) == 0 and
-                this is not VisualizationApp):
-            if verbose > 1:
-                print('Found {}.{}, a subclass of VisualizationApp'.format(
-                    module.__name__, name))
+        this = getattr(module, name)          # Check if this 
+        if (isinstance(this, type(object)) and # is a class
+            issubclass(this, VAP) and this is not VAP and # a subclass of VAP
+            this.__module__ == module.__name__): # defined in ths module
             classes.append(this)
         elif verbose > 2:
             print('Ignoring {}.{} of type {}'.format(
@@ -220,17 +232,19 @@ def resizeHandler(event):
 
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", 
-        adjustForTrinket=False, verbose=0):
+        adjustForTrinket=False, seed='3.14159', verbose=0):
     if len(classes) == 0:
         print('No matching classes to visualize', file=sys.stderr)
         return
+    if seed and len(seed) > 0:
+        random.seed(seed)
     top = Tk()
     top.title(title)
     ttk.Style().configure(
-        'TFrame', bg=getattr(VisualizationApp, 'DEFAULT_BG', 'white'))
+        'TFrame', bg=getattr(VAP, 'DEFAULT_BG', 'white'))
 
     if adjustForTrinket:
-        VisualizationApp.MIN_CODE_CHARACTER_HEIGHT = 9
+        VAP.MIN_CODE_CHARACTER_HEIGHT = 9
     restoreMenu = Canvas(top, height=MIN_MENUBAR_HEIGHT, bg='pink')
     restoreMenu.grid(row=0, column=0, sticky=(E, W, N, S))
     menubutton = Menubutton(top, text='Select Visualization',
@@ -351,6 +365,10 @@ if __name__ == '__main__':
         help='Adjust settings and warn users about limitations of use on '
         'Trinket.io')
     parser.add_argument(
+        '--seed', default='3.14159',
+        help='Random number generator seed.  Set to empty string to skip '
+        'seeding.')
+    parser.add_argument(
         '-v', '--verbose', action='count', default=0,
         help='Add verbose comments')
     args = parser.parse_args()
@@ -360,4 +378,5 @@ if __name__ == '__main__':
                       os.path.relpath(os.getcwd())]
     showVisualizations(findVisualizations(args.files, args.verbose),
                        start=args.start, title=args.title, verbose=args.verbose,
-                       adjustForTrinket=args.warn_for_trinket)
+                       adjustForTrinket=args.warn_for_trinket,
+                       seed=args.seed)

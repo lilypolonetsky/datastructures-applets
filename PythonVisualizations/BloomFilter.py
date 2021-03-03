@@ -122,7 +122,6 @@ class BloomFilter(HashBase):
         
     def insert(self, key):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         findDisplayObjects = []
         # before the 1st hash value there is no seed
@@ -178,7 +177,6 @@ class BloomFilter(HashBase):
     # Returns False if key definitely hasn't been inserted into the BF.
     def find(self, key):
         callEnviron = self.createCallEnvironment()
-        self.startAnimations()
 
         # before the 1st hash value there is no seed
         seed = 0
@@ -391,5 +389,14 @@ def makeFilterValidate(maxWidth, exclude=''):
 
 if __name__ == '__main__':
     bloomFilter = BloomFilter()
-
+    showHashing = bloomFilter.showHashing.get()
+    bloomFilter.showHashing.set(0)
+    try:
+        for arg in sys.argv[1:]:
+            bloomFilter.insert(arg)
+            bloomFilter.cleanUp()
+    except UserStop:
+        bloomFilter.cleanUp()
+        
+    bloomFilter.showHashing.set(showHashing)
     bloomFilter.runVisualization()

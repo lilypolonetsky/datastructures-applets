@@ -118,7 +118,8 @@ class LinkedList(VisualizationApp):
             self.first = self.linkNext(0)
             
     def resizeCanvas(self, event=None):   # Handle canvas resize events
-        if self.canvas and self.canvas.winfo_ismapped():
+        if (self.canvas and self.canvas.winfo_ismapped() and
+            self.animationsStopped()):
             width, height = self.widgetDimensions(self.canvas)
             new_row_length = max(2, (width - self.LL_X0 + self.CELL_GAP) // (
                 self.CELL_WIDTH + self.CELL_GAP))
@@ -237,7 +238,7 @@ class LinkedList(VisualizationApp):
         
     def createIndex(self, pos, name=None, level=0):
         arrow = self.canvas.create_line(
-            *self.indexCoords(pos, level), arrow="last",
+            *self.indexCoords(pos, level), arrow=LAST,
             fill=self.VARIABLE_COLOR)
         if name:
             name = self.canvas.create_text(
@@ -248,7 +249,6 @@ class LinkedList(VisualizationApp):
 
     def outputData(self, posOrNode=1, callEnviron=None):
         localEnviron = callEnviron or self.createCallEnvironment()
-        self.startAnimations()
 
         outputBoxCoords = self.outputBoxCoords(full=False)
         localEnviron.add(self.createOutputBox(full=False))
@@ -293,10 +293,10 @@ def first(self):
    return self.getFirst().getData()
 """
     
-    def firstData(self, code=firstCode, animateOutput=True):
-        callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
-        wait=0.1
+    def firstData(self, code=firstCode, animateOutput=True, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
+        wait = 0.1
         
         self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
         if self.first is None:
@@ -324,10 +324,10 @@ def deleteFirst(self):
    return first.getData()
 """
     
-    def deleteFirst(self, code=deleteFirstCode):
-        callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
-        wait=0.1
+    def deleteFirst(self, code=deleteFirstCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
+        wait = 0.1
         
         self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
         if self.first is None:
@@ -391,10 +391,10 @@ def traverse(self, func=print):
       link = link.getNext()
 """
     
-    def traverse(self, code=traverseCode):
-        callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
-        wait=0.1
+    def traverse(self, code=traverseCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
+        wait = 0.1
 
         outputBoxCoords = self.outputBoxCoords(full=True)
         callEnviron.add(self.createOutputBox(full=True))
@@ -440,7 +440,8 @@ def __init__(self):
 
     # Erases old linked list and draws empty list
     def newLinkedList(self, code=newLinkedListCode):
-        callEnviron = self.createCallEnvironment(code=code)
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=False)
         self.startAnimations(enableStops=False)
         self.highlightCode('self.__first = None', callEnviron)
         self.first = None
@@ -456,11 +457,11 @@ def insert(self, datum={val!r}):
    self.setFirst(link)
 '''
     
-    def insert(self, val, code=insertCode):
+    def insert(self, val, code=insertCode, start=True):
         'Insert a new Link node at the front with a specific value'
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
-        wait=0.1
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        wait = 0.1
 
         self.highlightCode('link = Link(datum, self.getFirst())', callEnviron)
         nodeID = self.generateID()
@@ -520,10 +521,10 @@ def delete(self, goal={goal!r}, key=identity):
 """
 
     # Delete a link from the linked list by finding a matching goal key
-    def delete(self, goal, code=deleteCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
-        wait=0.1
+    def delete(self, goal, code=deleteCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        wait = 0.1
 
         callEnviron.add(self.canvas.create_text(
             *self.outputLabelCoords(), text='goal = {}'.format(goal), 
@@ -633,9 +634,12 @@ def delete(self, goal={goal!r}, key=identity):
                     toCoords.append(self.nextLinkCoords(i + 1))
             if sleepTime > 0:
                 try:
-                    self.startAnimations()
+                    stopped = self.animationsStopped()
+                    if stopped:
+                        self.startAnimations(enableStops=False)
                     self.moveItemsLinearly(items, toCoords, sleepTime=sleepTime)
-                    self.stopAnimations()
+                    if stopped:
+                        self.stopAnimations()
                 except UserStop:
                     pass
             else:
@@ -643,8 +647,8 @@ def delete(self, goal={goal!r}, key=identity):
                     self.canvas.coords(item, coords)
                     
     def cleanUp(self,   # Customize cleanup to restore link positions
-                callEnvironment=None, stopAnimations=True):
-        super().cleanUp(callEnvironment, stopAnimations)
+                callEnvironment=None, **kwargs):
+        super().cleanUp(callEnvironment, **kwargs)
         if len(self.callStack) == 0:
             self.restorePositions(sleepTime=0)
 
@@ -659,7 +663,6 @@ def find(self, goal={goal!r}, key=identity):
 
     def find(self, goal, code=findCode):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
         wait = 0.1
 
         callEnviron.add(self.canvas.create_text(
@@ -679,7 +682,7 @@ def find(self, goal={goal!r}, key=identity):
                                wait=wait)
 
             if self.list[link - 1].key == goal:
-                self.highlightCode('return link', callEnviron, wait=0.1)
+                self.highlightCode('return link', callEnviron, wait=wait)
                 self.cleanUp(callEnviron)
                 return link
 
@@ -691,7 +694,7 @@ def find(self, goal={goal!r}, key=identity):
                 (self.indexCoords(link), self.indexLabelCoords(link)),
                 sleepTime=wait/10)
 
-            self.highlightCode('link is not None', callEnviron, wait=0.1)
+            self.highlightCode('link is not None', callEnviron, wait=wait)
             
         # Failed to find goal key
         self.highlightCode([], callEnviron)
@@ -704,9 +707,9 @@ def search(self, goal={goal!r}, key=identity):
       return link.getData()
 """
 
-    def search(self, goal, code=searchCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+    def search(self, goal, code=searchCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
         wait = 0.1
 
         self.highlightCode('link = self.find(goal, key)', callEnviron)
@@ -742,7 +745,7 @@ def search(self, goal={goal!r}, key=identity):
     ### BUTTON FUNCTIONS##
     def clickSearch(self):
         val = self.getArgument()
-        result = self.search(val)
+        result = self.search(val, start=self.startMode())
         if result != None:
             msg = "Found {}!".format(val)
         else:
@@ -756,12 +759,12 @@ def search(self, goal={goal!r}, key=identity):
             self.setMessage("Error! Linked List is already full.")
             self.clearArgument()
         else:  
-            self.insert(val)
+            self.insert(val, start=self.startMode())
 
     def clickDelete(self):
         empty = self.first is None  # check whether linked list is empty or not
         val = self.getArgument()
-        result = self.delete(val)
+        result = self.delete(val, start=self.startMode())
         self.setMessage(
             'Error! Linked list is empty' if empty else
             '{} eleted'.format(val) if result else
@@ -770,24 +773,24 @@ def search(self, goal={goal!r}, key=identity):
             self.clearArgument()        
         
     def clickDeleteFirst(self):
-        if self.deleteFirst() is None:
+        if self.deleteFirst(start=self.startMode()) is None:
             self.setMessage('Error! Queue is empty')
         
     def clickNewLinkedList(self):
         self.newLinkedList()
     
     def clickGetFirst(self):
-        first = self.firstData()
+        first = self.firstData(start=self.startMode())
         self.setMessage('Error! Queue is empty' if first is None else
                         "The first link's data is {}".format(first))
 
     def clickTraverse(self):
-        self.traverse()
+        self.traverse(start=self.startMode())
     
     def makeButtons(self):
         vcmd = (self.window.register(self.validate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        insertButton = self.addOperation(
+        self.insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
             validationCmd=vcmd, argHelpText=['item'], 
             helpText='Insert item at front of list')
@@ -813,20 +816,19 @@ def search(self, goal={goal!r}, key=identity):
             helpText='Traverse items in list')
         self.addAnimationButtons()
     
-        return [searchButton, insertButton, deleteButton, deleteFirstButton,
-                newLinkedListButton, getFirstButton, traverseButton]
+        return [searchButton, self.insertButton, deleteButton,
+                deleteFirstButton, newLinkedListButton, getFirstButton,
+                traverseButton]
             
     ##allow letters or numbers to be typed in                  
     def validate(self, action, index, value_if_allowed,
-                             prior_value, text, validation_type, trigger_type, widget_name):
+                 prior_value, text, validation_type, trigger_type, widget_name):
         return len(value_if_allowed)<= self.maxArgWidth
    
 if __name__ == '__main__':
     ll = LinkedList()
-    try:
-        for arg in reversed(sys.argv[1:]):
-            ll.insert(arg)
-            ll.cleanUp()
-    except UserStop:
-        ll.cleanUp()
+    for arg in reversed(sys.argv[1:]):
+        ll.setArgument(arg)
+        ll.insertButton.invoke()
+    ll.cleanUp()
     ll.runVisualization()

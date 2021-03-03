@@ -30,7 +30,6 @@ def isFull(self):
 
     def isFull(self, code=isFullCode, wait=0.2):
         callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
         self.highlightCode(
             'self.__nItems == self.__maxSize', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
@@ -43,7 +42,6 @@ def isEmpty(self):
 
     def isEmpty(self, code=isEmptyCode, wait=0.2):
         callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
         self.highlightCode(
             'self.__nItems == 0', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
@@ -63,10 +61,9 @@ def insert(self, item={val}):
    return True
 '''
     
-    def insert(self, val, code=insertCode):
+    def insert(self, val, code=insertCode, start=True):
         callEnviron = self.createCallEnvironment(
-            code=code.format(**locals()))
-        self.startAnimations()
+            code=code.format(**locals()), startAnimations=start)
 
         wait=0.2
         self.highlightCode('self.isFull()', callEnviron, wait=0.01)
@@ -83,20 +80,19 @@ def insert(self, item={val}):
         indexJ = self.createIndex(j, 'j', level=-2)
         callEnviron |= set(indexJ)
 
-        startPosition = self.tempCoords(j + 1)
+        self.highlightCode('j >= 0', callEnviron, wait=wait)
+        startPosition = self.tempCoords(j)
         cell = self.createCellValue(startPosition, val)
         itemLabel = self.canvas.create_text(
-            *self.tempLabelCoords(j + 1, self.VARIABLE_FONT), text='item', 
+            *self.tempLabelCoords(j, self.VARIABLE_FONT), text='item', 
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         newItem = cell + (itemLabel,)
         callEnviron |= set(newItem)
 
-        self.highlightCode('j >= 0', callEnviron, wait=wait)
         if j >= 0:
             self.highlightCode('self.__pri(item) >= self.__pri(self.__que[j])',
                                callEnviron, wait=wait)
             
-        self.list.append(drawnValue(None, None, None))
         while j >= 0 and val >= self.list[j].val:  # Move bigger items right
 
             self.highlightCode('self.__que[j+1] = self.__que[j]', callEnviron)
@@ -119,7 +115,10 @@ def insert(self, item={val}):
                        self.cellCenter(j+1))
 
         self.moveItemsTo(cell, toPositions, sleepTime=0.01)
-        self.list[j+1] = drawnValue(val, *cell)
+        if j + 1 == len(self.list):
+            self.list.append(drawnValue(val, *cell))
+        else:
+            self.list[j+1] = drawnValue(val, *cell)
         callEnviron -= set(cell)  # New cell is no longer temporary
 
         self.highlightCode('self.__nItems += 1', callEnviron)
@@ -131,28 +130,28 @@ def insert(self, item={val}):
 
     peekCode = '''
 def peek(self):
-   return None if self.isEmpty() else self.__que[self.__front]
+   return None if self.isEmpty() else self.__que[self.__nItems-1]
 '''
     
-    def peek(self, code=peekCode):
-        callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
-
-        self.highlightCode('self.isEmpty()', callEnviron, wait=0.01)
+    def peek(self, code=peekCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
+        wait = 0.1
+        
+        self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
         if self.isEmpty():
-            self.highlightCode('None', callEnviron)
+            self.highlightCode('return None', callEnviron)
             self.cleanUp(callEnviron)
             return None
             
-        self.highlightCode('self.__que[self.__front]', callEnviron)
+        self.highlightCode(
+            ['return', 'self.__que[self.__nItems-1]'], callEnviron, wait)
         # draw output box using smaller font than values
         font = (self.VALUE_FONT[0], - abs(self.VALUE_FONT[1]) * 3 // 4)
         outputBoxCoords = self.outputBoxCoords(font, N=1)
         outputBox = self.canvas.create_rectangle(
             *outputBoxCoords, fill=self.OPERATIONS_BG)
         callEnviron.add(outputBox)
-
-        self.wait(0.1)
 
         # calculate where the value will need to move to
         midOutputBox = divide_vector(
@@ -163,12 +162,11 @@ def peek(self):
         callEnviron.add(valueOutput)
 
         # move value to output box
-        self.moveItemsTo(valueOutput, midOutputBox, sleepTime=.02)
+        self.moveItemsTo(valueOutput, midOutputBox, sleepTime=wait / 5)
 
         # adjust the font of the output item
         self.canvas.itemconfig(valueOutput, font=font)
 
-        self.wait(0.1)
         self.cleanUp(callEnviron)
         return self.list[-1].val
 
@@ -180,9 +178,9 @@ def __init__(self, size={val}, pri=identity):
    self.__nItems = 0
 '''
     
-    def newArraySize(self, val, code=newCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+    def newArraySize(self, val, code=newCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
 
         cell0 = self.cellCoords(0)
         pad = abs(self.VARIABLE_FONT[1])
@@ -229,7 +227,7 @@ def __init__(self, size={val}, pri=identity):
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
-    removeCode = '''
+    removeLastCode = '''
 def remove(self):
    if self.isEmpty():
       raise Exception("Queue underflow")
@@ -240,9 +238,9 @@ def remove(self):
 '''
     
     # delete the last element of the queue, or None if empty
-    def remove(self, code=removeCode):
-        callEnviron = self.createCallEnvironment(code=code)
-        self.startAnimations()
+    def remove(self, code=removeLastCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
 
         self.highlightCode('self.isEmpty()', callEnviron, wait=0.01)
         if self.isEmpty():
@@ -257,10 +255,10 @@ def remove(self):
 
         self.highlightCode('front = self.__que[self.__nItems]', callEnviron)
         self.assignToTemp(len(self.list) - 1, callEnviron, varName='front')
-        n = self.list.pop()
 
         self.highlightCode('self.__que[self.__nItems] = None', callEnviron,
                            wait=0.1)
+        n = self.list.pop()
         for item in n.items:
             if item is not None:
                 self.canvas.delete(item)
@@ -324,20 +322,21 @@ def remove(self):
         val = self.validArgument()
         self.setMessage(
             "Input value must be an integer from 0 to 99." if val is None else
-            "Item {} inserted".format(val) if self.insert(val) else
+            "Item {} inserted".format(val) 
+            if self.insert(val, start=self.startMode()) else
             "Error! Queue is already full.")
                 
         self.clearArgument()
     
     def clickRemove(self):
-        result = self.remove()
+        result = self.remove(start=self.startMode())
         self.setMessage(
             "Error! Queue is empty." if result is None else
             "Item {} removed".format(result))
         self.clearArgument()
 
     def clickPeek(self):
-        front = self.peek()
+        front = self.peek(start=self.startMode())
         self.setMessage("Error! Queue is empty." if front is None else
                         "Item at front is {}".format(front))
 
@@ -350,7 +349,7 @@ def remove(self):
             self.setMessage("This queue size must be beteeen 1 and {}".format(
                 maxCells))
             return
-        self.newArraySize(val)
+        self.newArraySize(val, start=self.startMode())
         self.clearArgument()
 
 if __name__ == '__main__':

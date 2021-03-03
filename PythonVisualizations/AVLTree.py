@@ -13,7 +13,7 @@ except ModuleNotFoundError:
 
 class AVLTree(BinaryTreeBase):
    def __init__(self, canvasWidth=800, canvasHeight=400, title="AVL Tree", **kwargs):
-        super().__init__(0, 0, canvasWidth, canvasHeight, title=title,
+        super().__init__(RECT=(0, 0, canvasWidth, canvasHeight), title=title,
                          canvasWidth=canvasWidth, canvasHeight=canvasHeight, 
                          **kwargs)
         self.buttons = self.makeButtons()

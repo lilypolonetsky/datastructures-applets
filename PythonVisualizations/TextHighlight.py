@@ -13,11 +13,12 @@ class CodeHighlightBlock(object):
                  code,       # a unique prefix to highlight snippets in it,
                  textWidget): # and tags the snippets when refreenced
        self.code = code.strip()
-       self.lines = self.code.split('\n')
+       self.lines = self.code.split('\n') if len(code) > 0 else []
        self.cache = {}
        self.textWidget = textWidget
        self.prefix = '{:04d}-'.format(self._counter)
        self.startMark = None
+       self.currentFragments = None
        CodeHighlightBlock._counter += 1
 
     def __getitem__(self, fragment):
@@ -83,10 +84,12 @@ class CodeHighlightBlock(object):
                     'fragment "{}"'.format(fragment))
             return first, '{}.{}'.format(line, start + len(fragment) - chars)
         
-    def markStart(self, ind='1.0'):
+    def markStart(self, ind='1.0', resetCache=True):
         '''Mark the start of this code block inside the Tk text widget'''
         self.startMark = self.prefix + '▶'
         self.textWidget.mark_set(self.startMark, ind)
+        if resetCache:
+            self.cache = {}
 
 if __name__ == '__main__':
 

@@ -192,10 +192,25 @@ class Queue(VisualizationApp):
             font=self.valueFont, fill=self.valueColor)
         return (arc, text, cover)
 
-    def isEmpty(self):
+    isEmptyCode = '''
+def isEmpty(self): return self.__nItems == 0
+'''
+
+    def isEmpty(self, code=isEmptyCode):
+        callEnviron = self.createCallEnvironment(code=code)
+        self.highlightCode('return self.__nItems == 0', callEnviron, wait=0.1)
+        self.cleanUp(callEnviron)
         return self.nItems == 0
 
-    def isFull(self):
+    isFullCode = '''
+def isFull(self): return self.__nItems == self.__maxSize
+'''
+
+    def isFull(self, code=isFullCode):
+        callEnviron = self.createCallEnvironment(code=code)
+        self.highlightCode('return self.__nItems == self.__maxSize',
+                           callEnviron, wait=0.1)
+        self.cleanUp(callEnviron)
         return self.nItems >= self.size
     
     insertCode = '''
@@ -211,54 +226,54 @@ def insert(self, item={val!r}):
 '''
     
     # insert item at rear of queue   
-    def insertRear(self, val, code=insertCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+    def insertRear(self, val, code=insertCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        wait = 0.1
 
-        self.highlightCode('self.isFull()', callEnviron, wait=0.1)
+        self.highlightCode('self.isFull()', callEnviron, wait=wait)
         if self.isFull():
             self.highlightCode(
-                'raise Exception("Queue overflow")', callEnviron, wait=0.1,
+                'raise Exception("Queue overflow")', callEnviron, wait=wait,
                 color=self.EXCEPTION_HIGHLIGHT)
             self.cleanUp(callEnviron)
             return False
 
         # increment rear
-        self.highlightCode('self.__rear += 1', callEnviron, wait=0.1)
+        self.highlightCode('self.__rear += 1', callEnviron, wait=wait)
         nextRear = (self.rear + 1) % self.size
         if self.rearArrow:
             self.moveIndexTo(self.rearArrow, nextRear, self.rearLevel)
         
         # deal with wraparound
         self.highlightCode(
-            'self.__rear == self.__maxSize', callEnviron, wait=0.1)
+            'self.__rear == self.__maxSize', callEnviron, wait=wait)
         if nextRear == 0:
-            self.highlightCode('self.__rear = 0', callEnviron, wait=0.1)
+            self.highlightCode('self.__rear = 0', callEnviron, wait=wait)
+
+        # insert the item
+        self.highlightCode(
+            'self.__que[self.__rear] = item', callEnviron, wait=wait)
 
         # create new cell and cell value display objects
         # Start drawing new one at rear
         cellValue = self.newCellValue(nextRear, val)
         callEnviron |= set(cellValue)
 
-        # insert the item
-        self.highlightCode(
-            'self.__que[self.__rear] = item', callEnviron, wait=0.1)
         # Show nItems being incremented
-
-        # Now make internal changes
         self.highlightCode('self.__nItems += 1', callEnviron)
         self.updateNItems(self.nItems + 1)
         self.rear = nextRear
         self.list[self.rear] = drawnValue(val, *cellValue)
         callEnviron -= set(cellValue)
-        self.wait(0.1)
+        self.wait(wait)
 
         # update window
-        self.highlightCode('return True', callEnviron, wait=0.1)
+        self.highlightCode('return True', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
         return True
 
-    removeCode = '''
+    removeFrontCode = '''
 def remove(self):
    if self.isEmpty():
       raise Exception("Queue underflow")
@@ -272,15 +287,16 @@ def remove(self):
 '''
     
     # remove the front element of the queue, or None if empty
-    def removeFront(self, code=removeCode):
-        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
-        self.startAnimations()
+    def removeFront(self, code=removeFrontCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        wait = 0.1
 
-        self.highlightCode('self.isEmpty()', callEnviron, wait=0.1)
+        self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
         if self.isEmpty():
             self.highlightCode(
                 'raise Exception("Queue underflow")',
-                callEnviron, wait=0.1, color=self.EXCEPTION_HIGHLIGHT)
+                callEnviron, wait=wait, color=self.EXCEPTION_HIGHLIGHT)
             self.cleanUp(callEnviron)
             return None
 
@@ -288,7 +304,7 @@ def remove(self):
         box = self.createOutputBox(1, 'front')
         callEnviron |= set(box)
         self.highlightCode(
-            'front = self.__que[self.__front]', callEnviron, wait=0.1)
+            'front = self.__que[self.__front]', callEnviron, wait=wait)
             
         #get the value at front
         n = self.list[self.front]
@@ -313,16 +329,16 @@ def remove(self):
         if self.frontArrow:
             self.moveIndexTo(self.frontArrow, newFront, self.frontLevel)
         self.highlightCode(
-            'self.__front == self.__maxSize', callEnviron, wait=0.1)
+            'self.__front == self.__maxSize', callEnviron, wait=wait)
         if newFront == 0:
-            self.highlightCode('self.__front = 0', callEnviron, wait=0.1)
+            self.highlightCode('self.__front = 0', callEnviron, wait=wait)
         self.front = newFront
         
         # decrement number of items
-        self.highlightCode('self.__nItems -= 1', callEnviron, wait=0.1)
+        self.highlightCode('self.__nItems -= 1', callEnviron, wait=wait)
         self.updateNItems(self.nItems - 1)
 
-        self.highlightCode('return front', callEnviron, wait=0.1)
+        self.highlightCode('return front', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
         return n.val
 
@@ -331,21 +347,22 @@ def peek(self):
    return None if self.isEmpty() else self.__que[self.__front]
 '''
     
-    def peek(self, code=peekCode):
-        callEnviron = self.createCallEnvironment(code.format(**locals()))
-        self.startAnimations()
+    def peek(self, code=peekCode, start=True):
+        callEnviron = self.createCallEnvironment(
+            code.format(**locals()), startAnimations=start)
+        wait = 0.1
 
-        self.highlightCode('self.isEmpty()', callEnviron, wait=0.1)
+        self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
         if self.isEmpty():
-            self.highlightCode('None', callEnviron, wait=0.1)
+            self.highlightCode('return None', callEnviron, wait=wait)
             self.cleanUp(callEnviron)
             return None
 
         # create the output box
-        self.highlightCode('self.__que[self.__front]', callEnviron)
+        self.highlightCode(['return', 'self.__que[self.__front]'], callEnviron)
         font, pad = self.outputBoxFontAndPadding()
         outputBox = self.createOutputBox()
-        callEnviron.add(outputBox)
+        callEnviron |= set(outputBox)
 
         # calculate where the value will need to move to
         peekValCoords = self.outputBoxLineCoords()
@@ -369,15 +386,15 @@ def __init__(self, size={newSize}):
    self.__rear = 0
    self.__nItems = 0
 '''
-    def display(self, newSize=None, code=newCode):
+    def display(self, newSize=None, code=newCode, start=True):
         callEnviron, wait = None, 0
         if newSize is not None:
-            callEnviron = self.createCallEnvironment(code.format(**locals()))
-            self.startAnimations()
+            callEnviron = self.createCallEnvironment(
+                code.format(**locals()), startAnimations=start)
 
         self.canvas.delete("all")
         if callEnviron:
-            wait=0.1
+            wait = 0.1
             try:
                 sizeRequest = self.canvas.create_text(
                     *divide_vector(self.widgetDimensions(self.canvas), 2),
@@ -447,25 +464,25 @@ def __init__(self, size={newSize}):
             self.setMessage('New queue must have 2 - {} cells'.format(
                 self.MAX_CELLS))
             return
-        self.display(newSize=int(entered_text))
+        self.display(newSize=int(entered_text), start=self.startMode())
         
     def clickInsertRear(self):
         entered_text = self.getArgument()
         if entered_text:
-            if self.insertRear(entered_text):
+            if self.insertRear(entered_text, start=self.startMode()):
                 self.setMessage('Value {} inserted'.format(repr(entered_text)))
                 self.clearArgument()
             else:
                 self.setMessage('Queue is full!')
 
     def clickPeek(self):
-        val = self.peek()
+        val = self.peek(start=self.startMode())
         self.setMessage(
             "Value {} is at the front of the queue".format(repr(val)) if val
             else "Queue is empty")
 
     def clickRemove(self):
-        front = self.removeFront()
+        front = self.removeFront(start=self.startMode())
         self.setMessage('Value {} removed'.format(repr(front)) if front else
                         'Queue is empty!')
 
@@ -475,7 +492,7 @@ def __init__(self, size={newSize}):
             "Insert", lambda: self.clickInsertRear(), numArguments=1,
             validationCmd=vcmd, argHelpText=['item'],
             helpText='Insert item at rear of queue')
-        self.insertButton = self.addOperation(
+        self.newButton = self.addOperation(
             "New", lambda: self.clickNew(), numArguments=1, validationCmd=vcmd,
             argHelpText=['number of items'], 
             helpText='Create queue to hold N items')
@@ -536,13 +553,8 @@ def __init__(self, size={newSize}):
 
 if __name__ == '__main__':
     queue = Queue()
-
-    try:
-        queue.startAnimations()
-        for item in sys.argv[1:]:
-            queue.insertRear(item)
-        queue.stopAnimations()
-    except UserStop:
-        queue.cleanUp()
+    for arg in sys.argv[1:]:
+        queue.setArgument(arg)
+        queue.insertButton.invoke()
         
     queue.runVisualization()
