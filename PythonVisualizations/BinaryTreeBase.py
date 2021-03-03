@@ -720,9 +720,9 @@ class BinaryTreeBase(VisualizationApp):
         self.size = 0
         self.nodes = [None] * (2**self.MAX_LEVEL)
 
-    def display(self, fields=[]):
+    def display(self, fields=[], treeLabel="BinarySearchTree"):
         self.canvas.delete("all")
-        self.treeObject = self.createTreeObject(fields=fields)
+        self.treeObject = self.createTreeObject(fields=fields, label=treeLabel)
         self.fieldwidths = self.treeObjectFieldWidths(fields=fields)
         newNodes = [self.createNode(
             node.getKey(), None if i == 0 else self.nodes[(i - 1) // 2],
