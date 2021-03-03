@@ -167,7 +167,7 @@ class BinaryTreeBase(VisualizationApp):
     # returns the canvas line item connecting the node to its parent
     def getLine(self, node):
         n = self.getNode(node)
-        return n.getLine() if n else NOne
+        return n.getLine() if n else None
 
     # returns the level of the node
     def getLevel(self, node):
