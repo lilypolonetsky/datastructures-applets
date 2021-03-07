@@ -18,7 +18,6 @@ class BinaryTree(BinaryTreeBase):
     def __init__(self, title="Binary Search Tree", values=None, **kwargs):
         super().__init__(title=title, **kwargs)
         self.buttons = self.makeButtons()
-        self.title = title
 
         # empty the tree
         self.emptyTree()
