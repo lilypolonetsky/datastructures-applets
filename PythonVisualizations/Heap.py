@@ -27,8 +27,9 @@ class Heap(BinaryTreeBase):
         self.arrayCopyDelta = (2 * self.CELL_WIDTH, 0)
         self.siftDelta = (3 * self.CELL_WIDTH, 0)
         canvasDims = (800, 400)
-        padY = 30
+        padY = 0
         self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
+        self.VARIABLE_FONT = (self.VARIABLE_FONT[0], -12)
         outputBoxHeight = abs(self.outputFont[1]) * 2 + 6
         RECT = (self.ARRAY_X0 + self.siftDelta[0] + self.CELL_WIDTH, padY,
                 canvasDims[0] - self.siftDelta[0],
