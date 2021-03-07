@@ -59,8 +59,11 @@ class BinaryTreeBase(VisualizationApp):
         MAX_LEVEL is one more than the maximum node level allowed in the tree.
         """
         super().__init__(**kwargs)
+        self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
+        outputBoxHeight = abs(self.outputFont[1]) * 2 + 6
         if RECT is None:
-            RECT = (0, 0, self.targetCanvasWidth, self.targetCanvasHeight)
+            RECT = (0, 0, self.targetCanvasWidth, 
+                    self.targetCanvasHeight - outputBoxHeight)
         X0, Y0, X1, Y1 = RECT
         self.RECT = RECT
         self.valMax = VAL_MAX
@@ -539,6 +542,10 @@ class BinaryTreeBase(VisualizationApp):
                 self.canvas.itemconfigure(text, text=str(node.getKey()))
                 if self.canvas.type(shape):
                     self.canvas.tag_raise(text, shape)
+        
+    def upperRightNodeCoords(self, level=1):
+        return (self.RECT[2] - self.CIRCLE_SIZE,
+                self.RECT[1] + self.CIRCLE_SIZE * (2.5 * level - 1))
 
     def outputBoxSpacing(self, font=None):
         if font is None: font = self.VALUE_FONT
@@ -1284,9 +1291,9 @@ for key, data in tree.traverse("{traverseType}"):
             code=code.format(**locals()), sleepTime=wait / 10, 
             startAnimations=start)
 
-        deletedNodeCoords = self.deletedNodeCoords()
         traverseTypeText = self.canvas.create_text(
-            *deletedNodeCoords, text='traverseType: "{}"'.format(traverseType),
+            *self.upperRightNodeCoords(),
+            text='traverseType: "{}"'.format(traverseType),
             anchor=E, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(traverseTypeText)
         
@@ -1551,6 +1558,8 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
 
     def __pTree(self, node, nodeType, indent, indentBy=4):
         if node:
-            self.__pTree(self.getRightChild(node), "RIGHT:  ", indent + " " * indentBy, indentBy)
+            self.__pTree(self.getRightChild(node), "RIGHT:  ",
+                         indent + " " * indentBy, indentBy)
             print(indent + nodeType, node)
-            self.__pTree(self.getLeftChild(node), "LEFT:  ", indent + " " * indentBy, indentBy)
+            self.__pTree(self.getLeftChild(node), "LEFT:  ",
+                         indent + " " * indentBy, indentBy)

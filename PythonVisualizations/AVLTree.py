@@ -10,11 +10,8 @@ except ModuleNotFoundError:
     from .BinaryTreeBase import *
 
 class AVLTree(BinaryTreeBase):
-    def __init__(
-           self, canvasWidth=800, canvasHeight=400, title="AVL Tree", **kwargs):
-        super().__init__(RECT=(0, 0, canvasWidth, canvasHeight), title=title,
-                         canvasWidth=canvasWidth, canvasHeight=canvasHeight, 
-                         **kwargs)
+    def __init__(self, title="AVL Tree", **kwargs):
+        super().__init__(title=title, **kwargs)
         self.buttons = self.makeButtons()
         self.display(treeLabel='AVLtree')
 
@@ -379,13 +376,24 @@ def __insert(self, node={nodeKey}, key={key}, data):
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
                     '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        newTreeButton = self.addOperation("New Tree", lambda: self.newTree())
         self.insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd= vcmd)
+            "Insert", self.clickInsert, numArguments=1,
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Insert item in tree')
+        searchButton = self.addOperation(
+            "Search", self.clickSearch, numArguments=1,
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Search for an item in tree')
         randomFillButton = self.addOperation(
-            "Random Fill", lambda: self.clickRandomFill(), numArguments=1,
-            validationCmd= vcmd)
+            "Random Fill", self.clickRandomFill, numArguments=1,
+            validationCmd= vcmd, argHelpText=['nuber of items'],
+            helpText='Fiill tree with N random items')
+        newTreeButton = self.addOperation(
+            "New Tree", self.newTree,
+            helpText='Create an empty tree')
+        inOrderButton = self.addOperation(
+            "In-order Traverse", lambda: self.clickTraverse('in'), 
+            helpText='Traverse tree in in-order')
         #this makes the pause, play and stop buttons 
         self.addAnimationButtons()
         return [self.insertButton, randomFillButton]

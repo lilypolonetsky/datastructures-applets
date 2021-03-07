@@ -16,13 +16,7 @@ V = vector
 
 class BinaryTree(BinaryTreeBase):
     def __init__(self, title="Binary Search Tree", values=None, **kwargs):
-        height = kwargs.get('canvasHeight', 400)
-        width = kwargs.get('canvasWidth', 800)
-        padY = 30
-        self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
-        outputBoxHeight = abs(self.outputFont[1]) * 2 + 6
-        super().__init__(RECT=(0, padY, width, height - outputBoxHeight), 
-                         title=title, **kwargs)
+        super().__init__(title=title, **kwargs)
         self.buttons = self.makeButtons()
         self.title = title
 
@@ -69,9 +63,9 @@ def delete(self, goal={goal}):
             callEnviron.add(self.createOutputBox(coords=outBoxCoords))
             outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
             
-            deletedNodeCoords = self.deletedNodeCoords(level=1)
+            upperRightNodeCoords = self.upperRightNodeCoords(level=1)
             deletedKey = self.canvas.create_text(
-                *deletedNodeCoords, text=str(result), font=self.VALUE_FONT,
+                *upperRightNodeCoords, text=str(result), font=self.VALUE_FONT,
                 fill=self.VALUE_COLOR)
             callEnviron.add(deletedKey)
             self.moveItemsTo(deletedKey, outBoxCenter, sleepTime=wait / 10)
@@ -121,15 +115,15 @@ def __delete(self, parent, node):
         callEnviron |= set(parentIndex + nodeIndex)
         self.highlightCode('deleted = node.data', callEnviron, wait=wait)
         deleted = self.getNode(node).getKey()
-        deletedNodeCoords = self.deletedNodeCoords(level)
+        upperRightNodeCoords = self.upperRightNodeCoords(level)
         deletedLabel = self.canvas.create_text(
-            *(V(deletedNodeCoords) - V(self.CIRCLE_SIZE + 5, 0)), anchor=E,
+            *(V(upperRightNodeCoords) - V(self.CIRCLE_SIZE + 5, 0)), anchor=E,
             text='deleted', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(deletedLabel)
         deletedNode = self.createNodeShape(
             *self.nodeCenter(node), deleted, 'deleted')
         callEnviron |= set(deletedNode)
-        self.moveItemsTo(deletedNode, self.nodeItemCoords(deletedNodeCoords),
+        self.moveItemsTo(deletedNode, self.nodeItemCoords(upperRightNodeCoords),
                          sleepTime=wait / 10)
 
         self.highlightCode('node.leftChild', callEnviron, wait=wait)
@@ -273,10 +267,6 @@ def __promote_successor(self, node):
         
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
-        
-    def deletedNodeCoords(self, level=1):
-        return (self.RECT[2] - self.CIRCLE_SIZE,
-                self.RECT[1] + self.CIRCLE_SIZE * (2.5 * level - 1.5))
 
     def clickDelete(self):
         val = self.validArgument()
