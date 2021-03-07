@@ -242,10 +242,239 @@ def __insert(self, node={nodeKey}, key={key}, data):
         self.cleanUp(callEnviron)
         return node, flag       # Return the updated node & insert flag
 
+    rotateLeftCode = '''
+def rotateLeft(self, top):
+   toRaise = top.right
+   top.right = toRaise.left
+   toRaise.left = top
+   top.updateHeight()
+   toRaise.updateHeight()
+   return toRaise
+'''
+    
+    def rotateLeft(self, top, animation=True, code=rotateLeftCode, wait=0.1):
+        "rotate a subtree to the left in the array and animate it"
+        callEnviron = self.createCallEnvironment(
+            code=code if animation else '', startAnimations=animation,
+            sleepTime=wait / 10)
+
+        topIndex = self.getIndex(top) if isinstance(top, Node) else top
+        topNode = self.getNode(topIndex)
+        topParentLine = topNode.getLine()
+        if animation:
+            self.disconnectLink(topNode, sleepTime=wait / 10)
+            topArrow = self.createArrow(topIndex, 'top', level=2)
+            callEnviron |= set(topArrow)
+            
+        # the node to raise is top's right child
+        if animation:
+            self.highlightCode('toRaise = top.right', callEnviron, wait=wait)
+        toRaise = self.getRightChild(top)
+        if animation:
+            toRaiseArrow = self.createArrow(toRaise, 'toRaise')
+            callEnviron |= set(toRaiseArrow)
+
+        # save subtrees
+        topLeft = self.getLeftChild(top)
+        topLeftTree = self.getNodeTree(topLeft)
+        toRaiseNode = self.getNode(toRaise)
+        toRaiseLeft, toRaiseRight = self.getChildren(toRaise)
+        toRaiseLeftTree = self.getNodeTree(toRaiseLeft)
+        toRaiseRightTree = self.getNodeTree(toRaiseRight)
+
+        if animation:
+            self.highlightCode('top.right = toRaise.left', callEnviron)
+            link1 = self.moveLink(top, toRaise, top, toRaiseLeft, callEnviron, 
+                                  sleepTime=wait / 10)
+            self.highlightCode('toRaise.left = top', callEnviron)
+            link2 = self.moveLink(toRaise, toRaiseLeft, toRaise, top,
+                                  callEnviron, sleepTime=wait / 10)
+            if toRaiseLeft:
+                toRaiseLeft.setLine(link1)
+                callEnviron.discard(link1)
+            topNode.setLine(link2)
+            callEnviron.discard(link2)
+        else:
+            topNode.setLine(toRaise.getLine())
+
+        # Move nodes internally
+        self.storeNodeTree(
+            [toRaiseNode, 
+             [topNode, topLeftTree, toRaiseLeftTree], toRaiseRightTree],
+            topIndex)
+        toRaise.setLine(topParentLine)
+
+        # Move canvas items to new positions to match internal structure
+        newSubTree = self.getAllDescendants(topIndex)
+        newSubTreeItems = flat(*(
+            node.drawnValue.items for node in newSubTree))[1:]
+        toPositions = flat(*(
+            self.nodeItemCoords(node, parent=self.getParent(node)) 
+            for node in newSubTree))[1:]
+        if animation:
+            self.moveItemsLinearly(
+                newSubTreeItems + topArrow + toRaiseArrow, 
+                toPositions + self.indexCoords(topNode, 2) +
+                self.indexCoords(toRaiseNode, 1), sleepTime=wait / 10)
+        else:
+            for item, coords in zip(newSubTreeItems, toPositions):
+                self.canvas.coords(item, *coords)
+                
+        # Update heights of rotated nodes
+        if animation:
+            self.highlightCode('top.updateHeight()', callEnviron)
+        self.updateHeight(top, animation=animation)
+        if animation:
+            self.highlightCode('toRaise.updateHeight()', callEnviron)
+        self.updateHeight(topIndex, animation=animation)
+        
+        # Return raised node to update parent
+        if animation:
+            self.highlightCode('return toRaise', callEnviron)
+        self.cleanUp(callEnviron)
+        return toRaise
+
+    rotateRightCode = '''
+def rotateRight(self, top):
+   toRaise = top.left
+   top.left = toRaise.right
+   toRaise.right = top
+   top.updateHeight()
+   toRaise.updateHeight()
+   return toRaise
+'''
+    
+    def rotateRight(self, top, animation=True, code=rotateRightCode, wait=0.1):
+        "rotate a subtree to the right in the array and animate it"
+        callEnviron = self.createCallEnvironment(
+            code=code if animation else '', startAnimations=animation,
+            sleepTime=wait / 10)
+
+        topIndex = self.getIndex(top) if isinstance(top, Node) else top
+        topNode = self.getNode(topIndex)
+        topParentLine = topNode.getLine()
+        if animation:
+            self.disconnectLink(topNode, sleepTime=wait / 10)
+            topArrow = self.createArrow(topIndex, 'top', level=2)
+            callEnviron |= set(topArrow)
+            
+        # the node to raise is top's left child
+        if animation:
+            self.highlightCode('toRaise = top.left', callEnviron, wait=wait)
+        toRaise = self.getLeftChild(top)
+        if animation:
+            toRaiseArrow = self.createArrow(toRaise, 'toRaise')
+            callEnviron |= set(toRaiseArrow)
+
+        # save subtrees
+        topRight = self.getRightChild(top)
+        topRightTree = self.getNodeTree(topRight)
+        toRaiseNode = self.getNode(toRaise)
+        toRaiseLeft, toRaiseRight = self.getChildren(toRaise)
+        toRaiseRightTree = self.getNodeTree(toRaiseRight)
+        toRaiseLeftTree = self.getNodeTree(toRaiseLeft)
+
+        if animation:
+            self.highlightCode('top.left = toRaise.right', callEnviron)
+            link1 = self.moveLink(top, toRaise, top, toRaiseRight, callEnviron, 
+                                  sleepTime=wait / 10)
+            self.highlightCode('toRaise.right = top', callEnviron)
+            link2 = self.moveLink(toRaise, toRaiseRight, toRaise, top,
+                                  callEnviron, sleepTime=wait / 10)
+            if toRaiseRight:
+                toRaiseRight.setLine(link1)
+                callEnviron.discard(link1)
+            topNode.setLine(link2)
+            callEnviron.discard(link2)
+        else:
+            topNode.setLine(toRaise.getLine())
+
+        # Move nodes internally
+        self.storeNodeTree(
+            [toRaiseNode, toRaiseLeftTree, 
+             [topNode, toRaiseRightTree, topRightTree]],
+            topIndex)
+        toRaise.setLine(topParentLine)
+
+        # Move canvas items to new positions to match internal structure
+        newSubTree = self.getAllDescendants(topIndex)
+        newSubTreeItems = flat(*(
+            node.drawnValue.items for node in newSubTree))[1:]
+        toPositions = flat(*(
+            self.nodeItemCoords(node, parent=self.getParent(node)) 
+            for node in newSubTree))[1:]
+        if animation:
+            self.moveItemsLinearly(
+                newSubTreeItems + topArrow + toRaiseArrow, 
+                toPositions + self.indexCoords(topNode, 2) +
+                self.indexCoords(toRaiseNode, 1), sleepTime=wait / 10)
+        else:
+            for item, coords in zip(newSubTreeItems, toPositions):
+                self.canvas.coords(item, *coords)
+                
+        # Update heights of rotated nodes
+        if animation:
+            self.highlightCode('top.updateHeight()', callEnviron)
+        self.updateHeight(top, animation=animation)
+        if animation:
+            self.highlightCode('toRaise.updateHeight()', callEnviron)
+        self.updateHeight(topIndex, animation=animation)
+        
+        # Return raised node to update parent
+        if animation:
+            self.highlightCode('return toRaise', callEnviron)
+        self.cleanUp(callEnviron)
+        return toRaise
+
     def createFlagText(self, flagValue):
         return self.canvas.create_text(
             self.RECT[0] + 10, self.ROOT_Y0, text='flag = {}'.format(flagValue),
             anchor=W, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+
+    def disconnectLink(self, node, sleepTime=0.01):
+        'Shorten the link from a node to its parent before a rotation'
+        parent = self.getParent(node)
+        if parent:
+            line = node.getLine()
+            currentCoords = self.canvas.coords(line)
+            delta = V(currentCoords[2:]) - V(currentCoords[:2])
+            distance = V(delta).vlen()
+            newCoords = (V(currentCoords[2:]) - V(
+                V(V(delta) / distance) * (distance - self.CIRCLE_SIZE * 2))
+                        ) + tuple(currentCoords[2:])
+            self.moveItemsLinearly(line, newCoords, sleepTime=sleepTime)
+        
+    def moveLink(self, fromParent, fromChild, toParent, toChild, callEnviron,
+                 sleepTime=0.01, updateNodeLine=False):
+        '''Reposition a link between parent and child as part of a rotation.
+        The new link must share either the parent or the child with the
+        existing link.  Update the line in the child node if requested.
+        '''
+        sharedParent = fromParent == toParent
+        child = self.getNode(fromChild if sharedParent and fromChild else
+                             toParent)
+        lineToMove = child.getLine()
+        newLine = self.copyCanvasItem(lineToMove)
+        self.canvas.tag_lower(newLine)
+        callEnviron.add(newLine)
+        lineToMoveCoords = self.canvas.coords(lineToMove)
+
+        # Make old line zero length, hence, invisible
+        self.canvas.coords(
+            lineToMove, *lineToMoveCoords[:2], *lineToMoveCoords[:2])
+        newLineCoords = (
+            self.nodeCenter(toChild if toChild else toParent)
+            + self.nodeCenter(toParent) if sharedParent else
+            (self.nodeCenter(toParent) + 
+             (self.nodeCenter(toChild if toChild else toParent))))
+        self.moveItemsLinearly(newLine, newLineCoords, sleepTime=sleepTime)
+        if updateNodeLine:
+            callEnviron.add(child.getLine())
+            if newLineCoords[:2] == newLineCoords[2:]:
+                self.canvas.coords(newLine, child.center + child.center)
+            child.setLine(newLine)
+            callEnviron.discard(newLine)
+        return newLine
         
     # create a Node object with a given key at a particular nodeIndex or center
     def createNode(
