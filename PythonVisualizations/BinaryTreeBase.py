@@ -93,6 +93,8 @@ class BinaryTreeBase(VisualizationApp):
     def getIndex(self, node):
         if isinstance(node, int):
             return node
+        elif not isinstance(node, Node):
+            return -1
         for i, n in enumerate(self.nodes):
             if node is n:
                 return i
@@ -194,7 +196,7 @@ class BinaryTreeBase(VisualizationApp):
     def getAllDescendants(self, node):
         if isinstance(node, int):
             node = self.getNode(node)
-        if node is None or not isinstance(node, (int, Node)): return []
+        if node is None or not isinstance(node, Node): return []
         return [node] + (
             self.getAllDescendants(self.getLeftChild(node)) +
             self.getAllDescendants(self.getRightChild(node)))
@@ -712,9 +714,8 @@ class BinaryTreeBase(VisualizationApp):
         
     def moveSubtree(self, toIndex, fromIndex):
         "Move internal subtree rooted at fromIndex to be rooted at toIndex"
-        if (toIndex < 0 or len(self.nodes) <= toIndex or
-            fromIndex < 0 or len(self.nodes) <= fromIndex):
-                return           # Do nothing if to or from index out of bounds
+        if toIndex < 0 or len(self.nodes) <= toIndex:
+            return           # Do nothing if the to index is out of bounds
         
         toDo = [(toIndex, fromIndex)] # Queue of assignments to make
         while len(toDo):      # While there are subtrees to move
