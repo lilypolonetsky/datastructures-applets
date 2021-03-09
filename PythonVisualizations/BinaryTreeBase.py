@@ -637,7 +637,7 @@ class BinaryTreeBase(VisualizationApp):
         index = self.getLeftChildIndex(node)
         if index != -1:
             self.nodes[index] = child
-            if updateLink and child.getLine():
+            if updateLink and child and child.getLine():
                 self.canvas.coords(child.getLine(), 
                                    *self.lineCoordinates(child, node))
             return index
@@ -649,7 +649,7 @@ class BinaryTreeBase(VisualizationApp):
         index = self.getRightChildIndex(node)
         if index != -1:
             self.nodes[index] = child
-            if updateLink and child.getLine():
+            if updateLink and child and child.getLine():
                 self.canvas.coords(child.getLine(), 
                                    *self.lineCoordinates(child, node))
             return index
