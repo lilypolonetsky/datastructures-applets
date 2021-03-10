@@ -100,7 +100,8 @@ if __name__ == '__main__':
 
         print('=' * 60)
         vals = tuple(i for i in iseq)
-        print('Starting tests on', name, 'sequence:\n', vals)
+        print('Starting tests on', name, 'sequence:\n', ' '.join(
+            str(v) for v in vals))
         tree.newTree()
         for i, value in enumerate(vals):
             tree.setArgument(str(value))
@@ -109,7 +110,8 @@ if __name__ == '__main__':
         print('Finsihed with', validNodes(tree), 'nodes inserted')
         
         dvals = tuple(d for d in dseq)
-        print('Deleting nodes in this order:', dvals)
+        print('Deleting nodes in this order:\n', ' '.join(
+            str(v) for v in dvals))
         for i, value in enumerate(dvals):
             tree.setArgument(str(value))
             tree.deleteButton.invoke()
