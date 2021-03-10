@@ -243,7 +243,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
         return node, flag       # Return the updated node & insert flag
 
     rotateLeftCode = '''
-def rotateLeft(self, top):
+def rotateLeft(self, top={topKey}):
    toRaise = top.right
    top.right = toRaise.left
    toRaise.left = top
@@ -254,13 +254,13 @@ def rotateLeft(self, top):
     
     def rotateLeft(self, top, animation=True, code=rotateLeftCode, wait=0.1):
         "rotate a subtree to the left in the array and animate it"
-        callEnviron = self.createCallEnvironment(
-            code=code if animation else '', startAnimations=animation,
-            sleepTime=wait / 10)
-
         topIndex = self.getIndex(top) if isinstance(top, Node) else top
         topNode = self.getNode(topIndex)
         topParentLine = topNode.getLine()
+        callEnviron = self.createCallEnvironment(
+            code=code.format(topKey=topNode.getKey() if topNode else None) if
+            animation else '', startAnimations=animation, sleepTime=wait / 10)
+
         if animation:
             self.disconnectLink(topNode, sleepTime=wait / 10)
             topArrow = self.createArrow(topIndex, 'top', level=2)
@@ -274,13 +274,10 @@ def rotateLeft(self, top):
             toRaiseArrow = self.createArrow(toRaise, 'toRaise')
             callEnviron |= set(toRaiseArrow)
 
-        # save subtrees
+        # Get key nodes
         topLeft = self.getLeftChild(top)
-        topLeftTree = self.getNodeTree(topLeft)
         toRaiseNode = self.getNode(toRaise)
         toRaiseLeft, toRaiseRight = self.getChildren(toRaise)
-        toRaiseLeftTree = self.getNodeTree(toRaiseLeft)
-        toRaiseRightTree = self.getNodeTree(toRaiseRight)
 
         if animation:
             self.highlightCode('top.right = toRaise.left', callEnviron)
@@ -296,6 +293,11 @@ def rotateLeft(self, top):
             callEnviron.discard(link2)
         else:
             topNode.setLine(toRaise.getLine())
+
+        # Extract current subtrees
+        topLeftTree = self.getNodeTree(topLeft, erase=True)
+        toRaiseLeftTree = self.getNodeTree(toRaiseLeft, erase=True)
+        toRaiseRightTree = self.getNodeTree(toRaiseRight, erase=True)
 
         # Move nodes internally
         self.storeNodeTree(
@@ -335,7 +337,7 @@ def rotateLeft(self, top):
         return toRaise
 
     rotateRightCode = '''
-def rotateRight(self, top):
+def rotateRight(self, top={topKey}):
    toRaise = top.left
    top.left = toRaise.right
    toRaise.right = top
@@ -346,13 +348,13 @@ def rotateRight(self, top):
     
     def rotateRight(self, top, animation=True, code=rotateRightCode, wait=0.1):
         "rotate a subtree to the right in the array and animate it"
-        callEnviron = self.createCallEnvironment(
-            code=code if animation else '', startAnimations=animation,
-            sleepTime=wait / 10)
-
         topIndex = self.getIndex(top) if isinstance(top, Node) else top
         topNode = self.getNode(topIndex)
         topParentLine = topNode.getLine()
+        callEnviron = self.createCallEnvironment(
+            code=code.format(topKey=topNode.getKey() if topNode else None) if
+            animation else '', startAnimations=animation, sleepTime=wait / 10)
+
         if animation:
             self.disconnectLink(topNode, sleepTime=wait / 10)
             topArrow = self.createArrow(topIndex, 'top', level=2)
@@ -366,13 +368,10 @@ def rotateRight(self, top):
             toRaiseArrow = self.createArrow(toRaise, 'toRaise')
             callEnviron |= set(toRaiseArrow)
 
-        # save subtrees
+        # Get key nodes
         topRight = self.getRightChild(top)
-        topRightTree = self.getNodeTree(topRight)
         toRaiseNode = self.getNode(toRaise)
         toRaiseLeft, toRaiseRight = self.getChildren(toRaise)
-        toRaiseRightTree = self.getNodeTree(toRaiseRight)
-        toRaiseLeftTree = self.getNodeTree(toRaiseLeft)
 
         if animation:
             self.highlightCode('top.left = toRaise.right', callEnviron)
@@ -388,8 +387,13 @@ def rotateRight(self, top):
             callEnviron.discard(link2)
         else:
             topNode.setLine(toRaise.getLine())
+            
+        # Extract current subtrees
+        topRightTree = self.getNodeTree(topRight, erase=True)
+        toRaiseRightTree = self.getNodeTree(toRaiseRight, erase=True)
+        toRaiseLeftTree = self.getNodeTree(toRaiseLeft, erase=True)
 
-        # Move nodes internally
+        # Move the subtrees internally
         self.storeNodeTree(
             [toRaiseNode, toRaiseLeftTree, 
              [topNode, toRaiseRightTree, topRightTree]],
@@ -426,6 +430,396 @@ def rotateRight(self, top):
         self.cleanUp(callEnviron)
         return toRaise
 
+    deleteCode = '''
+def delete(self, goal={goal}):
+   self.__root, flag = self.__delete(self.__root, goal)
+   return flag
+'''
+    
+    def delete(self, goal, code=deleteCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+        root = self.getRoot()
+        self.highlightCode(
+            'self.__root, flag = self.__delete(self.__root, goal)', callEnviron)
+        newRoot, flag = self.__delete(root, goal)
+
+        if newRoot != root and self.getIndex(newRoot) > 0:
+            self.moveSubtree(0, self.getIndex(newRoot))
+            if newRoot:
+                link = newRoot.getLine()
+                childCenter = self.canvas.coords(link)[:2]
+                for step, steps in self.moveItemsOffCanvasSequence(
+                        root.drawnValue.items):
+                    self.canvas.coords(
+                        link, *childCenter,
+                        *(V(V(V(childCenter) * (step + 1)) +
+                            V(V(root.center) * (steps - 1 - step))) 
+                          / steps))
+                    self.wait(wait / 10)
+                for item in root.drawnValue.items:
+                    self.canvas.delete(item)
+                self.restoreNodePositions(self.getAllDescendants(newRoot),
+                                          sleepTime=wait /10)
+            else:
+                self.moveItemsOffCanvas(
+                    root.drawnValue.items, sleepTime=wait / 10)
+                for item in root.drawnValue.items:
+                    self.canvas.delete(item)
+        self.updateTreeObjectRootPointer(root=self.getRoot())
+        callEnviron.add(self.createFlagText(flag))
+        
+        self.highlightCode('return flag', callEnviron)
+        self.cleanUp(callEnviron)
+        return flag
+        
+    __deleteCode = '''
+def __delete(self, node={nodeKey}, goal={goal}):
+   if node is None:
+      return None, False
+   
+   if goal < node.key:
+      node.left, flag = self.__delete(node.left, goal)
+      node = self.__balanceLeft(node)
+
+   elif goal > node.key:
+      node.right, flag = self.__delete(node.right, goal)
+      node = self.__balanceRight(node)
+
+   elif node.left is None:
+      return node.right, True
+   elif node.right is None:
+      return node.left, True
+
+   else:
+      node.key, node.data, node.right= self.__deleteMin(node.right)
+      node = self.__balanceRight(node)
+      flag = True
+
+   node.updateHeight()
+   return node, flag
+'''
+
+    def __delete(self, node, goal, code=__deleteCode):
+        wait = 0.1
+        nodeIndex = -1 if node is None else (
+            node if isinstance(node, int) else self.getIndex(node))
+        node = self.getNode(nodeIndex)
+        callEnviron = self.createCallEnvironment(code=code.format(
+            nodeKey=None if node is None else node.getKey(), **locals()),
+                                                 sleepTime=wait / 10)
+
+        nodeArrow = self.createArrow(node or 0, 'node', level=1)
+        callEnviron |= set(nodeArrow)
+        localVars = nodeArrow
+        
+        self.highlightCode('node is None', callEnviron, wait=wait)
+        if node is None or self.getNode(node) is None:
+            self.highlightCode('return None, False', callEnviron)
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
+            return None, False
+
+        self.highlightCode('goal < node.key', callEnviron, wait=wait)
+        if goal < node.getKey():
+            self.highlightCode(
+                'node.left, flag = self.__delete(node.left, goal)', callEnviron)
+            leftChildIndex = self.getLeftChildIndex(nodeIndex)
+            leftChild = self.getNode(leftChildIndex)
+            colors = self.fadeNonLocalItems(localVars)
+            newLeft, flag = self.__delete(leftChild, goal)
+            self.restoreLocalItems(localVars, colors)
+            if newLeft != leftChild:
+                self.moveSubtree(leftChildIndex, self.getIndex(newLeft))
+                if leftChild:
+                    leftLink = leftChild.getLine()
+                    childCenter = self.canvas.coords(leftLink)[:2]
+                    newChildCenter = (newLeft if newLeft else node).center
+                    for step, steps in self.moveItemsOffCanvasSequence(
+                            leftChild.drawnValue.items[1:]):
+                        self.canvas.coords(
+                            leftLink,
+                            *(V(V(V(newChildCenter) * (step + 1)) +
+                                V(V(childCenter) * (steps - 1 - step))) 
+                              / steps), *node.center)
+                        self.wait(wait / 10)
+                    for item in leftChild.drawnValue.items[1 if newLeft else 0:]:
+                        self.canvas.delete(item)
+                if newLeft:
+                    self.canvas.delete(newLeft.getLine())
+                    newLeft.setLine(leftLink)
+                    self.restoreNodePositions(self.getAllDescendants(newLeft),
+                                              sleepTime=wait /10)
+            flagText = self.createFlagText(flag)
+            callEnviron.add(flagText)
+            localVars += (flagText,)
+
+            self.highlightCode('node = self.__balanceLeft(node)', callEnviron)
+            colors = self.fadeNonLocalItems(localVars)
+            newNode = self.__balanceLeft(nodeIndex)
+            self.restoreLocalItems(localVars, colors)
+            if newNode != node:
+                self.moveItemsTo(nodeArrow, self.indexCoords(newNode, 1),
+                                 sleepTime=wait / 10)
+                node = newNode
+
+        elif (self.highlightCode('goal > node.key', callEnviron, wait=wait) or
+              goal > node.getKey()):
+            self.highlightCode(
+                'node.right, flag = self.__delete(node.right, goal)',
+                callEnviron)
+            colors = self.fadeNonLocalItems(localVars)
+            rightChildIndex = self.getRightChildIndex(nodeIndex)
+            rightChild = self.getNode(rightChildIndex)
+            newRight, flag = self.__delete(rightChild, goal)
+            self.restoreLocalItems(localVars, colors)
+            if newRight != rightChild:
+                self.moveSubtree(rightChildIndex, self.getIndex(newRight))
+                if rightChild:
+                    rightLink = rightChild.getLine()
+                    childCenter = self.canvas.coords(rightLink)[:2]
+                    newChildCenter = (newRight if newRight else node).center
+                    for step, steps in self.moveItemsOffCanvasSequence(
+                            rightChild.drawnValue.items[1:]):
+                        self.canvas.coords(
+                            rightLink,
+                            *(V(V(V(newChildCenter) * (step + 1)) +
+                                V(V(childCenter) * (steps - 1 - step))) 
+                              / steps), *node.center)
+                        self.wait(wait / 10)
+                    for item in rightChild.drawnValue.items[1 if newRight else 0:]:
+                        self.canvas.delete(item)
+
+                if newRight:
+                    self.canvas.delete(newRight.getLine())
+                    newRight.setLine(rightLink)
+                    self.restoreNodePositions(self.getAllDescendants(newright),
+                                              sleepTime=wait /10)
+            flagText = self.createFlagText(flag)
+            callEnviron.add(flagText)
+            localVars += (flagText,)
+
+            self.highlightCode('node = self.__balanceRight(node)', callEnviron)
+            colors = self.fadeNonLocalItems(localVars)
+            newNode = self.__balanceRight(nodeIndex)
+            self.restoreLocalItems(localVars, colors)
+            if newNode != node:
+                self.moveItemsTo(nodeArrow, self.indexCoords(newNode, 1),
+                                 sleepTime=wait / 10)
+                node = newNode
+            
+        elif (self.highlightCode('node.left is None', callEnviron, wait=wait) or
+              self.getNode(self.getLeftChildIndex(nodeIndex)) is None):
+            self.highlightCode('return node.right, True', callEnviron)
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
+            return self.getRightChild(nodeIndex), True
+
+        elif (self.highlightCode('node.right is None', callEnviron, wait=wait) or
+              self.getNode(self.getRightChildIndex(nodeIndex)) is None):
+            self.highlightCode('return node.left, True', callEnviron)
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
+            return self.getLeftChild(nodeIndex), True
+        
+        else:
+            self.highlightCode(
+                'node.key, node.data, node.right= self.__deleteMin(node.right)',
+                callEnviron)
+            colors = self.fadeNonLocalItems(localVars)
+            successor, newRight = self.__deleteMin(
+                self.getRightChildIndex(nodeIndex))
+            self.restoreLocalItems(localVars, colors)
+            if successor != node:
+                for item in successor.drawnValue.items[1:3]:
+                    self.canvas.tag_raise(item)
+                self.moveItemsTo(
+                    successor.drawnValue.items[1:3], 
+                    self.nodeItemCoords(nodeIndex)[1:3], sleepTime=wait / 10)
+                self.canvas.itemconfigure(
+                    successor.drawnValue.items[1], 
+                    fill=self.canvas.itemconfigure(node.drawnValue.items[1],
+                                                   'fill')[-1])
+                for item in node.drawnValue.items[1:3]:
+                    self.canvas.delete(item)
+                node.drawnValue.items = (
+                    node.drawnValue.items[0], *successor.drawnValue.items[1:3],
+                    *node.drawnValue.items[3:])
+                node.drawnValue.val = successor.drawnValue.val
+
+            self.setRightChild(node, newRight, updateLink=True)
+
+            self.highlightCode('node = self.__balanceRight(node)', callEnviron)
+            colors = self.fadeNonLocalItems(localVars)
+            newNode = self.__balanceRight(node)
+            self.restoreLocalItems(localVars, colors)
+            if newNode != node:
+                self.moveItemsTo(nodeArrow, self.indexCoords(newNode, 1),
+                                 sleepTime=wait / 10)
+                node = newNode
+
+            self.highlightCode('flag = True', callEnviron, wait=wait)
+            flag = True
+            flagText = self.createFlagText(flag)
+            callEnviron.add(flagText)
+
+        self.highlightCode('node.updateHeight()', callEnviron)
+        self.updateHeight(node)
+            
+        self.highlightCode('return node, flag', callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
+        return node, flag
+
+    __deleteMinCode = '''
+def __deleteMin(self, node={nodeKey}):
+   if node.left is None:
+      return (node.key, node.data, node.right)
+   key, data, node.left = self.__deleteMin(node.left)
+   node = self.__balanceLeft(node)
+   node.updateHeight()
+   return (key, data, node)
+'''
+
+    def __deleteMin(self, node, code=__deleteMinCode):
+        wait = 0.1
+        nodeIndex = -1 if node is None else (
+            node if isinstance(node, int) else self.getIndex(node))
+        node = self.getNode(nodeIndex)
+        callEnviron = self.createCallEnvironment(code=code.format(
+            nodeKey=None if node is None else node.getKey(), **locals()),
+                                                 sleepTime=wait / 10)
+
+        nodeArrow = self.createArrow(nodeIndex, 'node')
+        callEnviron |= set(nodeArrow)
+        localVars = nodeArrow
+        
+        self.highlightCode('node.left is None', callEnviron, wait=wait)
+        leftChildIndex = self.getLeftChildIndex(nodeIndex)
+        leftChild = self.getNode(leftChildIndex)
+        if leftChild is None:     # If no left child, this node is the successor
+            self.highlightCode('return (node.key, node.data, node.right)',
+                               callEnviron)
+            self.canvas.itemconfigure(node.drawnValue.items[-1], text='')
+            self.moveSuccessor(node, sleepTime=wait / 10)
+            rightChild = self.getRightChild(nodeIndex)
+            self.nodes[nodeIndex] = None    # Take successor node out of array
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
+            return node, rightChild
+
+        self.highlightCode('key, data, node.left = self.__deleteMin(node.left)',
+                           callEnviron)
+        colors = self.fadeNonLocalItems(localVars)
+        keyData, newLeft = self.__deleteMin(self.getLeftChildIndex(nodeIndex))
+        self.restoreLocalItems(localVars, colors)
+        keyDataArrow = self.createArrow(keyData, 'key, data', anchor=SE)
+        callEnviron |= set(keyDataArrow)
+        localVars += keyDataArrow
+        if newLeft != leftChild:
+            self.replaceSubtree(nodeIndex, Child.LEFT, self.getIndex(newLeft),
+                                callEnviron, wait=wait)
+        
+        self.highlightCode('node = self.__balanceLeft(node)', callEnviron)
+        colors = self.fadeNonLocalItems(localVars)
+        newNode = self.__balanceLeft(nodeIndex)
+        self.restoreLocalItems(localVars, colors)
+        if newNode != node:
+            self.restoreNodePositions(self.getAllDescendants(newNode),
+                                      sleepTime=wait /10)
+            node = newNode
+        
+        self.highlightCode('node.updateHeight()', callEnviron)
+        self.updateHeight(nodeIndex)
+
+        self.highlightCode('return (key, data, node)', callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
+        return keyData, node
+
+    def moveSuccessor(self, successor, sleepTime=0.01, color='LemonChiffon2'):
+        newCenter = V(successor.center) - V(V(0.7, 2) * self.CIRCLE_SIZE)
+        self.canvas.itemconfigure(successor.drawnValue.items[1], fill=color)
+        self.moveItemsLinearly(successor.drawnValue.items, 
+                               self.nodeItemCoords(newCenter, parent=None),
+                               sleepTime=sleepTime)
+        successor.center = newCenter
+        
+    __balanceLeftCode = '''
+def __balanceLeft(self, node={nodeKey}):
+   if node.heightDiff() < -1:
+      if (node.right.left is not None and
+          node.right.heightDiff() > 0):
+         node.right = self.rotateRight(node.right)
+         
+      node = self.rotateLeft(node)
+   return node
+'''
+
+    def __balanceLeft(self, node, code=__balanceLeftCode):
+        wait = 0.1
+        nodeIndex = -1 if node is None else (
+            node if isinstance(node, int) else self.getIndex(node))
+        node = self.getNode(nodeIndex)
+        callEnviron = self.createCallEnvironment(code=code.format(
+            nodeKey=None if node is None else node.getKey(), **locals()))
+        nodeArrow = self.createArrow(node, 'node', anchor=SE)
+        callEnviron |= set(nodeArrow)
+
+        self.highlightCode('node.heightDiff() < -1', callEnviron)
+        if self.heightDiff(node, callEnviron, wait / 20) < -1:
+            self.highlightCode('node.right.left is not None', callEnviron,
+                               wait=wait)
+            rightChild = self.getRightChild(nodeIndex)
+            if self.getLeftChild(rightChild) is not None:
+                self.highlightCode('node.right.heightDiff() > 0', callEnviron)
+                if self.heightDiff(rightChild, callEnviron, wait / 20) > 0:
+                    self.highlightCode(
+                        'node.right = self.rotateRight(node.right)', callEnviron)
+                    self.setRightChild(node, self.rotateRight(rightChild),
+                                       updateLink=True)
+                    
+            self.highlightCode('node = self.rotateLeft(node)', callEnviron)
+            node = self.rotateLeft(node)
+            
+        self.highlightCode('return node', callEnviron)
+        self.cleanUp(callEnviron)
+        return node
+
+    __balanceRightCode = '''
+def __balanceRight(self, node={nodeKey}):
+   if node.heightDiff() > 1:
+      if (node.left.right is not None and
+          node.left.heightDiff() < 0):
+         node.left = self.rotateLeft(node.left)
+         
+      node = self.rotateRight(node)
+   return node
+'''
+
+    def __balanceRight(self, node, code=__balanceRightCode):
+        wait = 0.1
+        nodeIndex = -1 if node is None else (
+            node if isinstance(node, int) else self.getIndex(node))
+        node = self.getNode(nodeIndex)
+        callEnviron = self.createCallEnvironment(code=code.format(
+            nodeKey=None if node is None else node.getKey(), **locals()))
+
+        self.highlightCode('node.heightDiff() > 1', callEnviron)
+        if self.heightDiff(node, callEnviron, wait / 20) > 1:
+            self.highlightCode('node.left.right is not None', callEnviron,
+                               wait=wait)
+            leftChild = self.getLeftChild(nodeIndex)
+            if self.getRightChild(leftChild) is not None:
+                self.highlightCode('node.left.heightDiff() < 0', callEnviron)
+                if self.heightDiff(leftChild, callEnviron, wait / 20) < 0:
+                    self.highlightCode(
+                        'node.left = self.rotateLeft(node.left)', callEnviron)
+                    self.setLeftChild(
+                        node, self.rotateLeft(leftChild), updateLink=True)
+                    
+            self.highlightCode('node = self.rotateRight(node)', callEnviron)
+            node = self.rotateLaft(node)
+            
+        self.highlightCode('return node', callEnviron)
+        self.cleanUp(callEnviron)
+        return node
+    
     def createFlagText(self, flagValue):
         return self.canvas.create_text(
             self.RECT[0] + 10, self.ROOT_Y0, text='flag = {}'.format(flagValue),
@@ -446,13 +840,15 @@ def rotateRight(self, top):
         
     def moveLink(self, fromParent, fromChild, toParent, toChild, callEnviron,
                  sleepTime=0.01, updateNodeLine=False):
-        '''Reposition a link between parent and child as part of a rotation.
-        The new link must share either the parent or the child with the
-        existing link.  Update the line in the child node if requested.
+        '''Reposition a link between parent and child as part of a tree
+        transformation by copying the existing link and moving it.
+        The new link must share either the parent or the child with
+        the existing link. All node arguments must be Nodes, not indices.
+        Update the line in the child node if requested, otherwise leave
+        the new copy in the call environment.
         '''
         sharedParent = fromParent == toParent
-        child = self.getNode(fromChild if sharedParent and fromChild else
-                             toParent)
+        child = fromChild if fromChild else toParent
         lineToMove = child.getLine()
         newLine = self.copyCanvasItem(lineToMove)
         self.canvas.tag_lower(newLine)
@@ -463,10 +859,9 @@ def rotateRight(self, top):
         self.canvas.coords(
             lineToMove, *lineToMoveCoords[:2], *lineToMoveCoords[:2])
         newLineCoords = (
-            self.nodeCenter(toChild if toChild else toParent)
-            + self.nodeCenter(toParent) if sharedParent else
-            (self.nodeCenter(toParent) + 
-             (self.nodeCenter(toChild if toChild else toParent))))
+            (toChild if toChild else toParent).center + toParent.center 
+            if sharedParent else
+            toParent.center + (toChild if toChild else toParent).center)
         self.moveItemsLinearly(newLine, newLineCoords, sleepTime=sleepTime)
         if updateNodeLine:
             callEnviron.add(child.getLine())
@@ -591,9 +986,18 @@ def rotateRight(self, top):
     def clickInsert(self):
         val = self.validArgument()
         if val:
-            self.insert(val, start=self.startMode())
-            self.window.update()
-        self.clearArgument()
+            self.setMessage('Value {}{} inserted'.format(
+                val, 
+                '' if self.insert(val, start=self.startMode()) else ' not'))
+            self.clearArgument()
+
+    def clickDelete(self):
+        val = self.validArgument()
+        if val:
+            self.setMessage('Value {}{} deleted'.format(
+                val, 
+                '' if self.delete(val, start=self.startMode()) else ' not'))
+            self.clearArgument()
 
     def clickRandomFill(self):
         val = self.validArgument()
@@ -613,6 +1017,10 @@ def rotateRight(self, top):
             "Search", self.clickSearch, numArguments=1,
             validationCmd=vcmd, argHelpText=['item'], 
             helpText='Search for an item in tree')
+        self.deleteButton = self.addOperation(
+            "Delete", self.clickDelete, numArguments=1,
+            validationCmd=vcmd, argHelpText=['item'], 
+            helpText='Delete item from tree')
         randomFillButton = self.addOperation(
             "Random Fill", self.clickRandomFill, numArguments=1,
             validationCmd= vcmd, argHelpText=['nuber of items'],
