@@ -79,8 +79,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self,
             maxArgWidth=3,    # Maximum length/width of text arguments
             hoverDelay=3000,  # Milliseconds to wait before showing hints
-            **kwargs
-    ):
+            **kwargs):
         super().__init__(**kwargs)
 
         self.maxArgWidth = maxArgWidth
@@ -522,9 +521,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                                      background=self.CALL_STACK_BOUNDARY)
         
         self.codeText.configure(state=NORMAL)
+        currentCode = self.codeText.get('1.0', END)
+        if currentCode:     # If there's already code, jump to view top of it
+            self.codeText.see('1.0')
         
         # Add a call stack boundary line if requested and other code exists
-        currentCode = self.codeText.get('1.0', END)
         if addBoundary and currentCode and not currentCode.isspace():
             self.codeText.insert('1.0',
                                  self.codeText.config('width')[-1] * '-' + '\n')
