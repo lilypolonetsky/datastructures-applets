@@ -94,7 +94,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
     def __insert(
             self, node, key, animation=True, arrow=None, code=__insertCode):
         wait = 0.1
-        nodeIndex = self.getIndex(node)
+        nodeIndex = max(0, self.getIndex(node))
         node = self.getNode(nodeIndex)
         callEnviron = self.createCallEnvironment(
             code=code.format(
@@ -151,10 +151,17 @@ def __insert(self, node={nodeKey}, key={key}, data):
             newLeft, flag = self.__insert(
                 self.getLeftChildIndex(nodeIndex), key, animation=animation)
             self.setLeftChild(node, newLeft)
-            self.canvas.coords(newLeft.getLine(), 
-                               *self.lineCoordinates(newLeft, node))
+            link = newLeft.getLine()
             if animation:
                 self.restoreLocalItems(localVars, colors)
+                self.canvas.coords(link, node.center + node.center)
+                self.moveItemsLinearly(
+                    link, self.lineCoordinates(newLeft, node), 
+                    sleepTime=wait / 10)
+            else:
+                self.canvas.coords(link, 
+                                   *self.lineCoordinates(newLeft, node))
+            if animation:
                 flagText = self.createFlagText(flag)
                 callEnviron.add(flagText)
                 localVars += (flagText,)
@@ -198,10 +205,17 @@ def __insert(self, node={nodeKey}, key={key}, data):
             newRight, flag = self.__insert(
                 self.getRightChildIndex(nodeIndex), key, animation=animation)
             self.setRightChild(node, newRight)
-            self.canvas.coords(newRight.getLine(), 
-                               *self.lineCoordinates(newRight, node))
+            link = newRight.getLine()
             if animation:
                 self.restoreLocalItems(localVars, colors)
+                self.canvas.coords(link, node.center + node.center)
+                self.moveItemsLinearly(
+                    link, self.lineCoordinates(newRight, node), 
+                    sleepTime=wait / 10)
+            else:
+                self.canvas.coords(link, 
+                                   *self.lineCoordinates(newRight, node))
+            if animation:
                 flagText = self.createFlagText(flag)
                 callEnviron.add(flagText)
                 localVars += (flagText,)
