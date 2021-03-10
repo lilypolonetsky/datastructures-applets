@@ -713,10 +713,9 @@ class BinaryTreeBase(VisualizationApp):
             tIndex, fIndex = toDo.pop(0) # Get next move from front of queue
             if len(self.nodes) <= tIndex: # If to index is beyond limit, skip
                 continue
-            fNode = self.nodes[fIndex] if fIndex < len(self.nodes) else None
-            self.nodes[tIndex] = fNode
-            if fNode:         # If from node exists
-                for child in range(1, 3): # Loop over children of from and to
+            self.nodes[tIndex] = self.getNode(fIndex)
+            if self.nodes[tIndex]:    # If copied node exists
+                for child in range(1, 3): # Loop over children 
                     toDo.append(   # Enqueue moves of children, including Nones
                         (2 * tIndex + child, 2 * fIndex + child))
 
