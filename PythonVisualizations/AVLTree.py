@@ -132,7 +132,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
         if self.getLevel(node) == self.MAX_LEVEL-1:
             if animation:
                 self.setMessage(
-                    "Error! Cannot insert at level " + str(self.MAX_LEVEL+1) + 
+                    "Error! Cannot insert at level " + str(self.MAX_LEVEL) + 
                     " or below")
             self.cleanUp(callEnviron)
             return node, False
@@ -154,7 +154,9 @@ def __insert(self, node={nodeKey}, key={key}, data):
             link = newLeft.getLine()
             if animation:
                 self.restoreLocalItems(localVars, colors)
-                self.canvas.coords(link, node.center + node.center)
+                linkCoords = self.canvas.coords(link)
+                if distance2(linkCoords[:2], linkCoords[2:]) < 1:
+                    self.canvas.coords(link, node.center + node.center)
                 self.moveItemsLinearly(
                     link, self.lineCoordinates(newLeft, node), 
                     sleepTime=wait / 10)
@@ -208,7 +210,9 @@ def __insert(self, node={nodeKey}, key={key}, data):
             link = newRight.getLine()
             if animation:
                 self.restoreLocalItems(localVars, colors)
-                self.canvas.coords(link, node.center + node.center)
+                linkCoords = self.canvas.coords(link)
+                if distance2(linkCoords[:2], linkCoords[2:]) < 1:
+                    self.canvas.coords(link, node.center + node.center)
                 self.moveItemsLinearly(
                     link, self.lineCoordinates(newRight, node), 
                     sleepTime=wait / 10)
@@ -607,7 +611,7 @@ def __delete(self, node={nodeKey}, goal={goal}):
                 if newRight:
                     self.canvas.delete(newRight.getLine())
                     newRight.setLine(rightLink)
-                    self.restoreNodePositions(self.getAllDescendants(newright),
+                    self.restoreNodePositions(self.getAllDescendants(newRight),
                                               sleepTime=wait /10)
             flagText = self.createFlagText(flag)
             callEnviron.add(flagText)
@@ -828,7 +832,7 @@ def __balanceRight(self, node={nodeKey}):
                         node, self.rotateLeft(leftChild), updateLink=True)
                     
             self.highlightCode('node = self.rotateRight(node)', callEnviron)
-            node = self.rotateLaft(node)
+            node = self.rotateRight(node)
             
         self.highlightCode('return node', callEnviron)
         self.cleanUp(callEnviron)
