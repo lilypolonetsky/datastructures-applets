@@ -41,7 +41,8 @@ class Node(object):
         self.drawnValue.items = (lineItem,) + self.drawnValue.items[1:] 
 
     def __str__(self):
-        return "{" + str(self.getKey()) + "}"
+        return "<Node: key: {}, @{}, items: {}".format(
+            self.getKey(), self.center, self.drawnValue.items)
 
 class BinaryTreeBase(VisualizationApp):
     # -------- CONSTANTS ------------------
@@ -201,14 +202,17 @@ class BinaryTreeBase(VisualizationApp):
             self.getAllDescendants(self.getLeftChild(node)) +
             self.getAllDescendants(self.getRightChild(node)))
 
-    def getNodeTree(self, node):
-        'Return nodes in a nested list that form a [sub-]tree'
-        if isinstance(node, int):
-            node = self.getNode(node)
-        if node is None or not isinstance(node, (int, Node)): return
+    def getNodeTree(self, node, erase=False):
+        '''Return nodes in a nested list that form a [sub-]tree.
+        If erase is true, the nodes array is filled with None for each
+        extracted node'''
+        nodeIndex = node if isinstance(node, int) else self.getIndex(node)
+        node = self.getNode(nodeIndex)
+        if node is None: return
+        if erase: self.nodes[nodeIndex] = None
         return [node,
-                self.getNodeTree(self.getLeftChild(node)),
-                self.getNodeTree(self.getRightChild(node))]
+                self.getNodeTree(self.getLeftChildIndex(nodeIndex)),
+                self.getNodeTree(self.getRightChildIndex(nodeIndex))]
 
     def storeNodeTree(self, nodeTree, index, updateCenter=True):
         '''Place nodes from a nested list [sub-]tree into the nodes array 
@@ -365,19 +369,6 @@ class BinaryTreeBase(VisualizationApp):
         self.moveItemsTo(
             arrow, (newArrow,) if len(arrow) == 1 else (newArrow, newLabel), 
             steps=numSteps, sleepTime=sleepTime)
-
-    # get the coords for where to move the arrow
-    def getMoveArrowCoords(self, arrow, nodeCoords):
-        return (nodeCoords[0], nodeCoords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
-                nodeCoords[0], nodeCoords[1] - self.CIRCLE_SIZE)
-
-    # calculate the coordinates for the node shape based on its parent node
-    def calculateCoordinates(self, parent, level, childDirection):
-        if level == 0:
-            return self.ROOT_X0, self.ROOT_Y0
-        dx = 1/2**(level+1) * self.TREE_WIDTH
-        return V(parent.center) + V(
-            -dx if childDirection == Child.LEFT else dx, self.LEVEL_GAP)
 
     def nodeCenter(self, node):
         '''Calculate the coordinates for node based on its index in the nodes
@@ -714,8 +705,8 @@ class BinaryTreeBase(VisualizationApp):
         
     def moveSubtree(self, toIndex, fromIndex):
         "Move internal subtree rooted at fromIndex to be rooted at toIndex"
-        if toIndex < 0 or len(self.nodes) <= toIndex:
-            return           # Do nothing if the to index is out of bounds
+        if toIndex < 0 or len(self.nodes) <= toIndex or toIndex == fromIndex:
+            return    # Do nothing if the to index is out of bounds or = from
         
         toDo = [(toIndex, fromIndex)] # Queue of assignments to make
         while len(toDo):      # While there are subtrees to move
@@ -725,8 +716,8 @@ class BinaryTreeBase(VisualizationApp):
             fNode = self.nodes[fIndex] if fIndex < len(self.nodes) else None
             self.nodes[tIndex] = fNode
             if fNode:         # If from node exists
-                for child in range(1, 3): # Loop over child's children
-                    toDo.append(   # Enqueue move granchild to child position
+                for child in range(1, 3): # Loop over children of from and to
+                    toDo.append(   # Enqueue moves of children, including Nones
                         (2 * tIndex + child, 2 * fIndex + child))
 
     def generateTag(self):
