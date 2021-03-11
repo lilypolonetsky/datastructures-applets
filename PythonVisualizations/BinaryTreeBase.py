@@ -585,6 +585,8 @@ class BinaryTreeBase(VisualizationApp):
                    addToArray=True):
         # calculate the node index
         nodeIndex = self.getChildIndex(parent, direction) if parent else 0
+        if direction is None:
+            direction = Child.LEFT if nodeIndex % 2 == 1 else Child.RIGHT
       
         # calculate the node's center
         center = self.nodeCenter(nodeIndex)
@@ -628,7 +630,7 @@ class BinaryTreeBase(VisualizationApp):
     # set the node's left child
     def setLeftChild(self, node, child, updateLink=False):
         index = self.getLeftChildIndex(node)
-        if index != -1:
+        if index != -1 and index < len(self.nodes):
             self.nodes[index] = child
             if updateLink and child and child.getLine():
                 self.canvas.coords(child.getLine(), 
@@ -640,7 +642,7 @@ class BinaryTreeBase(VisualizationApp):
     # set the node's right child
     def setRightChild(self, node, child, updateLink=False):
         index = self.getRightChildIndex(node)
-        if index != -1:
+        if index != -1 and index < len(self.nodes):
             self.nodes[index] = child
             if updateLink and child and child.getLine():
                 self.canvas.coords(child.getLine(), 
@@ -651,8 +653,7 @@ class BinaryTreeBase(VisualizationApp):
 
     # set the node's child
     # returns the index where the child is stored
-    def setChildNode(
-            self, child, direction=None, parent=None, updateLink=False):
+    def setChildNode(self, child, direction, parent=None, updateLink=False):
         if not parent:
             self.nodes[0] = child
             return 0
