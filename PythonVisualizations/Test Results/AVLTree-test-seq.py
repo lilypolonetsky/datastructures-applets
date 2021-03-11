@@ -7,20 +7,21 @@ def invalidIndex(tree):
     heightLabels = set(tree.canvas.find_withtag('height'))
     for i in range(len(tree.nodes)):
         node = tree.nodes[i]
-        parent = (i - 1) // 2
         if node:
-            p = None
-            if parent >= 0:
+            j, parent = i, (i - 1) // 2
+            while parent >= 0:
                 p = tree.nodes[parent]
-                if p and (p.getKey() <= node.getKey() and i % 2 == 1 or
-                          p.getKey() >= node.getKey() and i % 2 == 0):
-                    return (i, 'Node value out of order with respect to parent',
-                            parent)
+                if p and (p.getKey() <= node.getKey() and j % 2 == 1 or
+                          p.getKey() >= node.getKey() and j % 2 == 0):
+                    return (i, 
+                            'Node value out of order with respect to ancestor',
+                            parent, p)
+                j, parent = parent, (parent - 1) // 2
             for name, item, itemType, coords, nonEmpty in zip(
                     ('link', 'circle', 'valueText', 'heightText'),
                     node.drawnValue.items, 
                     ('line', 'oval', 'text', 'text'),
-                    tree.nodeItemCoords(i, parent=p),
+                    tree.nodeItemCoords(i, parent=(i - 1) // 2),
                     (('fill',), ('fill',), ('fill', 'text'),  ('fill', 'text'))):
                 problem = validateItem(name, item, itemType, coords,
                                        tree.canvas, i, nonEmpty)
