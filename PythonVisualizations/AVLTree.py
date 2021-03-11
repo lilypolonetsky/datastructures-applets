@@ -100,8 +100,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
         callEnviron = self.createCallEnvironment(
             code=code.format(
                 nodeKey=node.getKey() if node else None, **locals()) 
-            if animation else '', 
-            startAnimations=animation)
+            if animation else '', startAnimations=animation, sleepTime=wait / 10)
 
         # Check for empty subtree
         if animation:
@@ -115,7 +114,9 @@ def __insert(self, node={nodeKey}, key={key}, data):
                                    callEnviron)
             insertedNode = self.createNode(
                 key, nodeIndex, parent=None, addToArray=False)
-            self.cleanUp(callEnviron)
+            self.setLeftChild(nodeIndex, None) # Ensure that inserted node
+            self.setRightChild(nodeIndex, None) # is a leaf node
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
             return insertedNode, True
         
         # Check for existing key
@@ -126,7 +127,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
                 self.setMessage(("Key {} already exists\n" +
                                  "Updating value.").format(key))
                 self.highlightCode('return node, False', callEnviron)
-            self.cleanUp(callEnviron)
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
             return node, False
 
         # don't insert past MAX_LEVEL
@@ -135,7 +136,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
                 self.setMessage(
                     "Error! Cannot insert at level " + str(self.MAX_LEVEL) + 
                     " or below")
-            self.cleanUp(callEnviron)
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
             return node, False
           
         # Does the key belong in left subtree?
@@ -171,7 +172,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
                 self.highlightCode('node.heightDiff() > 1', callEnviron,
                                    wait=wait)
 
-          # If insert made node left heavy
+            # If insert made node left heavy
             if self.heightDiff(node, callEnviron, wait / 20) > 1:
                 if animation:
                     self.highlightCode('node.left.key < key', callEnviron)
@@ -258,7 +259,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
 
         if animation:
             self.highlightCode('return node, flag', callEnviron)
-        self.cleanUp(callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
         return node, flag       # Return the updated node & insert flag
 
     rotateLeftCode = '''
