@@ -9,14 +9,20 @@ def invalidIndex(tree):
         node = tree.nodes[i]
         if node:
             j, parent = i, (i - 1) // 2
+            outOfOrder = []
             while parent >= 0:
                 p = tree.nodes[parent]
                 if p and (p.getKey() <= node.getKey() and j % 2 == 1 or
                           p.getKey() >= node.getKey() and j % 2 == 0):
-                    return (i, 
-                            'Node value out of order with respect to ancestor',
-                            parent, p)
+                    outOfOrder.append(parent)
+                elif p is None:
+                    outOfOrder = []
+                    break
                 j, parent = parent, (parent - 1) // 2
+            if outOfOrder:
+                return (i, 
+                        'Node value out of order with respect to ancestors',
+                        [(a, tree.nodes[a]) for a in outOfOrder])
             for name, item, itemType, coords, nonEmpty in zip(
                     ('link', 'circle', 'valueText', 'heightText'),
                     node.drawnValue.items, 
