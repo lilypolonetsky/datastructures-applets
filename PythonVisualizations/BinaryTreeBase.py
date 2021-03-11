@@ -547,7 +547,7 @@ class BinaryTreeBase(VisualizationApp):
     def outputBoxCoords(self, font=None, padding=6, N=None):
         '''Coordinates for an output box in lower right of canvas with enough
         space to hold N values, defaulting to current tree size'''
-        if N is None: N = self.size
+        if N is None: N = max(1, self.size)
         if font is None: font = self.VALUE_FONT
         spacing = self.outputBoxSpacing(font)
         canvasDims = self.widgetDimensions(self.canvas)
@@ -1304,12 +1304,12 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
         self.traverseExample(traverseType, start=self.startMode())
 
     def printTree(self, indentBy=4):
-        self.__pTree(self.nodes[0], "ROOT:  ", "", indentBy)
+        self.__pTree(self.nodes[0], "", indentBy)
 
-    def __pTree(self, node, nodeType, indent, indentBy=4):
+    def __pTree(self, node, indent, indentBy=4):
         if node:
-            self.__pTree(self.getRightChild(node), "RIGHT:  ",
-                         indent + " " * indentBy, indentBy)
-            print(indent + nodeType, node)
-            self.__pTree(self.getLeftChild(node), "LEFT:  ",
-                         indent + " " * indentBy, indentBy)
+            self.__pTree(
+                self.getRightChild(node), indent + " " * indentBy, indentBy)
+            print(indent, '{:2d}'.format(self.getIndex(node)), node)
+            self.__pTree(
+                self.getLeftChild(node), indent + " " * indentBy, indentBy)
