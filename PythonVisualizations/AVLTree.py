@@ -14,6 +14,7 @@ class AVLTree(BinaryTreeBase):
         super().__init__(title=title, **kwargs)
         self.buttons = self.makeButtons()
         self.display(treeLabel='AVLtree')
+        self.HEIGHT_COLOR = 'orange'
 
     def newTree(self):
         self.emptyTree()
@@ -547,9 +548,9 @@ def __delete(self, node={nodeKey}, goal={goal}):
             colors = self.fadeNonLocalItems(localVars)
             newLeft, flag = self.__delete(leftChild, goal)
             self.restoreLocalItems(localVars, colors)
-            if newLeft != leftChild:
+            if self.getIndex(newLeft) != leftChildIndex:
                 self.moveSubtree(leftChildIndex, self.getIndex(newLeft))
-                if leftChild:
+                if leftChild and leftChild.getKey() == goal:
                     leftLink = leftChild.getLine()
                     childCenter = self.canvas.coords(leftLink)[:2]
                     newChildCenter = (newLeft if newLeft else node).center
@@ -563,11 +564,14 @@ def __delete(self, node={nodeKey}, goal={goal}):
                         self.wait(wait / 10)
                     for item in leftChild.drawnValue.items[1 if newLeft else 0:]:
                         self.canvas.delete(item)
-                if newLeft:
+                if newLeft and newLeft != leftChild:
                     self.canvas.delete(newLeft.getLine())
                     newLeft.setLine(leftLink)
                     self.restoreNodePositions(self.getAllDescendants(newLeft),
                                               sleepTime=wait /10)
+            else:
+                self.reconnectLink(
+                    leftChildIndex, nodeIndex, sleepTime=wait / 10)
             flagText = self.createFlagText(flag)
             callEnviron.add(flagText)
             localVars += (flagText,)
@@ -591,9 +595,9 @@ def __delete(self, node={nodeKey}, goal={goal}):
             rightChild = self.getNode(rightChildIndex)
             newRight, flag = self.__delete(rightChild, goal)
             self.restoreLocalItems(localVars, colors)
-            if newRight != rightChild:
+            if self.getIndex(newRight) != rightChildIndex:
                 self.moveSubtree(rightChildIndex, self.getIndex(newRight))
-                if rightChild:
+                if rightChild and rightChild.getKey() == goal:
                     rightLink = rightChild.getLine()
                     childCenter = self.canvas.coords(rightLink)[:2]
                     newChildCenter = (newRight if newRight else node).center
@@ -608,11 +612,14 @@ def __delete(self, node={nodeKey}, goal={goal}):
                     for item in rightChild.drawnValue.items[1 if newRight else 0:]:
                         self.canvas.delete(item)
 
-                if newRight:
+                if newRight and newRight != rightChild:
                     self.canvas.delete(newRight.getLine())
                     newRight.setLine(rightLink)
                     self.restoreNodePositions(self.getAllDescendants(newRight),
                                               sleepTime=wait /10)
+            else:
+                self.reconnectLink(
+                    rightChildIndex, nodeIndex, sleepTime=wait / 10)
             flagText = self.createFlagText(flag)
             callEnviron.add(flagText)
             localVars += (flagText,)
@@ -662,8 +669,11 @@ def __delete(self, node={nodeKey}, goal={goal}):
                     node.drawnValue.items[0], *successor.drawnValue.items[1:3],
                     *node.drawnValue.items[3:])
                 node.drawnValue.val = successor.drawnValue.val
+                for i in (0, 3):
+                    self.canvas.delete(successor.drawnValue.items[i])
 
-            self.setRightChild(node, newRight, updateLink=True)
+            self.replaceSubtree(nodeIndex, Child.RIGHT, self.getIndex(newRight),
+                                callEnviron, wait=wait)
 
             self.highlightCode('node = self.__balanceRight(node)', callEnviron)
             colors = self.fadeNonLocalItems(localVars)
@@ -715,7 +725,6 @@ def __deleteMin(self, node={nodeKey}):
         if leftChild is None:     # If no left child, this node is the successor
             self.highlightCode('return (node.key, node.data, node.right)',
                                callEnviron)
-            self.canvas.itemconfigure(node.drawnValue.items[-1], text='')
             self.moveSuccessor(node, sleepTime=wait / 10)
             rightChild = self.getRightChild(nodeIndex)
             self.nodes[nodeIndex] = None    # Take successor node out of array
@@ -751,8 +760,9 @@ def __deleteMin(self, node={nodeKey}):
         return keyData, node
 
     def moveSuccessor(self, successor, sleepTime=0.01, color='LemonChiffon2'):
-        newCenter = V(successor.center) - V(V(0.7, 2) * self.CIRCLE_SIZE)
+        newCenter = V(successor.center) - V(V(0.7, 2.2) * self.CIRCLE_SIZE)
         self.canvas.itemconfigure(successor.drawnValue.items[1], fill=color)
+        self.canvas.itemconfigure(successor.drawnValue.items[-1], text='')
         self.moveItemsLinearly(successor.drawnValue.items, 
                                self.nodeItemCoords(newCenter, parent=None),
                                sleepTime=sleepTime)
@@ -817,6 +827,8 @@ def __balanceRight(self, node={nodeKey}):
         node = self.getNode(nodeIndex)
         callEnviron = self.createCallEnvironment(code=code.format(
             nodeKey=None if node is None else node.getKey(), **locals()))
+        nodeArrow = self.createArrow(node, 'node', anchor=SE)
+        callEnviron |= set(nodeArrow)
 
         self.highlightCode('node.heightDiff() > 1', callEnviron)
         if self.heightDiff(node, callEnviron, wait / 20) > 1:
@@ -855,7 +867,16 @@ def __balanceRight(self, node={nodeKey}):
                 V(V(delta) / distance) * (distance - self.CIRCLE_SIZE * 2))
                         ) + tuple(currentCoords[2:])
             self.moveItemsLinearly(line, newCoords, sleepTime=sleepTime)
-        
+
+    def reconnectLink(self, childIndex, nodeIndex, sleepTime=0.01):
+        'Reconnect the link from a child to its parent after a rotation'
+        child, parent = self.getNode(childIndex), self.getNode(nodeIndex)
+        line = child.getLine()
+        currentCoords = self.canvas.coords(line)
+        newCoords = child.center + parent.center
+        if distance2(currentCoords, newCoords) > 1:
+            self.moveItemsLinearly(line, newCoords, sleepTime=sleepTime)
+            
     def moveLink(self, fromParent, fromChild, toParent, toChild, callEnviron,
                  sleepTime=0.01, updateNodeLine=False):
         '''Reposition a link between parent and child as part of a tree
@@ -921,7 +942,8 @@ def __balanceRight(self, node={nodeKey}):
     def nodeHeightCoords(self, x, y, radius=None, font=None):
         if radius is None: radius = self.CIRCLE_SIZE
         if font is None: font = self.VALUE_FONT
-        return x + 3, int(y - radius - abs(font[1]))
+        dX = 3 if (y - self.ROOT_Y0) // self.LEVEL_GAP < self.MAX_LEVEL - 1 else 0
+        return x + dX, int(y - radius - abs(font[1]))
    
     def nodeItemCoords(self, node, radius=None, **kwargs):
         '''Return coordinates for line to parent, shape, text label, and
@@ -939,7 +961,7 @@ def __balanceRight(self, node={nodeKey}):
             self.canvas.create_text(
                 *self.nodeHeightCoords(
                     x, y, radius=kwargs.get('radius', None), font=font), 
-                anchor=W, text=str(height), font=font, fill='orange',
+                anchor=W, text=str(height), font=font, fill=self.HEIGHT_COLOR,
                 tags = (tag, "height")),)
     
     def heightDiff(self, node, callEnviron=None, sleepTime=0):
@@ -948,6 +970,7 @@ def __balanceRight(self, node={nodeKey}):
         leftChild, rightChild = self.getChildren(node)
         left = self.getHeight(leftChild) if leftChild else 0
         right = self.getHeight(rightChild) if rightChild else 0
+        fill=self.HEIGHT_COLOR
 
         if callEnviron:
             font = self.VALUE_FONT
@@ -957,7 +980,7 @@ def __balanceRight(self, node={nodeKey}):
                 self.canvas.create_text(
                     *self.nodeHeightCoords(
                         *self.nodeCenter(self.getLeftChildIndex(node))),
-                    font=font, anchor=W, text=str(left), fill='orange',
+                    font=font, anchor=W, text=str(left), fill=fill,
                     tags="height"))
             rightText = (
                 self.copyCanvasItem(rightChild.drawnValue.items[-1])
@@ -965,12 +988,12 @@ def __balanceRight(self, node={nodeKey}):
                 self.canvas.create_text(
                     *self.nodeHeightCoords(
                         *self.nodeCenter(self.getRightChildIndex(node))),
-                    font=font, anchor=W, text=str(right), fill='orange',
+                    font=font, anchor=W, text=str(right), fill=fill,
                     tags="height"))
             middle = V(V(self.canvas.coords(leftText)) +
                        V(self.canvas.coords(rightText))) / 2
             middleText = self.canvas.create_text(
-                *middle, anchor=W, text=' - ', font=font, fill='orange')
+                *middle, anchor=W, text=' - ', font=font, fill=fill)
             callEnviron |= set((leftText, middleText, rightText))
             middleWidth = self.textWidth(font, ' - ')
             delta = (middleWidth // 2, 0)
