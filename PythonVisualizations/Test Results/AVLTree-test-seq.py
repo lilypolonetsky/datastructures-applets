@@ -9,39 +9,55 @@ def invalidIndex(tree):
         node = tree.nodes[i]
         parent = (i - 1) // 2
         if node:
+            p = None
             if parent >= 0:
                 p = tree.nodes[parent]
                 if p and (p.getKey() <= node.getKey() and i % 2 == 1 or
                           p.getKey() >= node.getKey() and i % 2 == 0):
                     return (i, 'Node value out of order with respect to parent',
                             parent)
-            valueText, heightText = node.drawnValue.items[2:4]
-            if tree.canvas.type(valueText):
-                if (tree.canvas.type(valueText) != 'text' or
-                    distance2(node.center, tree.canvas.coords(valueText)) > 1):
-                    return (i, 'Node visible but mispositioned',
-                            node.center, tree.canvas.coords(valueText),
-                            valueText)
-            if tree.canvas.type(heightText) != 'text':
-                return (i, 'Node height text type is "{}", not "text"'.format(
-                    tree.canvas.type(heightText)))
-            if distance2(tree.nodeHeightCoords(*node.center), 
-                         tree.canvas.coords(heightText)) > 1:
-                return (i,
-                        'Node height text position is {} instead of {}'.format(
-                    tree.canvas.coords(heightText), 
-                    tree.nodeHeightCoords(*node.center)))
-            if heightText not in heightLabels:
-                return (i, 'Node height text not in text items tagged with '
-                        '"height"')
-            heightLabels.discard(heightText)
+            for name, item, itemType, coords, nonEmpty in zip(
+                    ('link', 'circle', 'valueText', 'heightText'),
+                    node.drawnValue.items, 
+                    ('line', 'oval', 'text', 'text'),
+                    tree.nodeItemCoords(i, parent=p),
+                    (('fill',), ('fill',), ('fill', 'text'),  ('fill', 'text'))):
+                problem = validateItem(name, item, itemType, coords,
+                                       tree.canvas, i, nonEmpty)
+                if problem:
+                    return problem
+                if name == 'heightText':
+                    if item not in heightLabels:
+                        return (i, 'Node height text not in text items tagged '
+                                'with "height"')
+                    heightLabels.discard(item)
             if abs(tree.heightDiff(node)) > 1:
                 return (i, 'Height difference too large', tree.heightDiff(node))
     visible = [label for label in heightLabels 
-               if tree.canvas.type(label) == 'text']
+               if tree.canvas.type(label) == 'text' and
+               tree.canvas.itemconfigure(label, 'text')[-1]]
     if len(visible) > 0:
-        return (-1, 'Found {} unrelated height labels: {} at {}'.format(
-            len(visible), visible, [tree.canvas.coords(v) for v in visible]))
+        return (-1, 'Found {} unrelated, visible height label{}: {}'
+                .format(len(visible), '' if len(visible) == 1 else 's',
+                        ['{} @ {}'.format(v, tree.canvas.coords(v))
+                         for v in visible]))
+
+def validateItem(
+        name, itemID, itemType, coords, canvas, nodeIndex, nonEmpty=[]):
+    problems = []
+    if canvas.type(itemID) != itemType:
+        problems.append('Node {} item, ID={}, type is {}, not {}'.format(
+            name, itemID, canvas.type(itemID), itemType))
+    if distance2(canvas.coords(itemID), coords) > 1:
+        problems.append('Node {} item, ID={}, coords are {}, not {}'.format(
+            name, itemID, canvas.coords(itemID), coords))
+    for attrib in nonEmpty:
+        val = canvas.itemconfigure(itemID, attrib)[-1]
+        if not val:
+            problems.append('Node {} item, ID={}, attribute {} is {}'.format(
+                name, itemID, attrib, val))
+    if problems:
+        return (nodeIndex,) + tuple(problems)
                 
 def validNodes(tree):
     return len(tree.getAllDescendants(0))
@@ -76,10 +92,12 @@ def printProblem(problem, tree, operation, seq):
         print('=' * 70)
         op = operation.split()
         print('After', op[0], seq, op[1], 'the tree')
-        print('Found problem at', problem)
-        for node in tree.getAllDescendants(0):
-            print('index {:2d} {} height={}'.format(tree.getIndex(node), node,
-                                                    tree.getHeight(node)))
+        parent = tree.getParent(problem[0]) if problem[0] > 0 else (
+            problem[0] == 0)
+        print('Found problem at', problem,
+              '' if parent else 'but missing expected parent')
+        
+        tree.printTree()
     
 if __name__ == '__main__':
     # random.seed(3.14159)  # Use fixed seed for testing consistency
@@ -89,8 +107,8 @@ if __name__ == '__main__':
 
     for name, iseq, dseq in [
             ('middle first', middleFirst(values), middleFirst(values)),
-            ('extremes first', extremesFirst(values), middleFirst(values)),
-            ('sorted', sorted(values), sorted(values, reverse=True)), 
+            ('extremes first', extremesFirst(values), extremesFirst(values)),
+            ('sorted', sorted(values), sorted(values)), 
             ('reverse sorted', sorted(values, reverse=True), sorted(values)),
             ('random shuffle 1', random.sample(values, k=len(values)),
              random.sample(values, k=len(values))),
