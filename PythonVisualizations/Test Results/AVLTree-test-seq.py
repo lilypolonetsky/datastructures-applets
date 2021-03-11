@@ -23,6 +23,8 @@ def invalidIndex(tree):
                 return (i, 
                         'Node value out of order with respect to ancestors',
                         [(a, tree.nodes[a]) for a in outOfOrder])
+            if parent >= 0:  # If parent chain ended before root
+                continue     # Skip remaining tests on this node
             for name, item, itemType, coords, nonEmpty in zip(
                     ('link', 'circle', 'valueText', 'heightText'),
                     node.drawnValue.items, 
@@ -40,6 +42,7 @@ def invalidIndex(tree):
                     heightLabels.discard(item)
             if abs(tree.heightDiff(node)) > 1:
                 return (i, 'Height difference too large', tree.heightDiff(node))
+            
     visible = [label for label in heightLabels 
                if tree.canvas.type(label) == 'text' and
                tree.canvas.itemconfigure(label, 'text')[-1]]
