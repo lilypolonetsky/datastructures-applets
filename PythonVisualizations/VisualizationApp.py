@@ -382,6 +382,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             btn.grid(row=0, column=column, sticky=(E, W))
             btn.bind('<FocusIn>', self.buttonFocus(btn, True))
             btn.bind('<FocusOut>', self.buttonFocus(btn, False))
+            btn.bind('<Button>', self.recordModifierKeyState, add='+')
+            btn.bind('<KeyPress>', self.recordModifierKeyState, add='+')
         
         if setDefaultButton and self.textEntries:
             if isinstance(setDefaultButton, self.buttonTypes):
