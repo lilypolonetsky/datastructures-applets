@@ -10,7 +10,7 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-import time, re
+import time, re, pdb, sys, os.path
 from collections import *
 from tkinter import *
 from tkinter import ttk
@@ -91,7 +91,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.pauseButton, self.stopButton, self.stepButton = None, None, None
         self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
-
+        self.debugRequested = False
         self.createPlayControlImages()
         self.setUpControlPanel()
  
@@ -328,6 +328,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def recordModifierKeyState(self, event=None):
         if event and event.type in (EventType.ButtonPress, EventType.KeyPress):
             self.modifierKeyState = event.state
+            self.debugRequested = (event.state & 0x0005 == 0x0005 and
+                                   os.path.exists('.debug.pyc'))
             
     def startMode(self):
         'Choose starting animation mode based on last modifier keys used'
@@ -819,6 +821,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         Stepping pauses when the current highlighted fragments on the call
         stack don't match those encountered in the last call to wait.
         '''
+        if self.debugRequested:
+            kwargs = {}
+            if sys.version_info[:2] >= (3, 7):
+                kwargs['header'] = (
+                    "Pressed shift-control key when clicking button "
+                    "or pressed Shift-Control-Enter")
+            self.debugRequested = False
+            pdb.set_trace(**kwargs)
+            
         stateOnEntry = self.animationState
         if (self.animationsStepping() and
             buttonImage(self.pauseButton) != self.playControlImages['play']):
