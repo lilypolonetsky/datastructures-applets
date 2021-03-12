@@ -427,10 +427,12 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
 
             if tempVal:
                 tempVal, _ = self.assignToTemp(
-                    outer, callEnviron, varName="temp", existing=label)
+                    outer, callEnviron, varName="temp", existing=label,
+                    tempCoords=self.tempLabelCoords(outer - 1))
             else:
                 tempVal, label = self.assignToTemp(
-                    outer, callEnviron, varName="temp")
+                    outer, callEnviron, varName="temp",
+                    tempCoords=self.tempLabelCoords(outer - 1))
                 callEnviron.add(label)
 
             # Inner loop starts at marked temporary item
@@ -453,8 +455,8 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
                 centerX0 = self.cellCenter(inner)[0]
                 deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
                 if deltaX != 0:
-                    self.moveItemsBy(
-                        innerIndex, (deltaX, 0), sleepTime=wait / 10) 
+                    self.moveItemsBy(innerIndex + tempVal.items + (label,),
+                                     (deltaX, 0), sleepTime=wait/5)
 
             # Delay to show discovery of insertion point for mark
             self.wait(wait)
@@ -567,7 +569,8 @@ def shellSort(self):
                 self.highlightCode('temp = self.get(outer)', callEnviron)
                 temp = self.list[outer]
                 tempVal, tempLabel = self.assignToTemp(
-                    outer, callEnviron, varName="temp", existing=tempLabel)
+                    outer, callEnviron, varName="temp", existing=tempLabel,
+                    tempCoords=self.tempLabelCoords(outer - h))
                 callEnviron |= set(tempVal.items + (tempLabel,))
 
                 # create the inner index
@@ -597,8 +600,16 @@ def shellSort(self):
                     self.highlightCode('inner -= h', callEnviron)
                     inner -= h
                     arrowPos = self.indexCoords(inner, level=-1)
-                    self.moveItemsTo(innerArrow, (arrowPos, arrowPos[:2]),
-                                     sleepTime=moveWait)
+                    tempLabelPos = self.tempLabelCoords(max(-1, inner - h))
+                    delta = subtract_vector(
+                        tempLabelPos, self.canvas.coords(tempLabel))
+                    tempCoords = [
+                        add_vector(self.canvas.coords(i), delta * 2)
+                        for i in tempVal.items] + [tempLabelPos]
+                    self.moveItemsTo(
+                        innerArrow + tempVal.items + (tempLabel,),
+                        [arrowPos, arrowPos[:2]] + tempCoords, 
+                        sleepTime=moveWait)
 
                     self.highlightCode('nShifts += 1', callEnviron, wait=wait)
                     nShifts += 1

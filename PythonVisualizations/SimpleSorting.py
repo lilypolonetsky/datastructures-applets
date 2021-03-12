@@ -58,10 +58,12 @@ def insertionSort(self):
             temp = self.list[outer].val
             if tempVal:
                 tempVal, _ = self.assignToTemp(
-                    outer, callEnviron, varName="temp", existing=label)
+                    outer, callEnviron, varName="temp", existing=label,
+                    tempCoords=self.tempLabelCoords(outer - 1))
             else:
                 tempVal, label = self.assignToTemp(
-                    outer, callEnviron, varName="temp")
+                    outer, callEnviron, varName="temp",
+                    tempCoords=self.tempLabelCoords(outer - 1))
                 callEnviron.add(label)
 
             # Inner loop starts at marked temporary item
@@ -96,7 +98,8 @@ def insertionSort(self):
                 centerX0 = self.cellCenter(inner)[0]
                 deltaX = centerX0 - self.canvas.coords(innerIndex[0])[0]
                 if deltaX != 0:
-                    self.moveItemsBy(innerIndex, (deltaX, 0), sleepTime=wait/5)
+                    self.moveItemsBy(innerIndex + tempVal.items + (label,),
+                                     (deltaX, 0), sleepTime=wait/5)
                     
                 self.highlightCode('inner > 0', callEnviron, wait=wait)
                 if inner > 0:
