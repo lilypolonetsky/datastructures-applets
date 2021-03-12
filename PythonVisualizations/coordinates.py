@@ -116,6 +116,9 @@ class vector(object):
         s, c = math.sin(a), math.cos(a)
         return (self.dot(vector(c, -s)), self.dot(vector(s, c)))
 
+def distance2(point1, point2):
+    return vector(vector(point1) - vector(point2)).len2()
+
 def flat(*vectors): # Flatten a sequence of vectors into a tuple of coordinates
     return tuple(elem for v in vectors for elem in v)
 

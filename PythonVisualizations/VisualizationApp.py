@@ -10,7 +10,7 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-import time, re
+import time, re, pdb, sys, os.path
 from collections import *
 from tkinter import *
 from tkinter import ttk
@@ -79,8 +79,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self,
             maxArgWidth=3,    # Maximum length/width of text arguments
             hoverDelay=3000,  # Milliseconds to wait before showing hints
-            **kwargs
-    ):
+            **kwargs):
         super().__init__(**kwargs)
 
         self.maxArgWidth = maxArgWidth
@@ -92,7 +91,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.pauseButton, self.stopButton, self.stepButton = None, None, None
         self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
-
+        self.debugRequested = False
         self.createPlayControlImages()
         self.setUpControlPanel()
  
@@ -329,6 +328,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def recordModifierKeyState(self, event=None):
         if event and event.type in (EventType.ButtonPress, EventType.KeyPress):
             self.modifierKeyState = event.state
+            self.debugRequested = (event.state & 0x0005 == 0x0005 and
+                                   os.path.exists('.debug.pyc'))
             
     def startMode(self):
         'Choose starting animation mode based on last modifier keys used'
@@ -381,6 +382,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             btn.grid(row=0, column=column, sticky=(E, W))
             btn.bind('<FocusIn>', self.buttonFocus(btn, True))
             btn.bind('<FocusOut>', self.buttonFocus(btn, False))
+            btn.bind('<Button>', self.recordModifierKeyState, add='+')
+            btn.bind('<KeyPress>', self.recordModifierKeyState, add='+')
         
         if setDefaultButton and self.textEntries:
             if isinstance(setDefaultButton, self.buttonTypes):
@@ -522,9 +525,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                                      background=self.CALL_STACK_BOUNDARY)
         
         self.codeText.configure(state=NORMAL)
+        currentCode = self.codeText.get('1.0', END)
+        if currentCode:     # If there's already code, jump to view top of it
+            self.codeText.see('1.0')
         
         # Add a call stack boundary line if requested and other code exists
-        currentCode = self.codeText.get('1.0', END)
         if addBoundary and currentCode and not currentCode.isspace():
             self.codeText.insert('1.0',
                                  self.codeText.config('width')[-1] * '-' + '\n')
@@ -818,6 +823,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         Stepping pauses when the current highlighted fragments on the call
         stack don't match those encountered in the last call to wait.
         '''
+        if self.debugRequested:
+            kwargs = {}
+            if sys.version_info[:2] >= (3, 7):
+                kwargs['header'] = (
+                    "Pressed shift-control key when clicking button "
+                    "or pressed Shift-Control-Enter")
+            self.debugRequested = False
+            pdb.set_trace(**kwargs)
+            
         stateOnEntry = self.animationState
         if (self.animationsStepping() and
             buttonImage(self.pauseButton) != self.playControlImages['play']):

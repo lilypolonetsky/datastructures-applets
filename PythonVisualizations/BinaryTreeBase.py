@@ -41,7 +41,8 @@ class Node(object):
         self.drawnValue.items = (lineItem,) + self.drawnValue.items[1:] 
 
     def __str__(self):
-        return "{" + str(self.getKey()) + "}"
+        return "<Node: key: {}, @{}, items: {}".format(
+            self.getKey(), self.center, self.drawnValue.items)
 
 class BinaryTreeBase(VisualizationApp):
     # -------- CONSTANTS ------------------
@@ -93,6 +94,8 @@ class BinaryTreeBase(VisualizationApp):
     def getIndex(self, node):
         if isinstance(node, int):
             return node
+        elif not isinstance(node, Node):
+            return -1
         for i, n in enumerate(self.nodes):
             if node is n:
                 return i
@@ -194,19 +197,22 @@ class BinaryTreeBase(VisualizationApp):
     def getAllDescendants(self, node):
         if isinstance(node, int):
             node = self.getNode(node)
-        if node is None or not isinstance(node, (int, Node)): return []
+        if node is None or not isinstance(node, Node): return []
         return [node] + (
             self.getAllDescendants(self.getLeftChild(node)) +
             self.getAllDescendants(self.getRightChild(node)))
 
-    def getNodeTree(self, node):
-        'Return nodes in a nested list that form a [sub-]tree'
-        if isinstance(node, int):
-            node = self.getNode(node)
-        if node is None or not isinstance(node, (int, Node)): return
+    def getNodeTree(self, node, erase=False):
+        '''Return nodes in a nested list that form a [sub-]tree.
+        If erase is true, the nodes array is filled with None for each
+        extracted node'''
+        nodeIndex = node if isinstance(node, int) else self.getIndex(node)
+        node = self.getNode(nodeIndex)
+        if node is None: return
+        if erase: self.nodes[nodeIndex] = None
         return [node,
-                self.getNodeTree(self.getLeftChild(node)),
-                self.getNodeTree(self.getRightChild(node))]
+                self.getNodeTree(self.getLeftChildIndex(nodeIndex)),
+                self.getNodeTree(self.getRightChildIndex(nodeIndex))]
 
     def storeNodeTree(self, nodeTree, index, updateCenter=True):
         '''Place nodes from a nested list [sub-]tree into the nodes array 
@@ -363,19 +369,6 @@ class BinaryTreeBase(VisualizationApp):
         self.moveItemsTo(
             arrow, (newArrow,) if len(arrow) == 1 else (newArrow, newLabel), 
             steps=numSteps, sleepTime=sleepTime)
-
-    # get the coords for where to move the arrow
-    def getMoveArrowCoords(self, arrow, nodeCoords):
-        return (nodeCoords[0], nodeCoords[1] - self.CIRCLE_SIZE - self.ARROW_HEIGHT,
-                nodeCoords[0], nodeCoords[1] - self.CIRCLE_SIZE)
-
-    # calculate the coordinates for the node shape based on its parent node
-    def calculateCoordinates(self, parent, level, childDirection):
-        if level == 0:
-            return self.ROOT_X0, self.ROOT_Y0
-        dx = 1/2**(level+1) * self.TREE_WIDTH
-        return V(parent.center) + V(
-            -dx if childDirection == Child.LEFT else dx, self.LEVEL_GAP)
 
     def nodeCenter(self, node):
         '''Calculate the coordinates for node based on its index in the nodes
@@ -554,7 +547,7 @@ class BinaryTreeBase(VisualizationApp):
     def outputBoxCoords(self, font=None, padding=6, N=None):
         '''Coordinates for an output box in lower right of canvas with enough
         space to hold N values, defaulting to current tree size'''
-        if N is None: N = self.size
+        if N is None: N = max(1, self.size)
         if font is None: font = self.VALUE_FONT
         spacing = self.outputBoxSpacing(font)
         canvasDims = self.widgetDimensions(self.canvas)
@@ -592,6 +585,8 @@ class BinaryTreeBase(VisualizationApp):
                    addToArray=True):
         # calculate the node index
         nodeIndex = self.getChildIndex(parent, direction) if parent else 0
+        if direction is None:
+            direction = Child.LEFT if nodeIndex % 2 == 1 else Child.RIGHT
       
         # calculate the node's center
         center = self.nodeCenter(nodeIndex)
@@ -635,9 +630,9 @@ class BinaryTreeBase(VisualizationApp):
     # set the node's left child
     def setLeftChild(self, node, child, updateLink=False):
         index = self.getLeftChildIndex(node)
-        if index != -1:
+        if index != -1 and index < len(self.nodes):
             self.nodes[index] = child
-            if updateLink and child.getLine():
+            if updateLink and child and child.getLine():
                 self.canvas.coords(child.getLine(), 
                                    *self.lineCoordinates(child, node))
             return index
@@ -647,9 +642,9 @@ class BinaryTreeBase(VisualizationApp):
     # set the node's right child
     def setRightChild(self, node, child, updateLink=False):
         index = self.getRightChildIndex(node)
-        if index != -1:
+        if index != -1 and index < len(self.nodes):
             self.nodes[index] = child
-            if updateLink and child.getLine():
+            if updateLink and child and child.getLine():
                 self.canvas.coords(child.getLine(), 
                                    *self.lineCoordinates(child, node))
             return index
@@ -658,8 +653,7 @@ class BinaryTreeBase(VisualizationApp):
 
     # set the node's child
     # returns the index where the child is stored
-    def setChildNode(
-            self, child, direction=None, parent=None, updateLink=False):
+    def setChildNode(self, child, direction, parent=None, updateLink=False):
         if not parent:
             self.nodes[0] = child
             return 0
@@ -712,20 +706,18 @@ class BinaryTreeBase(VisualizationApp):
         
     def moveSubtree(self, toIndex, fromIndex):
         "Move internal subtree rooted at fromIndex to be rooted at toIndex"
-        if (toIndex < 0 or len(self.nodes) <= toIndex or
-            fromIndex < 0 or len(self.nodes) <= fromIndex):
-                return           # Do nothing if to or from index out of bounds
+        if toIndex < 0 or len(self.nodes) <= toIndex or toIndex == fromIndex:
+            return    # Do nothing if the to index is out of bounds or = from
         
         toDo = [(toIndex, fromIndex)] # Queue of assignments to make
         while len(toDo):      # While there are subtrees to move
             tIndex, fIndex = toDo.pop(0) # Get next move from front of queue
             if len(self.nodes) <= tIndex: # If to index is beyond limit, skip
                 continue
-            fNode = self.nodes[fIndex] if fIndex < len(self.nodes) else None
-            self.nodes[tIndex] = fNode
-            if fNode:         # If from node exists
-                for child in range(1, 3): # Loop over child's children
-                    toDo.append(   # Enqueue move granchild to child position
+            self.nodes[tIndex] = self.getNode(fIndex)
+            if self.nodes[tIndex]:    # If copied node exists
+                for child in range(1, 3): # Loop over children 
+                    toDo.append(   # Enqueue moves of children, including Nones
                         (2 * tIndex + child, 2 * fIndex + child))
 
     def generateTag(self):
@@ -1313,12 +1305,12 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
         self.traverseExample(traverseType, start=self.startMode())
 
     def printTree(self, indentBy=4):
-        self.__pTree(self.nodes[0], "ROOT:  ", "", indentBy)
+        self.__pTree(self.nodes[0], "", indentBy)
 
-    def __pTree(self, node, nodeType, indent, indentBy=4):
+    def __pTree(self, node, indent, indentBy=4):
         if node:
-            self.__pTree(self.getRightChild(node), "RIGHT:  ",
-                         indent + " " * indentBy, indentBy)
-            print(indent + nodeType, node)
-            self.__pTree(self.getLeftChild(node), "LEFT:  ",
-                         indent + " " * indentBy, indentBy)
+            self.__pTree(
+                self.getRightChild(node), indent + " " * indentBy, indentBy)
+            print(indent, '{:2d}'.format(self.getIndex(node)), node)
+            self.__pTree(
+                self.getLeftChild(node), indent + " " * indentBy, indentBy)
