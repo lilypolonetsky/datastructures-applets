@@ -78,8 +78,9 @@ class Visualization(object):  # Base class for Python visualizations
             self,
             window=None,      # Run visualization within given window
             title=None,
-            canvasWidth=800,  # Canvas size
-            canvasHeight=400):
+            canvasWidth=800,  # Canvas portal size
+            canvasHeight=400,
+            canvasBounds=None): # Canvas extent (behind portal)
         self.title = title
         # Set up Tk windows for canvas and operational controls
         if window:
@@ -90,12 +91,31 @@ class Visualization(object):  # Base class for Python visualizations
                 self.window.title(title)
         self.destroyed = False
         self.window.bind('<Destroy>', self.setDestroyFlag)
+
+        self.canvasBounds = canvasBounds
         self.targetCanvasWidth = canvasWidth
         self.targetCanvasHeight = canvasHeight
+        self.canvasFrame = Frame(self.window)
+        self.canvasFrame.pack(side=TOP, expand=True, fill=BOTH)
+        if canvasBounds:
+            self.canvasVScroll = Scrollbar(self.canvasFrame, orient=VERTICAL)
+            self.canvasVScroll.pack(side=RIGHT, expand=False, fill=Y)
+        else:
+            self.canvasVScroll = None
         self.canvas = Canvas(
-            self.window, width=canvasWidth, height=canvasHeight,
+            self.canvasFrame, width=canvasWidth, height=canvasHeight,
             bg=self.DEFAULT_BG)
-        self.canvas.pack(expand=True, fill=BOTH)
+        self.canvas.pack(side=TOP, expand=True, fill=BOTH)
+        if canvasBounds:
+            self.canvas['scrollregion'] = ' '.join(map(str, canvasBounds))
+            self.canvasHScroll = Scrollbar(self.canvasFrame, orient=HORIZONTAL)
+            self.canvasHScroll.pack(side=TOP, expand=False, fill=X)
+            self.canvasVScroll['command'] = self.canvas.yview
+            self.canvasHScroll['command'] = self.canvas.xview
+            self.canvas['xscrollcommand'] = self.canvasHScroll.set
+            self.canvas['yscrollcommand'] = self.canvasVScroll.set
+        else:
+            self.canvasHScroll = None
 
         # Set up animation state variable
         self.animationState = Animation.STOPPED
@@ -468,7 +488,22 @@ class Visualization(object):  # Base class for Python visualizations
                 self.canvas.coords(item, *pos)
                 if changeFont and self.canvas.type(item) == 'text':
                     self.canvas.itemconfigure(item, font=endFont)
-
+                    
+    def visibleCanvas(self):
+        'Return bounding box of visible canvas coordinates'
+        canvasDims = self.widgetDimensions(self.canvas)
+        if any(x is None for x in 
+               (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
+            return (0, 0) + canvasDims
+        xPos = self.canvasHScroll.get()
+        yPos = self.canvasVScroll.get()
+        Xbounds = (self.canvasBounds[0], self.canvasBounds[2])
+        Ybounds = (self.canvasBounds[1], self.canvasBounds[3])
+        return [
+            max(bounds[0], min(bounds[1], int(pos * (bounds[1] - bounds[0]))))
+            for bounds, pos in zip((Xbounds, Ybounds) * 2,
+                                   (xPos[0], yPos[0], xPos[1], yPos[1]))]
+        
     def reconcileItemPositions(self, items, positions):
         'Standardize items paired with positions for moveItems routines'
         if not isinstance(items, (list, tuple, set)):
