@@ -236,7 +236,7 @@ class BinaryTreeBase(VisualizationApp):
     Canvas.create_circle = _create_circle
 
     def createTreeObject(
-            self, label="BinarySearchTree", offsetAngle=180, offset=40,
+            self, label="BinarySearchTree", offsetAngle=None, offset=None,
             color='powder blue', root='root', dotColor='red', fields=[], 
             font=None):
         '''Create the tree object that points to the root of a tree.
@@ -284,12 +284,14 @@ class BinaryTreeBase(VisualizationApp):
                 for field in fields]
     
     def treeObjectCoords(
-            self, offsetAngle=180, offset=30, fields=[], font=None):
+            self, offsetAngle=None, offset=None, fields=[], font=None):
         fieldFont, _ = self.treeObjectFonts(font)
         ffHeight = self.textHeight(fieldFont)
         rootWidth = self.textWidth(fieldFont, ' root ')
         fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
+        if offset is None: offset = 30
+        if offsetAngle is None: offsetAngle = 180
         x0, y0 = V(self.ROOT_X0, self.ROOT_Y0) + V(
             V(V(offset + self.CIRCLE_SIZE, 0).rotate(offsetAngle)) -
             V(fieldsWidth + rootWidth, self.CIRCLE_SIZE + ffHeight))
@@ -780,7 +782,7 @@ class BinaryTreeBase(VisualizationApp):
         an integer number of random values'''
         callEnviron = self.createCallEnvironment()
         
-        nums = [random.randrange(self.valMax) for i in range(values)] if (
+        nums = random.sample(range(self.valMax), values) if (
             isinstance(values, int)) else values
         self.emptyTree()
         for num in nums:
@@ -1281,10 +1283,10 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
     def clickInsert(self):
         val = self.validArgument()
         if val:
-            if self.insert(val, start=self.startMode()):
-                self.setMessage('Key {} inserted'.format(val))
-            else:
-                self.setMessage('Could not insert key {}'.format(val))
+            self.setMessage('Key {} {}'.format(
+                val,
+                'inserted' if self.insert(val, start=self.startMode())
+                else 'updated or not inserted'))
             self.clearArgument()
 
     def clickSearch(self):
@@ -1292,7 +1294,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
         self.setMessage(
             "Key {} not found".format(val) if self.search(
                 val, start=self.startMode()) is None else 
-            "Found key {}!".format(val))
+            "Found key {}".format(val))
         self.clearArgument()
 
     def clickFill(self):
