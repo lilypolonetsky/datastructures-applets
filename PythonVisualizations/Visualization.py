@@ -351,7 +351,8 @@ class Visualization(object):  # Base class for Python visualizations
             expand=True):    # Expand canvas bounds before scrolling if needed
         self.wait(0)
         for step, _ in self.moveItemsBySequence(
-                items, delta, steps, startFont=startFont, endFont=endFont):
+                items, delta, steps, startFont=startFont, endFont=endFont,
+                see=see, expand=expand):
             self.wait(sleepTime)
 
     def moveItemsBySequence( # Iterator for moveItemsBy
@@ -399,7 +400,8 @@ class Visualization(object):  # Base class for Python visualizations
             expand=True):    # Expand canvas bounds before scrolling if needed
         self.wait(0)
         for step, _ in self.moveItemsToSequence(
-                items, toPositions, steps, startFont=startFont, endFont=endFont):
+                items, toPositions, steps, startFont=startFont, endFont=endFont,
+                see=see, expand=expand):
             self.wait(sleepTime)
 
     def moveItemsToSequence( # Iterator for moveItemsTo
@@ -424,13 +426,16 @@ class Visualization(object):  # Base class for Python visualizations
                 font = changeFont and (endFont[0], 
                                        (startFont[1] * (steps - (step + 1)) +
                                         endFont[1] * (step + 1)) // steps)
+                moved = []
                 for i, item in enumerate(items):
-                    if len(moveBy[i]) == 2:
+                    if len(moveBy[i]) == 2:  # Unneeded test?
                         self.canvas.move(item, *moveBy[i])
                         if changeFont and self.canvas.type(item) == 'text':
                             self.canvas.itemconfigure(item, font=font)
-                if see:
-                    self.scrollToSee(items, sleepTime=0, expand=expand)
+                        if see and V(moveBy[i]).len2() >= 1:
+                            moved.append(item)
+                if see and moved:
+                    self.scrollToSee(moved, sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
             # Force position of new objects to their exact destinations
@@ -456,7 +461,8 @@ class Visualization(object):  # Base class for Python visualizations
             expand=True):    # Expand canvas bounds before scrolling if needed
         self.wait(0)
         for step, _ in self.moveItemsLinearlySequence(
-                items, toPositions, steps, startFont=startFont, endFont=endFont):
+                items, toPositions, steps, startFont=startFont, endFont=endFont,
+                see=see, expand=expand):
             self.wait(sleepTime)
 
     def moveItemsLinearlySequence( # Iterator for moveItemsLinearly
@@ -477,14 +483,17 @@ class Visualization(object):  # Base class for Python visualizations
                 font = changeFont and (endFont[0], 
                                        (startFont[1] * (steps - (step + 1)) +
                                         endFont[1] * (step + 1)) // steps)
+                moved = []
                 for i, item in enumerate(items):
                     if len(moveBy[i]) >= 2:
                         self.canvas.coords(
                             item, V(self.canvas.coords(item)) + V(moveBy[i]))
                         if changeFont and self.canvas.type(item) == 'text':
                             self.canvas.itemconfigure(item, font=font)
-                if see:
-                    self.scrollToSee(items, sleepTime=0, expand=expand)
+                        if see and V(moveBy[i]).len2() >= 1:
+                            moved.append(item)
+                if see and moved:
+                    self.scrollToSee(moved, sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
             # Force position of new objects to their exact destinations
@@ -506,7 +515,7 @@ class Visualization(object):  # Base class for Python visualizations
         self.wait(0)
         for step, _ in self.moveItemsOnCurveSequence(
                 items, toPositions, startAngle, steps, startFont=startFont,
-                endFont=endFont):
+                endFont=endFont, see=see, expand=expand):
             self.wait(sleepTime)
             
     def moveItemsOnCurveSequence( # Iterator for moveItemsOnCurve
@@ -527,6 +536,7 @@ class Visualization(object):  # Base class for Python visualizations
                                         endFont[1] * (step + 1)) // steps)
                 ang = startAngle * toGo / steps  # angle decreases on each step
                 scale = 1 + abs(ang) / 180  # scale is larger for higher angles
+                moved = []
                 for i, item in enumerate(items):
                     coords = self.canvas.coords(item)[:2]
                     if len(coords) == 2:
@@ -535,8 +545,10 @@ class Visualization(object):  # Base class for Python visualizations
                         self.canvas.move(item, *moveBy)
                         if changeFont and self.canvas.type(item) == 'text':
                             self.canvas.itemconfigure(item, font=font)
-                if see:
-                    self.scrollToSee(items, sleepTime=0, expand=expand)
+                        if see and V(moveBy).len2() >= 1:
+                            moved.append(item)
+                if see and moved:
+                    self.scrollToSee(moved, sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
             # Force position of new objects to their exact destinations

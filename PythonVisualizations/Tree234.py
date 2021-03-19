@@ -610,7 +610,7 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                 self.moveItemsLinearly(
                     links, newLinkCoords, sleepTime=wait / 10, see=True)
                 self.restoreNodePositions(
-                    self.rootNode, sleepTime=wait / 10,
+                    self.rootNode, sleepTime=wait / 10, see=True,
                     nodeIndices=((toSplit, indexConfig, toSplitArrow),
                                  (newNode, newNodeConfig, newNodeArrow)))
                 self.highlightCode('goal == toSplit.keys[1]', callEnviron,
@@ -649,7 +649,7 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
             nodeIndices=((parent, indexConfig, parentArrow),
                          (toSplit, indexConfig, toSplitArrow),
                          (newNode, newNodeConfig, newNodeArrow))
-            if animation else ())
+            if animation else (), see=True)
 
         if animation:
             self.highlightCode('goal < toSplit.keys[1]', callEnviron, wait=wait)
@@ -890,7 +890,7 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
                 node, parent=None, sleepTime=wait / 10 if animation else 0,
                 nodeIndices=((node, iConfig, iArrow), (node, jConfig, jArrow),
                              (subtree, subtreeConfig, subtreeArrow))
-                if animation else ())
+                if animation else (), see=True)
         
         if animation:
             self.highlightCode('return True', callEnviron)
@@ -956,10 +956,10 @@ def search(self, goal={goal}):
         
     def restoreNodes(self, nodes=None):
         if self.rootNode and (nodes is None or nodes[0] is self.rootNode):
-            self.restoreNodePositions(self.rootNode, sleepTime=0)
+            self.restoreNodePositions(self.rootNode, sleepTime=0, see=False)
         elif nodes:
             for node in nodes:
-                self.restoreNodePositions(node, sleepTime=0)
+                self.restoreNodePositions(node, sleepTime=0, see=False)
                 for i, key in enumerate(node.keys):
                     self.canvas.itemconfigure(
                         node.keyItems()[i], 
@@ -974,7 +974,7 @@ def search(self, goal={goal}):
         
     def restoreNodePositions(
             self, subtreeRoot, parent=None, childNum=None, sleepTime=0.05,
-            setChildCenters=True, nodeIndices=()):
+            setChildCenters=True, nodeIndices=(), see=False):
         '''Moves all the nodes in the subtree rooted at subtreeRoot to their
         proper place on the canvas and adjusts their links to parents.
         If sleepTime is 0, no animation is done, just update the coords.
@@ -986,6 +986,7 @@ def search(self, goal={goal}):
         tuples for nodes and their arrow indices that should move with the
         subtree nodes.  The config is a dictionary that supplies the keyword
         arguments to the indexCoords method like level and keyNum.
+        When see is true, the canvas scrolls to see moved items.
         '''
         # Fill in child number when parent is known
         if childNum is None and parent:
@@ -1005,7 +1006,7 @@ def search(self, goal={goal}):
             coords += self.indexCoords(node, **config)
 
         if sleepTime > 0:
-            self.moveItemsLinearly(items, coords, sleepTime=sleepTime, see=True)
+            self.moveItemsLinearly(items, coords, sleepTime=sleepTime, see=see)
         else:
             for item, coord in zip(items, coords):
                 self.canvas.coords(item, coord)
