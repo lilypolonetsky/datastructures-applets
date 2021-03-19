@@ -368,7 +368,7 @@ class Visualization(object):  # Base class for Python visualizations
             changeFont = startFont and endFont and startFont != endFont
 
             # move the items in steps along vector
-            moveBy = divide_vector(delta, steps)
+            moveBy = V(delta) / steps
             for step in range(steps):
                 font = changeFont and (endFont[0], 
                                        (startFont[1] * (steps - (step + 1)) +
@@ -413,7 +413,7 @@ class Visualization(object):  # Base class for Python visualizations
         items, toPositions = self.reconcileItemPositions(items, toPositions)
         if items and toPositions:
             steps = max(1, steps) # Must use at least 1 step
-            moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
+            moveBy = [V(V(toPos) - V(fromPos)) / steps
                       for toPos, fromPos in zip(
                               toPositions,
                               [self.canvas.coords(item)[:2] for item in items])]
@@ -466,7 +466,7 @@ class Visualization(object):  # Base class for Python visualizations
         items, toPositions = self.reconcileItemPositions(items, toPositions)
         if items and toPositions:
             steps = max(1, steps) # Must use at least 1 step
-            moveBy = [divide_vector(subtract_vector(toPos, fromPos), steps)
+            moveBy = [V(V(toPos) - V(fromPos)) / steps
                       for toPos, fromPos in zip(
                               toPositions,
                               [self.canvas.coords(item) for item in items])]
@@ -480,7 +480,7 @@ class Visualization(object):  # Base class for Python visualizations
                 for i, item in enumerate(items):
                     if len(moveBy[i]) >= 2:
                         self.canvas.coords(
-                            item, *add_vector(self.canvas.coords(item), moveBy[i]))
+                            item, V(self.canvas.coords(item)) + V(moveBy[i]))
                         if changeFont and self.canvas.type(item) == 'text':
                             self.canvas.itemconfigure(item, font=font)
                 if see:
@@ -530,11 +530,8 @@ class Visualization(object):  # Base class for Python visualizations
                 for i, item in enumerate(items):
                     coords = self.canvas.coords(item)[:2]
                     if len(coords) == 2:
-                        moveBy = rotate_vector(
-                            divide_vector(
-                                subtract_vector(toPositions[i], coords),
-                                (toGo + 1) / scale),
-                            ang)
+                        moveBy = V(V(V(toPositions[i]) - V(coords)) /
+                                   ((toGo + 1) / scale)).rotate(ang)
                         self.canvas.move(item, *moveBy)
                         if changeFont and self.canvas.type(item) == 'text':
                             self.canvas.itemconfigure(item, font=font)
