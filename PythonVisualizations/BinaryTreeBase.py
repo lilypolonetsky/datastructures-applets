@@ -1037,6 +1037,7 @@ def insert(self, key={key}, data):
 for key, data in tree.traverse("{traverseType}"):
    print(key)
 '''
+    
     def traverseExample(
             self, traverseType, code=traverseExampleCode, start=True):
         wait = 0.1
@@ -1052,7 +1053,8 @@ for key, data in tree.traverse("{traverseType}"):
         
         outBoxCoords = self.outputBoxCoords(font=self.outputFont)
         outBoxMidY = (outBoxCoords[1] + outBoxCoords[3]) // 2
-        callEnviron.add(self.createOutputBox(coords=outBoxCoords))
+        outputBox = self.createOutputBox(coords=outBoxCoords)
+        callEnviron.add(outputBox)
         outputText = self.canvas.create_text(
             outBoxCoords[0] + 5, outBoxMidY, text='', anchor=W, 
             font=self.outputFont)
@@ -1122,7 +1124,7 @@ def traverse(self, traverseType="{traverseType}"):
                 'return self.__traverse(self.__root, traverseType)',
                 callEnviron)
             self.iteratorStack.append(callEnviron)
-            return self.__traverse(0, traverseType)
+            return self._traverse(self.getRoot(), traverseType)
             
         else:
             self.highlightCode(
@@ -1132,7 +1134,7 @@ def traverse(self, traverseType="{traverseType}"):
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron, sleepTime=wait /10)
         
-    __traverseCode = '''
+    _traverseCode = '''
 def __traverse(self, node={node}, traverseType="{traverseType}"):
    if node is None:
       return
@@ -1150,19 +1152,20 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
       yield (node.key, node.data)
 '''
 
-    def __traverse(self, node, traverseType, code=__traverseCode):
+    def _traverse(self, node, traverseType, code=_traverseCode):
         kwargs = locals().copy()
-        internalNode = self.getNode(node)
-        kwargs['node'] = internalNode.getKey() if internalNode else None
+        nodeIndex = node if isinstance(node, int) else self.getIndex(node)
+        node = self.getNode(nodeIndex)
+        kwargs['node'] = node.getKey() if node else None
         code = code.format(**kwargs)
         wait = 0.1
         callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
 
-        nodeArrow = self.createArrow(node, 'node')
+        nodeArrow = self.createArrow(nodeIndex, 'node')
         callEnviron |= set(nodeArrow)
 
         self.highlightCode('node is None', callEnviron, wait=wait)
-        if internalNode is None:
+        if node is None:
             self.highlightCode('return', callEnviron)
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             return
@@ -1173,8 +1176,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 ('yield (node.key, node.data)', 1), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
                 callEnviron, sleepTime=wait / 10)
-            yield (node, internalNode.drawnValue.val,
-                   internalNode.drawnValue.items)
+            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
             self.resumeCallEnvironment(
                 callEnviron, itemCoords, sleepTime=wait / 10)
 
@@ -1184,8 +1186,8 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
         localVars = nodeArrow
         childArrow = None
         colors = self.fadeNonLocalItems(localVars)
-        for childIndex, childKey, childData in self.__traverse(
-                self.getLeftChildIndex(node), traverseType):
+        for childIndex, childKey, childData in self._traverse(
+                self.getLeftChildIndex(nodeIndex), traverseType):
             self.restoreLocalItems(localVars, colors)
             if childArrow is None:
                 childArrow = self.createArrow(
@@ -1218,8 +1220,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 ('yield (node.key, node.data)', 2), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
                 callEnviron, sleepTime=wait / 10)
-            yield (node, internalNode.drawnValue.val,
-                   internalNode.drawnValue.items)
+            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
             self.resumeCallEnvironment(
                 callEnviron, itemCoords, sleepTime=wait / 10)
 
@@ -1227,8 +1228,8 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
             ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
             callEnviron, wait=wait)
         colors = self.fadeNonLocalItems(localVars)
-        for childIndex, childKey, childData in self.__traverse(
-                self.getRightChildIndex(node), traverseType):
+        for childIndex, childKey, childData in self._traverse(
+                self.getRightChildIndex(nodeIndex), traverseType):
             self.restoreLocalItems(localVars, colors)
             if childArrow is None:
                 childArrow = self.createArrow(
@@ -1261,8 +1262,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 ('yield (node.key, node.data)', 3), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
                 callEnviron, sleepTime=wait / 10)
-            yield (node, internalNode.drawnValue.val, 
-                   internalNode.drawnValue.items)
+            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
             self.resumeCallEnvironment(
                 callEnviron, itemCoords, sleepTime=wait / 10)
         
