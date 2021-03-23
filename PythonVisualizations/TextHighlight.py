@@ -146,7 +146,7 @@ def factorial(n):
                  'return (n *\n           factorial(n - 1)',
                  re.compile(r'return \(n \*\s+factorial'),
                  (re.compile(r'\Wn\W'), 3),
-                 'not here']
+                 'not here', re.compile(r'not here')]
     tags = {}
     app.addAnimationButtons()
     app.startAnimations()
