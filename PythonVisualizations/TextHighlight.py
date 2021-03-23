@@ -1,6 +1,10 @@
 # Utilities for managing highlights on Tk text widgets corresponding
 # to source code
 
+import re
+
+declarationPattern = re.compile(r'^\s*(def|class)\s+(\w+)(\W|$)')
+
 class CodeHighlightBlock(object):
     '''Class to hold information about visualizing the code during animation
     of a particular call on the call stack.  After creating a block,
@@ -14,6 +18,8 @@ class CodeHighlightBlock(object):
                  textWidget): # and tags the snippets when refreenced
        self.code = code.strip()
        self.lines = self.code.split('\n') if len(code) > 0 else []
+       declaration = self.lines and declarationPattern.match(self.lines[0])
+       self.blockName = declaration and declaration.group(2)
        self.cache = {}
        self.textWidget = textWidget
        self.prefix = '{:04d}-'.format(self._counter)
@@ -46,6 +52,9 @@ class CodeHighlightBlock(object):
            raise KeyError('Snippet "{}" copy {} not found in code block'.format(
                *fragment))
 
+    def __str__(self):
+        return '<CodeHighlightBlock: {} {}>'.format(self.blockName, id(self))
+
     def tag(self, fragment, copy=1):
         '''Tag name for a given fragment in this code block'''
         return '{}{}:{}'.format(self.prefix, fragment, copy)
@@ -54,35 +63,44 @@ class CodeHighlightBlock(object):
         '''Find a code fragment within the code block.  Look for the nth copy
         when there are multiple copies.  Return the line.char position of the
         start and end of the fragment, similar to the indices used by the
-        Tk text widge, but use 0-relative line numbers.
+        Tk text widget, but use 0-relative line numbers.
         '''
         j = 0
-        start = self.code.index(fragment) if fragment in self.code else None
-        while start is not None and copy > 1:
-            j = start + len(fragment)
-            copy -= 1
-            start = (j + self.code[j:].index(fragment)
-                     if fragment in self.code[j:] else None)
-        if start is not None:
-            chars, line = 0, 0
-            while (line < len(self.lines) and
-                   chars + len(self.lines[line]) < start):
-                chars += len(self.lines[line]) + 1
-                line += 1
-            if line >= len(self.lines) or chars >= len(self.code):
-                raise IndexError(
-                    'Internal error.  No more lines or characters when finding '
-                    'fragment "{}"'.format(fragment))
-            first = '{}.{}'.format(line, start - chars)
-            while (line < len(self.lines) and
-                   chars + len(self.lines[line]) < start + len(fragment)):
-                chars += len(self.lines[line]) + 1
-                line += 1
-            if line >= len(self.lines) or chars >= len(self.code):
-                raise IndexError(
-                    'Internal error.  No more lines or characters when finding '
-                    'fragment "{}"'.format(fragment))
-            return first, '{}.{}'.format(line, start + len(fragment) - chars)
+        if isinstance(fragment, re.Pattern):
+            matches = [match for match in fragment.finditer(self.code)]
+            if len(matches) >= copy:
+                start = matches[copy - 1].start()
+                fragment = matches[copy - 1].group()
+            else:
+                start = None
+        else:
+            start = self.code.index(fragment) if fragment in self.code else None
+            while start is not None and copy > 1:
+                j = start + len(fragment)
+                copy -= 1
+                start = (j + self.code[j:].index(fragment)
+                         if fragment in self.code[j:] else None)
+        if start is None:
+            return None
+        chars, line = 0, 0
+        while (line < len(self.lines) and
+               chars + len(self.lines[line]) < start):
+            chars += len(self.lines[line]) + 1
+            line += 1
+        if line >= len(self.lines) or chars >= len(self.code):
+            raise IndexError(
+                'Internal error.  No more lines or characters when finding '
+                'fragment "{}"'.format(fragment))
+        first = '{}.{}'.format(line, start - chars)
+        while (line < len(self.lines) and
+               chars + len(self.lines[line]) < start + len(fragment)):
+            chars += len(self.lines[line]) + 1
+            line += 1
+        if line >= len(self.lines) or chars >= len(self.code):
+            raise IndexError(
+                'Internal error.  No more lines or characters when finding '
+                'fragment "{}"'.format(fragment))
+        return first, '{}.{}'.format(line, start + len(fragment) - chars)
         
     def markStart(self, ind='1.0', resetCache=True):
         '''Mark the start of this code block inside the Tk text widget'''
@@ -90,6 +108,12 @@ class CodeHighlightBlock(object):
         self.textWidget.mark_set(self.startMark, ind)
         if resetCache:
             self.cache = {}
+
+def getCodeHighlightBlock(seq):
+    'Utility to find the first CodeHighlightBlock within a sequence'
+    for item in seq:
+        if isinstance(item, CodeHighlightBlock):
+            return item
 
 if __name__ == '__main__':
 
@@ -99,40 +123,56 @@ def factorial(n):
    return (n *
            factorial(n - 1))
 '''
+    from tkinter import *
     import VisualizationApp, sys
-    app = VisualizationApp.VisualizationApp(title='Test Text Highlight')
+    app = VisualizationApp.VisualizationApp(
+        title='Test Text Highlight', canvasBounds=(0, 0, 1200, 600))
     app.showCode(testCode)
     codeHighlightBlock = CodeHighlightBlock(testCode, app.codeText)
     codeHighlightBlock.markStart()
     for arg in reversed(sys.argv[1:]):
         app.showCode(arg, addBoundary=True)
 
+    x, y = 10, 10
+    def canvasPrint(*texts, sep=' '):
+        global app, x, y
+        text = sep.join(map(str, texts))
+        app.canvas.create_text(x, y, anchor=NW, text=text,
+                               font=app.VARIABLE_FONT, fill=app.VARIABLE_COLOR)
+        y += app.textHeight(app.VARIABLE_FONT) * len(text.split('\n'))
+
+    canvasPrint('Added', codeHighlightBlock)
     fragments = ['factorial(n)', 'n < 1', 'return', 'return', 'return', 
-                 'return (n *\n           factorial(n - 1)', 'not here']
+                 'return (n *\n           factorial(n - 1)',
+                 re.compile(r'return \(n \*\s+factorial'),
+                 (re.compile(r'\Wn\W'), 3),
+                 'not here']
     tags = {}
     app.addAnimationButtons()
     app.startAnimations()
     app.setMessage('Finding fragments')
-    app.wait(2)
+
     for i, fragment in enumerate(fragments):
         try:
-            copy = 1 + i - fragments.index(fragment)
-            tag = codeHighlightBlock[fragment] if copy == 1 else (
-                codeHighlightBlock[fragment, copy])
-            tags[fragment, copy] = tag
-            print('Tag "{}" relative span is {}'.format(
-                repr(tag), codeHighlightBlock.findFragment(fragment, copy)))
+            fragTuple = fragment if isinstance(fragment, tuple) else (
+                fragment, 1 + i - fragments.index(fragment))
+            copy = fragTuple[1]
+            tag = (codeHighlightBlock[fragment] if copy == 1 else
+                   codeHighlightBlock[fragTuple])
+            tags[fragTuple] = tag
+            canvasPrint('Tag "{}" relative span is {}'.format(
+                repr(tag), codeHighlightBlock.findFragment(*fragTuple)))
                 
-        except Exception as e:
-            print('Unable to find copy {} of "{}".  Exception follows:\n{}'
-                  .format(copy, fragment, e))
+        except (IndexError, KeyError) as e:
+            canvasPrint(
+                'Unable to find copy {} of "{}".  Exception was:\n{}'.format(
+                    copy, fragment, e))
 
     try:
-        app.setMessage('Highligting fragments in endless loop')
-        app.wait(2)
+        canvasPrint('Highligting fragments in endless loop')
         while True:
             for tag in tags:
-                app.setMessage('Fragment "{}" copy {} has tag {}'.format(
+                app.setMessage('Fragment "{}" copy {}\nhas tag {}'.format(
                     tag[0], tag[1], repr(codeHighlightBlock[tag[0], tag[1]])))
                 for othertag in tags:
                     app.codeText.tag_config(
