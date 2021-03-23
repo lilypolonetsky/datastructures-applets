@@ -556,7 +556,15 @@ class Visualization(object):  # Base class for Python visualizations
                 self.canvas.coords(item, *pos)
                 if changeFont and self.canvas.type(item) == 'text':
                     self.canvas.itemconfigure(item, font=endFont)
-                    
+
+    def withinCanvas(self, point, visible=False):
+        '''Determine if the given point lies within the canvas bounds, or
+        optionally, the part of the canvas that's visible based on scrolling'''
+        bounds = (self.canvasBounds if not visible and self.canvasBounds else
+                  self.visibleCanvas())
+        return (bounds[0] <= point[0] and point[0] <= bounds[2] and
+                bounds[1] <= point[1] and point[1] <= bounds[3])
+
     def visibleCanvas(self):
         'Return bounding box of visible canvas coordinates'
         canvasDims = self.widgetDimensions(self.canvas)

@@ -697,9 +697,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     # be confused with a canvas item (string or integer) to index it
     # Instead, we do a linear search and find it by its type
     def getCodeHighlightBlock(self, callEnvironment):
-        for item in callEnvironment:
-            if isinstance(item, CodeHighlightBlock):
-                return item
+        return getCodeHighlightBlock(callEnvironment)
             
     def cleanUp(self,         # Remove Tk items from past animations either
                 callEnviron=None,  # for a particular call or all calls
@@ -795,14 +793,18 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.removeCode(codeBlock.code, sleepTime=sleepTime)
         self.callStack.pop()
         itemCoords = {}
+        canvasDims = (V(self.canvasBounds[2:]) - self.canvasBounds[:2]
+                      if self.canvasBounds else 
+                      self.widgetDimensions(self.canvas))
+        away = V(canvasDims) * 10
         for item in callEnviron:
             if isinstance(item, int) and self.canvas.type(item):
                 coords = self.canvas.coords(item)
-                if any(x >= 0 and y >= 0 for x, y in
-                       [(coords[j], coords[j + 1]) 
-                        for j in range(0, len(coords), 2)]):
+                if any(self.withinCanvas((coords[j], coords[j + 1]))
+                       for j in range(0, len(coords), 2)):
                     itemCoords[item] = coords
-                    self.canvas.coords(item, *multiply_vector(coords, -1))
+                    self.canvas.coords(item, V(coords) +
+                                       V(away * (len(coords) // 2)))
         return itemCoords
 
     def resumeCallEnvironment(self, callEnviron, itemCoords, sleepTime=0):
