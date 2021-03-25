@@ -123,7 +123,6 @@ class Visualization(object):  # Base class for Python visualizations
         self.destroyed = False
         self.window.bind('<Destroy>', self.setDestroyFlag)
 
-        self.canvasBounds = canvasBounds
         self.targetCanvasWidth = canvasWidth
         self.targetCanvasHeight = canvasHeight
         self.canvasFrame = Frame(self.window)
@@ -137,8 +136,8 @@ class Visualization(object):  # Base class for Python visualizations
             self.canvasFrame, width=canvasWidth, height=canvasHeight,
             bg=self.DEFAULT_BG)
         self.canvas.pack(side=TOP, expand=True, fill=BOTH)
+        self.setCanvasBounds(canvasBounds)
         if canvasBounds:
-            self.canvas['scrollregion'] = ' '.join(map(str, canvasBounds))
             self.canvasHScroll = Scrollbar(self.canvasFrame, orient=HORIZONTAL)
             self.canvasHScroll.pack(side=TOP, expand=False, fill=X)
             self.canvasVScroll['command'] = self.canvas.yview
@@ -206,6 +205,11 @@ class Visualization(object):  # Base class for Python visualizations
                 return key
         return default
 
+    def setCanvasBounds(self, canvasBounds):
+        self.canvasBounds = canvasBounds
+        if canvasBounds:
+            self.canvas['scrollregion'] = ' '.join(map(str, canvasBounds))
+            
     # CANVAS ITEM METHODS
     def canvas_itemconfigure(  # Get a dictionary with the canvas item's
             self, canvasitem): # configuration
@@ -347,7 +351,7 @@ class Visualization(object):  # Base class for Python visualizations
             sleepTime=0.1,   # Base time between steps (adjusted by user)
             startFont=None,  # Change font size from start to endFont, if
             endFont=None,    # given
-            see=False,       # Scroll to see moved items
+            see=(),          # Scroll to view moved items plus any items in see
             expand=True):    # Expand canvas bounds before scrolling if needed
         self.wait(0)
         for step, _ in self.moveItemsBySequence(
@@ -357,7 +361,7 @@ class Visualization(object):  # Base class for Python visualizations
 
     def moveItemsBySequence( # Iterator for moveItemsBy
             self, items, delta, steps=10, startFont=None, endFont=None,
-            see=False,       # Scroll to see moved items
+            see=(),          # Scroll to view moved items plus any items in see
             expand=True):    # Expand canvas bounds before scrolling if needed
         if not isinstance(items, (list, tuple, set)):
             items = (items,)
@@ -380,7 +384,10 @@ class Visualization(object):  # Base class for Python visualizations
                         if changeFont and self.canvas.type(item) == 'text':
                             self.canvas.itemconfigure(item, font=font)
                 if see:
-                    self.scrollToSee(items, sleepTime=0, expand=expand)
+                    self.scrollToSee(
+                        items + 
+                        (tuple(see) if isinstance(see, (list, tuple)) else ()),
+                        sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
                 
             # Force end font if provided
@@ -396,7 +403,7 @@ class Visualization(object):  # Base class for Python visualizations
             sleepTime=0.1,   # Base time between steps (adjusted by user)
             startFont=None,  # Transition text item fonts from start to
             endFont=None,    # end font, if provided
-            see=False,       # Scroll to see moved items
+            see=(),          # Scroll to view moved items plus any items in see
             expand=True):    # Expand canvas bounds before scrolling if needed
         self.wait(0)
         for step, _ in self.moveItemsToSequence(
@@ -410,7 +417,7 @@ class Visualization(object):  # Base class for Python visualizations
             steps=10,        # Number of steps in movement
             startFont=None,  # Change font size from start to endFont, if
             endFont=None,    # given
-            see=False,       # Scroll to see moved items
+            see=(),          # Scroll to view moved items plus any items in see
             expand=True):    # Expand canvas bounds before scrolling if needed
         items, toPositions = self.reconcileItemPositions(items, toPositions)
         if items and toPositions:
@@ -422,6 +429,7 @@ class Visualization(object):  # Base class for Python visualizations
             changeFont = startFont and endFont and startFont != endFont
 
             # move the items until they reach the toPositions
+            moved = []
             for step in range(steps):
                 font = changeFont and (endFont[0], 
                                        (startFont[1] * (steps - (step + 1)) +
@@ -435,7 +443,10 @@ class Visualization(object):  # Base class for Python visualizations
                         if see and V(moveBy[i]).len2() >= 1:
                             moved.append(item)
                 if see and moved:
-                    self.scrollToSee(moved, sleepTime=0, expand=expand)
+                    self.scrollToSee(
+                        moved + 
+                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
             # Force position of new objects to their exact destinations
@@ -443,6 +454,11 @@ class Visualization(object):  # Base class for Python visualizations
                 self.canvas.coords(item, *pos)
                 if changeFont and self.canvas.type(item) == 'text':
                     self.canvas.itemconfigure(item, font=endFont)
+            if see and moved:
+                self.scrollToSee(
+                    moved + 
+                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    sleepTime=0, expand=expand)
 
     # The moveItemsLinearly method uses all the coordinates of canvas
     # items in calculating the movement vectors.  Don't pass the
@@ -457,7 +473,7 @@ class Visualization(object):  # Base class for Python visualizations
             sleepTime=0.1,   # Base time between steps (adjusted by user)
             startFont=None,  # Change font size from start to endFont, if
             endFont=None,    # given
-            see=False,       # Scroll to see moved items
+            see=(),          # Scroll to view moved items plus any items in see
             expand=True):    # Expand canvas bounds before scrolling if needed
         self.wait(0)
         for step, _ in self.moveItemsLinearlySequence(
@@ -467,7 +483,7 @@ class Visualization(object):  # Base class for Python visualizations
 
     def moveItemsLinearlySequence( # Iterator for moveItemsLinearly
             self, items, toPositions, steps=10, startFont=None, endFont=None,
-            see=False,       # Scroll to see moved items
+            see=(),          # Scroll to view moved items plus any items in see
             expand=True):    # Expand canvas bounds before scrolling if needed
         items, toPositions = self.reconcileItemPositions(items, toPositions)
         if items and toPositions:
@@ -479,6 +495,7 @@ class Visualization(object):  # Base class for Python visualizations
             changeFont = startFont and endFont and startFont != endFont
 
             # move the items until they reach the toPositions
+            moved = []
             for step in range(steps):
                 font = changeFont and (endFont[0], 
                                        (startFont[1] * (steps - (step + 1)) +
@@ -493,7 +510,10 @@ class Visualization(object):  # Base class for Python visualizations
                         if see and V(moveBy[i]).len2() >= 1:
                             moved.append(item)
                 if see and moved:
-                    self.scrollToSee(moved, sleepTime=0, expand=expand)
+                    self.scrollToSee(
+                        moved + 
+                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
             # Force position of new objects to their exact destinations
@@ -501,6 +521,11 @@ class Visualization(object):  # Base class for Python visualizations
                 self.canvas.coords(item, *pos)
                 if changeFont and self.canvas.type(item) == 'text':
                     self.canvas.itemconfigure(item, font=endFont)
+            if see and moved:
+                self.scrollToSee(
+                    moved + 
+                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    sleepTime=0, expand=expand)
              
     def moveItemsOnCurve(    # Animate canvas items moving from their current
             self, items,     # location to destinations along a curve
@@ -510,7 +535,7 @@ class Visualization(object):  # Base class for Python visualizations
             sleepTime=0.1,   # Base time between steps (adjusted by user)
             startFont=None,  # Change font size from start to endFont, if
             endFont=None,    # given
-            see=False,       # Scroll to see moved items
+            see=(),          # Scroll to view moved items plus any items in see
             expand=True):    # Expand canvas bounds before scrolling if needed
         self.wait(0)
         for step, _ in self.moveItemsOnCurveSequence(
@@ -521,7 +546,7 @@ class Visualization(object):  # Base class for Python visualizations
     def moveItemsOnCurveSequence( # Iterator for moveItemsOnCurve
             self, items, toPositions, startAngle=90, steps=10, startFont=None,
             endFont=None,
-            see=False,       # Scroll to see moved items
+            see=(),          # Scroll to view moved items plus any items in see
             expand=True):    # Expand canvas bounds before scrolling if needed
         items, toPositions = self.reconcileItemPositions(items, toPositions)
         if items and toPositions:
@@ -529,6 +554,7 @@ class Visualization(object):  # Base class for Python visualizations
             changeFont = startFont and endFont and startFont != endFont
 
             # move the items until they reach the toPositions
+            moved = []
             for step in range(steps):  # Go through all steps of the annimation
                 toGo = steps - 1 - step  # remaining steps to go
                 font = changeFont and (endFont[0], 
@@ -548,7 +574,10 @@ class Visualization(object):  # Base class for Python visualizations
                         if see and V(moveBy).len2() >= 1:
                             moved.append(item)
                 if see and moved:
-                    self.scrollToSee(moved, sleepTime=0, expand=expand)
+                    self.scrollToSee(
+                        moved + 
+                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
             # Force position of new objects to their exact destinations
@@ -556,6 +585,11 @@ class Visualization(object):  # Base class for Python visualizations
                 self.canvas.coords(item, *pos)
                 if changeFont and self.canvas.type(item) == 'text':
                     self.canvas.itemconfigure(item, font=endFont)
+            if see and moved:
+                self.scrollToSee(
+                    moved + 
+                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    sleepTime=0, expand=expand)
 
     def withinCanvas(self, point, visible=False):
         '''Determine if the given point lies within the canvas bounds, or
@@ -567,16 +601,16 @@ class Visualization(object):  # Base class for Python visualizations
 
     def visibleCanvas(self):
         'Return bounding box of visible canvas coordinates'
-        canvasDims = self.widgetDimensions(self.canvas)
         if any(x is None for x in 
                (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
-            return (0, 0) + canvasDims
+            return (0, 0) + self.widgetDimensions(self.canvas)
         xPos = self.canvasHScroll.get()
         yPos = self.canvasVScroll.get()
         Xbounds = (self.canvasBounds[0], self.canvasBounds[2])
         Ybounds = (self.canvasBounds[1], self.canvasBounds[3])
         return [
-            max(bounds[0], min(bounds[1], int(pos * (bounds[1] - bounds[0]))))
+            max(bounds[0], min(bounds[1], 
+                               int(bounds[0] + pos * (bounds[1] - bounds[0]))))
             for bounds, pos in zip((Xbounds, Ybounds) * 2,
                                    (xPos[0], yPos[0], xPos[1], yPos[1]))]
     
@@ -617,49 +651,54 @@ class Visualization(object):  # Base class for Python visualizations
         union of the bounding boxes of the items (ignoring those that
         have been deleted) determines what should be seen.  If expand
         is true and the items bounding box extends beyond the canvas
-        bounds, the bounds are expanded (and scrollbars adjusted).
-        If not all the items fit in the (adjusted) visible region, the set
-        of items is reduced by half taking the first half as the priority
-        to be seen (or second half if firstPriority is not true).  The
-        halving repeats until a (possibly empty) subset that fits is found.
+        bounds, the bounds are expanded (and scrollbars adjusted).  If
+        not all the items could fit in the (adjusted) visible region,
+        a binary search is done to find the largest subset of items
+        that could fit.  The subset is either the first items in the
+        sequence or the latter items depending on the firstPriority flag.
         '''
         if self.canvasHScroll is None or self.canvasVScroll is None:
             return
         BBoxes = [self.canvas.bbox(item) for item in items
                   if self.canvas.type(item)]
         BBox = BBoxUnion(*BBoxes)
-        if not BBoxEmpty(BBox) and not BBoxContains(self.canvasBounds, BBox):
+        visibleCanvas = self.visibleCanvas()
+        if expand and not BBoxEmpty(BBox) and (
+                not BBoxContains(self.canvasBounds, BBox)):
             newBB = BBoxUnion(BBox, self.canvasBounds)
-            self.canvasBounds = tuple([math.floor(c) for c in newBB[:2]] +
-                                      [math.ceil(c) for c in newBB[2:]])
-            self.canvas['scrollregion'] = ' '.join(str(c) 
-                                                   for c in self.canvasBounds)
+            self.setCanvasBounds(tuple([math.floor(c) for c in newBB[:2]] +
+                                      [math.ceil(c) for c in newBB[2:]]))
         canvasDims = self.widgetDimensions(self.canvas)
         canvasBounds = self.canvasBounds
-        visibleCanvas = self.visibleCanvas()
         visibleCanvasFraction = self.visibleCanvasFraction()
         xPos = list(self.canvasHScroll.get())
         yPos = list(self.canvasVScroll.get())
-        while BBoxes and not BBoxEmpty(BBox) and not BBoxContains(
-                visibleCanvas, BBox):
-            if (BBox[2] - BBox[0] <= canvasDims[0] and  # When BBox could fit
-                BBox[3] - BBox[1] <= canvasDims[1]):    # within canvas
-                for pos, XorY in ((xPos, 0), (yPos, 1)): # Adjust each dimension
-                    lo = max(canvasBounds[XorY],
-                             min(visibleCanvas[XorY], BBox[XorY]))
-                    hi = min(canvasBounds[2 + XorY],
-                             max(visibleCanvas[2 + XorY], BBox[2 + XorY]))
-                    if lo < visibleCanvas[XorY] or visibleCanvas[2 + XorY] < hi:
-                        pos[0] = (      # Shift lower or higher, but not both
-                            (lo if lo < visibleCanvas[XorY] else
-                             hi - canvasDims[XorY]) - canvasBounds[XorY]) / (
-                                 canvasBounds[2 + XorY] - canvasBounds[XorY])
-                        pos[1] = pos[0] + visibleCanvasFraction[XorY]
-                break
+        keep, step = len(BBoxes), len(BBoxes) // 2
+        while step > 0:
+            if (BBox[2] - BBox[0], BBox[3] - BBox[1]) <= canvasDims:
+                if keep == len(BBoxes): break
+                keep += step if firstPriority else -step
             else:
-                half = len(BBoxes) // 2
-                BBoxes = BBoxes[:half] if firstPriority else BBoxes[-half:]
-                BBox = BBoxUnion(*BBoxes)
+                keep -= step if firstPriority else -step
+            step = step // 2
+            BBox = BBoxUnion(*(BBoxes[:keep] if firstPriority else
+                               BBoxes[-keep:]))
+
+        # When bounding box could fit on canvas, adjust each scrollbar dimension
+        if (BBox[2] - BBox[0], BBox[3] - BBox[1]) <= canvasDims:
+            for pos, XorY in ((xPos, 0), (yPos, 1)):
+                lo = max(canvasBounds[XorY],
+                         min(visibleCanvas[XorY], BBox[XorY]))
+                hi = min(canvasBounds[2 + XorY],
+                         max(visibleCanvas[2 + XorY], BBox[2 + XorY]))
+                if lo < visibleCanvas[XorY] or visibleCanvas[2 + XorY] < hi:
+                    pos[0] = (      # Shift lower or higher, but not both
+                        (lo if lo < visibleCanvas[XorY] else
+                         hi - canvasDims[XorY]) - canvasBounds[XorY]) / (
+                             canvasBounds[2 + XorY] - canvasBounds[XorY])
+                    pos[1] = pos[0] + visibleCanvasFraction[XorY]
+        else:
+            pass  # Here for debugging only
         
         return tuple(xPos), tuple(yPos)
         
