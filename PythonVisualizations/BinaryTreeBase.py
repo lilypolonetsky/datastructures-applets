@@ -259,7 +259,6 @@ class BinaryTreeBase(VisualizationApp):
         dotCenter = V(x0, y0) + V(self.treeDotCenter(fields, fieldFont))
         arrow = self.canvas.create_line(
             *dotCenter, *dotCenter, arrow=LAST, fill='black')
-        self.updateTreeObjectRootPointer(arrow=arrow, root=self.getRoot())
         rootLabel = self.canvas.create_text(
             dotCenter[0], y0 + ffHeight, text=root, font=fieldFont,
             fill='black', anchor=S, tags=(label + "fieldLabel"))
@@ -271,6 +270,7 @@ class BinaryTreeBase(VisualizationApp):
             x0 - 5, (y0 + y1) // 2, text=label, font=labelFont, anchor=E)
         self.treeObject = (
             rect, arrow, rootLabel, oval, *fieldLabels, treeLabel)
+        self.updateTreeObjectRootPointer(arrow=arrow, root=self.getRoot())
         return self.treeObject
 
     def treeObjectFonts(self, font=None):
