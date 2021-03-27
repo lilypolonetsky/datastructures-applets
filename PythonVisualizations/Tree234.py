@@ -1,7 +1,5 @@
 from tkinter import *
-import random
-import sys
-import re
+import random, sys, re, math
 
 try:
     from VisualizationApp import *
@@ -62,22 +60,20 @@ class Tree234(BinaryTreeBase):
     def __init__(self, title="2-3-4 Tree", **kwargs):
         self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
         outputBoxHeight = abs(self.outputFont[1]) * 2 + 6
-        circleRadius = 12
-        self.maxCanvas = (1500, 400)
-        RECT = (0, 0, self.maxCanvas[0],
-                self.maxCanvas[1] - outputBoxHeight - circleRadius)
-        self.rootNode = None
-        super().__init__(
-            title=title, CIRCLE_SIZE=circleRadius, RECT=RECT, MAX_LEVEL=4,
-            canvasBounds=(0, 0, *self.maxCanvas), **kwargs)
-        self.buttons = self.makeButtons()
-        self.window.update()
-        visible = self.visibleCanvas()
-        xRange = (visible[2] - visible[0]) / self.maxCanvas[0]
-        self.canvas.xview_moveto(max(0, 0.33 - xRange / 2))
-        self.display(treeLabel='Tree234')
+        self.CIRCLE_SIZE = 12
+        canvasWidth = kwargs.get('canvasWidth', 800)
+        canvasHeight = kwargs.get('canvasHeight', 400)
         self.activeColor, self.leftoverColor = 'black', 'gray40'
-
+        super().__init__(
+            title=title, CIRCLE_SIZE=self.CIRCLE_SIZE,
+            canvasBounds=(-canvasWidth // 2, 0, canvasWidth // 2, canvasHeight),
+            **kwargs)
+        self.ROOT_X0, self.ROOT_Y0 = 0, 0
+        self.LEVEL_GAP = self.CIRCLE_SIZE * 8
+        self.scale, self.fontScale = 1.0, abs(self.FONT_SIZE)
+        self.buttons = self.makeButtons()
+        self.newTree()
+        
     def __str__(self):
         return '<Tree234>'
     
@@ -86,15 +82,40 @@ class Tree234(BinaryTreeBase):
 
     def isEmpty(self):
         return self.rootNode is None
-    
-    def newTree(self):
-        self.emptyTree()
-        self.display(treeLabel='Tree234')
 
     def emptyTree(self):
         self.rootNode = None
+        self.maxLevel = -1
+    
+    def newTree(self):
+        self.emptyTree()
+        self.setCanvasBounds(self.desiredTreeBounds(-1), expandOnly=False)
+        self.display(treeLabel='Tree234')
 
-    def childCoords(self, node, childNum, level=None, scale=1):
+    def desiredTreeBounds(self, maxLevel, minWidth=None, minHeight=None):
+        '''Compute desired canvas bounds to show a 2-3-4 tree with the
+        given maximum level of leaf node and current scale'''
+        if minWidth is None:
+            minWidth = getattr(self, 'targetCanvasWidth', 800)
+        if minHeight is None:
+            minHeight = getattr(self, 'targetCanvasHeight', 400)
+        width = math.ceil(self.scale * max(
+            minWidth,
+            2 * self.CIRCLE_SIZE * (
+                self.maxLinks ** max(1, maxLevel + 1) + 1)))
+        height = math.ceil(self.scale * max(
+            minHeight, maxLevel * self.LEVEL_GAP + 2 * self.CIRCLE_SIZE))
+        halfWidth = width // 2
+        return (-halfWidth, 0, width - halfWidth, height)
+
+    def updateMaxLevelAndBounds(self, maxLevel):
+        desiredBounds = self.desiredTreeBounds(maxLevel)
+        self.maxLevel = maxLevel
+        if BBoxContains(self.canvasBounds, desiredBounds):
+            return
+        # self.setCanvasBounds(BBoxUnion(self.canvasBounds, desiredBounds))
+                    
+    def childCoords(self, node, childNum, level=None, scale=None):
         '''Compute the center coordinates for one of a node's children.
         The node can be specified as either Node234 object, the tree
         object (self), or a tuple for the node's center coordinates.
@@ -104,21 +125,47 @@ class Tree234(BinaryTreeBase):
         '''
         if node is self:
             return self.ROOT_X0, self.ROOT_Y0
+        if scale is None: scale = self.scale
         center = node.center if isinstance(node, Node234) else node
         if level is None:
             if isinstance(node, Node234) and node.nKeys > 0:
                 level, _ = self.getLevelAndChild(node.keys[0])
                 level += 1
-        treeWidth = (self.canvasBounds[2] - self.canvasBounds[0] -
-                     self.CIRCLE_SIZE * Tree234.maxKeys * 2)
+        nodeWidth = self.CIRCLE_SIZE * Tree234.maxKeys * 2 * scale
+        # treeWidth = (self.canvasBounds[2] - self.canvasBounds[0] -
+        #              nodeWidth)
+        bounds = self.desiredTreeBounds(max(2, self.maxLevel))
+        treeWidth = bounds[2] - bounds[0] - nodeWidth
         levelDX = treeWidth / (Tree234.maxLinks ** level)
-        dY = (0 if levelDX > self.CIRCLE_SIZE * Tree234.maxKeys * 2 
-              else self.CIRCLE_SIZE * 5 // 2)
+        dY = (0 if levelDX > self.CIRCLE_SIZE * Tree234.maxKeys * 2 * scale
+              else self.CIRCLE_SIZE * 5 * scale / 2)
         halfKeys = Tree234.maxKeys / 2
-        return V(center) + V(V(levelDX * (childNum - halfKeys),
-                               self.LEVEL_GAP + dY * (childNum - halfKeys)) *
+        return V(center) + V(levelDX * (childNum - halfKeys),
+                             (self.LEVEL_GAP + dY * (childNum - halfKeys)) *
                              scale)
+                           
+    def recenterNodes(
+            self, node, parent=None, level=None, childNum=None, byLevel=False):
+        if node is None:
+            return
+        if byLevel:
+            if level is None or childNum is None:
+                raise ValueError(
+                    'Cannot recenter nodes without level and childNum')
+            node.center = ((self.ROOT_X0, self.ROOT_Y0) if parent is self else
+                           self.childCoords(parent, childNum, level))
+        else:
+            node.center = self.canvas.coords(node.keyItems()[1])
+        for ci in range(node.nChild):
+            self.recenterNodes(node.children[ci], node, 
+                               None if level is None else level + 1, ci,
+                               byLevel=byLevel)
 
+    def scaleAllItems(self, *args, **kwargs):
+        '''After scale changes, update node centers for new scale'''
+        super().scaleAllItems(*args, **kwargs)
+        self.recenterNodes(self.rootNode, self, 0, 0)
+        
     def getAllDescendants(self, node):
         if isinstance(node, Node234):
             return (node, *flat(*(self.getAllDescendants(node.children[c]) 
@@ -153,16 +200,17 @@ class Tree234(BinaryTreeBase):
                     queue.append((child, level + 1, i))
         return None, None
 
-    def nodeChildAnchor(self, node, childNum, radius=None, scale=1):
+    def nodeChildAnchor(self, node, childNum, radius=None, scale=None):
         "Coords where a node's child points its parent link"
         center = node.center if isinstance(node, Node234) else node
         if radius is None: radius = self.CIRCLE_SIZE
+        if scale is None: scale = self.scale
         radius *= scale
         midKey = Tree234.maxKeys / 2
         return V(center) + V(radius * 1.9 * (childNum - midKey), 0)
 
     def nodeItemCoords(
-            self, center, radius=None, parent=None, childNum=0, scale=1):
+            self, center, radius=None, parent=None, childNum=0, scale=None):
         '''Return canvas coordinates for the node lozenge and its parent link
         - line to parent, 
         - left circle
@@ -177,11 +225,12 @@ class Tree234(BinaryTreeBase):
         origin = center.center if isinstance(center, Node234) else center
         x, y = origin
         if radius is None: radius = self.CIRCLE_SIZE
+        if scale is None: scale = self.scale
         radius *= scale
         top, bottom = y - radius, y + radius
         midKey = Tree234.maxKeys / 2
         linkCoords = origin + (
-            self.nodeChildAnchor(parent, childNum, radius=radius, scale=1)
+            self.nodeChildAnchor(parent, childNum, radius=None, scale=scale)
             if isinstance(parent, Node234) else origin)
         leftCircle = (x - 2 * radius * midKey, top,
                       x - 2 * radius * (midKey - 1), bottom)
@@ -210,6 +259,7 @@ class Tree234(BinaryTreeBase):
         linkItem = self.canvas.create_line(
             *link, fill=lineColor, width=lineWidth, arrow=FIRST, tags='link')
         self.canvas.tag_lower(linkItem)
+        self.scaleLineItem(linkItem, self.scale)
         lcItem, rcItem = tuple([self.canvas.create_oval(
             *coords, fill=fill, width=0, tags=('lozenge', 'end'))
                                 for coords in (lcircle, rcircle)])
@@ -225,6 +275,7 @@ class Tree234(BinaryTreeBase):
             fill=self.activeColor if j < len(keys) else self.leftoverColor)
                            for j in range(Tree234.maxKeys)])
         for i, textItem in enumerate(textItems):
+            self.scaleTextItem(textItem, self.scale)
             handler = self.textItemClickHandler(textItem)
             self.canvas.tag_bind(textItem, '<Button>', handler)
             self.canvas.tag_bind(
@@ -239,7 +290,8 @@ class Tree234(BinaryTreeBase):
         return textItemClick
                 
     def treeObjectCoords(
-            self, offsetAngle=None, offset=None, fields=[], font=None):
+            self, offsetAngle=None, offset=None, fields=[], font=None,
+            scale=None):
         fieldFont, _ = self.treeObjectFonts(font)
         ffHeight = self.textHeight(fieldFont)
         rootWidth = self.textWidth(fieldFont, ' root ')
@@ -247,32 +299,50 @@ class Tree234(BinaryTreeBase):
                           for field in fields)
         if offset is None: offset = 80
         if offsetAngle is None: offsetAngle = 180
+        if scale is None: scale = self.scale
+        halfWidth = Tree234.maxKeys * self.CIRCLE_SIZE
         x0, y0 = V(self.ROOT_X0, self.ROOT_Y0) + V(
-            V(V(offset + Tree234.maxKeys * self.CIRCLE_SIZE, 0).rotate(
-                offsetAngle)) -
-            V(fieldsWidth + rootWidth, self.CIRCLE_SIZE + ffHeight))
+            V(V((offset + halfWidth) * scale, 0).rotate(offsetAngle)) -
+            V(V(fieldsWidth + rootWidth, self.CIRCLE_SIZE + ffHeight) * scale))
         return (x0, y0, 
-                x0 + fieldsWidth + rootWidth,
-                y0 + 2 * self.CIRCLE_SIZE + ffHeight)
+                x0 + (fieldsWidth + rootWidth) * scale,
+                y0 + (2 * self.CIRCLE_SIZE + ffHeight) * scale)
 
-    def updateTreeObjectRootPointer(self, arrow=None, root=None, see=True):
+    def treeDotCenter(self, *args, **kwargs):
+        return V(super().treeDotCenter(*args, **kwargs)) * self.scale
+
+    def treeObjectArrowCoords(self, **kwargs):
+        treeObjectCoords = self.treeObjectCoords(**kwargs)
+        dotCenter = V(treeObjectCoords[:2]) + V(
+            self.treeDotCenter(fields=kwargs.get('fields', []),
+                               font=kwargs.get('font')))
+        halfWidth = Tree234.maxKeys * self.CIRCLE_SIZE * self.scale
+        tip = (V(self.ROOT_X0, self.ROOT_Y0) + V(halfWidth, 0).rotate(
+            kwargs.get('offsetAngle', 180))) if self.getRoot() else dotCenter
+        return dotCenter + tip
+
+    def updateTreeObjectRootPointer(
+            self, arrow=None, root=None, see=True, sleepTime=0):
         '''Extend pointer of tree object to point at the root node if present
         otherwise make it zero length to be invisible'''
         if arrow is None and getattr(self, 'treeObject', None) is None:
             return
         if arrow is None:
             arrow = self.treeObject[1]
-        arrowCoords = self.canvas.coords(arrow)
-        self.canvas.coords(
-            arrow, *arrowCoords[:2],
-            *(arrowCoords[:2] if root is None else
-              V(root.center) - V(self.CIRCLE_SIZE * Tree234.maxKeys, 0)))
-        if see:
-            self.scrollToSee((arrow, *getattr(self, 'treeObject', [])))
+        if sleepTime > 0:
+            self.moveItemsTo(arrow, self.treeObjectArrowCoords(),
+                             sleepTime=sleepTime, 
+                             see=see and getattr(self, 'treeObject', []))
+        else:
+            self.canvas.coords(arrow, self.treeObjectArrowCoords())
+            if see:
+                self.scrollToSee((arrow, *getattr(self, 'treeObject', [])),
+                                 sleepTime=sleepTime)
 
     def createArrow(
             self, node, label=None, level=1, keyNum=None, color=None, width=1,
-            tags=['arrow'], font=None, orientation=-90, anchor=SW, see=True):
+            tags=['arrow'], font=None, orientation=-90, anchor=SW, see=True,
+            sleepTime=0):
         '''Create an arrow pointing at an existing node or the tree object.
         The arrow is oriented the given number of degress from horizontal
         Optionally give a text label for the arrow.  Optionally provide a
@@ -285,18 +355,23 @@ class Tree234(BinaryTreeBase):
             node, level, keyNum=keyNum, font=font, orientation=orientation)
         arrow = self.canvas.create_line(
             *arrowCoords, arrow="last", fill=color, width=width, tags=tags)
+        self.scaleLineItem(arrow, self.scale)
         if label is not None:
             label = self.canvas.create_text(
                 *labelCoords, text=label, anchor=anchor, font=font, fill=color,
                 tags=tags)
+            self.scaleTextItem(label, self.scale)
+
         result = (arrow, label)[:2 if label is not None else 1]
         if see:
-            self.scrollToSee(result)
+            self.scrollToSee(
+                result + (node.dValue.items[1:] if isinstance(node, Node234) else ()),
+                sleepTime=sleepTime)
         return result
 
     def indexCoords(
             self, node, level=1, keyNum=None, font=None, orientation=-90,
-            anchor=SW):
+            anchor=SW, scale=None):
         '''Compute coordinates of an arrow index pointing at an existing node,
         node center coordinates, or the tree object, as well as the
         anchor coordinates of label at the arrow's base.  If keyNum is
@@ -304,23 +379,37 @@ class Tree234(BinaryTreeBase):
         within the node.
         '''
         if font is None: font = self.VARIABLE_FONT
+        if scale is None: scale = self.scale
         if node is self:
             treeObjectCoords = self.treeObjectCoords()
             center = V(treeObjectCoords[:2]) + V(
-                self.treeDotCenter()[0], self.CIRCLE_SIZE)
+                self.treeDotCenter()[0], self.CIRCLE_SIZE * scale)
         elif isinstance(node, Node234):
             center = node.center
         else:
             center = node
-        tip = V(center) - V(0, self.CIRCLE_SIZE)
+        tip = V(center) - V(0, self.CIRCLE_SIZE * scale)
         if keyNum is not None and node is not self:
-            tip = V(tip) + V(self.CIRCLE_SIZE * 
+            tip = V(tip) + V(self.CIRCLE_SIZE * scale *
                              (keyNum * 2 + 1 - Tree234.maxKeys), 0)
-        base = V(tip) + V(self.ARROW_HEIGHT + level * abs(font[1]), 0).rotate(
-            orientation)
+        base = V(tip) + (V(V(self.ARROW_HEIGHT + level * abs(font[1]), 0)
+                           .rotate(orientation)) * scale)
         return base + tip, base
-        
-    def outputBoxCoords(self, font=None, padding=6, N=None):
+
+    def moveArrowsTo(self, arrow, node, config, wait, see=True):
+        'Move one or more arrow tuples and keep all of their node items visible'
+        if not all(isinstance(arg, (list, tuple)) 
+                   for arg in (arrow, node, config)):
+            arrow = [arrow]
+            node = [node]
+            config = [config]
+        self.moveItemsTo(
+            flat(*arrow),
+            flat(*(self.indexCoords(n, **c) for n, c in zip(node, config))),
+            sleepTime=wait / 10, 
+            see=flat(*(n.dValue.items[1:] for n in node)))
+            
+    def outputBoxCoords(self, font=None, padding=6, N=None, scale=None):
         '''Coordinates for an output box at top of canvas with enough
         space to hold N values, defaulting to current tree item count.
         This makes use of negative y coordinates to extend the canvas
@@ -329,15 +418,18 @@ class Tree234(BinaryTreeBase):
                               self.getAllDescendants(self.rootNode))
         N = max(1, N)
         if font is None: font = self.VALUE_FONT
+        if scale is None: scale = self.scale
         spacing = self.outputBoxSpacing(font)
         left = max(self.canvasBounds[0],
                    self.ROOT_X0 - (N * spacing - padding) // 2)
-        return (left, - abs(font[1]) * 2 - padding,
-                left + N * spacing + padding, - padding)
+        bottom = self.ROOT_Y0 - 4 * self.CIRCLE_SIZE * scale - padding
+        return (left, bottom - abs(font[1]) * 2,
+                left + N * spacing + padding, bottom)
         
     def upperRightNodeCoords(self, level=1):
-        return (self.ROOT_X0 + self.widgetDimensions(self.canvas)[0] // 2,
-                self.RECT[1] + self.CIRCLE_SIZE * (2.5 * level - 1))
+        child3 = self.childCoords((self.ROOT_X0, self.ROOT_Y0), 3, 1)
+        return (child3[0], 
+                self.ROOT_Y0 + self.CIRCLE_SIZE * self.scale * (2.5 * level - 1))
 
     insertCode = '''
 def insert(self, key={key}, value):
@@ -385,6 +477,7 @@ def insert(self, key={key}, value):
                                      sleepTime=wait / 10, see=True)
                 self.rootNode = Node234(drawnValue([key], *newNodeItems),
                                         center=center)
+                self.updateMaxLevelAndBounds(self.maxLevel + 1)
                 self.updateTreeObjectRootPointer(root=self.rootNode)
                 
                 if animation:
@@ -466,16 +559,15 @@ def __find(self, goal={goal}, current={currentStr}, parent={parentStr}, prepare=
                 current, parent, goal, animation=animation, wait=wait)
             if animation:
                 self.restoreLocalItems(localVars, colors)
-                self.moveItemsTo(
-                    localVars, 
-                    self.indexCoords(current, **indexConfig) +
-                    self.indexCoords(parent, **indexConfig),
-                    sleepTime=wait / 10, see=True)
+                self.moveArrowsTo(
+                    (currentArrow, parentArrow), (current, parent),
+                    (indexConfig, indexConfig), wait)
 
         i = 0
         if animation:
             self.highlightCode('i = 0', callEnviron)
-            iArrow = self.createArrow(current, 'i', level=1, keyNum=i)
+            arrowConfig = {'keyNum': i, 'level': 1}
+            iArrow = self.createArrow(current, 'i', **arrowConfig)
             callEnviron |= set(iArrow)
             localVars += iArrow
             self.highlightCode('i < current.nKeys', callEnviron, wait=wait)
@@ -487,8 +579,8 @@ def __find(self, goal={goal}, current={currentStr}, parent={parentStr}, prepare=
                 self.highlightCode('i += 1', callEnviron, wait=wait)
             i += 1
             if animation:
-                self.moveItemsTo(iArrow, self.indexCoords(current, 1, keyNum=i),
-                                 sleepTime=wait / 10, see=True)
+                arrowConfig['keyNum'] = i
+                self.moveArrowsTo(iArrow, current, arrowConfig, wait)
                 self.highlightCode('i < current.nKeys', callEnviron, wait=wait)
                 if i < current.nKeys:
                     self.highlightCode('current.keys[i] < goal', callEnviron,
@@ -521,7 +613,8 @@ def __find(self, goal={goal}, current={currentStr}, parent={parentStr}, prepare=
             prepare, animation=animation, wait=wait)
         if animation:
             self.restoreLocalItems(localVars, colors)
-        self.cleanUp(callEnviron, sleepTime=wait / 10)
+            self.scrollToSee(currentArrow + current.dValue.items[1:])
+        self.cleanUp(callEnviron, sleepTime=wait / 10, allowSteps=True)
         return result
 
     _splitNodeCode = '''
@@ -564,8 +657,9 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
             self.highlightCode(
                 (re.compile(r'newNode = self.__Node\(toSplit.*.data\[2\]{}'
                             .format(r'\)' if toSplit.isLeaf() else r',')),) +
-                ((re.compile(r' \*toSplit.children\[2:toSplit.nChild\]\)'),)
-                 if toSplit.isLeaf() else ()), callEnviron)
+                (() if toSplit.isLeaf() else 
+                 (re.compile(r' \*toSplit.children\[2:toSplit.nChild\]\)'),)),
+                callEnviron)
 
         newNodeChildNum = 1 if parent is self else parent.nChild
         newNodeCenter = (V(toSplit.center) +
@@ -591,7 +685,7 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                 self.nodeItemCoords(
                     newNodeCenter, parent=None, # Don't connect to parent yet
                     childNum=newNodeChildNum) + newLinkCoords,
-                sleepTime=wait / 10, see=True)
+                sleepTime=wait / 10, see=newNodeItems)
             self.highlightCode('toSplit.nKeys = 1', callEnviron, wait=wait)
         toSplit.nKeys = 1
         self.canvas.itemconfigure(toSplit.keyItems()[2], text='')
@@ -622,6 +716,7 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                 drawnValue([toSplit.keys[1]], *newRootItems),
                 toSplit, newNode, 
                 center=newRootCenter if animation else rootCenter)
+            self.updateMaxLevelAndBounds(self.maxLevel + 1)
             if animation:
                 links = (self.treeObject[1], toSplit.dValue.items[0], 
                          newNode.dValue.items[0])
@@ -638,6 +733,8 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                     self.rootNode, sleepTime=wait / 10, see=True,
                     nodeIndices=((toSplit, indexConfig, toSplitArrow),
                                  (newNode, newNodeConfig, newNodeArrow)))
+                self.scrollToSee(toSplitArrow + toSplit.dValue.items[1:],
+                                 sleepTime=wait / 10)
                 self.highlightCode('goal == toSplit.keys[1]', callEnviron,
                                    wait=wait)
             else:
@@ -654,9 +751,7 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                     self.highlightCode('parent = self.__root', callEnviron)
                 parent = self.rootNode
                 if animation:
-                    self.moveItemsTo(
-                        parentArrow, self.indexCoords(parent, **indexConfig),
-                        sleepTime=wait / 10, see=True)
+                    self.moveArrowsTo(parentArrow, parent, indexConfig, wait)
         else:
             if animation:
                 self.highlightCode(
@@ -671,9 +766,9 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                 
         self.restoreNodePositions(
             parent, sleepTime=wait / 10 if animation else 0,
-            nodeIndices=((parent, indexConfig, parentArrow),
-                         (toSplit, indexConfig, toSplitArrow),
-                         (newNode, newNodeConfig, newNodeArrow))
+            nodeIndices=((toSplit, indexConfig, toSplitArrow),
+                         (newNode, newNodeConfig, newNodeArrow),
+                         (parent, indexConfig, parentArrow))
             if animation else (), see=True)
 
         if animation:
@@ -748,7 +843,7 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
             self.highlightCode('i = 0', callEnviron, wait=wait)
             iArrow = self.createArrow(node, 'i', **iConfig)
             callEnviron |= set(iArrow)
-            self.scrollToSee(node.dValue.items, sleepTime=wait / 10)
+            self.scrollToSee(node.dValue.items[1:], sleepTime=wait / 10)
             self.highlightCode('i < self.nKeys', callEnviron, wait=wait)
             if i < node.nKeys:
                 self.highlightCode('self.keys[i] < key', callEnviron, wait=wait)
@@ -759,8 +854,7 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
             i += 1
             if animation:
                 iConfig['keyNum'] = i
-                self.moveItemsTo(iArrow, self.indexCoords(node, **iConfig),
-                                 sleepTime=wait / 10, see=True)
+                self.moveArrowsTo(iArrow, node, iConfig, wait)
                 self.highlightCode('i < self.nKeys', callEnviron, wait=wait)
                 if i < node.nKeys:
                     self.highlightCode('self.keys[i] < key', callEnviron,
@@ -812,7 +906,7 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
                 callEnviron.add(keyCopy)
                 self.moveItemsOnCurve(
                     keyCopy, self.canvas.coords(jKey), sleepTime=wait / 10, 
-                    see=True)
+                    see=node.dValue.items[1:])
             self.canvas.itemconfigure(
                 jKey, text=self.canvas.itemconfigure(node.keyItems()[j - 1], 
                                                      'text')[-1])
@@ -830,8 +924,10 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
             if child:
                 newLinkCoords = child.center + self.nodeChildAnchor(node, j + 1)
                 if animation:
-                    self.moveItemsLinearly(child.dValue.items[0], newLinkCoords,
-                                           sleepTime=wait / 10, see=True)
+                    self.moveItemsLinearly(
+                        child.dValue.items[0], newLinkCoords, 
+                        sleepTime=wait / 10,
+                        see=child.dValue.items + node.dValue.items[1:])
                 else:
                     self.canvas.coords(child.dValue.items[0], newLinkCoords)
                 
@@ -839,8 +935,7 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
             if animation:
                 self.highlightCode('j -= 1', callEnviron)
                 jConfig['keyNum'] = j
-                self.moveItemsTo(jArrow, self.indexCoords(node, **jConfig),
-                                 sleepTime=wait / 10, see=True)
+                self.moveArrowsTo(jArrow, node, jConfig, wait)
                 
             if animation:
                 self.highlightCode('i < j', callEnviron, wait=wait)
@@ -907,7 +1002,8 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
                 link = subtree.dValue.items[0]
                 self.moveItemsLinearly(
                     link, subtree.center + self.nodeChildAnchor(node, i + 1),
-                    sleepTime=wait / 10, see=True)
+                    sleepTime=wait / 10, 
+                    see=subtree.dValue.items + node.dValue.items[1:])
                 self.highlightCode('self.nChild += 1',
                                    callEnviron, wait=wait)
             node.nChild += 1
@@ -926,6 +1022,10 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
         values = random.sample(range(self.valMax + 1), quantity)
         for value in values:
             self.insert(value, animation=animation)
+        self.scrollToSee(
+            flat(*(n.dValue.items 
+                   for n in self.getAllDescendants(self.rootNode))),
+            sleepTime=0)
             
     searchCode = '''
 def search(self, goal={goal}):
@@ -1014,7 +1114,7 @@ def search(self, goal={goal}):
         When see is true, the canvas scrolls to see moved items.
         '''
         # Fill in child number when parent is known
-        if childNum is None and parent:
+        if childNum is None and isinstance(parent, Node234):
             pChildren = parent.children[:parent.nChild]
             if subtreeRoot in pChildren:
                 childNum = pChildren.index(subtreeRoot)
@@ -1026,18 +1126,26 @@ def search(self, goal={goal}):
         items, coords = self.subtreeItemCoords(
             subtreeRoot, parent, childNum, level=None,
             setChildCenters=setChildCenters)
+        nodeIndexItems, nodeIndexCoords = (), ()
         for node, config, indexItems in nodeIndices:
-            items += indexItems
-            coords += self.indexCoords(node, **config)
+            nodeIndexItems += indexItems
+            nodeIndexCoords += self.indexCoords(node, **config)
+        if subtreeRoot is self.rootNode:
+            arrow = self.treeObject[1]
+            arrowCoords = self.canvas.coords(arrow)
+            newArrowCoords = self.treeObjectArrowCoords()
+            if distance2(arrowCoords, newArrowCoords) > 1:
+                items += (arrow,)
+                coords += (newArrowCoords,)
 
         if sleepTime > 0:
-            self.moveItemsLinearly(items, coords, sleepTime=sleepTime, see=see)
+            self.moveItemsLinearly(
+                nodeIndexItems + items, nodeIndexCoords + coords,
+                sleepTime=sleepTime, see=see)
         else:
-            for item, coord in zip(items, coords):
+            for item, coord in zip(nodeIndexItems + items,
+                                   nodeIndexCoords + coords):
                 self.canvas.coords(item, coord)
-        if subtreeRoot is self.rootNode:
-            self.updateTreeObjectRootPointer(
-                root=subtreeRoot, see=sleepTime > 0)
 
     def subtreeItemCoords(
             self, node, parent, childNum, level=None, setChildCenters=True):
@@ -1048,17 +1156,20 @@ def search(self, goal={goal}):
         if node is None:
             return [], []
         if level is None: # ASSUME no empty nodes so there are always 1+ keys
-            level, _ = self.getLevelAndChild(node.keys[0])
+            if parent is self:
+                level = 0
+            else:
+                level, _ = self.getLevelAndChild(node.keys[0])
             if level is None:
                 raise Exception('Unable to get level for {}'.format(node))
         if setChildCenters and (parent or node is self.rootNode):
             node.center = (
                 (self.ROOT_X0, self.ROOT_Y0) if node is self.rootNode else
                 self.childCoords(parent, childNum, level))
-        parentLink = parent or node is self.rootNode
-        items = node.dValue.items[0 if parentLink else 1:]
+        excludeParentLink = 0 if parent or node is self.rootNode else 1
+        items = node.dValue.items[excludeParentLink:]
         coords = self.nodeItemCoords(node, parent=parent, childNum=childNum)[
-            0 if parentLink else 1:]
+            excludeParentLink:]
         for ci in range(node.nChild):
             citems, ccoords = self.subtreeItemCoords(
                 node.children[ci], node, ci, level + 1, setChildCenters)
@@ -1114,18 +1225,18 @@ for key, data in tree.traverse("{traverseType}"):
                 callEnviron |= set(dataIndex)
                 localVars += dataIndex
             else:
-                self.moveItemsTo(dataIndex, 
-                                 self.indexCoords(node, **dataIndexConfig),
-                                 sleepTime=wait / 10)
+                self.moveArrowsTo(dataIndex, node, dataIndexConfig, wait)
 
             self.highlightCode('print(key)', callEnviron, wait=wait)
             keyItem = self.copyCanvasItem(node.keyItems()[keyNum])
             callEnviron.add(keyItem)
+            keyItemFont = self.getItemFont(keyItem)
             currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
             textBBox = self.canvas.bbox(outputText)
             newTextWidth = self.textWidth(self.outputFont, ' ' + str(key))
             self.moveItemsTo(
                 keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
+                startFont=keyItemFont, endFont=self.outputFont, 
                 sleepTime=wait / 10)
             self.canvas.itemconfigure(
                 outputText,
@@ -1190,7 +1301,7 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             callEnviron, wait=wait)
 
         childLoopIter = re.compile(
-            r'childKey, childData in self.__traverse(\s .*, traverseType)')
+            r'childKey, childData in self.__traverse\(\s.*, traverseType\)')
         localVars = nodeArrow
         cArrow, childArrow = None, None
         cArrowConfig = {'keyNum': 0, 'orientation': -90, 'level': 1}
@@ -1202,8 +1313,7 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
                 callEnviron |= set(cArrow)
                 localVars += cArrow
             else:
-                self.moveItemsTo(cArrow, self.indexCoords(node, **cArrowConfig),
-                                 sleepTime=wait / 10, see=True)
+                self.moveArrowsTo(cArrow, node, cArrowConfig, wait)
 
             self.highlightCode('traverseType == "pre"', callEnviron, wait=wait)
             if traverseType == "pre":
@@ -1234,10 +1344,8 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
                         callEnviron |= set(childArrow)
                         localVars += childArrow
                     else:
-                        self.moveItemsTo(
-                            childArrow, 
-                            self.indexCoords(child, **childArrowConfig),
-                            sleepTime=wait / 10, see=True)
+                        self.moveArrowsTo(childArrow, child, childArrowConfig,
+                                          wait)
 
                     self.highlightCode('yield (childKey, childData)',
                                        callEnviron, wait=wait)
@@ -1306,6 +1414,12 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
         newTreeButton = self.addOperation(
             "New Tree", self.newTree,
             helpText='Create an empty tree')
+        zoomInButton = self.addOperation(
+            "Zoom In", lambda: self.zoom(5/4),
+            helpText='Zoom in around center')
+        zoomOutButton = self.addOperation(
+            "Zoom Out", lambda: self.zoom(4/5),
+            helpText='Zoom out around center')
         preOrderTraverseButton = self.addOperation(
             "Pre-order Traverse", lambda: self.clickTraverse('pre'),
             helpText='Traverse the tree pre-order')
@@ -1318,7 +1432,26 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
         self.addAnimationButtons()
         return [self.insertButton, searchButton, randomFillButton, 
                 newTreeButton, inOrderTraverseButton]
-
+    
+    def zoom(self, scale):
+        newScale, newFontScale = self.scale * scale, self.fontScale * scale
+        if newFontScale < 1:
+            self.setMessage('Maximum zoom out reached')
+        else:
+            if abs(newScale - 1.0) < 0.01:
+                newScale, newFontScale = 1.0, abs(self.FONT_SIZE)
+            visibleCanvas = self.visibleCanvas()
+            center = V(V(visibleCanvas[:2]) + V(visibleCanvas[2:])) / 2
+            self.scaleAllItems(
+                self.ROOT_X0, self.ROOT_X0, scale, 
+                newFontScale / abs(self.FONT_SIZE),
+                fixPoint=center, updateBounds=True)
+            self.scale, self.fontScale = newScale, newFontScale
+            # self.restoreNodePositions(self.rootNode, parent=self, sleepTime=0)
+            self.setMessage('Zoom {}'.format(
+                '1 : {:3.2f}'.format(1 / self.scale) if self.scale < 1 else
+                '{:3.2f} : 1'.format(self.scale)))
+            
     def clickRandomFill(self):
         val = self.validArgument()
         if val:

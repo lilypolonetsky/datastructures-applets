@@ -96,6 +96,7 @@ class Visualization(object):  # Base class for Python visualizations
     # Default styles for display of values, variables, and their animation
     DEFAULT_BG = 'white'
     FONT_SIZE = -20
+    DEFAULT_FONT = ('Helvetica', FONT_SIZE)
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     VALUE_COLOR = 'black'
     VARIABLE_FONT = ('Courier', FONT_SIZE * 8 // 10)
@@ -136,6 +137,8 @@ class Visualization(object):  # Base class for Python visualizations
             self.canvasFrame, width=canvasWidth, height=canvasHeight,
             bg=self.DEFAULT_BG)
         self.canvas.pack(side=TOP, expand=True, fill=BOTH)
+        self.__createCanvasText = self.canvas.create_text
+        self.canvas.create_text = self.createCanvasText
         self.setCanvasBounds(canvasBounds)
         if canvasBounds:
             self.canvasHScroll = Scrollbar(self.canvasFrame, orient=HORIZONTAL)
@@ -205,10 +208,16 @@ class Visualization(object):  # Base class for Python visualizations
                 return key
         return default
 
-    def setCanvasBounds(self, canvasBounds):
-        self.canvasBounds = canvasBounds
-        if canvasBounds:
-            self.canvas['scrollregion'] = ' '.join(map(str, canvasBounds))
+    def setCanvasBounds(self, canvasBounds, expandOnly=True):
+        if canvasBounds is None:
+            self.canvasBounds = None
+            return
+        intBounds = (math.floor(canvasBounds[0]), math.floor(canvasBounds[1]),
+                     math.ceil(canvasBounds[2]), math.ceil(canvasBounds[3]))
+        self.canvasBounds = (
+            BBoxUnion(self.canvasBounds, intBounds) 
+            if expandOnly and hasattr(self, 'canvasBounds') else intBounds)
+        self.canvas['scrollregion'] = ' '.join(map(str, self.canvasBounds))
             
     # CANVAS ITEM METHODS
     def canvas_itemconfigure(  # Get a dictionary with the canvas item's
@@ -269,7 +278,60 @@ class Visualization(object):  # Base class for Python visualizations
                 self.canvas.itemconfigure(
                     item, fill=colors[min(i, nColors - 1)])
         return itemColors
+
+    def getItemFont(self, item):
+        font = self.canvas.itemconfigure(item, 'font')[-1].split()
+        return (font[0], int(font[1]), *font[2:])
     
+    def createCanvasText(self, x, y, **kwargs):
+        'Enforce special requirements when creating canvas text items'
+        font = kwargs.get('font', self.DEFAULT_FONT)
+        tags = kwargs.get('tags', ())
+        if not isinstance(tags, tuple): 
+            tags = tuple(tags.split()) if isinstance(tags, str) else tuple(tags)
+        tags += ('font={}'.format('|'.join(str(c) for c in font)), )
+        options = dict(kwargs)
+        options['tags'] = tags
+        return self.__createCanvasText(x, y, **options)
+        
+    def scaleAllItems(
+            self, x0, y0, scaleBy, fontScale, updateBounds='simple',
+            fixPoint=(), items='all'):
+        for item in (i for i in self.canvas.find_withtag(items)):
+            itemType = self.canvas.type(item)
+            if itemType == 'text':
+                self.scaleTextItem(item, fontScale)
+            elif itemType == 'line':
+                self.scaleLineItem(item, scaleBy)
+        self.canvas.scale(items, x0, y0, scaleBy, scaleBy)
+        if updateBounds:
+            if updateBounds == 'simple':
+                newBB = [(d - origin) * scaleBy + origin 
+                         for d, origin in zip(self.canvasBounds,
+                                              (x0, y0, x0, y0))]
+            else:
+                newBB = BBoxUnion(*(self.canvas.bbox(i) 
+                                    for i in self.canvas.find_withtag('all')))
+            self.setCanvasBounds(newBB, expandOnly=scaleBy > 1)
+
+    def scaleTextItem(self, item, scale):
+        if self.canvas.type(item) != 'text':
+            return
+        for tag in self.canvas.itemconfigure(item, 'tags')[-1].split():
+            if tag.startswith('font='):
+                font = tag[5:].split('|')
+                if len(font) > 1:
+                    font[1] = - max(1, math.ceil(abs(int(font[1])) * scale))
+                    self.canvas.itemconfigure(item, font=tuple(font))
+                    return
+
+    def scaleLineItem(self, item, scale):
+        if self.canvas.type(item) != 'line':
+            return
+        shape = self.canvas.itemconfigure(item, 'arrowshape')[-1].split()
+        newShape = tuple(scale * float(d) for d in shape)
+        self.canvas.itemconfigure(item, arrowshape=newShape)
+        
     #####################################################################
     #                                                                   #
     #                       Animation Methods                           #
@@ -665,9 +727,7 @@ class Visualization(object):  # Base class for Python visualizations
         visibleCanvas = self.visibleCanvas()
         if expand and not BBoxEmpty(BBox) and (
                 not BBoxContains(self.canvasBounds, BBox)):
-            newBB = BBoxUnion(BBox, self.canvasBounds)
-            self.setCanvasBounds(tuple([math.floor(c) for c in newBB[:2]] +
-                                      [math.ceil(c) for c in newBB[2:]]))
+            self.setCanvasBounds(BBox)
         canvasDims = self.widgetDimensions(self.canvas)
         canvasBounds = self.canvasBounds
         visibleCanvasFraction = self.visibleCanvasFraction()
