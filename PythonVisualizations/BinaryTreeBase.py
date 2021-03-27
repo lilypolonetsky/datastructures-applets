@@ -308,6 +308,15 @@ class BinaryTreeBase(VisualizationApp):
         ffHeight = self.textHeight(fieldFont)
         return fieldsWidth + rootWidth // 2, ffHeight + self.CIRCLE_SIZE
 
+    def treeObjectArrowCoords(self, **kwargs):
+        treeObjectCoords = self.treeObjectCoords(**kwargs)
+        dotCenter = V(treeObjectCoords[:2]) + V(
+            self.treeDotCenter(fields=kwargs.get('fields', []),
+                               font=kwaargs.get('font')))
+        tip = (V(self.ROOT_X0, self.ROOT_Y0) + V(self.CIRCLE_SIZE, 0).rotate(
+            kwargs.get('offsetAngle', 180))) if self.getRoot() else dotCenter
+        return dotCenter + tip
+        
     def updateTreeObjectRootPointer(self, arrow=None, root=None):
         '''Extend pointer of tree object to point at the root node if present
         otherwise make it zero length to be invisible'''
