@@ -89,6 +89,7 @@ class Tree234(BinaryTreeBase):
     
     def newTree(self):
         self.emptyTree()
+        self.scale, self.fontScale = 1.0, abs(self.FONT_SIZE)
         self.setCanvasBounds(self.desiredTreeBounds(-1), expandOnly=False)
         self.display(treeLabel='Tree234')
 
