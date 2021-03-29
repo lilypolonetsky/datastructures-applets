@@ -318,6 +318,20 @@ class Visualization(object):  # Base class for Python visualizations
                 newBB = BBoxUnion(*(self.canvas.bbox(i) 
                                     for i in self.canvas.find_withtag('all')))
             self.setCanvasBounds(newBB, expandOnly=scaleBy > 1)
+        if fixPoint:
+            canvasDelta = V(V(V(fixPoint) - V(x0, y0)) * scaleBy) - V(fixPoint)
+            canvasDims = V(self.canvasBounds[2:]) - V(self.canvasBounds[:2])
+            shift = V(canvasDelta) / V(canvasDims)
+            self.window.update() # Need this to get adjusted scroll positions
+            xPos = self.canvasHScroll.get()
+            yPos = self.canvasVScroll.get()
+            pos = (xPos[0], yPos[0])
+            visibleCanvasFraction = self.visibleCanvasFraction()
+            newScroll = tuple(
+                max(0, min(1 - visibleCanvasFraction[xy], pos[xy] + shift[xy]))
+                for xy in range(2))
+            self.canvas.xview_moveto(newScroll[0])
+            self.canvas.yview_moveto(newScroll[1])
 
     def scaleTextItem(self, item, scale):
         if self.canvas.type(item) != 'text':
@@ -338,7 +352,7 @@ class Visualization(object):  # Base class for Python visualizations
         self.canvas.itemconfigure(item, arrowshape=newShape)
 
     def setupCanvasZoomHandlers(
-            self, eventType, zoomBy=5/4, x0=0, y0=0, updateBounds='simple'):
+            self, eventType, zoomBy=5/4, x0=0, y0=0, updateBounds=True):
         if any(x is None for x in 
                (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
             return
