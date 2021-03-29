@@ -302,6 +302,8 @@ class Visualization(object):  # Base class for Python visualizations
     def scaleItems(
             self, x0, y0, scaleBy, fontScale, updateBounds='simple',
             fixPoint=(), items='all'):
+        if fixPoint:
+            screenFixPoint = V(fixPoint) - V(self.visibleCanvas())
         for item in (i for i in self.canvas.find_withtag(items)):
             itemType = self.canvas.type(item)
             if itemType == 'text':
@@ -319,19 +321,17 @@ class Visualization(object):  # Base class for Python visualizations
                                     for i in self.canvas.find_withtag('all')))
             self.setCanvasBounds(newBB, expandOnly=scaleBy > 1)
         if fixPoint:
-            canvasDelta = V(V(V(fixPoint) - V(x0, y0)) * scaleBy) - V(fixPoint)
-            canvasDims = V(self.canvasBounds[2:]) - V(self.canvasBounds[:2])
-            shift = V(canvasDelta) / V(canvasDims)
             self.window.update() # Need this to get adjusted scroll positions
-            xPos = self.canvasHScroll.get()
-            yPos = self.canvasVScroll.get()
-            pos = (xPos[0], yPos[0])
-            visibleCanvasFraction = self.visibleCanvasFraction()
-            newScroll = tuple(
-                max(0, min(1 - visibleCanvasFraction[xy], pos[xy] + shift[xy]))
-                for xy in range(2))
-            self.canvas.xview_moveto(newScroll[0])
-            self.canvas.yview_moveto(newScroll[1])
+            afterScale = V(V(fixPoint) - V(x0, y0)) * scaleBy
+            upperLeft = V(afterScale) - V(screenFixPoint)
+            bounds = self.canvasBounds
+            visible = self.visibleCanvasFraction()
+            pos = tuple(max(0, min(1 - visible[XorY],
+                                   (upperLeft[XorY] - bounds[XorY]) /
+                                   (bounds[2 + XorY] - bounds[XorY])))
+                        for XorY in range(2))
+            self.canvas.xview_moveto(pos[0])
+            self.canvas.yview_moveto(pos[1])
 
     def scaleTextItem(self, item, scale):
         if self.canvas.type(item) != 'text':
