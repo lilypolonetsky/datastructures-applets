@@ -664,7 +664,7 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
 
         newNodeChildNum = 1 if parent is self else parent.nChild
         newNodeCenter = (V(toSplit.center) +
-                         V(V(Tree234.maxLinks * 2, 2) * self.CIRCLE_SIZE))
+                         V(V(Tree234.maxLinks * 2, 2.5) * self.CIRCLE_SIZE))
         newNodeItems = self.createNodeShapes(
             toSplit.center if animation else newNodeCenter, 
             [toSplit.keys[2]], parent=None,  # Don't connect to parent yet
@@ -673,7 +673,8 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
         newNode = Node234(drawnValue([toSplit.keys[2]], *newNodeItems),
                           *childrenToRemove, center=newNodeCenter)
         if animation:
-            newNodeConfig = {'keyNum': -0.2, 'orientation': -135, 'anchor': SW}
+            newNodeConfig = {'keyNum': -0.2, 'orientation': -135, 'anchor': SW,
+                             'level': 2}
             newNodeArrow = self.createArrow(newNode, 'newNode', **newNodeConfig)
             callEnviron |= set(newNodeArrow)
             localVars += newNodeArrow
@@ -836,7 +837,7 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
         subtreeArrow = None
         if animation:
             if subtree:
-                subtreeConfig = {'level': 1, 'orientation': -135, 'keyNum': -0.2}
+                subtreeConfig = {'level': 2, 'orientation': -135, 'keyNum': -0.2}
                 subtreeArrow = self.createArrow(
                     subtree, 'subtree', **subtreeConfig)
                 callEnviron |= set(subtreeArrow)
