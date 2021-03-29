@@ -681,9 +681,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 underline=1 if highlight else 0)
             if highlight:
                 found = True
-                ranges = self.codeText.tag_ranges(tagName)
-                if len(ranges) > 0:
-                    self.codeText.see(ranges[0])
+                for index in reversed(self.codeText.tag_ranges(tagName)):
+                    self.codeText.see(index)
         if not found and len(tags) > 0:  # This shouldn't happen so log bug
             print('Unable to find highlight tag(s) {} among {}'.format(
                 ', '.join(tags), ', '.join(codeBlock.cache.keys())))
@@ -850,14 +849,21 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             buttonImage(self.pauseButton) != self.playControlImages['play']):
             buttonImage(self.pauseButton, self.playControlImages['play'])
         highlights = self.callStackHighlights()
-        while (allowStepping and self.animationsStepping() and
+        if (allowStepping and self.animationsStepping() and
                self.lastHighlights != highlights):
-            self.window.update()
-            if self.destroyed:
-                sys.exit()
-            time.sleep(0.02)
-            if self.destroyed:
-                sys.exit()
+            if len(highlights) > 0:
+                codeBlock = self.getCodeHighlightBlock(self.callStack[-1])
+                for fragment in reversed(highlights[-1]):
+                    for index in reversed(self.codeText.tag_ranges(
+                            codeBlock[fragment])):
+                        self.codeText.see(index)
+            while self.lastHighlights != highlights and self.animationsStepping():
+                self.window.update()
+                if self.destroyed:
+                    sys.exit()
+                time.sleep(0.02)
+                if self.destroyed:
+                    sys.exit()
         self.lastHighlights = self.callStackHighlights()
         if sleepTime > 0:
             self.window.update()
