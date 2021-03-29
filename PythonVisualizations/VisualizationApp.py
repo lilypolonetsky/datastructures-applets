@@ -339,12 +339,13 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def recordModifierKeyState(self, event=None):
         if event and event.type in (EventType.ButtonPress, EventType.KeyPress):
             self.modifierKeyState = event.state
-            self.debugRequested = (event.state & 0x0005 == 0x0005 and
-                                   os.path.exists('.debug.pyc'))
+            self.debugRequested = (
+                event.state & (CTRL | SHIFT) == (CTRL | SHIFT) and
+                os.path.exists('.debug.pyc'))
             
     def startMode(self):
         'Choose starting animation mode based on last modifier keys used'
-        return (Animation.STEP if self.modifierKeyState & 0x0001 
+        return (Animation.STEP if self.modifierKeyState & SHIFT
                 else Animation.RUNNING)
             
     def returnPressed(self, event):  # Handle press of Return/Enter in text

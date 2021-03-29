@@ -82,6 +82,11 @@ def BBoxUnion(*bboxes):
             min(bbox[0] for bbox in bboxes), min(bbox[1] for bbox in bboxes),
             max(bbox[2] for bbox in bboxes), max(bbox[3] for bbox in bboxes)]
 
+# Tk definitions
+# Modifier key constants
+SHIFT, CAPS_LOCK, CTRL, ALT = 0x01, 0x02, 0x04, 0x08
+
+# Window geometry specification strings
 geom_delims = re.compile(r'[\sXx+-]')
 
 # Animation states
@@ -294,7 +299,7 @@ class Visualization(object):  # Base class for Python visualizations
         options['tags'] = tags
         return self.__createCanvasText(x, y, **options)
         
-    def scaleAllItems(
+    def scaleItems(
             self, x0, y0, scaleBy, fontScale, updateBounds='simple',
             fixPoint=(), items='all'):
         for item in (i for i in self.canvas.find_withtag(items)):
@@ -331,6 +336,23 @@ class Visualization(object):  # Base class for Python visualizations
         shape = self.canvas.itemconfigure(item, 'arrowshape')[-1].split()
         newShape = tuple(scale * float(d) for d in shape)
         self.canvas.itemconfigure(item, arrowshape=newShape)
+
+    def setupCanvasZoomHandlers(
+            self, eventType, zoomBy=5/4, x0=0, y0=0, updateBounds='simple'):
+        if any(x is None for x in 
+               (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
+            return
+        def zoomHandler(event):
+            if event.widget != self.canvas:
+                print('Unexpected call to zoomHandler from widget {}'.format(
+                    event.widget))
+            fixPoint = (self.canvas.canvasx(event.x), 
+                        self.canvas.canvasy(event.y))
+            scaleBy = (1 / zoomBy) if event.state & SHIFT else zoomBy
+            self.scaleItems(
+                x0, y0, scaleBy, scaleBy, fixPoint=fixPoint,
+                updateBounds=updateBounds)
+        self.canvas.bind(eventType, zoomHandler)
         
     #####################################################################
     #                                                                   #

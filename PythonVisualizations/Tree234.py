@@ -162,9 +162,9 @@ class Tree234(BinaryTreeBase):
                                None if level is None else level + 1, ci,
                                byLevel=byLevel)
 
-    def scaleAllItems(self, *args, **kwargs):
+    def scaleItems(self, *args, **kwargs):
         '''After scale changes, update node centers for new scale'''
-        super().scaleAllItems(*args, **kwargs)
+        super().scaleItems(*args, **kwargs)
         self.recenterNodes(self.rootNode, self, 0, 0)
         
     def getAllDescendants(self, node):
@@ -1432,6 +1432,7 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             "Post-order Traverse", lambda: self.clickTraverse('post'),
             helpText='Traverse the tree post-order')
         self.addAnimationButtons()
+        self.setupCanvasZoomHandlers('<Double-Button-1>')        
         return [self.insertButton, searchButton, randomFillButton, 
                 newTreeButton, inOrderTraverseButton]
     
@@ -1444,15 +1445,11 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
                 newScale, newFontScale = 1.0, abs(self.FONT_SIZE)
             visibleCanvas = self.visibleCanvas()
             center = V(V(visibleCanvas[:2]) + V(visibleCanvas[2:])) / 2
-            self.scaleAllItems(
+            self.scaleItems(
                 self.ROOT_X0, self.ROOT_X0, scale, 
                 newFontScale / abs(self.FONT_SIZE),
                 fixPoint=center, updateBounds=True)
             self.scale, self.fontScale = newScale, newFontScale
-            # self.restoreNodePositions(self.rootNode, parent=self, sleepTime=0)
-            self.setMessage('Zoom {}'.format(
-                '1 : {:3.2f}'.format(1 / self.scale) if self.scale < 1 else
-                '{:3.2f} : 1'.format(self.scale)))
             
     def clickRandomFill(self):
         val = self.validArgument()
