@@ -45,8 +45,6 @@ class Node234(object):
         return self.dValue.items[4:4 + Tree234.maxKeys]
     
     def __str__(self):      # Represent a node as a string of keys
-        # return '<Node234-{} @{}>'.format('-'.join(str(k) for k in self.keys),
-        #                                  self.center)
         return '<Node234 {}>'.format(
             '|'.join(str(k) for k in self.keys[:self.nKeys]))
       
@@ -133,8 +131,6 @@ class Tree234(BinaryTreeBase):
                 level, _ = self.getLevelAndChild(node.keys[0])
                 level += 1
         nodeWidth = self.CIRCLE_SIZE * Tree234.maxKeys * 2 * scale
-        # treeWidth = (self.canvasBounds[2] - self.canvasBounds[0] -
-        #              nodeWidth)
         bounds = self.desiredTreeBounds(max(2, self.maxLevel))
         treeWidth = bounds[2] - bounds[0] - nodeWidth
         levelDX = treeWidth / (Tree234.maxLinks ** level)
@@ -1115,7 +1111,6 @@ def search(self, goal={goal}):
         arguments to the indexCoords method like level and keyNum.
         When see is true, the canvas scrolls to see moved items.
         '''
-        # Fill in child number when parent is known
         if childNum is None and isinstance(parent, Node234):
             pChildren = parent.children[:parent.nChild]
             if subtreeRoot in pChildren:
@@ -1124,8 +1119,7 @@ def search(self, goal={goal}):
                 raise ValueError(
                     "Given node {} is not among parent's {} children".format(
                         subtreeRoot, parent))
-        # Traverse tree to collect canvas items and their coordinates
-        items, coords = self.subtreeItemCoords(
+        items, coords = self.subtreeItemCoords( # Collect canvas items & coords
             subtreeRoot, parent, childNum, level=None,
             setChildCenters=setChildCenters)
         nodeIndexItems, nodeIndexCoords = (), ()
@@ -1422,6 +1416,7 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
         zoomOutButton = self.addOperation(
             "Zoom Out", lambda: self.zoom(4/5),
             helpText='Zoom out around center')
+        self.setupCanvasZoomHandlers('<Double-Button-1>', zoomBy=5/4)
         preOrderTraverseButton = self.addOperation(
             "Pre-order Traverse", lambda: self.clickTraverse('pre'),
             helpText='Traverse the tree pre-order')
@@ -1432,11 +1427,10 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             "Post-order Traverse", lambda: self.clickTraverse('post'),
             helpText='Traverse the tree post-order')
         self.addAnimationButtons()
-        self.setupCanvasZoomHandlers('<Double-Button-1>')        
         return [self.insertButton, searchButton, randomFillButton, 
                 newTreeButton, inOrderTraverseButton]
     
-    def zoom(self, scale):
+    def zoom(self, scale, fixPoint=None):
         newScale, newFontScale = self.scale * scale, self.fontScale * scale
         if newFontScale < 1:
             self.setMessage('Maximum zoom out reached')
@@ -1444,19 +1438,31 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             if abs(newScale - 1.0) < 0.01:
                 newScale, newFontScale = 1.0, abs(self.FONT_SIZE)
             visibleCanvas = self.visibleCanvas()
-            center = V(V(visibleCanvas[:2]) + V(visibleCanvas[2:])) / 2
+            if fixPoint is None:
+                fixPoint = V(V(visibleCanvas[:2]) + V(visibleCanvas[2:])) / 2
             self.scaleItems(
                 self.ROOT_X0, self.ROOT_X0, scale, 
                 newFontScale / abs(self.FONT_SIZE),
-                fixPoint=center, updateBounds=True)
+                fixPoint=fixPoint, updateBounds=True)
             self.scale, self.fontScale = newScale, newFontScale
+
+    def setupCanvasZoomHandlers(
+            self, eventType, zoomBy=5/4, x0=0, y0=0, updateBounds=True):
+        if any(x is None for x in 
+               (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
+            return
+        def zoomHandler(event):
+            fixPoint = (self.canvas.canvasx(event.x), 
+                        self.canvas.canvasy(event.y))
+            scaleBy = (1 / zoomBy) if event.state & SHIFT else zoomBy
+            self.zoom(scaleBy, fixPoint=fixPoint)
+        self.canvas.bind(eventType, zoomHandler)
             
     def clickRandomFill(self):
         val = self.validArgument()
         if val:
             self.randomFill(val)
         self.clearArgument()
-        # self.print(file=sys.stderr)
 
     def print(self, indent=4, **kwargs):
         self._print(self.rootNode, prefix='', indent=indent, **kwargs)
