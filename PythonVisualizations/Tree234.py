@@ -1416,7 +1416,7 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
         zoomOutButton = self.addOperation(
             "Zoom Out", lambda: self.zoom(4/5),
             helpText='Zoom out around center')
-        self.setupCanvasZoomHandlers('<Double-Button-1>', zoomBy=5/4)
+        self.setupCanvasZoomHandlers(zoomBy=5/4)
         preOrderTraverseButton = self.addOperation(
             "Pre-order Traverse", lambda: self.clickTraverse('pre'),
             helpText='Traverse the tree pre-order')
@@ -1447,16 +1447,27 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             self.scale, self.fontScale = newScale, newFontScale
 
     def setupCanvasZoomHandlers(
-            self, eventType, zoomBy=5/4, x0=0, y0=0, updateBounds=True):
+            self, zoomBy=5/4, x0=0, y0=0, updateBounds=True):
         if any(x is None for x in 
                (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
             return
-        def zoomHandler(event):
+        def clickZoomHandler(event):
             fixPoint = (self.canvas.canvasx(event.x), 
                         self.canvas.canvasy(event.y))
             scaleBy = (1 / zoomBy) if event.state & SHIFT else zoomBy
             self.zoom(scaleBy, fixPoint=fixPoint)
-        self.canvas.bind(eventType, zoomHandler)
+        self.canvas.bind('<Double-Button-1>', clickZoomHandler)
+        def scrollWheelZoomHandler(event):
+            print('ScrollWheel event type:', event.type)
+            print('State: 0x{:04x}, delta: {:4d}, num: {}'.format(
+                event.state, event.delta, event.num))
+            if event.state & SHIFT:
+                fixPoint = (self.canvas.canvasx(event.x), 
+                            self.canvas.canvasy(event.y))
+                scaleBy = (1 / zoomBy) if event.delta < 0 else zoomBy
+                self.zoom(scaleBy, fixPoint=fixPoint)
+        for eventType in ('<MouseWheel>', '<Button-4>', '<Button-5>'):
+            self.canvas.bind(eventType, scrollWheelZoomHandler)
             
     def clickRandomFill(self):
         val = self.validArgument()
