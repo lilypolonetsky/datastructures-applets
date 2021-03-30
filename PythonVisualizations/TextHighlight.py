@@ -66,7 +66,7 @@ class CodeHighlightBlock(object):
         Tk text widget, but use 0-relative line numbers.
         '''
         j = 0
-        if isinstance(fragment, re.Pattern):
+        if isinstance(fragment, type(declarationPattern)):
             matches = [match for match in fragment.finditer(self.code)]
             if len(matches) >= copy:
                 start = matches[copy - 1].start()
