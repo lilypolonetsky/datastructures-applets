@@ -240,7 +240,8 @@ class Tree234(BinaryTreeBase):
         cellRects = tuple([(x + 2 * radius * (j - midKey), top,
                             x + 2 * radius * (j + 1 - midKey), bottom - 1)
                            for j in range(1, Tree234.maxKeys - 1)])
-        return linkCoords, leftCircle, centerRect, rightCircle, *textCenters, *cellRects
+        return (linkCoords, leftCircle, centerRect, rightCircle, *textCenters,
+                *cellRects)
       
     def createNodeShapes(
             self, center, keys, parent=None, childNum=0, radius=None, scale=1,
@@ -279,7 +280,7 @@ class Tree234(BinaryTreeBase):
                 lcItem if i == 0 else rcItem if i == Tree234.maxKeys - 1 else
                 cellItems[i - 1], '<Button>', handler)
 
-        return linkItem, lcItem, rectItem, rcItem, *textItems, *cellItems
+        return (linkItem, lcItem, rectItem, rcItem, *textItems, *cellItems)
 
     def textItemClickHandler(self, textItem):
         def textItemClick(e=None):
