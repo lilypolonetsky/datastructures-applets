@@ -1459,13 +1459,14 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             self.zoom(scaleBy, fixPoint=fixPoint)
         self.canvas.bind('<Double-Button-1>', clickZoomHandler)
         def scrollWheelZoomHandler(event):
-            print('ScrollWheel event type:', event.type)
-            print('State: 0x{:04x}, delta: {:4d}, num: {}'.format(
-                event.state, event.delta, event.num))
-            if event.state & SHIFT:
+            if ((event.state & SHIFT) if event.type is EventType.MouseWheel else
+                (event.num in (4, 5))):
                 fixPoint = (self.canvas.canvasx(event.x), 
                             self.canvas.canvasy(event.y))
-                scaleBy = (1 / zoomBy) if event.delta < 0 else zoomBy
+                zoomIn = ((event.delta > 0)
+                          if event.type is EventType.MouseWheel else
+                          (event.num == 4))
+                scaleBy = zoomBy if zoomIn else (1 / zoomBy)
                 self.zoom(scaleBy, fixPoint=fixPoint)
         for eventType in ('<MouseWheel>', '<Button-4>', '<Button-5>'):
             self.canvas.bind(eventType, scrollWheelZoomHandler)
