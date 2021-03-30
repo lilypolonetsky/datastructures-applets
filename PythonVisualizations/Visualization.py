@@ -136,6 +136,8 @@ class Visualization(object):  # Base class for Python visualizations
         if canvasBounds:
             self.canvasVScroll = Scrollbar(self.canvasFrame, orient=VERTICAL)
             self.canvasVScroll.pack(side=RIGHT, expand=False, fill=Y)
+            if canvasWidth == 800:  # For Trinket, shrink canvas width to show
+                self.targetCanvasWidth, canvasWidth = 788, 788 # scrollbar
         else:
             self.canvasVScroll = None
         self.canvas = Canvas(
