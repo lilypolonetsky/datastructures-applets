@@ -236,7 +236,7 @@ class BinaryTreeBase(VisualizationApp):
     Canvas.create_circle = _create_circle
 
     def createTreeObject(
-            self, label="BinarySearchTree", offsetAngle=180, offset=40,
+            self, label="BinarySearchTree", offsetAngle=None, offset=None,
             color='powder blue', root='root', dotColor='red', fields=[], 
             font=None):
         '''Create the tree object that points to the root of a tree.
@@ -259,7 +259,6 @@ class BinaryTreeBase(VisualizationApp):
         dotCenter = V(x0, y0) + V(self.treeDotCenter(fields, fieldFont))
         arrow = self.canvas.create_line(
             *dotCenter, *dotCenter, arrow=LAST, fill='black')
-        self.updateTreeObjectRootPointer(arrow=arrow, root=self.getRoot())
         rootLabel = self.canvas.create_text(
             dotCenter[0], y0 + ffHeight, text=root, font=fieldFont,
             fill='black', anchor=S, tags=(label + "fieldLabel"))
@@ -271,6 +270,7 @@ class BinaryTreeBase(VisualizationApp):
             x0 - 5, (y0 + y1) // 2, text=label, font=labelFont, anchor=E)
         self.treeObject = (
             rect, arrow, rootLabel, oval, *fieldLabels, treeLabel)
+        self.updateTreeObjectRootPointer(arrow=arrow, root=self.getRoot())
         return self.treeObject
 
     def treeObjectFonts(self, font=None):
@@ -284,12 +284,14 @@ class BinaryTreeBase(VisualizationApp):
                 for field in fields]
     
     def treeObjectCoords(
-            self, offsetAngle=180, offset=30, fields=[], font=None):
+            self, offsetAngle=None, offset=None, fields=[], font=None):
         fieldFont, _ = self.treeObjectFonts(font)
         ffHeight = self.textHeight(fieldFont)
         rootWidth = self.textWidth(fieldFont, ' root ')
         fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
+        if offset is None: offset = 30
+        if offsetAngle is None: offsetAngle = 180
         x0, y0 = V(self.ROOT_X0, self.ROOT_Y0) + V(
             V(V(offset + self.CIRCLE_SIZE, 0).rotate(offsetAngle)) -
             V(fieldsWidth + rootWidth, self.CIRCLE_SIZE + ffHeight))
@@ -306,6 +308,15 @@ class BinaryTreeBase(VisualizationApp):
         ffHeight = self.textHeight(fieldFont)
         return fieldsWidth + rootWidth // 2, ffHeight + self.CIRCLE_SIZE
 
+    def treeObjectArrowCoords(self, **kwargs):
+        treeObjectCoords = self.treeObjectCoords(**kwargs)
+        dotCenter = V(treeObjectCoords[:2]) + V(
+            self.treeDotCenter(fields=kwargs.get('fields', []),
+                               font=kwaargs.get('font')))
+        tip = (V(self.ROOT_X0, self.ROOT_Y0) + V(self.CIRCLE_SIZE, 0).rotate(
+            kwargs.get('offsetAngle', 180))) if self.getRoot() else dotCenter
+        return dotCenter + tip
+        
     def updateTreeObjectRootPointer(self, arrow=None, root=None):
         '''Extend pointer of tree object to point at the root node if present
         otherwise make it zero length to be invisible'''
@@ -780,7 +791,7 @@ class BinaryTreeBase(VisualizationApp):
         an integer number of random values'''
         callEnviron = self.createCallEnvironment()
         
-        nums = [random.randrange(self.valMax) for i in range(values)] if (
+        nums = random.sample(range(self.valMax), values) if (
             isinstance(values, int)) else values
         self.emptyTree()
         for num in nums:
@@ -1035,6 +1046,7 @@ def insert(self, key={key}, data):
 for key, data in tree.traverse("{traverseType}"):
    print(key)
 '''
+    
     def traverseExample(
             self, traverseType, code=traverseExampleCode, start=True):
         wait = 0.1
@@ -1050,7 +1062,8 @@ for key, data in tree.traverse("{traverseType}"):
         
         outBoxCoords = self.outputBoxCoords(font=self.outputFont)
         outBoxMidY = (outBoxCoords[1] + outBoxCoords[3]) // 2
-        callEnviron.add(self.createOutputBox(coords=outBoxCoords))
+        outputBox = self.createOutputBox(coords=outBoxCoords)
+        callEnviron.add(outputBox)
         outputText = self.canvas.create_text(
             outBoxCoords[0] + 5, outBoxMidY, text='', anchor=W, 
             font=self.outputFont)
@@ -1120,7 +1133,7 @@ def traverse(self, traverseType="{traverseType}"):
                 'return self.__traverse(self.__root, traverseType)',
                 callEnviron)
             self.iteratorStack.append(callEnviron)
-            return self.__traverse(0, traverseType)
+            return self._traverse(self.getRoot(), traverseType)
             
         else:
             self.highlightCode(
@@ -1130,7 +1143,7 @@ def traverse(self, traverseType="{traverseType}"):
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron, sleepTime=wait /10)
         
-    __traverseCode = '''
+    _traverseCode = '''
 def __traverse(self, node={node}, traverseType="{traverseType}"):
    if node is None:
       return
@@ -1148,19 +1161,20 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
       yield (node.key, node.data)
 '''
 
-    def __traverse(self, node, traverseType, code=__traverseCode):
+    def _traverse(self, node, traverseType, code=_traverseCode):
         kwargs = locals().copy()
-        internalNode = self.getNode(node)
-        kwargs['node'] = internalNode.getKey() if internalNode else None
+        nodeIndex = node if isinstance(node, int) else self.getIndex(node)
+        node = self.getNode(nodeIndex)
+        kwargs['node'] = node.getKey() if node else None
         code = code.format(**kwargs)
         wait = 0.1
         callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
 
-        nodeArrow = self.createArrow(node, 'node')
+        nodeArrow = self.createArrow(nodeIndex, 'node')
         callEnviron |= set(nodeArrow)
 
         self.highlightCode('node is None', callEnviron, wait=wait)
-        if internalNode is None:
+        if node is None:
             self.highlightCode('return', callEnviron)
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             return
@@ -1171,8 +1185,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 ('yield (node.key, node.data)', 1), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
                 callEnviron, sleepTime=wait / 10)
-            yield (node, internalNode.drawnValue.val,
-                   internalNode.drawnValue.items)
+            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
             self.resumeCallEnvironment(
                 callEnviron, itemCoords, sleepTime=wait / 10)
 
@@ -1182,8 +1195,8 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
         localVars = nodeArrow
         childArrow = None
         colors = self.fadeNonLocalItems(localVars)
-        for childIndex, childKey, childData in self.__traverse(
-                self.getLeftChildIndex(node), traverseType):
+        for childIndex, childKey, childData in self._traverse(
+                self.getLeftChildIndex(nodeIndex), traverseType):
             self.restoreLocalItems(localVars, colors)
             if childArrow is None:
                 childArrow = self.createArrow(
@@ -1216,8 +1229,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 ('yield (node.key, node.data)', 2), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
                 callEnviron, sleepTime=wait / 10)
-            yield (node, internalNode.drawnValue.val,
-                   internalNode.drawnValue.items)
+            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
             self.resumeCallEnvironment(
                 callEnviron, itemCoords, sleepTime=wait / 10)
 
@@ -1225,8 +1237,8 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
             ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
             callEnviron, wait=wait)
         colors = self.fadeNonLocalItems(localVars)
-        for childIndex, childKey, childData in self.__traverse(
-                self.getRightChildIndex(node), traverseType):
+        for childIndex, childKey, childData in self._traverse(
+                self.getRightChildIndex(nodeIndex), traverseType):
             self.restoreLocalItems(localVars, colors)
             if childArrow is None:
                 childArrow = self.createArrow(
@@ -1259,8 +1271,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
                 ('yield (node.key, node.data)', 3), callEnviron, wait=wait)
             itemCoords = self.yieldCallEnvironment(
                 callEnviron, sleepTime=wait / 10)
-            yield (node, internalNode.drawnValue.val, 
-                   internalNode.drawnValue.items)
+            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
             self.resumeCallEnvironment(
                 callEnviron, itemCoords, sleepTime=wait / 10)
         
@@ -1281,10 +1292,10 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
     def clickInsert(self):
         val = self.validArgument()
         if val:
-            if self.insert(val, start=self.startMode()):
-                self.setMessage('Key {} inserted'.format(val))
-            else:
-                self.setMessage('Could not insert key {}'.format(val))
+            self.setMessage('Key {} {}'.format(
+                val,
+                'inserted' if self.insert(val, start=self.startMode())
+                else 'updated or not inserted'))
             self.clearArgument()
 
     def clickSearch(self):
@@ -1292,7 +1303,7 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
         self.setMessage(
             "Key {} not found".format(val) if self.search(
                 val, start=self.startMode()) is None else 
-            "Found key {}!".format(val))
+            "Found key {}".format(val))
         self.clearArgument()
 
     def clickFill(self):

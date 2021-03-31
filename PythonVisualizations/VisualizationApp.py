@@ -144,6 +144,17 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
 
+    def newValueCoords(self, buffer=30):
+        '''Return a set of canvas coords that are below the visible canvas
+        somewhere behind the control panel.  New values can be centered
+        on these coordinates to make them appear as if they are coming from
+        the control panel'''
+        visibleCanvas = self.visibleCanvas()
+        upperDims = self.widgetDimensions(self.operationsUpper)
+        lowerDims = self.widgetDimensions(self.operationsLower)
+        midControlPanel = max(upperDims[0], lowerDims[0]) // 2
+        return visibleCanvas[0] + midControlPanel, visibleCanvas[3] + buffer
+
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
 
     def getOperations(self):
@@ -328,12 +339,13 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def recordModifierKeyState(self, event=None):
         if event and event.type in (EventType.ButtonPress, EventType.KeyPress):
             self.modifierKeyState = event.state
-            self.debugRequested = (event.state & 0x0005 == 0x0005 and
-                                   os.path.exists('.debug.pyc'))
+            self.debugRequested = (
+                event.state & (CTRL | SHIFT) == (CTRL | SHIFT) and
+                os.path.exists('.debug.pyc'))
             
     def startMode(self):
         'Choose starting animation mode based on last modifier keys used'
-        return (Animation.STEP if self.modifierKeyState & 0x0001 
+        return (Animation.STEP if self.modifierKeyState & SHIFT
                 else Animation.RUNNING)
             
     def returnPressed(self, event):  # Handle press of Return/Enter in text
@@ -670,9 +682,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 underline=1 if highlight else 0)
             if highlight:
                 found = True
-                ranges = self.codeText.tag_ranges(tagName)
-                if len(ranges) > 0:
-                    self.codeText.see(ranges[0])
+                for index in reversed(self.codeText.tag_ranges(tagName)):
+                    self.codeText.see(index)
         if not found and len(tags) > 0:  # This shouldn't happen so log bug
             print('Unable to find highlight tag(s) {} among {}'.format(
                 ', '.join(tags), ', '.join(codeBlock.cache.keys())))
@@ -686,9 +697,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     # be confused with a canvas item (string or integer) to index it
     # Instead, we do a linear search and find it by its type
     def getCodeHighlightBlock(self, callEnvironment):
-        for item in callEnvironment:
-            if isinstance(item, CodeHighlightBlock):
-                return item
+        return getCodeHighlightBlock(callEnvironment)
             
     def cleanUp(self,         # Remove Tk items from past animations either
                 callEnviron=None,  # for a particular call or all calls
@@ -784,14 +793,18 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.removeCode(codeBlock.code, sleepTime=sleepTime)
         self.callStack.pop()
         itemCoords = {}
+        canvasDims = (V(self.canvasBounds[2:]) - self.canvasBounds[:2]
+                      if self.canvasBounds else 
+                      self.widgetDimensions(self.canvas))
+        away = V(canvasDims) * 10
         for item in callEnviron:
             if isinstance(item, int) and self.canvas.type(item):
                 coords = self.canvas.coords(item)
-                if any(x >= 0 and y >= 0 for x, y in
-                       [(coords[j], coords[j + 1]) 
-                        for j in range(0, len(coords), 2)]):
+                if any(self.withinCanvas((coords[j], coords[j + 1]))
+                       for j in range(0, len(coords), 2)):
                     itemCoords[item] = coords
-                    self.canvas.coords(item, *multiply_vector(coords, -1))
+                    self.canvas.coords(item, V(coords) +
+                                       V(away * (len(coords) // 2)))
         return itemCoords
 
     def resumeCallEnvironment(self, callEnviron, itemCoords, sleepTime=0):
@@ -837,14 +850,21 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             buttonImage(self.pauseButton) != self.playControlImages['play']):
             buttonImage(self.pauseButton, self.playControlImages['play'])
         highlights = self.callStackHighlights()
-        while (allowStepping and self.animationsStepping() and
+        if (allowStepping and self.animationsStepping() and
                self.lastHighlights != highlights):
-            self.window.update()
-            if self.destroyed:
-                sys.exit()
-            time.sleep(0.02)
-            if self.destroyed:
-                sys.exit()
+            if len(highlights) > 0:
+                codeBlock = self.getCodeHighlightBlock(self.callStack[-1])
+                for fragment in reversed(highlights[-1]):
+                    for index in reversed(self.codeText.tag_ranges(
+                            codeBlock[fragment])):
+                        self.codeText.see(index)
+            while self.lastHighlights != highlights and self.animationsStepping():
+                self.window.update()
+                if self.destroyed:
+                    sys.exit()
+                time.sleep(0.02)
+                if self.destroyed:
+                    sys.exit()
         self.lastHighlights = self.callStackHighlights()
         if sleepTime > 0:
             self.window.update()

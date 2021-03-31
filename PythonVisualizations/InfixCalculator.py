@@ -886,7 +886,7 @@ def PostfixTranslate(formula={infixExpression!r}):
             items = token.items
             dValue = token
         self.moveItemsTo(
-            items, (toCoords, toCenter) if len(items) == 2 else (toCenter),
+            items, (toCoords, toCenter) if len(items) == 2 else (toCenter,),
             sleepTime=0.01)
         if dValue is None:
             text = self.canvas.itemconfigure(token, 'text')[-1]
