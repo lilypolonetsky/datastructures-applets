@@ -246,6 +246,12 @@ class Visualization(object):  # Base class for Python visualizations
                                  self.canvas.tag_bind(canvasitem, eventType))
         return newItem
 
+    def copyItemAttributes(   # Copy attributes from one canvas item to another
+            self, fromItem, toItem, *attributes):
+        kwargs = dict((attrib, self.canvas.itemconfigure(fromItem, attrib)[-1])
+                      for attrib in attributes)
+        self.canvas.itemconfigure(toItem, **kwargs)
+    
     def fadeNonLocalItems(self, items, colors=NONLOCAL_VARIABLE_COLOR):
         '''Set fill color of non-local variable canvas items to a faded color
         or sequence of colors.  If the length of items exceeds the length of
