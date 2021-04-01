@@ -94,9 +94,9 @@ class drawnValue(object):
         if mainItem is not None:
             return canvas.itemconfigure(mainItem, 'fill')[-1]
         
-    palette = ['indianRed2', 'PaleGreen2', 'SkyBlue2', 'orange2',
-               'yellow2', 'magenta2', 'cyan2', 'DodgerBlue2',
-               'turquoise3', 'slate gray', 'gold', 'pink']
+    palette = ['indianRed1', 'PaleGreen2', 'SkyBlue2', 'orange2',
+               'yellow2', 'magenta2', 'cyan2', 'DodgerBlue2', 'OliveDrab2',
+               'turquoise3', 'navajo white', 'gold', 'pink', 'khaki']
 
 if __name__ == '__main__':
     from tkinter import *
