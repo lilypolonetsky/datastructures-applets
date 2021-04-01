@@ -706,19 +706,24 @@ class Visualization(object):  # Base class for Python visualizations
                 bounds[1] <= point[1] and point[1] <= bounds[3])
 
     def visibleCanvas(self):
-        'Return bounding box of visible canvas coordinates'
+        '''Return bounding box of visible canvas coordinates.
+        When canvasBounds are smaller than canvas, the 'visible' bounds can
+        exceed the canvasBounds bounding box.
+        '''
+        canvasDims = self.widgetDimensions(self.canvas)
         if any(x is None for x in 
                (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
-            return (0, 0) + self.widgetDimensions(self.canvas)
+            return (0, 0) + canvasDims
         xPos = self.canvasHScroll.get()
         yPos = self.canvasVScroll.get()
         Xbounds = (self.canvasBounds[0], self.canvasBounds[2])
         Ybounds = (self.canvasBounds[1], self.canvasBounds[3])
         return [
-            max(bounds[0], min(bounds[1], 
-                               int(bounds[0] + pos * (bounds[1] - bounds[0]))))
-            for bounds, pos in zip((Xbounds, Ybounds) * 2,
-                                   (xPos[0], yPos[0], xPos[1], yPos[1]))]
+            int(bounds[0] + pos * max(dim, bounds[1] - bounds[0]))
+            for bounds, dim, pos in zip((Xbounds, Ybounds) * 2,
+                                        canvasDims * 2,
+                                        (max(0, xPos[0]), max(0, yPos[0]), 
+                                         min(1, xPos[1]), min(1, yPos[1])))]
     
     def visibleCanvasFraction(self):
         'Return the ratio of the visible canvas to the canvas bounds in X, Y'
