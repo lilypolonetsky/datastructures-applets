@@ -153,7 +153,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         upperDims = self.widgetDimensions(self.operationsUpper)
         lowerDims = self.widgetDimensions(self.operationsLower)
         midControlPanel = max(upperDims[0], lowerDims[0]) // 2
-        return visibleCanvas[0] + midControlPanel, visibleCanvas[3] + buffer
+#        return visibleCanvas[0] + midControlPanel, visibleCanvas[3] + buffer
+        return self.canvas.canvasx(midControlPanel), visibleCanvas[3] + buffer
 
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
 
