@@ -43,11 +43,7 @@ class Node234(object):
     def keyItems(self):
         "Get the key items from this node's drawnValue"
         return self.dValue.items[4:4 + Tree234.maxKeys]
-
-    def dataItems(self):
-        "Get the data items from this node's drawnValue"
-        return self.dValue.items[4 + Tree234.maxKeys:4 + 2 * Tree234.maxKeys]
-
+    
     def __str__(self):      # Represent a node as a string of keys
         return '<Node234 {}>'.format(
             '|'.join(str(k) for k in self.keys[:self.nKeys]))
@@ -58,8 +54,6 @@ class Node234(object):
 class Tree234(BinaryTreeBase):
     maxLinks = 4
     maxKeys = maxLinks - 1
-    NODE_COLOR = 'gray90'
-    nextColor = 0
     
     def __init__(self, title="2-3-4 Tree", **kwargs):
         self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
@@ -243,34 +237,23 @@ class Tree234(BinaryTreeBase):
                       x + 2 * radius * (midKey - 0.5), bottom)
         textCenters = tuple([(x + radius * 2 * (j - midKey + 0.5), y)
                              for j in range(Tree234.maxKeys)])
-        dataCircles = tuple([(x + radius * 2 * (j - midKey), top,
-                              x + radius * 2 * (j + 1 - midKey), bottom)
-                             for j in range(Tree234.maxKeys)])
         cellRects = tuple([(x + 2 * radius * (j - midKey), top,
                             x + 2 * radius * (j + 1 - midKey), bottom - 1)
                            for j in range(1, Tree234.maxKeys - 1)])
         return (linkCoords, leftCircle, centerRect, rightCircle, *textCenters,
-                *dataCircles, *cellRects)
+                *cellRects)
       
     def createNodeShapes(
-            self, center, keys, data=None, parent=None, childNum=0, radius=None,
-            scale=None, lineColor='black', lineWidth=1, font=None, 
-            fill=None, border='SkyBlue3'):
+            self, center, keys, parent=None, childNum=0, radius=None, scale=1,
+            lineColor='black', lineWidth=1, font=None, 
+            fill='SkyBlue1', border='SkyBlue3'):
         if font is None: font = self.VALUE_FONT
-        if fill is None: fill = self.NODE_COLOR
-        if scale is None: scale = self.scale
-        if data is None:
-            data = []
-        while len(data) < len(keys):
-            data.append(drawnValue.palette[self.nextColor])
-            self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
         coords = self.nodeItemCoords(
             center, parent=parent, childNum=childNum, radius=radius, 
             scale=scale)
         link, lcircle, crect, rcircle = coords[:4]
         textCenters = coords[4:4 + Tree234.maxKeys]
-        dataCircles = coords[4 + Tree234.maxKeys:4 + 2 * Tree234.maxKeys]
-        cellRects = coords[4 + 2 * Tree234.maxKeys:]
+        cellRects = coords[4 + Tree234.maxKeys:]
         linkItem = self.canvas.create_line(
             *link, fill=lineColor, width=lineWidth, arrow=FIRST, tags='link')
         self.canvas.tag_lower(linkItem)
@@ -284,10 +267,6 @@ class Tree234(BinaryTreeBase):
             *coords, fill='', width=lineWidth, outline=border,
             tags=('lozenge', 'cell'))
                            for coords in cellRects])
-        dataItems = tuple([self.canvas.create_oval(
-            *dataCircles[j], width=0,
-            fill=data[j] if j < len(keys) else '', tags='data')
-                           for j in range(Tree234.maxKeys)])
         textItems = tuple([self.canvas.create_text(
             *textCenters[j], text=str(keys[j]) if j < len(keys) else '',
             font=font, tags='keytext',
@@ -301,8 +280,7 @@ class Tree234(BinaryTreeBase):
                 lcItem if i == 0 else rcItem if i == Tree234.maxKeys - 1 else
                 cellItems[i - 1], '<Button>', handler)
 
-        return (linkItem, lcItem, rectItem, rcItem,
-                *textItems, *dataItems, *cellItems)
+        return (linkItem, lcItem, rectItem, rcItem, *textItems, *cellItems)
 
     def textItemClickHandler(self, textItem):
         def textItemClick(e=None):
@@ -476,9 +454,9 @@ def insert(self, key={key}, value):
 
         if animation:
             indexConfig = {'keyNum': -0.2, 'orientation': -135, 'anchor': SE}
-            pArrow = self.createArrow(p, 'p', **indexConfig)
             nodeArrow = self.createArrow(
                 node if node else self.childCoords(p, 1), 'node', **indexConfig)
+            pArrow = self.createArrow(p, 'p', **indexConfig)
             callEnviron |= set(nodeArrow + pArrow)
             
             self.highlightCode('node is None', callEnviron, wait=wait)
@@ -686,9 +664,7 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                          V(V(Tree234.maxLinks * 2, 2.5) * self.CIRCLE_SIZE))
         newNodeItems = self.createNodeShapes(
             toSplit.center if animation else newNodeCenter, 
-            [toSplit.keys[2]], 
-            data=[self.canvas.itemconfigure(toSplit.dataItems()[2], 'fill')[-1]],
-            parent=None,  # Don't connect to parent yet
+            [toSplit.keys[2]], parent=None,  # Don't connect to parent yet
             childNum=1 if parent is self else parent.nKeys + 1)
         childrenToRemove = toSplit.children[2:toSplit.nChild]
         newNode = Node234(drawnValue([toSplit.keys[2]], *newNodeItems),
@@ -712,11 +688,10 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
             self.highlightCode('toSplit.nKeys = 1', callEnviron, wait=wait)
         toSplit.nKeys = 1
         self.canvas.itemconfigure(toSplit.keyItems()[2], text='')
-        self.canvas.itemconfigure(toSplit.dataItems()[2], fill='')
-        toSplit.keys[2] = None
         for i in range(toSplit.nKeys, Tree234.maxKeys):
             self.canvas.itemconfigure(toSplit.keyItems()[i], 
                                       fill=self.leftoverColor)
+        toSplit.keys[2] = None
 
         if animation:
             self.highlightCode('toSplit.nChild = max(0, toSplit.nChild - 2)',
@@ -735,9 +710,7 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
             newRootOffset = (0, -self.CIRCLE_SIZE * 3)
             newRootCenter = V(rootCenter) + V(newRootOffset)
             newRootItems = self.createNodeShapes(
-                newRootCenter if animation else rootCenter,
-                [toSplit.keys[1]], data=[self.canvas.itemconfigure(
-                    toSplit.dataItems()[1], 'fill')[-1]])
+                newRootCenter if animation else rootCenter, [toSplit.keys[1]])
             self.rootNode = Node234(
                 drawnValue([toSplit.keys[1]], *newRootItems),
                 toSplit, newNode, 
@@ -785,9 +758,8 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                     'newNode)', callEnviron)
                 colors = self.fadeNonLocalItems(localVars)
             self.insertKeyValue(
-                parent, toSplit.keys[1], newNode, animation=animation, 
-                wait=wait,
-                keyData=(toSplit.keyItems()[1], toSplit.dataItems()[1]))
+                parent, toSplit.keys[1], newNode, animation=animation,
+                wait=wait, keyFrom=toSplit.keyItems()[1])
             if animation:
                 self.restoreLocalItems(localVars, colors)
                 
@@ -799,8 +771,6 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
             if animation else (), see=True)
 
         if animation:
-            self.scrollToSee(toSplitArrow + toSplit.dValue.items[1:],
-                             sleepTime=wait / 10)
             self.highlightCode('goal < toSplit.keys[1]', callEnviron, wait=wait)
             if goal < toSplit.keys[1]:
                 self.highlightCode(
@@ -817,7 +787,6 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                     (('return', 2), ('newNode', 5), ('parent', 6)),
                     callEnviron)
         self.canvas.itemconfigure(toSplit.keyItems()[1], text='')
-        self.canvas.itemconfigure(toSplit.dataItems()[1], fill='')
         self.cleanUp(callEnviron)
         return (toSplit if goal < toSplit.keys[1] else
                 parent if goal == toSplit.keys[1] else newNode,
@@ -852,10 +821,10 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
     
     def insertKeyValue(
             self, node, key, subtree=None, code=insertKeyValueCode, 
-            animation=True, wait=0.1, keyData=None):
+            animation=True, wait=0.1, keyFrom=None):
         '''Insert a key in a (non-full) node, optionally adding a subtree
-        as the child link before the key.  If keyData is provided, it
-        should be a tuple of the existing canvas items for the key and data.
+        as the child link before the key.  If keyFrom is provided, it
+        should be an existing canvas text item for the key.
         '''
         subtreeStr = str(subtree)
         callEnviron = self.createCallEnvironment(
@@ -874,11 +843,10 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
             iArrow = self.createArrow(node, 'i', **iConfig)
             callEnviron |= set(iArrow)
             self.scrollToSee(node.dValue.items[1:], sleepTime=wait / 10)
-
             self.highlightCode('i < self.nKeys', callEnviron, wait=wait)
             if i < node.nKeys:
                 self.highlightCode('self.keys[i] < key', callEnviron, wait=wait)
-                
+
         while i < node.nKeys and node.keys[i] < key:
             if animation:
                 self.highlightCode('i += 1', callEnviron, wait=wait)
@@ -900,36 +868,14 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
                     callEnviron, color=self.EXCEPTION_HIGHLIGHT)
             raise UserStop
 
-        # Prepare items for key and data to be inserted
-        if keyData is None:
-            newItemCoords = self.newValueCoords() 
-            newNode = self.createNodeShapes(newItemCoords, [key])
-            keyItem, dataItem = newNode[4], newNode[4 + Tree234.maxKeys]
-            for item in newNode:
-                if item not in (keyItem, dataItem):
-                    self.canvas.delete(item)
-        else:
-            center = self.canvas.coords(keyData[0])
-            offset = (self.CIRCLE_SIZE, self.CIRCLE_SIZE)
-            keyItem, dataItem = tuple(
-                self.copyCanvasItem(item) for item in keyData)
-            self.canvas.tag_lower(dataItem, keyData[0])
-        for item in node.keyItems():
-            self.canvas.tag_lower(dataItem, item)
-        callEnviron |= set((keyItem, dataItem))
-
         if animation:
             self.highlightCode('self.keys[i] == key', callEnviron, wait=wait)
         if node.keys[i] == key:
             if animation:
                 self.highlightCode('self.data[i] = data', callEnviron, 
                                    wait=wait)
-                self.moveItemsTo(
-                    dataItem, self.canvas.coords(node.dataItems()[i]),
-                    sleepTime=wait / 10)
-
+                # Animate updating data?
                 self.highlightCode('return False', callEnviron, wait=wait)
-            self.copyItemAttributes(dataItem, node.dataItems()[i], 'fill')
             self.cleanUp(callEnviron)
             return False
 
@@ -952,7 +898,7 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
         if animation:
             self.highlightCode('i < j', callEnviron, wait=wait)
         while i < j:
-            jKey, jData = node.keyItems()[j], node.dataItems()[j]
+            jKey = node.keyItems()[j]
             if animation:
                 self.highlightCode('self.keys[j] = self.keys[j-1]', callEnviron)
                 keyCopy = self.copyCanvasItem(node.keyItems()[j - 1])
@@ -970,16 +916,8 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
                 callEnviron.discard(keyCopy)
                 self.highlightCode('self.data[j] = self.data[j-1]', callEnviron,
                                    wait=wait)
-                dataCopy = self.copyCanvasItem(node.dataItems()[j - 1])
-                for item in node.keyItems()[j - 1:j+1]:
-                    self.canvas.tag_lower(dataCopy, item)
-                callEnviron.add(dataCopy)
-                self.moveItemsOnCurve(
-                    dataCopy, self.canvas.coords(jData), sleepTime=wait / 10, 
-                    see=node.dValue.items[1:])
                 self.highlightCode(
                     'self.children[j+1] = self.children[j]', callEnviron)
-            self.copyItemAttributes(node.dataItems()[j - 1], jData, 'fill')
             node.children[j + 1] = node.children[j]
             child = node.children[j + 1]
             if child:
@@ -1003,7 +941,25 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
 
         if animation:
             self.highlightCode('self.keys[i] = key', callEnviron)
-            circleCoords = self.canvas.coords(dataItem)
+            if keyFrom is None:
+                newItemCoords = self.newValueCoords() 
+                newNode = self.createNodeShapes(newItemCoords, [key])
+                circleItem, keyItem = newNode[1], newNode[4]
+                for item in newNode:
+                    if item in (circleItem, keyItem):
+                        callEnviron.add(item)
+                    else:
+                        self.canvas.delete(item)
+            else:
+                center = self.canvas.coords(keyFrom)
+                offset = (self.CIRCLE_SIZE, self.CIRCLE_SIZE)
+                circleItem = self.canvas.create_oval(
+                    (V(center) - V(offset)) + (V(center) + V(offset)),
+                    fill='SkyBlue1', width=0)
+                keyItem = self.copyCanvasItem(keyFrom)
+                for item in (node.keyItems()[i], keyFrom):
+                    self.canvas.tag_lower(circleItem, item)
+            circleCoords = self.canvas.coords(circleItem)
             self.canvas.coords(
                 keyItem, *(V(V(circleCoords[:2]) + V(circleCoords[2:])) / 2))
             self.canvas.itemconfigure(
@@ -1014,20 +970,19 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
         self.canvas.itemconfigure(node.keyItems()[i], text=str(key))
         node.keys[i] = key
         
-        iData = node.dataItems()[i]
         if animation:
             self.canvas.delete(keyItem)
             callEnviron.discard(keyItem)
-            self.highlightCode(('self.data[i] = data', 2), callEnviron)
+            self.highlightCode('self.data[i] = data', callEnviron)
             self.moveItemsTo(
-                dataItem, self.canvas.coords(iData), sleepTime=wait / 10)
-        self.copyItemAttributes(dataItem, iData, 'fill')
+                circleItem,
+                V(self.canvas.coords(node.dValue.items[1])) + 
+                V((self.CIRCLE_SIZE * i * 2, 0) * 2),
+                sleepTime=wait / 10)
+            self.canvas.delete(circleItem)
+            callEnviron.discard(circleItem)
 
-        if animation:
-            self.canvas.delete(dataItem)
-            callEnviron.discard(dataItem)
             self.highlightCode('self.nKeys += 1', callEnviron, wait=wait)
-
         self.canvas.itemconfigure(
             node.keyItems()[node.nKeys], fill=self.activeColor)
         node.nKeys += 1
