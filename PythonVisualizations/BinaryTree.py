@@ -55,19 +55,21 @@ def delete(self, goal={goal}):
                                callEnviron)
             localVars = parentIndex + nodeIndex
             colors = self.fadeNonLocalItems(localVars)
-            result = self.__delete(parent, node)
+            deletedKeyAndData = self.__delete(parent, node)
+            callEnviron |= set(deletedKeyAndData)
             self.restoreLocalItems(localVars, colors)
 
             outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
-            callEnviron.add(self.createOutputBox(coords=outBoxCoords))
+            outBox = self.createOutputBox(coords=outBoxCoords)
+            callEnviron.add(outBox)
             outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
-            
-            upperRightNodeCoords = self.upperRightNodeCoords(level=1)
-            deletedKey = self.canvas.create_text(
-                *upperRightNodeCoords, text=str(result), font=self.VALUE_FONT,
-                fill=self.VALUE_COLOR)
-            callEnviron.add(deletedKey)
-            self.moveItemsTo(deletedKey, outBoxCenter, sleepTime=wait / 10)
+
+            self.canvas.tag_raise(deletedKeyAndData[1], outBox)
+            self.canvas.tag_lower(deletedKeyAndData[0], outBox)
+            self.moveItemsTo(
+                deletedKeyAndData, self.nodeItemCoords(outBoxCenter)[1:],
+                sleepTime=wait / 10)
+            self.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
 
             if self.getNode(node):
                 if node % 2 == 1:
@@ -79,7 +81,7 @@ def delete(self, goal={goal}):
             result = None
 
         self.cleanUp(callEnviron)
-        return result
+        return self.canvas.itemconfigure(deletedKeyAndData[1], 'text')[-1]
     
     __deleteCode = '''
 def __delete(self, parent={parentStr}, node={nodeStr}):
@@ -125,7 +127,6 @@ def __delete(self, parent={parentStr}, node={nodeStr}):
         deletedKeyAndData = tuple(
             self.copyCanvasItem(item) 
             for item in self.getNode(node).drawnValue.items[1:])
-        callEnviron |= set(deletedKeyAndData)
         self.moveItemsTo(
             deletedKeyAndData, self.nodeItemCoords(upperRightNodeCoords)[1:],
             sleepTime=wait / 10)
@@ -190,7 +191,7 @@ def __delete(self, parent={parentStr}, node={nodeStr}):
             
         self.highlightCode('return deleted', callEnviron)
         self.cleanUp(callEnviron)
-        return deletedKey
+        return deletedKeyAndData
 
     __promote_successorCode = '''
 def __promote_successor(self, node={nodeStr}):
@@ -261,7 +262,8 @@ def __promote_successor(self, node={nodeStr}):
         self.highlightCode('self.__delete(parent, successor)', callEnviron)
         localVars = nodeArrow + parentIndex + successorIndex
         colors = self.fadeNonLocalItems(localVars)
-        self.__delete(parent, successor, level=2)
+        for item in self.__delete(parent, successor, level=2):
+            self.canvas.delete(item)
         self.restoreLocalItems(localVars, colors)
         
         self.highlightCode([], callEnviron)
