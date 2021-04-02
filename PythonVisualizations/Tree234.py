@@ -59,7 +59,6 @@ class Tree234(BinaryTreeBase):
     maxLinks = 4
     maxKeys = maxLinks - 1
     NODE_COLOR = 'gray90'
-    nextColor = 0
     
     def __init__(self, title="2-3-4 Tree", **kwargs):
         self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)

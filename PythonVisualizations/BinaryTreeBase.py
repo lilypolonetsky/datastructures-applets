@@ -41,14 +41,16 @@ class Node(object):
         self.drawnValue.items = (lineItem,) + self.drawnValue.items[1:] 
 
     def __str__(self):
-        return "<Node: key: {}, @{}, items: {}".format(
-            self.getKey(), self.center, self.drawnValue.items)
+        # return "<Node: key: {}, @{}, items: {}".format(
+        #         self.getKey(), self.center, self.drawnValue.items)
+        return "<Node: {}>".format(self.getKey())
 
 class BinaryTreeBase(VisualizationApp):
     # -------- CONSTANTS ------------------
     FONT_SIZE = -16
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     FOUND_FONT = ('Helvetica', FONT_SIZE)
+    nextColor = 0
 
     def __init__(self, RECT=None, CIRCLE_SIZE = 15, VAL_MAX=99, 
                ARROW_HEIGHT = 5, MAX_LEVEL = 5, **kwargs):
@@ -88,6 +90,9 @@ class BinaryTreeBase(VisualizationApp):
 
         self.prevId = -1      # One up counter for node tags
 
+    def __str__(self):
+        return '<BinarySearchTree>'
+        
     # --------- ACCESSOR METHODS ---------------------------
 
     # returns the index of the node
@@ -290,7 +295,7 @@ class BinaryTreeBase(VisualizationApp):
         rootWidth = self.textWidth(fieldFont, ' root ')
         fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
-        if offset is None: offset = 30
+        if offset is None: offset = 40
         if offsetAngle is None: offsetAngle = 180
         x0, y0 = V(self.ROOT_X0, self.ROOT_Y0) + V(
             V(V(offset + self.CIRCLE_SIZE, 0).rotate(offsetAngle)) -
@@ -442,7 +447,8 @@ class BinaryTreeBase(VisualizationApp):
         # get node's parent
         if parent is None:
             parent = self.getParent(node)
-        return node.center + (parent.center if parent else node.center)
+        return node.center + (
+            self.getNode(parent).center if parent is not None else node.center)
 
     # highlight or unhighlight the line that points from the node to its parent
     def createHighlightedLine(self, node, callEnviron=None, color=None):
@@ -490,7 +496,9 @@ class BinaryTreeBase(VisualizationApp):
         is None, the line will be zero length to become invisible.
         Returns the line, circular background, and text label items
         '''
-        if color is None: color = drawnValue.palette[2]
+        if color is None: 
+            color = drawnValue.palette[self.nextColor]
+            self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
         if radius is None: radius = self.CIRCLE_SIZE
         if font is None: font = self.VALUE_FONT
         circle = self.canvas.create_circle(
@@ -593,22 +601,21 @@ class BinaryTreeBase(VisualizationApp):
     # create a Node object with key and parent specified
     # parent should be a Node object
     def createNode(self, key, parent=None, direction=None, color=None, 
-                   addToArray=True):
+                   addToArray=True, center=None):
         # calculate the node index
         nodeIndex = self.getChildIndex(parent, direction) if parent else 0
         if direction is None:
             direction = Child.LEFT if nodeIndex % 2 == 1 else Child.RIGHT
       
         # calculate the node's center
-        center = self.nodeCenter(nodeIndex)
+        if center is None: center = self.nodeCenter(nodeIndex)
 
         # generate a tag
         tag = self.generateTag()
       
         # create the canvas items and the drawnValue object
         drawnValueObj = drawnValue(key, *self.createNodeShape(
-            *center, key, tag, parent=parent.center if parent else None,
-            color=color))
+            *center, key, tag, parent=None, color=color))
       
         # create the Node object
         node = Node(drawnValueObj, center, tag)
@@ -617,7 +624,8 @@ class BinaryTreeBase(VisualizationApp):
         self.size += 1
 
         # add the node object to the internal representation
-        if addToArray: self.setChildNode(node, direction, parent)
+        if addToArray: 
+            self.setChildNode(node, direction, parent, updateLink=True)
 
         return node 
 
@@ -665,7 +673,7 @@ class BinaryTreeBase(VisualizationApp):
     # set the node's child
     # returns the index where the child is stored
     def setChildNode(self, child, direction, parent=None, updateLink=False):
-        if not parent:
+        if parent is None or parent == -1:
             self.nodes[0] = child
             return 0
 
@@ -787,8 +795,8 @@ class BinaryTreeBase(VisualizationApp):
         self.size -= 1
         
     def fill(self, values, animation=False):
-        '''Fill the tree with values which is either a list of integers or
-        an integer number of random values'''
+        '''Empty the tree and then fill it with values which is either a
+        list of integers or an integer number of random values'''
         callEnviron = self.createCallEnvironment()
         
         nums = random.sample(range(self.valMax), values) if (
@@ -986,27 +994,49 @@ def insert(self, key={key}, data):
             self.highlightCode('node, parent = self.__find(key)', callEnviron)
         node, parent = self._find(key, animation=animation)
 
+        # Create the node off the canvas to be moved into place, if needed
+        if node < self.maxElems:
+            newNode = self.createNode(
+                key, parent=None if parent < 0 else self.nodes[parent],
+                direction=Child.LEFT
+                if parent < 0 or key < self.nodes[parent].getKey() else
+                Child.RIGHT, addToArray=False,
+                center=self.newValueCoords() if animation else None)
+            callEnviron |= set(newNode.drawnValue.items)
+            
         if animation:
             nodeIndex = self.createArrow(node, label='node')
             parentIndex = self.createArrow(parent, label='parent', level=2)
             callEnviron |= set(nodeIndex + parentIndex)
             self.highlightCode(('node', 2), callEnviron, wait=wait)
         if self.getNode(node):
-            nodeHighlight = self.createNodeHighlight(node)
-            callEnviron.add(nodeHighlight)
+            existingNode = self.getNode(node)
+            oldData = existingNode.drawnValue.items[1]
+            newData = newNode.drawnValue.items[1]
             if animation:
-                self.highlightCode('node.data = data', callEnviron, wait=wait)
+                nodeHighlight = self.createNodeHighlight(node)
+                callEnviron.add(nodeHighlight)
+                self.highlightCode('node.data = data', callEnviron)
+                self.canvas.tag_lower(newData, existingNode.drawnValue.items[2])
+                self.moveItemsTo(
+                    newData, self.canvas.coords(oldData), sleepTime=wait / 10)
+            self.copyItemAttributes(newData, oldData, 'fill')
+            if animation:
+                self.canvas.delete(newData)
+                callEnviron.discard(newData)
                 self.highlightCode('return False', callEnviron, wait=wait)
-            self.cleanUp(callEnviron)
-            return inserted
 
-        if animation:
-            self.highlightCode('parent is self', callEnviron, wait=wait)
-        if parent == -1:
+        elif animation and self.highlightCode(
+                'parent is self', callEnviron, wait=wait) or parent == -1:
             if animation:
                 self.highlightCode('self.__root = self.__Node(key, data)',
                                    callEnviron, wait=wait)
-            self.createNode(key)
+                self.moveItemsTo(
+                    newNode.drawnValue.items, self.nodeItemCoords(0),
+                    sleepTime= wait / 10)
+            newNode.center = self.nodeCenter(0)
+            self.setChildNode(newNode, Child.LEFT, parent=None)
+            callEnviron -= set(newNode.drawnValue.items)
             inserted = True
             self.updateTreeObjectRootPointer(root=self.getRoot())
             
@@ -1025,15 +1055,19 @@ def insert(self, key={key}, data):
             if animation:
                 self.highlightCode(
                     'parent.{}Child = self.__Node('.format(dir) +
-                    '\n         key, data, right=node)',
-                    callEnviron, wait=wait)
-            self.createNode(key, self.nodes[parent], 
-                            Child.LEFT if dir == 'left' else Child.RIGHT)
-            if animation:
+                    '\n         key, data, right=node)', callEnviron)
+                self.moveItemsLinearly(
+                    newNode.drawnValue.items,
+                    self.nodeItemCoords(node, parent), sleepTime=wait / 10)
                 if dir == 'left':
                     self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
                 self.moveItemsBy(
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait/10)
+            newNode.center = self.nodeCenter(node)
+            self.setChildNode(
+                newNode, Child.LEFT if dir == 'left' else Child.RIGHT, parent,
+                updateLink=True)
+            callEnviron -= set(newNode.drawnValue.items)
             inserted = True
  
         if animation and inserted:
