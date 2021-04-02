@@ -570,9 +570,11 @@ class BinaryTreeBase(VisualizationApp):
         if font is None: font = self.VALUE_FONT
         spacing = self.outputBoxSpacing(font)
         canvasDims = self.widgetDimensions(self.canvas)
-        left = max(0, canvasDims[0] - N * spacing - padding) // 2
-        return (left, canvasDims[1] - abs(font[1]) * 2 - padding,
-                left + N * spacing + padding, canvasDims[1] - padding)
+        width = max(2 * (self.CIRCLE_SIZE + padding), N * spacing)
+        left = max(0, canvasDims[0] - width) // 2
+        height = max(2 * self.CIRCLE_SIZE, abs(font[1]) * 2 + padding)
+        return (left, canvasDims[1] - height - padding,
+                left + width, canvasDims[1] - padding)
 
     def createOutputBox(self, coords=None, font=None):
         if coords is None: coords = self.outputBoxCoords(font=font)
