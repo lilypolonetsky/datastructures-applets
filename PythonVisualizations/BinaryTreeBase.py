@@ -63,17 +63,20 @@ class BinaryTreeBase(VisualizationApp):
         """
         super().__init__(**kwargs)
         self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
-        outputBoxHeight = abs(self.outputFont[1]) * 2 + 6
-        if RECT is None:
-            RECT = (0, 0, self.targetCanvasWidth, 
-                    self.targetCanvasHeight - outputBoxHeight)
-        X0, Y0, X1, Y1 = RECT
-        self.RECT = RECT
+        self.size = 0
         self.valMax = VAL_MAX
         
         self.CIRCLE_SIZE = CIRCLE_SIZE       # radius of each node
         self.ARROW_HEIGHT = ARROW_HEIGHT     # indicator arrow height
         self.MAX_LEVEL = MAX_LEVEL           # the max level of the tree plus 1
+
+        canvasDims = (self.targetCanvasWidth, self.targetCanvasHeight)
+        outputBoxCoords = self.outputBoxCoords(canvasDims=canvasDims)
+        outputBoxHeight = outputBoxCoords[3] - outputBoxCoords[1]
+        if RECT is None:
+            RECT = (0, 0, canvasDims[0], outputBoxCoords[1] - 1)
+        X0, Y0, X1, Y1 = RECT
+        self.RECT = RECT
         self.ROOT_X0 = (X0 + X1) // 2        # root's center
         self.ROOT_Y0 = Y0 + CIRCLE_SIZE + ARROW_HEIGHT + 3 * abs(
             self.VARIABLE_FONT[1])
@@ -86,7 +89,6 @@ class BinaryTreeBase(VisualizationApp):
         # root's left child will be index 1, root's right child will be index 2
         self.maxElems = 2 ** self.MAX_LEVEL - 1
         self.nodes = [None] * self.maxElems
-        self.size = 0
 
         self.prevId = -1      # One up counter for node tags
 
@@ -563,13 +565,14 @@ class BinaryTreeBase(VisualizationApp):
         if font is None: font = self.VALUE_FONT
         return self.textWidth(font, ' ' + str(self.valMax))
     
-    def outputBoxCoords(self, font=None, padding=6, N=None):
+    def outputBoxCoords(self, font=None, padding=6, N=None, canvasDims=None):
         '''Coordinates for an output box in lower right of canvas with enough
         space to hold N values, defaulting to current tree size'''
         if N is None: N = max(1, self.size)
         if font is None: font = self.VALUE_FONT
         spacing = self.outputBoxSpacing(font)
-        canvasDims = self.widgetDimensions(self.canvas)
+        if canvasDims is None:
+            canvasDims = self.widgetDimensions(self.canvas)
         width = max(2 * (self.CIRCLE_SIZE + padding), N * spacing)
         left = max(0, canvasDims[0] - width) // 2
         height = max(2 * self.CIRCLE_SIZE, abs(font[1]) * 2 + padding)
