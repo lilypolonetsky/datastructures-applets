@@ -70,10 +70,9 @@ class BinaryTreeBase(VisualizationApp):
         self.ARROW_HEIGHT = ARROW_HEIGHT     # indicator arrow height
         self.MAX_LEVEL = MAX_LEVEL           # the max level of the tree plus 1
 
-        canvasDims = (self.targetCanvasWidth, self.targetCanvasHeight)
-        outputBoxCoords = self.outputBoxCoords(canvasDims=canvasDims)
-        outputBoxHeight = outputBoxCoords[3] - outputBoxCoords[1]
         if RECT is None:
+            canvasDims = (self.targetCanvasWidth, self.targetCanvasHeight)
+            outputBoxCoords = self.outputBoxCoords(canvasDims=canvasDims)
             RECT = (0, 0, canvasDims[0], outputBoxCoords[1] - 1)
         X0, Y0, X1, Y1 = RECT
         self.RECT = RECT

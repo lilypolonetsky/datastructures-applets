@@ -66,11 +66,11 @@ class Tree234(BinaryTreeBase):
         self.CIRCLE_SIZE = 12
         canvasWidth = kwargs.get('canvasWidth', 800)
         canvasHeight = kwargs.get('canvasHeight', 400)
-        self.activeColor, self.leftoverColor = 'black', 'gray40'
+        canvasBounds = (-canvasWidth // 2, 0, canvasWidth // 2, canvasHeight)
+        self.activeColor, self.leftoverColor = 'black', 'gray30'
         super().__init__(
-            title=title, CIRCLE_SIZE=self.CIRCLE_SIZE,
-            canvasBounds=(-canvasWidth // 2, 0, canvasWidth // 2, canvasHeight),
-            **kwargs)
+            title=title, CIRCLE_SIZE=self.CIRCLE_SIZE, RECT=canvasBounds,
+            canvasBounds=canvasBounds, **kwargs)
         self.ROOT_X0, self.ROOT_Y0 = 0, 0
         self.LEVEL_GAP = self.CIRCLE_SIZE * 8
         self.scale, self.fontScale = 1.0, abs(self.FONT_SIZE)
@@ -428,16 +428,18 @@ class Tree234(BinaryTreeBase):
             sleepTime=wait / 10, 
             see=flat(*(n.dValue.items[1:] for n in node)))
             
-    def outputBoxCoords(self, font=None, padding=6, N=None, scale=None):
+    def outputBoxCoords(self, font=None, padding=6, N=None, canvasDims=None,
+                        scale=None):
         '''Coordinates for an output box at top of canvas with enough
         space to hold N values, defaulting to current tree item count.
         This makes use of negative y coordinates to extend the canvas
         bounds above the tree root.'''
-        if N is None: N = sum(node.nKeys for node in
-                              self.getAllDescendants(self.rootNode))
+        if N is None: N = sum(
+                node.nKeys for node in
+                self.getAllDescendants(getattr(self, 'rootNode', None)))
         N = max(1, N)
         if font is None: font = self.VALUE_FONT
-        if scale is None: scale = self.scale
+        if scale is None: scale = getattr(self, 'scale', 1)
         spacing = self.outputBoxSpacing(font)
         left = max(self.canvasBounds[0],
                    self.ROOT_X0 - (N * spacing - padding) // 2)
