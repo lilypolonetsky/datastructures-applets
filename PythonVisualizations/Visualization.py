@@ -41,10 +41,12 @@ def vector_length2(vect):    # Get the vector's length squared
 def vector_length(vect):     # Get the vector's length
     return V(vect).vlen()
 
-def BBoxesOverlap(bbox1, bbox2):
+def BBoxesOverlap(bbox1, bbox2, zeroOK=True):
     'Determine if bounding boxes overlap'
-    return (rangesOverlap(bbox1[0], bbox1[2], bbox2[0], bbox2[2]) and 
-            rangesOverlap(bbox1[1], bbox1[3], bbox2[1], bbox2[3]))
+    half = len(bbox1) // 2
+    return all(rangesOverlap(bbox1[j], bbox1[j + half], 
+                             bbox2[j], bbox2[j + half], zeroOK=zeroOK)
+               for j in range(half))
 
 def rangesOverlap(lo1, hi1, lo2, hi2, zeroOK=True):
     'Determine if a range overlaps another.  Allow zero overlap, if requested.'
@@ -53,8 +55,9 @@ def rangesOverlap(lo1, hi1, lo2, hi2, zeroOK=True):
 
 def BBoxContains(bbox1, bbox2):
     'Return whether bounding box 1 fully contains bounding box 2'
-    return (bbox1[0] <= bbox2[0] and bbox1[1] <= bbox2[1] and
-            bbox1[2] >= bbox2[2] and bbox1[3] >= bbox2[3])
+    half = len(bbox1) // 2
+    return all(bbox1[j] <= bbox2[j] and bbox1[j + half] >= bbox2[j + half]
+               for j in range(half))
 
 def BBoxEmpty(bbox):
     'Return whether a bounding box has any area'
@@ -67,9 +70,9 @@ def BBoxIntersection(*bboxes):
     elif len(bboxes) == 1:
         return bboxes[0]
     else:
-        return [
-            max(bbox[0] for bbox in bboxes), max(bbox[1] for bbox in bboxes),
-            min(bbox[2] for bbox in bboxes), min(bbox[3] for bbox in bboxes)]
+        half = len(bboxes[0]) // 2
+        return tuple((max if j < half else min)(bbox[j] for bbox in bboxes)
+                     for j in range(len(bboxes[0])))
 
 def BBoxUnion(*bboxes):
     'Return the smallest bounding box containing a sequence of bounding boxes'
@@ -78,9 +81,13 @@ def BBoxUnion(*bboxes):
     elif len(bboxes) == 1:
         return bboxes[0]
     else:
-        return [
-            min(bbox[0] for bbox in bboxes), min(bbox[1] for bbox in bboxes),
-            max(bbox[2] for bbox in bboxes), max(bbox[3] for bbox in bboxes)]
+        half = len(bboxes[0]) // 2
+        return tuple((min if j < half else max)(bbox[j] for bbox in bboxes)
+                     for j in range(len(bboxes[0])))
+
+def BBoxCenter(bbox):
+    half = len(bbox) // 2
+    return V(V(bbox[:half]) + V(bbox[half:])) / 2
 
 # Tk definitions
 # Modifier key constants
@@ -426,26 +433,26 @@ class Visualization(object):  # Base class for Python visualizations
             curPositions = [
                 self.canvas.coords(i) for i in items if i is not None]
             bboxes = [self.canvas.bbox(i) for i in items if i is not None]
-            bbox = bboxes[0]  # Get bounding box of all items
-            for bb in bboxes[1:]:
-                bbox = [min(bbox[0], bb[0]), min(bbox[1], bb[1]),
-                        max(bbox[2], bb[2]), max(bbox[3], bb[3])]
-            canvasDimensions = self.widgetDimensions(self.canvas)
+            itemsBBox = BBoxUnion(*bboxes)  # Get bounding box of all items
+            visible = self.visibleCanvas()
+            bounds = BBoxUnion(
+                visible, self.canvasBounds if self.canvasBounds else visible)
+            visibleCenter = BBoxCenter(visible)
+
             # Compute delta vector that moves them on a line away from the
             # center of the canvas
-            delta = ((bbox[0] + bbox[2] - canvasDimensions[0]) / 2,
-                     0 - bbox[3])
-            if edge == S:
-                delta = (delta[0], canvasDimensions[1] - bbox[1])
+            delta = V(BBoxCenter(itemsBBox)) - V(visibleCenter)
+            if edge in (N, S):
+                delta = (delta[0], visible[3] - itemsBBox[1] if edge is S else
+                         visible[1] - itemsBBox[3])
             elif edge in (W, E):
-                delta = (0 - bbox[2],
-                         (bbox[1] + bbox[3] - canvasDimensions[1]) / 2)
-                if edge == E:
-                    delta = (canvasDimensions[0] - bbox[0], delta[1])
-            # Ensure no more that 45 degree angle to departure boundary
-            if abs(delta[0]) > abs(delta[1]) and edge not in (E, W):
+                delta = (visible[2] - itemsBBox[0] if edge is E else
+                         visible[0] - itemsBBox[2], delta[1])
+
+            # Ensure no more that 45 degree angle to departure boundary normal
+            if abs(delta[0]) > abs(delta[1]) and edge in (N, S):
                 delta = (abs(delta[1]) * (-1 if delta[0] < 0 else 1), delta[1])
-            elif abs(delta[0]) < abs(delta[1]) and edge not in (N, S):
+            elif abs(delta[0]) < abs(delta[1]) and edge in (E, W):
                 delta = (delta[0], abs(delta[0]) * (-1 if delta[1] < 0 else 1))
             for step, _ in self.moveItemsBySequence(items, delta, steps):
                 yield (step, _)
@@ -867,3 +874,40 @@ class Visualization(object):  # Base class for Python visualizations
 
 class UserStop(Exception):   # Exception thrown when user stops animation
     pass
+
+if __name__ == '__main__':
+    for dims in range(2, 4):
+        print('=' * 70)
+        p1 = tuple(c for c in range(1, dims + 1))
+        p2 = tuple(c * (c + 1) + 1 for c in p1)
+        mid = V(V(p1) + V(p2)) // 2
+        bboxes = [p1 + mid, mid + p2, p1 + p2]
+        badBBox = mid + p1
+        for i in range(len(bboxes) - 1):
+            boxiEmpty = BBoxEmpty(bboxes[i])
+            print('BBox {} {} empty'.format(bboxes[i],
+                                            'is' if boxiEmpty else 'is not'))
+            for j in range(i + 1, len(bboxes)):
+                print('BBox 1 = {!s:25}  BBox 2 = {!s:25}'.format(
+                    bboxes[i], bboxes[j]))
+                for f in (BBoxUnion, BBoxIntersection, BBoxesOverlap, BBoxContains):
+                    print('{}({}, {}) = {}'.format(
+                        f.__name__, bboxes[i], bboxes[j], 
+                        f(bboxes[i], bboxes[j])))
+                print('{}({}, {}) = {}'.format(
+                    'BBoxContains', bboxes[j], bboxes[i],
+                    BBoxContains(bboxes[j], bboxes[i])))
+                if not boxiEmpty and BBoxEmpty(
+                        BBoxIntersection(bboxes[i], bboxes[j])):
+                    print('The first box is not empty but the intesection is.')
+                if not all(BBoxContains(BBoxUnion(bboxes[i], bboxes[j]), bb)
+                           for bb in (bboxes[i], bboxes[j])):
+                    print('Union of {} {} does not contain both!'.format(
+                        bboxes[i], bboxes[j]))
+                if not all(BBoxContains(bb, BBoxIntersection(bboxes[i], bboxes[j]))
+                           for bb in (bboxes[i], bboxes[j])):
+                    print(('The bounding boxes {} {} do not both contain'
+                           'their intersection!').format(bboxes[i], bboxes[j]))
+
+        print('Bad BBox {} {} empty'.format(
+                badBBox, 'is' if BBoxEmpty(badBBox) else 'is not'))
