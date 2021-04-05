@@ -158,7 +158,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
 
     def getOperations(self):
-        '''Get all the currently defined operations.  Retrun:
+        '''Get all the currently defined operations.  Return:
         withArgument: List of operation buttons that require 1+ argument(s)
         withoutArgument: List of operation buttons that require no arguments
         nColumns: number of columns in operations grid
@@ -910,23 +910,23 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         return focusHandler
             
     def enableButtons(self, enable=True):
-        gridItems = gridDict(self.operations)  # All Tk items in operations 
-        nColumns, nRows = self.operations.grid_size() # by grid cell
-        for col in range(nColumns):
-            for btn in [gridItems[col, row] for row in range(nRows)]:
-                # Only change button types, not text entry or other widgets
-                if isinstance(btn, self.buttonTypes):
-                    self.widgetState(btn, NORMAL if enable else DISABLED)
-                elif btn is getattr(self, 'playControlsFrame', False):
-                    for b in (
-                            self.pauseButton, self.stepButton, self.stopButton):
-                        if b:
-                            self.widgetState(
-                                b,
-                                NORMAL if (
-                                    enable and not self.animationsStopped() and
-                                    (b != self.stepButton or self.codeText))
-                                else DISABLED)
+        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        args = self.getArguments()
+        for btn in withArgs + withoutArgs:
+            if isinstance(btn, self.buttonTypes):
+                nArgs = getattr(btn, 'required_args', 0)
+                self.widgetState(
+                    btn, NORMAL if enable and all(args[:nArgs]) else DISABLED)
+            
+            elif btn is getattr(self, 'playControlsFrame', False):
+                for b in (self.pauseButton, self.stepButton, self.stopButton):
+                    if b:
+                        self.widgetState(
+                            b,
+                            NORMAL if (
+                                enable and not self.animationsStopped() and
+                                (b != self.stepButton or self.codeText))
+                            else DISABLED)
 
     def stop(self):
         self.stopAnimations()
