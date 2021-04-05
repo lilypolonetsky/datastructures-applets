@@ -218,8 +218,10 @@ class BinaryTreeBase(VisualizationApp):
         if node is None: return
         if erase: self.nodes[nodeIndex] = None
         return [node,
-                self.getNodeTree(self.getLeftChildIndex(nodeIndex)),
-                self.getNodeTree(self.getRightChildIndex(nodeIndex))]
+                self.getNodeTree(self.getLeftChildIndex(nodeIndex),
+                                 erase=erase),
+                self.getNodeTree(self.getRightChildIndex(nodeIndex),
+                                 erase=erase)]
 
     def storeNodeTree(self, nodeTree, index, updateCenter=True):
         '''Place nodes from a nested list [sub-]tree into the nodes array 
@@ -692,11 +694,13 @@ class BinaryTreeBase(VisualizationApp):
             wait=0.1):
         '''Move the subtree at replacementIndex to be the left or right
         child of the node at nodeIndex. Discard the current subtree of
-        that node.'''
+        that node.  Animate the process by moving leftOrRight child link
+        first (when nodeIndex points at an existing node) and then the
+        nodes in the subtrees'''
         childIndex = self.getChildIndex(nodeIndex, leftOrRight)
         child = self.getNode(childIndex)
-        replacement = self.getNode(replacementIndex)
-        replacementSubtree = self.getAllDescendants(replacementIndex)
+        replacementRoot = self.getNode(replacementIndex)
+        replacementNodes = self.getAllDescendants(replacementIndex)
         
         if child:
             if nodeIndex < 0:  # When the parent is tree object
@@ -707,7 +711,7 @@ class BinaryTreeBase(VisualizationApp):
                 highlightLine = self.createHighlightedLine(child, callEnviron)
                 child.setLine(None)
                 replacementCenter = self.nodeCenter(
-                    replacementIndex if replacement else nodeIndex)
+                    replacementIndex if replacementRoot else nodeIndex)
                 newLineCoords = replacementCenter + self.nodeCenter(nodeIndex)
                 self.moveItemsLinearly(
                     (childLine, highlightLine), (newLineCoords, newLineCoords),
@@ -716,33 +720,24 @@ class BinaryTreeBase(VisualizationApp):
                 callEnviron.discard(highlightLine)
             
             # The moved line becomes the parent line of the replacemnt node
-            if replacement:
-                self.canvas.delete(replacement.getLine())
-                replacement.setLine(childLine)
+            if replacementRoot:
+                self.canvas.delete(replacementRoot.getLine())
+                replacementRoot.setLine(childLine)
             
             for node in self.getAllDescendants(childIndex):
-                if node not in replacementSubtree:
+                if node not in replacementNodes:
                     self.removeNodeDrawing(node)
                     self.removeNodeInternal(node)
 
         self.moveSubtree(childIndex, replacementIndex)
-        self.restoreNodePositions(replacementSubtree, sleepTime=wait /10)
+        self.restoreNodePositions(replacementNodes, sleepTime=wait /10)
         
     def moveSubtree(self, toIndex, fromIndex):
         "Move internal subtree rooted at fromIndex to be rooted at toIndex"
         if toIndex < 0 or len(self.nodes) <= toIndex or toIndex == fromIndex:
             return    # Do nothing if the to index is out of bounds or = from
-        
-        toDo = [(toIndex, fromIndex)] # Queue of assignments to make
-        while len(toDo):      # While there are subtrees to move
-            tIndex, fIndex = toDo.pop(0) # Get next move from front of queue
-            if len(self.nodes) <= tIndex: # If to index is beyond limit, skip
-                continue
-            self.nodes[tIndex] = self.getNode(fIndex)
-            if self.nodes[tIndex]:    # If copied node exists
-                for child in range(1, 3): # Loop over children 
-                    toDo.append(   # Enqueue moves of children, including Nones
-                        (2 * tIndex + child, 2 * fIndex + child))
+
+        self.storeNodeTree(self.getNodeTree(fromIndex, erase=True), toIndex)
 
     def generateTag(self):
         self.prevId+=1
@@ -796,8 +791,9 @@ class BinaryTreeBase(VisualizationApp):
     # remove the node from the internal array (can be a node index)
     def removeNodeInternal(self, node):
         nodeIndex = self.getIndex(node) if isinstance(node, Node) else node
-        self.nodes[nodeIndex] = None
-        self.size -= 1
+        if 0 <= nodeIndex:
+            self.nodes[nodeIndex] = None
+            self.size -= 1
         
     def fill(self, values, animation=False):
         '''Empty the tree and then fill it with values which is either a
@@ -1354,13 +1350,23 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
     def clickTraverse(self, traverseType):
         self.traverseExample(traverseType, start=self.startMode())
 
-    def printTree(self, indentBy=4):
-        self.__pTree(self.nodes[0], "", indentBy)
+    def print(self, indentBy=' ' * 4, **kwargs):
+        self.__pTree(self.nodes[0], "", indentBy, **kwargs)
 
-    def __pTree(self, node, indent, indentBy=4):
+    def __pTree(self, node, indent, indentBy, **kwargs):
         if node:
             self.__pTree(
-                self.getRightChild(node), indent + " " * indentBy, indentBy)
-            print(indent, '{:2d}'.format(self.getIndex(node)), node)
+                self.getRightChild(node), indent + indentBy, indentBy, **kwargs)
+            print(indent, '{:2d}'.format(self.getIndex(node)), node, **kwargs)
             self.__pTree(
-                self.getLeftChild(node), indent + " " * indentBy, indentBy)
+                self.getLeftChild(node), indent + indentBy, indentBy, **kwargs)
+            
+    def orphaned(self, **kwargs):
+        allNodes = self.getAllDescendants(0)
+        for i, node in enumerate(self.nodes):
+            if node is not None and node not in allNodes:
+                print('At {:2d} {} is an orphan'.format(i, node), **kwargs)
+                parentIndex = self.getParentIndex(i)
+                if 0 <= i and self.nodes[parentIndex] is not None:
+                    print(' but parent at {} contains {}'.format(
+                        parentIndex, self.nodes[parentIndex]), **kwargs)
