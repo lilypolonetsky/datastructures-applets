@@ -852,7 +852,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         highlights = self.callStackHighlights()
         if (allowStepping and self.animationsStepping() and
                self.lastHighlights != highlights):
-            if len(highlights) > 0:
+            if len(highlights) > 0 and highlights[-1]:
                 codeBlock = self.getCodeHighlightBlock(self.callStack[-1])
                 for fragment in reversed(highlights[-1]):
                     for index in reversed(self.codeText.tag_ranges(
