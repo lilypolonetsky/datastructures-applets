@@ -69,8 +69,13 @@ class CodeHighlightBlock(object):
         if isinstance(fragment, type(declarationPattern)):
             matches = [match for match in fragment.finditer(self.code)]
             if len(matches) >= copy:
-                start = matches[copy - 1].start()
-                fragment = matches[copy - 1].group()
+                match = matches[copy - 1]
+                lastGroup = 0
+                for i in range(1, len(match.groups()) + 1):
+                    if match.group(i):
+                        lastGroup = i
+                start = match.start(lastGroup)
+                fragment = match.group(lastGroup)
             else:
                 start = None
         else:
@@ -127,31 +132,38 @@ def factorial(n):
     import VisualizationApp, sys
     app = VisualizationApp.VisualizationApp(
         title='Test Text Highlight', canvasBounds=(0, 0, 1200, 600))
-    app.showCode(testCode)
-    codeHighlightBlock = CodeHighlightBlock(testCode, app.codeText)
-    codeHighlightBlock.markStart()
-    for arg in reversed(sys.argv[1:]):
-        app.showCode(arg, addBoundary=True)
 
     x, y = 10, 10
     def canvasPrint(*texts, sep=' '):
         global app, x, y
         text = sep.join(map(str, texts))
-        app.canvas.create_text(x, y, anchor=NW, text=text,
-                               font=app.VARIABLE_FONT, fill=app.VARIABLE_COLOR)
-        y += app.textHeight(app.VARIABLE_FONT) * len(text.split('\n'))
+        for line in text.split('\n'):
+            app.canvas.create_text(
+                x, y, anchor=NW, text=line, font=app.VARIABLE_FONT,
+                fill=app.VARIABLE_COLOR)
+            y += app.textHeight(app.VARIABLE_FONT)
 
-    canvasPrint('Added', codeHighlightBlock)
     fragments = ['factorial(n)', 'n < 1', 'return', 'return', 'return', 
                  'return (n *\n           factorial(n - 1)',
                  re.compile(r'return \(n \*\s+factorial'),
-                 (re.compile(r'\Wn\W'), 3),
+                 (re.compile(r'\W(n)\W'), 3), re.compile(r'\s(1)\s'),
                  'not here', re.compile(r'not here')]
     tags = {}
+    useHighlightCode = IntVar()
+    useHighlightCode.set(1)
+    useHighlightCodeButton = Checkbutton(
+        app.operations, text="Use highlightCode", variable=useHighlightCode)
+    useHighlightCodeButton.grid(column=4, row=1, padx=8, sticky=(E, W))
     app.addAnimationButtons()
-    app.startAnimations()
-    app.setMessage('Finding fragments')
 
+    callEnviron = app.createCallEnvironment(testCode)
+    codeHighlightBlock = CodeHighlightBlock(testCode, app.codeText)
+    codeHighlightBlock.markStart()
+    canvasPrint('Added', codeHighlightBlock)
+    for arg in reversed(sys.argv[1:]):
+        app.showCode(arg, addBoundary=True)
+
+    app.setMessage('Finding fragments')
     for i, fragment in enumerate(fragments):
         try:
             fragTuple = fragment if isinstance(fragment, tuple) else (
@@ -169,16 +181,21 @@ def factorial(n):
                     copy, fragment, e))
 
     try:
-        canvasPrint('Highligting fragments in endless loop')
+        canvasPrint('\nHighligting fragments in endless loop...')
         while True:
             for tag in tags:
+                app.widgetState(useHighlightCodeButton, NORMAL)
                 app.setMessage('Fragment "{}" copy {}\nhas tag {}'.format(
                     tag[0], tag[1], repr(codeHighlightBlock[tag[0], tag[1]])))
-                for othertag in tags:
-                    app.codeText.tag_config(
-                        tags[othertag],
-                        background=app.CODE_HIGHLIGHT if tag is othertag else '')
-                app.wait(1)
+                if useHighlightCode.get():
+                    app.highlightCode(tag, callEnviron)
+                else:
+                    for othertag in tags:
+                        app.codeText.tag_config(
+                            tags[othertag],
+                            background=app.CODE_HIGHLIGHT if tag is othertag
+                            else '')
+                app.wait(0 if app.animationsStepping() else 1)
     except VisualizationApp.UserStop:
         print('Stop pressed')
     app.stopAnimations()
