@@ -787,8 +787,7 @@ def __deleteMin(self, node={nodeKey}):
     __balanceLeftCode = '''
 def __balanceLeft(self, node={nodeKey}):
    if node.heightDiff() < -1:
-      if (node.right.left is not None and
-          node.right.heightDiff() > 0):
+      if node.right.heightDiff() > 0:
          node.right = self.rotateRight(node.right)
          
       node = self.rotateLeft(node)
@@ -807,16 +806,13 @@ def __balanceLeft(self, node={nodeKey}):
 
         self.highlightCode('node.heightDiff() < -1', callEnviron)
         if self.heightDiff(node, callEnviron, wait / 10) < -1:
-            self.highlightCode('node.right.left is not None', callEnviron,
-                               wait=wait)
             rightChild = self.getRightChild(nodeIndex)
-            if self.getLeftChild(rightChild) is not None:
-                self.highlightCode('node.right.heightDiff() > 0', callEnviron)
-                if self.heightDiff(rightChild, callEnviron, wait / 10) > 0:
-                    self.highlightCode(
-                        'node.right = self.rotateRight(node.right)', callEnviron)
-                    self.setRightChild(node, self.rotateRight(rightChild),
-                                       updateLink=True)
+            self.highlightCode('node.right.heightDiff() > 0', callEnviron)
+            if self.heightDiff(rightChild, callEnviron, wait / 10) > 0:
+                self.highlightCode(
+                    'node.right = self.rotateRight(node.right)', callEnviron)
+                self.setRightChild(node, self.rotateRight(rightChild),
+                                   updateLink=True)
                     
             self.highlightCode('node = self.rotateLeft(node)', callEnviron)
             node = self.rotateLeft(node)
@@ -828,8 +824,7 @@ def __balanceLeft(self, node={nodeKey}):
     __balanceRightCode = '''
 def __balanceRight(self, node={nodeKey}):
    if node.heightDiff() > 1:
-      if (node.left.right is not None and
-          node.left.heightDiff() < 0):
+      if node.left.heightDiff() < 0:
          node.left = self.rotateLeft(node.left)
          
       node = self.rotateRight(node)
@@ -848,16 +843,13 @@ def __balanceRight(self, node={nodeKey}):
 
         self.highlightCode('node.heightDiff() > 1', callEnviron)
         if self.heightDiff(node, callEnviron, wait / 10) > 1:
-            self.highlightCode('node.left.right is not None', callEnviron,
-                               wait=wait)
             leftChild = self.getLeftChild(nodeIndex)
-            if self.getRightChild(leftChild) is not None:
-                self.highlightCode('node.left.heightDiff() < 0', callEnviron)
-                if self.heightDiff(leftChild, callEnviron, wait / 10) < 0:
-                    self.highlightCode(
-                        'node.left = self.rotateLeft(node.left)', callEnviron)
-                    self.setLeftChild(
-                        node, self.rotateLeft(leftChild), updateLink=True)
+            self.highlightCode('node.left.heightDiff() < 0', callEnviron)
+            if self.heightDiff(leftChild, callEnviron, wait / 10) < 0:
+                self.highlightCode(
+                    'node.left = self.rotateLeft(node.left)', callEnviron)
+                self.setLeftChild(
+                    node, self.rotateLeft(leftChild), updateLink=True)
                     
             self.highlightCode('node = self.rotateRight(node)', callEnviron)
             node = self.rotateRight(node)
