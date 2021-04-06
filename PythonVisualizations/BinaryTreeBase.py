@@ -41,14 +41,16 @@ class Node(object):
         self.drawnValue.items = (lineItem,) + self.drawnValue.items[1:] 
 
     def __str__(self):
-        return "<Node: key: {}, @{}, items: {}".format(
-            self.getKey(), self.center, self.drawnValue.items)
+        # return "<Node: key: {}, @{}, items: {}".format(
+        #         self.getKey(), self.center, self.drawnValue.items)
+        return "<Node: {}>".format(self.getKey())
 
 class BinaryTreeBase(VisualizationApp):
     # -------- CONSTANTS ------------------
     FONT_SIZE = -16
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     FOUND_FONT = ('Helvetica', FONT_SIZE)
+    nextColor = 0
 
     def __init__(self, RECT=None, CIRCLE_SIZE = 15, VAL_MAX=99, 
                ARROW_HEIGHT = 5, MAX_LEVEL = 5, **kwargs):
@@ -61,17 +63,19 @@ class BinaryTreeBase(VisualizationApp):
         """
         super().__init__(**kwargs)
         self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
-        outputBoxHeight = abs(self.outputFont[1]) * 2 + 6
-        if RECT is None:
-            RECT = (0, 0, self.targetCanvasWidth, 
-                    self.targetCanvasHeight - outputBoxHeight)
-        X0, Y0, X1, Y1 = RECT
-        self.RECT = RECT
+        self.size = 0
         self.valMax = VAL_MAX
         
         self.CIRCLE_SIZE = CIRCLE_SIZE       # radius of each node
         self.ARROW_HEIGHT = ARROW_HEIGHT     # indicator arrow height
         self.MAX_LEVEL = MAX_LEVEL           # the max level of the tree plus 1
+
+        if RECT is None:
+            canvasDims = (self.targetCanvasWidth, self.targetCanvasHeight)
+            outputBoxCoords = self.outputBoxCoords(canvasDims=canvasDims)
+            RECT = (0, 0, canvasDims[0], outputBoxCoords[1] - 1)
+        X0, Y0, X1, Y1 = RECT
+        self.RECT = RECT
         self.ROOT_X0 = (X0 + X1) // 2        # root's center
         self.ROOT_Y0 = Y0 + CIRCLE_SIZE + ARROW_HEIGHT + 3 * abs(
             self.VARIABLE_FONT[1])
@@ -84,10 +88,12 @@ class BinaryTreeBase(VisualizationApp):
         # root's left child will be index 1, root's right child will be index 2
         self.maxElems = 2 ** self.MAX_LEVEL - 1
         self.nodes = [None] * self.maxElems
-        self.size = 0
 
         self.prevId = -1      # One up counter for node tags
 
+    def __str__(self):
+        return '<BinarySearchTree>'
+        
     # --------- ACCESSOR METHODS ---------------------------
 
     # returns the index of the node
@@ -211,8 +217,10 @@ class BinaryTreeBase(VisualizationApp):
         if node is None: return
         if erase: self.nodes[nodeIndex] = None
         return [node,
-                self.getNodeTree(self.getLeftChildIndex(nodeIndex)),
-                self.getNodeTree(self.getRightChildIndex(nodeIndex))]
+                self.getNodeTree(self.getLeftChildIndex(nodeIndex),
+                                 erase=erase),
+                self.getNodeTree(self.getRightChildIndex(nodeIndex),
+                                 erase=erase)]
 
     def storeNodeTree(self, nodeTree, index, updateCenter=True):
         '''Place nodes from a nested list [sub-]tree into the nodes array 
@@ -290,7 +298,7 @@ class BinaryTreeBase(VisualizationApp):
         rootWidth = self.textWidth(fieldFont, ' root ')
         fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
-        if offset is None: offset = 30
+        if offset is None: offset = 40
         if offsetAngle is None: offsetAngle = 180
         x0, y0 = V(self.ROOT_X0, self.ROOT_Y0) + V(
             V(V(offset + self.CIRCLE_SIZE, 0).rotate(offsetAngle)) -
@@ -442,7 +450,8 @@ class BinaryTreeBase(VisualizationApp):
         # get node's parent
         if parent is None:
             parent = self.getParent(node)
-        return node.center + (parent.center if parent else node.center)
+        return node.center + (
+            self.getNode(parent).center if parent is not None else node.center)
 
     # highlight or unhighlight the line that points from the node to its parent
     def createHighlightedLine(self, node, callEnviron=None, color=None):
@@ -490,7 +499,9 @@ class BinaryTreeBase(VisualizationApp):
         is None, the line will be zero length to become invisible.
         Returns the line, circular background, and text label items
         '''
-        if color is None: color = drawnValue.palette[2]
+        if color is None: 
+            color = drawnValue.palette[self.nextColor]
+            self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
         if radius is None: radius = self.CIRCLE_SIZE
         if font is None: font = self.VALUE_FONT
         circle = self.canvas.create_circle(
@@ -555,16 +566,19 @@ class BinaryTreeBase(VisualizationApp):
         if font is None: font = self.VALUE_FONT
         return self.textWidth(font, ' ' + str(self.valMax))
     
-    def outputBoxCoords(self, font=None, padding=6, N=None):
+    def outputBoxCoords(self, font=None, padding=6, N=None, canvasDims=None):
         '''Coordinates for an output box in lower right of canvas with enough
         space to hold N values, defaulting to current tree size'''
         if N is None: N = max(1, self.size)
         if font is None: font = self.VALUE_FONT
         spacing = self.outputBoxSpacing(font)
-        canvasDims = self.widgetDimensions(self.canvas)
-        left = max(0, canvasDims[0] - N * spacing - padding) // 2
-        return (left, canvasDims[1] - abs(font[1]) * 2 - padding,
-                left + N * spacing + padding, canvasDims[1] - padding)
+        if canvasDims is None:
+            canvasDims = self.widgetDimensions(self.canvas)
+        width = max(2 * (self.CIRCLE_SIZE + padding), N * spacing)
+        left = max(0, canvasDims[0] - width) // 2
+        height = max(2 * self.CIRCLE_SIZE, abs(font[1]) * 2 + padding)
+        return (left, canvasDims[1] - height - padding,
+                left + width, canvasDims[1] - padding)
 
     def createOutputBox(self, coords=None, font=None):
         if coords is None: coords = self.outputBoxCoords(font=font)
@@ -593,22 +607,21 @@ class BinaryTreeBase(VisualizationApp):
     # create a Node object with key and parent specified
     # parent should be a Node object
     def createNode(self, key, parent=None, direction=None, color=None, 
-                   addToArray=True):
+                   addToArray=True, center=None):
         # calculate the node index
         nodeIndex = self.getChildIndex(parent, direction) if parent else 0
         if direction is None:
             direction = Child.LEFT if nodeIndex % 2 == 1 else Child.RIGHT
       
         # calculate the node's center
-        center = self.nodeCenter(nodeIndex)
+        if center is None: center = self.nodeCenter(nodeIndex)
 
         # generate a tag
         tag = self.generateTag()
       
         # create the canvas items and the drawnValue object
         drawnValueObj = drawnValue(key, *self.createNodeShape(
-            *center, key, tag, parent=parent.center if parent else None,
-            color=color))
+            *center, key, tag, parent=None, color=color))
       
         # create the Node object
         node = Node(drawnValueObj, center, tag)
@@ -617,7 +630,8 @@ class BinaryTreeBase(VisualizationApp):
         self.size += 1
 
         # add the node object to the internal representation
-        if addToArray: self.setChildNode(node, direction, parent)
+        if addToArray: 
+            self.setChildNode(node, direction, parent, updateLink=True)
 
         return node 
 
@@ -665,7 +679,7 @@ class BinaryTreeBase(VisualizationApp):
     # set the node's child
     # returns the index where the child is stored
     def setChildNode(self, child, direction, parent=None, updateLink=False):
-        if not parent:
+        if parent is None or parent == -1:
             self.nodes[0] = child
             return 0
 
@@ -679,11 +693,13 @@ class BinaryTreeBase(VisualizationApp):
             wait=0.1):
         '''Move the subtree at replacementIndex to be the left or right
         child of the node at nodeIndex. Discard the current subtree of
-        that node.'''
+        that node.  Animate the process by moving leftOrRight child link
+        first (when nodeIndex points at an existing node) and then the
+        nodes in the subtrees'''
         childIndex = self.getChildIndex(nodeIndex, leftOrRight)
         child = self.getNode(childIndex)
-        replacement = self.getNode(replacementIndex)
-        replacementSubtree = self.getAllDescendants(replacementIndex)
+        replacementRoot = self.getNode(replacementIndex)
+        replacementNodes = self.getAllDescendants(replacementIndex)
         
         if child:
             if nodeIndex < 0:  # When the parent is tree object
@@ -694,7 +710,7 @@ class BinaryTreeBase(VisualizationApp):
                 highlightLine = self.createHighlightedLine(child, callEnviron)
                 child.setLine(None)
                 replacementCenter = self.nodeCenter(
-                    replacementIndex if replacement else nodeIndex)
+                    replacementIndex if replacementRoot else nodeIndex)
                 newLineCoords = replacementCenter + self.nodeCenter(nodeIndex)
                 self.moveItemsLinearly(
                     (childLine, highlightLine), (newLineCoords, newLineCoords),
@@ -703,33 +719,24 @@ class BinaryTreeBase(VisualizationApp):
                 callEnviron.discard(highlightLine)
             
             # The moved line becomes the parent line of the replacemnt node
-            if replacement:
-                self.canvas.delete(replacement.getLine())
-                replacement.setLine(childLine)
+            if replacementRoot:
+                self.canvas.delete(replacementRoot.getLine())
+                replacementRoot.setLine(childLine)
             
             for node in self.getAllDescendants(childIndex):
-                if node not in replacementSubtree:
+                if node not in replacementNodes:
                     self.removeNodeDrawing(node)
                     self.removeNodeInternal(node)
 
         self.moveSubtree(childIndex, replacementIndex)
-        self.restoreNodePositions(replacementSubtree, sleepTime=wait /10)
+        self.restoreNodePositions(replacementNodes, sleepTime=wait /10)
         
     def moveSubtree(self, toIndex, fromIndex):
         "Move internal subtree rooted at fromIndex to be rooted at toIndex"
         if toIndex < 0 or len(self.nodes) <= toIndex or toIndex == fromIndex:
             return    # Do nothing if the to index is out of bounds or = from
-        
-        toDo = [(toIndex, fromIndex)] # Queue of assignments to make
-        while len(toDo):      # While there are subtrees to move
-            tIndex, fIndex = toDo.pop(0) # Get next move from front of queue
-            if len(self.nodes) <= tIndex: # If to index is beyond limit, skip
-                continue
-            self.nodes[tIndex] = self.getNode(fIndex)
-            if self.nodes[tIndex]:    # If copied node exists
-                for child in range(1, 3): # Loop over children 
-                    toDo.append(   # Enqueue moves of children, including Nones
-                        (2 * tIndex + child, 2 * fIndex + child))
+
+        self.storeNodeTree(self.getNodeTree(fromIndex, erase=True), toIndex)
 
     def generateTag(self):
         self.prevId+=1
@@ -783,12 +790,13 @@ class BinaryTreeBase(VisualizationApp):
     # remove the node from the internal array (can be a node index)
     def removeNodeInternal(self, node):
         nodeIndex = self.getIndex(node) if isinstance(node, Node) else node
-        self.nodes[nodeIndex] = None
-        self.size -= 1
+        if 0 <= nodeIndex:
+            self.nodes[nodeIndex] = None
+            self.size -= 1
         
     def fill(self, values, animation=False):
-        '''Fill the tree with values which is either a list of integers or
-        an integer number of random values'''
+        '''Empty the tree and then fill it with values which is either a
+        list of integers or an integer number of random values'''
         callEnviron = self.createCallEnvironment()
         
         nums = random.sample(range(self.valMax), values) if (
@@ -986,27 +994,49 @@ def insert(self, key={key}, data):
             self.highlightCode('node, parent = self.__find(key)', callEnviron)
         node, parent = self._find(key, animation=animation)
 
+        # Create the node off the canvas to be moved into place, if needed
+        if node < self.maxElems:
+            newNode = self.createNode(
+                key, parent=None if parent < 0 else self.nodes[parent],
+                direction=Child.LEFT
+                if parent < 0 or key < self.nodes[parent].getKey() else
+                Child.RIGHT, addToArray=False,
+                center=self.newValueCoords() if animation else None)
+            callEnviron |= set(newNode.drawnValue.items)
+            
         if animation:
             nodeIndex = self.createArrow(node, label='node')
             parentIndex = self.createArrow(parent, label='parent', level=2)
             callEnviron |= set(nodeIndex + parentIndex)
             self.highlightCode(('node', 2), callEnviron, wait=wait)
         if self.getNode(node):
-            nodeHighlight = self.createNodeHighlight(node)
-            callEnviron.add(nodeHighlight)
+            existingNode = self.getNode(node)
+            oldData = existingNode.drawnValue.items[1]
+            newData = newNode.drawnValue.items[1]
             if animation:
-                self.highlightCode('node.data = data', callEnviron, wait=wait)
+                nodeHighlight = self.createNodeHighlight(node)
+                callEnviron.add(nodeHighlight)
+                self.highlightCode('node.data = data', callEnviron)
+                self.canvas.tag_lower(newData, existingNode.drawnValue.items[2])
+                self.moveItemsTo(
+                    newData, self.canvas.coords(oldData), sleepTime=wait / 10)
+            self.copyItemAttributes(newData, oldData, 'fill')
+            if animation:
+                self.canvas.delete(newData)
+                callEnviron.discard(newData)
                 self.highlightCode('return False', callEnviron, wait=wait)
-            self.cleanUp(callEnviron)
-            return inserted
 
-        if animation:
-            self.highlightCode('parent is self', callEnviron, wait=wait)
-        if parent == -1:
+        elif animation and self.highlightCode(
+                'parent is self', callEnviron, wait=wait) or parent == -1:
             if animation:
                 self.highlightCode('self.__root = self.__Node(key, data)',
                                    callEnviron, wait=wait)
-            self.createNode(key)
+                self.moveItemsTo(
+                    newNode.drawnValue.items, self.nodeItemCoords(0),
+                    sleepTime= wait / 10)
+            newNode.center = self.nodeCenter(0)
+            self.setChildNode(newNode, Child.LEFT, parent=None)
+            callEnviron -= set(newNode.drawnValue.items)
             inserted = True
             self.updateTreeObjectRootPointer(root=self.getRoot())
             
@@ -1025,15 +1055,19 @@ def insert(self, key={key}, data):
             if animation:
                 self.highlightCode(
                     'parent.{}Child = self.__Node('.format(dir) +
-                    '\n         key, data, right=node)',
-                    callEnviron, wait=wait)
-            self.createNode(key, self.nodes[parent], 
-                            Child.LEFT if dir == 'left' else Child.RIGHT)
-            if animation:
+                    '\n         key, data, right=node)', callEnviron)
+                self.moveItemsLinearly(
+                    newNode.drawnValue.items,
+                    self.nodeItemCoords(node, parent), sleepTime=wait / 10)
                 if dir == 'left':
                     self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
                 self.moveItemsBy(
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait/10)
+            newNode.center = self.nodeCenter(node)
+            self.setChildNode(
+                newNode, Child.LEFT if dir == 'left' else Child.RIGHT, parent,
+                updateLink=True)
+            callEnviron -= set(newNode.drawnValue.items)
             inserted = True
  
         if animation and inserted:
@@ -1315,13 +1349,23 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
     def clickTraverse(self, traverseType):
         self.traverseExample(traverseType, start=self.startMode())
 
-    def printTree(self, indentBy=4):
-        self.__pTree(self.nodes[0], "", indentBy)
+    def print(self, indentBy=' ' * 4, **kwargs):
+        self.__pTree(self.nodes[0], "", indentBy, **kwargs)
 
-    def __pTree(self, node, indent, indentBy=4):
+    def __pTree(self, node, indent, indentBy, **kwargs):
         if node:
             self.__pTree(
-                self.getRightChild(node), indent + " " * indentBy, indentBy)
-            print(indent, '{:2d}'.format(self.getIndex(node)), node)
+                self.getRightChild(node), indent + indentBy, indentBy, **kwargs)
+            print(indent, '{:2d}'.format(self.getIndex(node)), node, **kwargs)
             self.__pTree(
-                self.getLeftChild(node), indent + " " * indentBy, indentBy)
+                self.getLeftChild(node), indent + indentBy, indentBy, **kwargs)
+            
+    def orphaned(self, **kwargs):
+        allNodes = self.getAllDescendants(0)
+        for i, node in enumerate(self.nodes):
+            if node is not None and node not in allNodes:
+                print('At {:2d} {} is an orphan'.format(i, node), **kwargs)
+                parentIndex = self.getParentIndex(i)
+                if 0 <= i and self.nodes[parentIndex] is not None:
+                    print(' but parent at {} contains {}'.format(
+                        parentIndex, self.nodes[parentIndex]), **kwargs)

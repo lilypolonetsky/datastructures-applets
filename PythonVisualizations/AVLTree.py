@@ -23,16 +23,12 @@ class AVLTree(BinaryTreeBase):
     def randomFill(self, numNodes):
         callEnviron = self.createCallEnvironment()
 
-        # empty the tree
-        self.emptyTree()
-
         #randomly generate a tree
-        nums = list(range(1, 99))
+        nums = list(range(self.valMax + 1))
         random.shuffle(nums)
-        while self.size < numNodes and nums:
-            num = nums.pop()
+        nums = nums[:numNodes]
+        while nums:
             self.insert(nums.pop(), animation=False)
-
         self.cleanUp(callEnviron)
 
     insertCode = '''
@@ -113,9 +109,15 @@ def __insert(self, node={nodeKey}, key={key}, data):
                 self.highlightCode('return self.__Node(key, data), True',
                                    callEnviron)
             insertedNode = self.createNode(
-                key, nodeIndex, parent=None, addToArray=False)
+                key, nodeIndex, parent=None, addToArray=False,
+                center=self.newValueCoords() if animation else None)
             self.setLeftChild(nodeIndex, None) # Ensure that inserted node
             self.setRightChild(nodeIndex, None) # is a leaf node
+            if animation:
+                itemCoords = self.nodeItemCoords(nodeIndex)
+                self.moveItemsTo(insertedNode.drawnValue.items, itemCoords,
+                                 sleepTime=wait / 10)
+                insertedNode.center = itemCoords[2]
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             return insertedNode, True
         
@@ -123,9 +125,20 @@ def __insert(self, node={nodeKey}, key={key}, data):
         if animation:
             self.highlightCode('key == node.key', callEnviron, wait=wait)
         if key == node.getKey():
+            link, dataItem, keyItem, heightItem = self.createNodeShape(
+                *self.newValueCoords(buffer=50), key, node.tag)
+            for item in (link, keyItem, heightItem):
+                self.canvas.delete(item)
+            callEnviron.add(dataItem)
+            nodeItems = node.drawnValue.items
             if animation:
-                self.setMessage(("Key {} already exists\n" +
-                                 "Updating value.").format(key))
+                self.canvas.tag_lower(dataItem, nodeItems[2])
+                self.highlightCode('node.data = data', callEnviron, wait=wait)
+                self.moveItemsTo(dataItem, self.canvas.coords(nodeItems[1]),
+                                 sleepTime=wait / 10)
+            self.copyItemAttributes(dataItem, nodeItems[1], 'fill')
+
+            if animation:
                 self.highlightCode('return node, False', callEnviron)
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             return node, False
@@ -173,7 +186,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
                                    wait=wait)
 
             # If insert made node left heavy
-            if self.heightDiff(node, callEnviron, wait / 20) > 1:
+            if self.heightDiff(node, callEnviron, wait / 10) > 1:
                 if animation:
                     self.highlightCode('node.left.key < key', callEnviron)
                     
@@ -229,7 +242,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
                                    wait=wait)
             
             # If insert made node right heavy
-            if self.heightDiff(node, callEnviron, wait / 20) < -1:
+            if self.heightDiff(node, callEnviron, wait / 10) < -1:
                 if animation:
                     self.highlightCode('key < node.right.key', callEnviron)
                     
@@ -282,9 +295,9 @@ def rotateLeft(self, top={topKey}):
             animation else '', startAnimations=animation, sleepTime=wait / 10)
 
         if animation:
-            self.disconnectLink(topNode, sleepTime=wait / 10)
             topArrow = self.createArrow(topIndex, 'top', level=2)
             callEnviron |= set(topArrow)
+            self.disconnectLink(topNode, sleepTime=wait / 10)
             
         # the node to raise is top's right child
         if animation:
@@ -376,9 +389,9 @@ def rotateRight(self, top={topKey}):
             animation else '', startAnimations=animation, sleepTime=wait / 10)
 
         if animation:
-            self.disconnectLink(topNode, sleepTime=wait / 10)
             topArrow = self.createArrow(topIndex, 'top', level=2)
             callEnviron |= set(topArrow)
+            self.disconnectLink(topNode, sleepTime=wait / 10)
             
         # the node to raise is top's left child
         if animation:
@@ -637,6 +650,8 @@ def __delete(self, node={nodeKey}, goal={goal}):
         elif (self.highlightCode('node.left is None', callEnviron, wait=wait) or
               self.getNode(self.getLeftChildIndex(nodeIndex)) is None):
             self.highlightCode('return node.right, True', callEnviron)
+            if self.getRightChild(nodeIndex) is None:
+                self.removeNodeInternal(nodeIndex)
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             return self.getRightChild(nodeIndex), True
 
@@ -772,8 +787,7 @@ def __deleteMin(self, node={nodeKey}):
     __balanceLeftCode = '''
 def __balanceLeft(self, node={nodeKey}):
    if node.heightDiff() < -1:
-      if (node.right.left is not None and
-          node.right.heightDiff() > 0):
+      if node.right.heightDiff() > 0:
          node.right = self.rotateRight(node.right)
          
       node = self.rotateLeft(node)
@@ -791,17 +805,14 @@ def __balanceLeft(self, node={nodeKey}):
         callEnviron |= set(nodeArrow)
 
         self.highlightCode('node.heightDiff() < -1', callEnviron)
-        if self.heightDiff(node, callEnviron, wait / 20) < -1:
-            self.highlightCode('node.right.left is not None', callEnviron,
-                               wait=wait)
+        if self.heightDiff(node, callEnviron, wait / 10) < -1:
             rightChild = self.getRightChild(nodeIndex)
-            if self.getLeftChild(rightChild) is not None:
-                self.highlightCode('node.right.heightDiff() > 0', callEnviron)
-                if self.heightDiff(rightChild, callEnviron, wait / 20) > 0:
-                    self.highlightCode(
-                        'node.right = self.rotateRight(node.right)', callEnviron)
-                    self.setRightChild(node, self.rotateRight(rightChild),
-                                       updateLink=True)
+            self.highlightCode('node.right.heightDiff() > 0', callEnviron)
+            if self.heightDiff(rightChild, callEnviron, wait / 10) > 0:
+                self.highlightCode(
+                    'node.right = self.rotateRight(node.right)', callEnviron)
+                self.setRightChild(node, self.rotateRight(rightChild),
+                                   updateLink=True)
                     
             self.highlightCode('node = self.rotateLeft(node)', callEnviron)
             node = self.rotateLeft(node)
@@ -813,8 +824,7 @@ def __balanceLeft(self, node={nodeKey}):
     __balanceRightCode = '''
 def __balanceRight(self, node={nodeKey}):
    if node.heightDiff() > 1:
-      if (node.left.right is not None and
-          node.left.heightDiff() < 0):
+      if node.left.heightDiff() < 0:
          node.left = self.rotateLeft(node.left)
          
       node = self.rotateRight(node)
@@ -832,17 +842,14 @@ def __balanceRight(self, node={nodeKey}):
         callEnviron |= set(nodeArrow)
 
         self.highlightCode('node.heightDiff() > 1', callEnviron)
-        if self.heightDiff(node, callEnviron, wait / 20) > 1:
-            self.highlightCode('node.left.right is not None', callEnviron,
-                               wait=wait)
+        if self.heightDiff(node, callEnviron, wait / 10) > 1:
             leftChild = self.getLeftChild(nodeIndex)
-            if self.getRightChild(leftChild) is not None:
-                self.highlightCode('node.left.heightDiff() < 0', callEnviron)
-                if self.heightDiff(leftChild, callEnviron, wait / 20) < 0:
-                    self.highlightCode(
-                        'node.left = self.rotateLeft(node.left)', callEnviron)
-                    self.setLeftChild(
-                        node, self.rotateLeft(leftChild), updateLink=True)
+            self.highlightCode('node.left.heightDiff() < 0', callEnviron)
+            if self.heightDiff(leftChild, callEnviron, wait / 10) < 0:
+                self.highlightCode(
+                    'node.left = self.rotateLeft(node.left)', callEnviron)
+                self.setLeftChild(
+                    node, self.rotateLeft(leftChild), updateLink=True)
                     
             self.highlightCode('node = self.rotateRight(node)', callEnviron)
             node = self.rotateRight(node)
@@ -1009,7 +1016,7 @@ def __balanceRight(self, node={nodeKey}):
             self.canvas.delete(rightText)
             callEnviron -= set((leftText, rightText))
             self.canvas.itemconfigure(middleText, text=str(left - right))
-            self.wait(sleepTime * 10)
+            self.wait(sleepTime * 20)
             self.canvas.delete(middleText)
             callEnviron.discard(middleText)
 
@@ -1045,7 +1052,6 @@ def __balanceRight(self, node={nodeKey}):
         val = self.validArgument()
         if val:
             self.randomFill(val)
-            self.window.update()
         self.clearArgument()
 
     def makeButtons(self):
@@ -1066,7 +1072,7 @@ def __balanceRight(self, node={nodeKey}):
         randomFillButton = self.addOperation(
             "Random Fill", self.clickRandomFill, numArguments=1,
             validationCmd= vcmd, argHelpText=['nuber of items'],
-            helpText='Fiill tree with N random items')
+            helpText='Fill tree with N random items')
         newTreeButton = self.addOperation(
             "New Tree", self.newTree,
             helpText='Create an empty tree')

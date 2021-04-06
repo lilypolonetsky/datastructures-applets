@@ -55,19 +55,21 @@ def delete(self, goal={goal}):
                                callEnviron)
             localVars = parentIndex + nodeIndex
             colors = self.fadeNonLocalItems(localVars)
-            result = self.__delete(parent, node)
+            deletedKeyAndData = self.__delete(parent, node)
+            callEnviron |= set(deletedKeyAndData)
             self.restoreLocalItems(localVars, colors)
 
             outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
-            callEnviron.add(self.createOutputBox(coords=outBoxCoords))
+            outBox = self.createOutputBox(coords=outBoxCoords)
+            callEnviron.add(outBox)
             outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
-            
-            upperRightNodeCoords = self.upperRightNodeCoords(level=1)
-            deletedKey = self.canvas.create_text(
-                *upperRightNodeCoords, text=str(result), font=self.VALUE_FONT,
-                fill=self.VALUE_COLOR)
-            callEnviron.add(deletedKey)
-            self.moveItemsTo(deletedKey, outBoxCenter, sleepTime=wait / 10)
+
+            self.canvas.tag_raise(deletedKeyAndData[1], outBox)
+            self.canvas.tag_lower(deletedKeyAndData[0], outBox)
+            self.moveItemsTo(
+                deletedKeyAndData, self.nodeItemCoords(outBoxCenter)[1:],
+                sleepTime=wait / 10)
+            self.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
 
             if self.getNode(node):
                 if node % 2 == 1:
@@ -79,10 +81,10 @@ def delete(self, goal={goal}):
             result = None
 
         self.cleanUp(callEnviron)
-        return result
+        return self.canvas.itemconfigure(deletedKeyAndData[1], 'text')[-1]
     
     __deleteCode = '''
-def __delete(self, parent, node):
+def __delete(self, parent={parentStr}, node={nodeStr}):
    deleted = node.data
    if node.leftChild:
       if node.rightChild:
@@ -107,23 +109,27 @@ def __delete(self, parent, node):
     def __delete(self, parent, node, code=__deleteCode, level=1):
         'parent and node must be integer indices'
         wait = 0.1
-        callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
+        parentStr = str(self if parent in (-1, self) else self.getNode(parent))
+        nodeStr = str(self.getNode(node))
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=wait / 10)
 
         parentIndex = self.createArrow(parent, 'parent', level=2)
         nodeIndex = self.createArrow(node, label='node')
         callEnviron |= set(parentIndex + nodeIndex)
         self.highlightCode('deleted = node.data', callEnviron, wait=wait)
-        deleted = self.getNode(node).getKey()
+        deletedKey = self.getNode(node).getKey()
         upperRightNodeCoords = self.upperRightNodeCoords(level)
         deletedLabel = self.canvas.create_text(
             *(V(upperRightNodeCoords) - V(self.CIRCLE_SIZE + 5, 0)), anchor=E,
             text='deleted', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(deletedLabel)
-        deletedNode = self.createNodeShape(
-            *self.nodeCenter(node), deleted, 'deleted')
-        callEnviron |= set(deletedNode)
-        self.moveItemsTo(deletedNode, self.nodeItemCoords(upperRightNodeCoords),
-                         sleepTime=wait / 10)
+        deletedKeyAndData = tuple(
+            self.copyCanvasItem(item) 
+            for item in self.getNode(node).drawnValue.items[1:])
+        self.moveItemsTo(
+            deletedKeyAndData, self.nodeItemCoords(upperRightNodeCoords)[1:],
+            sleepTime=wait / 10)
 
         self.highlightCode('node.leftChild', callEnviron, wait=wait)
         if self.getLeftChild(node):
@@ -133,8 +139,8 @@ def __delete(self, parent, node):
                 
                 self.highlightCode('self.__promote_successor(node)', 
                                    callEnviron, wait=wait)
-                localVars = deletedNode + parentIndex + nodeIndex + (
-                    deletedLabel,)
+                localVars = (
+                    deletedLabel, *deletedKeyAndData, *parentIndex, *nodeIndex)
                 colors = self.fadeNonLocalItems(localVars)
                 self.__promote_successor(node)
                 self.restoreLocalItems(localVars, colors)
@@ -185,10 +191,10 @@ def __delete(self, parent, node):
             
         self.highlightCode('return deleted', callEnviron)
         self.cleanUp(callEnviron)
-        return deleted
+        return deletedKeyAndData
 
     __promote_successorCode = '''
-def __promote_successor(self, node):
+def __promote_successor(self, node={nodeStr}):
    successor = node.rightChild
    parent = node
    while successor.leftChild:
@@ -202,7 +208,9 @@ def __promote_successor(self, node):
     def __promote_successor(
             self, nodeIndex, code=__promote_successorCode):
         wait = 0.1
-        callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
+        nodeStr = str(self.getNode(nodeIndex))
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=wait / 10)
         node = self.getNode(nodeIndex)
 
         nodeArrow = self.createArrow(nodeIndex, 'node')
@@ -233,35 +241,29 @@ def __promote_successor(self, node):
             self.highlightCode('successor.leftChild', callEnviron, wait=wait)
 
         self.highlightCode('node.key = successor.key', callEnviron, wait=wait)
-        drawnValueToDelete = node.drawnValue
-        successorKey = self.getNode(successor).getKey()
-        tag = self.generateTag()
-        successorCopy = self.createNodeShape(
-            *self.nodeCenter(successor), successorKey, tag)
-        callEnviron |= set(successorCopy)
-        keyCopy = self.copyCanvasItem(successorCopy[2])
-        callEnviron.add(keyCopy)
+        successorNode = self.getNode(successor)
+        successorKey = successorNode.getKey()
+        successorDataItem, successorKeyItem = tuple(
+            self.copyCanvasItem(item) 
+            for item in successorNode.drawnValue.items[1:])
+        callEnviron |= set((successorDataItem, successorKeyItem))
         self.moveItemsTo(
-            keyCopy, self.nodeCenter(nodeIndex), sleepTime=wait / 10)
-        self.canvas.tag_lower(drawnValueToDelete.items[2])
+            successorKeyItem, self.nodeCenter(nodeIndex), sleepTime=wait / 10)
+        self.copyItemAttributes(successorKeyItem, node.drawnValue.items[2],
+                                'text')
 
         self.highlightCode('node.data = successor.data', callEnviron, wait=wait)
         self.moveItemsTo(
-            successorCopy, self.nodeItemCoords(node), sleepTime=wait / 10)
-        self.canvas.delete(keyCopy)
-        callEnviron.discard(keyCopy)
-        node.drawnValue = drawnValue(successorKey, drawnValueToDelete.items[0],
-                                     *successorCopy[1:])
-        node.tag = tag
-        callEnviron -= set(successorCopy[1:])
-        for item in drawnValueToDelete.items[1:]:
-            if item:
-                self.canvas.delete(item)
+            successorDataItem, self.canvas.coords(node.drawnValue.items[1]),
+            sleepTime=wait / 10)
+        self.copyItemAttributes(successorDataItem, node.drawnValue.items[1],
+                                'fill')
         
         self.highlightCode('self.__delete(parent, successor)', callEnviron)
         localVars = nodeArrow + parentIndex + successorIndex
         colors = self.fadeNonLocalItems(localVars)
-        self.__delete(parent, successor, level=2)
+        for item in self.__delete(parent, successor, level=2):
+            self.canvas.delete(item)
         self.restoreLocalItems(localVars, colors)
         
         self.highlightCode([], callEnviron)
@@ -292,9 +294,9 @@ def __promote_successor(self, node):
             validationCmd=vcmd, argHelpText=['item'], 
             helpText='Delete item from tree')
         fillButton = self.addOperation(
-            "Random fill", lambda: self.clickFill(), numArguments=1,
+            "Erase & Random fill", lambda: self.clickFill(), numArguments=1,
             validationCmd=vcmd, argHelpText=['number of items'], 
-            helpText='Insert a number of random\nitems in an empty tree')
+            helpText='Empty tree and fill it\nwith a number of random items')
 
         preOrderButton = self.addOperation(
             "Pre-order Traverse", lambda: self.clickTraverse('pre'), 
