@@ -157,7 +157,7 @@ class Tree234(BinaryTreeBase):
             node.center = ((self.ROOT_X0, self.ROOT_Y0) if parent is self else
                            self.childCoords(parent, childNum, level))
         else:
-            node.center = self.canvas.coords(node.keyItems()[1])
+            node.center = tuple(self.canvas.coords(node.keyItems()[1]))
         for ci in range(node.nChild):
             self.recenterNodes(node.children[ci], node, 
                                None if level is None else level + 1, ci,
@@ -529,19 +529,21 @@ def insert(self, key={key}, value):
 def __find(self, goal={goal}, current={currentStr}, parent={parentStr}, prepare={prepare}):
    if current is None:
       return (current, parent)
-   if prepare and current.nKeys == Tree234.maxKeys:
-      current, parent = self.__splitNode(current, parent, goal)
    i = 0
    while i < current.nKeys and current.keys[i] < goal:
       i += 1
-   if (i < current.nKeys and goal == current.keys[i]) or (
-       current.isLeaf() and prepare):
+   if i < current.nKeys and goal == current.keys[i]:
       return (current, parent)
-   return self.__find(
-      goal, None if current.isLeaf() else current.children[i],
-      current, prepare)
+   if prepare and current.nKeys == Tree234.maxKeys:
+      current, parent = self.__splitNode(current, parent, goal)
+      i = 0 if goal < current.keys[0] else 1
+   return ((prepare and current, parent)
+           if current.isLeaf() else 
+           self.__find(goal, current.children[i], current, prepare)
 '''
-    
+
+    last1 = re.compile(r'\s(1)\s') # to match the 1 in ' else 1'
+
     def _find(self, goal, current, parent, prepare=True, code=_findCode,
               animation=True, wait=0.1):
         currentStr = str(current)
@@ -564,25 +566,6 @@ def __find(self, goal={goal}, current={currentStr}, parent={parentStr}, prepare=
                 self.highlightCode('return (current, parent)', callEnviron)
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             return current, parent
-
-        if animation:
-            self.highlightCode(('prepare', 2), callEnviron, wait=wait)
-            if prepare:
-                self.highlightCode('current.nKeys == Tree234.maxKeys',
-                                   callEnviron, wait=wait)
-        if prepare and current.nKeys == Tree234.maxKeys:
-            if animation:
-                self.highlightCode(
-                    'current, parent = self.__splitNode(current, parent, goal)',
-                    callEnviron)
-                colors = self.fadeNonLocalItems(localVars)
-            current, parent = self._splitNode(
-                current, parent, goal, animation=animation, wait=wait)
-            if animation:
-                self.restoreLocalItems(localVars, colors)
-                self.moveArrowsTo(
-                    (currentArrow, parentArrow), (current, parent),
-                    (indexConfig, indexConfig), wait)
 
         i = 0
         if animation:
@@ -612,34 +595,68 @@ def __find(self, goal={goal}, current={currentStr}, parent={parentStr}, prepare=
             if i < current.nKeys:
                 self.highlightCode('goal == current.keys[i]', callEnviron,
                                    wait=wait)
-            if not (i < current.nKeys and goal == current.keys[i]):
-                self.highlightCode('current.isLeaf()', callEnviron, wait=wait)
-                if current.isLeaf():
-                    self.highlightCode(('prepare', 3), callEnviron, wait=wait)
-        if (i < current.nKeys and goal == current.keys[i]) or (
-                current.isLeaf() and prepare):
+        if i < current.nKeys and goal == current.keys[i]:
             if animation:
                 self.highlightCode(('return (current, parent)', 2), callEnviron)
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             return current, parent
 
         if animation:
-            self.highlightCode(
-                'return self.__find(\n'
-                '      goal, None if current.isLeaf() else current.children[i],\n'
-                '      current, prepare)', callEnviron)
-            colors = self.fadeNonLocalItems(localVars)
-        result = self._find(
-            goal, None if current.isLeaf() else current.children[i], current, 
-            prepare, animation=animation, wait=wait)
+            self.highlightCode(('prepare', 2), callEnviron, wait=wait)
+            if prepare:
+                self.highlightCode('current.nKeys == Tree234.maxKeys',
+                                   callEnviron, wait=wait)
+        if prepare and current.nKeys == Tree234.maxKeys:
+            if animation:
+                self.highlightCode(
+                    'current, parent = self.__splitNode(current, parent, goal)',
+                    callEnviron)
+                colors = self.fadeNonLocalItems(localVars)
+            current, parent = self._splitNode(
+                current, parent, goal, animation=animation, wait=wait)
+            if animation:
+                self.restoreLocalItems(localVars, colors)
+                self.moveArrowsTo(
+                    (currentArrow, parentArrow, iArrow), 
+                    (current, parent, current),
+                    (indexConfig, indexConfig, arrowConfig), wait)
+                
+                self.highlightCode('goal < current.keys[0]', callEnviron, 
+                                   wait=wait)
+                self.highlightCode(('i = 0', 2) if goal < current.keys[0] else
+                                   (('i =', 2), (self.last1, 2)), callEnviron)
+            i = 0 if goal < current.keys[0] else 1
+            if animation:
+                arrowConfig['keyNum'] = i
+                self.moveArrowsTo(iArrow, current, arrowConfig, wait)
+
         if animation:
-            self.restoreLocalItems(localVars, colors)
-            self.scrollToSee(currentArrow + current.dValue.items[1:])
-        self.cleanUp(callEnviron, sleepTime=wait / 10, allowSteps=True)
+            self.highlightCode('current.isLeaf()', callEnviron, wait=wait)
+        if current.isLeaf():
+            if animation:
+                self.highlightCode(
+                    (('return', 3), '(prepare and current, parent)'), callEnviron)
+            result = (prepare and current, parent)
+        else:
+            if animation:
+                self.highlightCode(
+                    (('return', 3), 
+                     'self.__find(goal, current.children[i], current, prepare)'),
+                    callEnviron)
+                colors = self.fadeNonLocalItems(localVars)
+            result = self._find(
+                goal, current.children[i], current, prepare,
+                animation=animation, wait=wait)
+            if animation:
+                self.restoreLocalItems(localVars, colors)
+                self.scrollToSee(currentArrow + current.dValue.items[1:])
+                
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
         return result
 
     _splitNodeCode = '''
-def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
+def __splitNode(self, toSplit={toSplitStr}, 
+                parent={parentStr}, goal={goal}):
    if toSplit.isLeaf():
       newNode = self.__Node(toSplit.keys[2], toSplit.data[2])
    else:
@@ -650,14 +667,10 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
    if parent is self:
       self.__root = self.__Node(toSplit.keys[1], toSplit.data[1],
                                 toSplit, newNode)
-      if goal == toSplit.keys[1]:
-         return (self.__root, self)
       parent = self.__root
    else:
       parent.insertKeyValue(toSplit.keys[1], toSplit.data[1], newNode)
-   return (toSplit if goal < toSplit.keys[1] else
-           parent if goal == toSplit.keys[1] else newNode,
-           parent)
+   return (toSplit if goal < toSplit.keys[1] else newNode, parent)
 '''
     
     def _splitNode(self, toSplit, parent, goal,
@@ -684,7 +697,8 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
 
         newNodeChildNum = 1 if parent is self else parent.nChild
         newNodeCenter = (V(toSplit.center) +
-                         V(V(Tree234.maxLinks * 2, 2.5) * self.CIRCLE_SIZE))
+                         V(V(Tree234.maxLinks * 2, 2.5) *
+                           (self.CIRCLE_SIZE * self.scale)))
         newNodeItems = self.createNodeShapes(
             toSplit.center if animation else newNodeCenter, 
             [toSplit.keys[2]], 
@@ -762,23 +776,14 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
                                  (newNode, newNodeConfig, newNodeArrow)))
                 self.scrollToSee(toSplitArrow + toSplit.dValue.items[1:],
                                  sleepTime=wait / 10)
-                self.highlightCode('goal == toSplit.keys[1]', callEnviron,
-                                   wait=wait)
             else:
                 self.restoreNodePositions(self.rootNode, sleepTime=0)
 
-            if goal == toSplit.keys[1]:
-                if animation:
-                    self.highlightCode('return (self.__root, self)',
-                                       callEnviron, wait=wait)
-                self.cleanUp(callEnviron)
-                return self.rootNode, parent
-            else:
-                if animation:
-                    self.highlightCode('parent = self.__root', callEnviron)
-                parent = self.rootNode
-                if animation:
-                    self.moveArrowsTo(parentArrow, parent, indexConfig, wait)
+            if animation:
+                self.highlightCode('parent = self.__root', callEnviron)
+            parent = self.rootNode
+            if animation:
+                self.moveArrowsTo(parentArrow, parent, indexConfig, wait)
         else:
             if animation:
                 self.highlightCode(
@@ -803,29 +808,19 @@ def __splitNode(self, toSplit={toSplitStr}, parent={parentStr}, goal={goal}):
             self.scrollToSee(toSplitArrow + toSplit.dValue.items[1:],
                              sleepTime=wait / 10)
             self.highlightCode('goal < toSplit.keys[1]', callEnviron, wait=wait)
-            if goal < toSplit.keys[1]:
-                self.highlightCode(
-                    (('return', 2), ('toSplit', 18), ('parent', 6)),
-                    callEnviron)
-            elif (self.highlightCode(('goal == toSplit.keys[1]', 2),
-                                     callEnviron, wait=wait) or
-                  goal == toSplit.keys[1]):
-                self.highlightCode(
-                    (('return', 2), ('parent', 5), ('parent', 6)),
-                    callEnviron)
-            else:                
-                self.highlightCode(
-                    (('return', 2), ('newNode', 5), ('parent', 6)),
-                    callEnviron)
+            self.highlightCode(
+                ('return',
+                 ('toSplit', 17) if goal < toSplit.keys[1] else ('newNode', 5),
+                 ('parent', 5)), callEnviron)
+
         self.canvas.itemconfigure(toSplit.keyItems()[1], text='')
         self.canvas.itemconfigure(toSplit.dataItems()[1], fill='')
         self.cleanUp(callEnviron)
-        return (toSplit if goal < toSplit.keys[1] else
-                parent if goal == toSplit.keys[1] else newNode,
+        return (toSplit if goal < toSplit.keys[1] else newNode,
                 parent)
 
     insertKeyValueCode = '''
-def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
+def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
    i = 0
    while (i < self.nKeys and self.keys[i] < key):
       i += 1
@@ -858,6 +853,7 @@ def insertKeyValue(self, key={key}, data, subtree={subtreeStr}):
         as the child link before the key.  If keyData is provided, it
         should be a tuple of the existing canvas items for the key and data.
         '''
+        selfStr = str(node)
         subtreeStr = str(subtree)
         callEnviron = self.createCallEnvironment(
             code='' if not animation else code.format(**locals()),
@@ -1136,8 +1132,6 @@ def search(self, goal={goal}):
                         text='' if node.keys[i] is None else str(node.keys[i]),
                         fill=self.activeColor if i < node.nKeys else
                         self.leftoverColor)
-                    # if node.nKeys <= i:   NOTE allow leftover values to remain
-                    #     node.keys[i] = None
                 for j in range(node.nChild, Tree234.maxLinks):
                     node.children[j] = None
         self.updateTreeObjectRootPointer(root=self.rootNode, see=False)
