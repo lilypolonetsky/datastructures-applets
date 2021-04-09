@@ -454,42 +454,25 @@ class BinaryTreeBase(VisualizationApp):
             self.getNode(parent).center if parent is not None else node.center)
 
     # highlight or unhighlight the line that points from the node to its parent
-    def createHighlightedLine(self, node, callEnviron=None, color=None):
+    def createHighlightedLine(
+            self, node, callEnviron=None, color=None, width=4, tags=None):
         line = node.getLine()
         if line is None:
             return
         if color is None: color = drawnValue.palette[0]
+        tags = ['highlight', 'line'] + (
+            [] if tags is None else tags.split() if isinstance(tags, str) else
+            list(tags))
         highlightLine = self.copyCanvasItem(line)
         self.canvas.tag_lower(highlightLine,
                               self.getRoot().drawnValue.items[1])
 
         self.canvas.itemconfig(
-            highlightLine, fill=color, width=4, tags= "highlight line")
+            highlightLine, fill=color, width=width, tags=tags)
 
         if callEnviron: callEnviron.add(highlightLine)
 
         return highlightLine
-
-    def createHighlightedCircle(self, node, callEnviron=None, color=None):
-        if color is None: color = drawnValue.palette[0]
-        circle = self.copyCanvasItem(node.drawnValue.items[1])
-        self.canvas.itemconfig(circle, outline=color, fill= '', width=2,
-                               tags="highlight circle")
-
-        if callEnviron: callEnviron.add(circle)
-
-        return circle
-
-    # creates a highlighted value on top of the normal value associated with the node
-    def createHighlightedValue(self, node, callEnviron=None, color=None):
-        if color is None: color = drawnValue.palette[0]
-        text = self.canvas.create_text(
-            *node.center, text=node.getKey(), font=self.VALUE_FONT, fill=color,
-            tags="highlight value")
-      
-        if callEnviron: callEnviron |= set((text,))
-
-        return text
 
     def createNodeShape(
             self, x, y, key, tag, color=None, parent=None, radius=None,
@@ -504,13 +487,14 @@ class BinaryTreeBase(VisualizationApp):
             self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
         if radius is None: radius = self.CIRCLE_SIZE
         if font is None: font = self.VALUE_FONT
-        circle = self.canvas.create_circle(
-            x, y, radius, tag = tag, fill=color, outline='')
-        circle_text = self.canvas.create_text(
-            x, y, text=key, font=font, tag=tag)
+        coords = self.nodeItemCoords((x, y), parent=parent, radius=radius)
         line = self.canvas.create_line(
-            x, y, *(parent if parent else (x, y)), arrow=FIRST,
-            tags = ("line", tag + "_line"), fill=lineColor, width=lineWidth)
+            *coords[0], arrow=FIRST, tags=("line", tag + "_line"),
+            fill=lineColor, width=lineWidth)
+        circle = self.canvas.create_oval(
+            *coords[1], tag=tag, fill=color, outline='')
+        circle_text = self.canvas.create_text(
+            *coords[2], text=key, font=font, tag=tag)
         self.canvas.tag_lower(line)
         for item in (circle, circle_text):
             self.canvas.tag_bind(
@@ -876,6 +860,7 @@ def search(self, goal={goal}):
    node, p = self.__find(goal)
    return node.data if node else None
 '''
+
     def search(self, goal, code=searchCode, start=True):
         wait = 0.1
         callEnviron = self.createCallEnvironment(
