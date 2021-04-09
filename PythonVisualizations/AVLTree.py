@@ -428,8 +428,8 @@ def rotateRight(self, top={topKey}):
 
         # Move the subtrees internally
         self.storeNodeTree(
-            [toRaiseNode, toRaiseLeftTree, 
-             [topNode, toRaiseRightTree, topRightTree]],
+            [toRaiseNode,
+             toRaiseLeftTree, [topNode, toRaiseRightTree, topRightTree]],
             topIndex)
         toRaise.setLine(topParentLine)
 
@@ -881,7 +881,7 @@ def __balanceRight(self, node={nodeKey}):
         child, parent = self.getNode(childIndex), self.getNode(nodeIndex)
         line = child.getLine()
         currentCoords = self.canvas.coords(line)
-        newCoords = child.center + parent.center
+        newCoords = child.center + (parent.center if parent else child.center)
         if distance2(currentCoords, newCoords) > 1:
             self.moveItemsLinearly(line, newCoords, sleepTime=sleepTime)
             
