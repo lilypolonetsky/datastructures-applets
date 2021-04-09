@@ -309,7 +309,8 @@ def __promote_successor(self, node={nodeStr}):
             "Post-order Traverse", lambda: self.clickTraverse('post'), 
             helpText='Traverse tree in post-order')
         self.addAnimationButtons()
-        return [fillButton, searchButton, insertButton, deleteButton]
+        return [insertButton, searchButton, deleteButton, fillButton,
+                preOrderButton, inOrderButton, postOrderButton]
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
