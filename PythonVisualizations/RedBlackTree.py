@@ -21,13 +21,14 @@ class RedBlackTree(BinaryTreeBase):
     BLACK_COLOR = 'black'
     MEASURE_MET = 'dark olive green'
     MEASURE_UNMET = 'red3'
-    DEBUG = True
+    DEBUG = False
     
     def __init__(self, title="Red-Black Tree", values=None, **kwargs):
         super().__init__(title=title, CIRCLE_SIZE=self.CIRCLE_SIZE, **kwargs)
         self.measures = [0] * 4
         self.buttons = self.makeButtons()
-        self.lastNodeClicked = (None, None)
+        self.lastNodeClicked = (None, ) * 2
+        self.lastFlipEvent, self.lastRotateEvent = (None, ) * 3,  (None, ) * 3
 
         # empty the tree
         self.emptyTree()
@@ -86,6 +87,12 @@ class RedBlackTree(BinaryTreeBase):
         def flipHandler(event):
             if self.DEBUG:
                 print('Flip node color event', event.serial, event.time)
+            if (key, event.serial) == self.lastFlipEvent[:2]:
+                if self.DEBUG:
+                    print('Skipping duplicate flip request (dt = {} ms)'.format(
+                        event.time - self.lastFlipEvent[2]))
+                return
+            self.lastFlipEvent = (key, event.serial, event.time)
             nodeIndex, _ = self._find(key)
             node = self.getNode(nodeIndex)
             if node:
@@ -101,6 +108,12 @@ class RedBlackTree(BinaryTreeBase):
         def rotateHandler(event):
             if self.DEBUG:
                 print('Rotate Node event', event.serial, event.time)
+            if (key, event.serial) == self.lastRotateEvent[:2]:
+                if self.DEBUG:
+                    print('Skipping duplicate rotate request (dt = {} ms)'
+                          .format(event.time - self.lastRotateEvent[2]))
+                return
+            self.lastRotateEvent = (key, event.serial, event.time)
             nodeIndex, _ = self._find(key)
             node = self.getNode(nodeIndex)
             if node:
@@ -109,6 +122,9 @@ class RedBlackTree(BinaryTreeBase):
                     print('Rotate', node, '(color', self.nodeColor(nodeIndex),
                           ')', 'left' if event.state & SHIFT else 'right')
                 if node is self.lastNodeClicked[0]: # Restore color before click
+                    if self.DEBUG:
+                        print('Restoring', node, 'color to', 
+                              self.lastNodeClicked[1])
                     self.nodeColor(nodeIndex, self.lastNodeClicked[1])
                 if event.state & SHIFT:
                     self.rotateLeft(nodeIndex)
