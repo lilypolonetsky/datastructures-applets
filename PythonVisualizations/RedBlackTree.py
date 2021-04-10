@@ -38,7 +38,6 @@ class RedBlackTree(BinaryTreeBase):
 
         # Display it
         self.display()
-        self.updateMeasures()
 
     def nodeItemCoords(self, node, parent=None, radius=None):
         base = super().nodeItemCoords(node, parent=parent, radius=radius)
@@ -156,11 +155,6 @@ class RedBlackTree(BinaryTreeBase):
                 self.updateMeasures()
         return rotateHandler
 
-    def cleanUp(self, *args, **kwargs):
-        super().cleanUp(*args, **kwargs)
-        if len(args) == 0 or kwargs.get('callEnviron', None) is None:
-            self.canvas.delete('measureHighlight')
-        
     def rotateLeft(self, top, animation=True, wait=0.1):
         "rotate a subtree to the left and optionally animate it"
         topIndex = self.getIndex(top) if isinstance(top, Node) else top
@@ -371,7 +365,7 @@ class RedBlackTree(BinaryTreeBase):
     def getRedRedLinks(self):
         links = []
         toDo = [0]
-        callEnviron = self.callStack[-1] if self.callStack else None
+        self.canvas.delete('measureHighlight')
         while toDo:
             nodeIndex = toDo.pop(0)
             parentIndex = self.getParentIndex(nodeIndex)
@@ -382,8 +376,8 @@ class RedBlackTree(BinaryTreeBase):
                     self.nodeColor(nodeIndex) == self.RED_COLOR):
                     links.append((parentIndex, nodeIndex))
                     highlightLine = self.createHighlightedLine(
-                        node, callEnviron=callEnviron, width=8,
-                        color=self.ERROR_HIGHLIGHT, tags='measureHighlight')
+                        node, width=8, color=self.ERROR_HIGHLIGHT,
+                        tags='measureHighlight')
                     self.canvas.tag_lower(highlightLine)
                 toDo.extend([self.getLeftChildIndex(nodeIndex),
                              self.getRightChildIndex(nodeIndex)])
@@ -625,7 +619,6 @@ class RedBlackTree(BinaryTreeBase):
         val = self.validArgument()
         if val is not None:
             self.emptyAndFill(val)
-            self.updateMeasures()
             self.clearArgument()
 
     def clickFlip(self):
