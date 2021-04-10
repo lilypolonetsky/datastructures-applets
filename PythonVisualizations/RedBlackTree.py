@@ -598,27 +598,61 @@ class RedBlackTree(BinaryTreeBase):
             self.updateMeasures()
             self.clearArgument()
 
+    def clickFlip(self):
+        val = self.validArgument()
+        if val is not None:
+            node, _ = self._find(val)
+            if self.getNode(node):
+                self.flipNodeColor(node)
+                self.clearArgument()
+            else:
+                self.setMessage('Key {} not in tree'.format(val))
+                self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
+
+    def clickRotate(self, direction):
+        val = self.validArgument()
+        if val is not None:
+            node, _ = self._find(val)
+            if self.getNode(node):
+                if direction == Child.LEFT:
+                    self.rotateLeft(node)
+                else:
+                    self.rotateRight(node)
+                self.clearArgument()
+            else:
+                self.setMessage('Key {} not in tree'.format(val))
+                self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
+
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd, argHelpText=['item'], 
-            helpText='Insert item in tree')
+            "Insert", self.clickInsert, numArguments=1, validationCmd=vcmd,
+            argHelpText=['item'], helpText='Insert item in tree')
         searchButton = self.addOperation(
-            "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd, argHelpText=['item'], 
-            helpText='Search for item in tree')
+            "Search", self.clickSearch, numArguments=1, validationCmd=vcmd,
+            argHelpText=['item'], helpText='Search for item in tree')
         deleteButton = self.addOperation(
-            "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd, argHelpText=['item'], 
-            helpText='Delete item from tree')
+            "Delete", self.clickDelete, numArguments=1, validationCmd=vcmd,
+            argHelpText=['item'], helpText='Delete item from tree')
         fillButton = self.addOperation(
-            "Erase & Random fill", lambda: self.clickFill(), numArguments=1,
+            "Erase & Random fill", self.clickFill, numArguments=1,
             validationCmd=vcmd, argHelpText=['number of items'], 
             helpText='Empty tree and fill it\nwith a number of random items')
+        flipButton = self.addOperation(
+            "Flip color", self.clickFlip, numArguments=1, validationCmd=vcmd,
+            argHelpText=['item'], helpText='Flip red/black color of item')
+        rotateLeftButton = self.addOperation(
+            "Rotate left", lambda: self.clickRotate(Child.LEFT), 
+            numArguments=1, validationCmd=vcmd, argHelpText=['item'],
+            helpText='Rotate left around item')
+        rotateRightButton = self.addOperation(
+            "Rotate right", lambda: self.clickRotate(Child.RIGHT),
+            numArguments=1, validationCmd=vcmd, argHelpText=['item'],
+            helpText='Rotate right around item')
         self.addAnimationButtons()
-        return [fillButton, searchButton, insertButton, deleteButton]
+        return [fillButton, searchButton, insertButton, deleteButton,
+                flipButton, rotateLeftButton, rotateRightButton]
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
