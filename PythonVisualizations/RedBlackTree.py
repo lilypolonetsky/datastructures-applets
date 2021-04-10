@@ -34,10 +34,10 @@ class RedBlackTree(BinaryTreeBase):
         self.emptyTree()
         
         # populate the tree
-        self.emptyAndFill(values=20 if values is None else values)
+        self.emptyAndFill(values=2 if values is None else values)
 
         # Display it
-        self.display(treeLabel='RedBlackTree')
+        self.display()
         self.updateMeasures()
 
     def nodeItemCoords(self, node, parent=None, radius=None):
@@ -53,12 +53,13 @@ class RedBlackTree(BinaryTreeBase):
 
     def createNodeShape(
             self, x, y, key, tag, color=None, parent=None, radius=None,
-            **kwargs):
+            ringColor=None, **kwargs):
         isRoot = parent is None or parent == -1
+        if ringColor is None: 
+            ringColor = self.BLACK_COLOR if isRoot else self.RED_COLOR
         coords = self.nodeItemCoords((x, y), parent=parent, radius=radius)
         redBlackLabel = self.canvas.create_oval(
-            *coords[3], tag=tag, outline='',
-            fill=self.BLACK_COLOR if isRoot else self.RED_COLOR)
+            *coords[3], tag=tag, outline='', fill=ringColor)
         items = super().createNodeShape(
             x, y, key, tag, color=color, parent=parent, radius=radius,
             **kwargs)
@@ -67,6 +68,12 @@ class RedBlackTree(BinaryTreeBase):
             self.canvas.tag_bind(item, '<Double-Button-1>', self.rotateNode(key))
         return items + (redBlackLabel,)
 
+    def createNode(self, key, *args, ringColor=None, **kwargs):
+        node = super().createNode(key, *args, **kwargs)
+        if ringColor:
+            self.nodeColor(node, ringColor)
+        return node
+    
     def nodeColor(self, node, color=None):
         nodeIndex = node if isinstance(node, int) else self.getIndex(node)
         node = self.getNode(nodeIndex)
@@ -76,6 +83,21 @@ class RedBlackTree(BinaryTreeBase):
             else:
                 return self.canvas.itemconfigure(
                     node.drawnValue.items[3], 'fill')[-1]
+            
+    def display(self, fields=[], treeLabel="RedBlackTree"):
+        existingItems = set(self.canvas.find_withtag('all'))
+        self.treeObject = self.createTreeObject(fields=fields, label=treeLabel)
+        self.fieldwidths = self.treeObjectFieldWidths(fields=fields)
+        newNodes = [self.createNode(
+            node.getKey(), None if i == 0 else self.nodes[(i - 1) // 2],
+            Child.LEFT if i % 2 == 1 else Child.RIGHT,
+            ringColor=self.nodeColor(i)) if node else None
+                    for i, node in enumerate(self.nodes)]
+        self.nodes = newNodes
+        self.size = sum(1 if node else 0 for node in self.nodes)
+        for item in existingItems:
+            self.canvas.delete(item)
+        self.updateMeasures()
             
     def flipNodeColor(self, node):
         color = self.nodeColor(node)
@@ -402,7 +424,16 @@ class RedBlackTree(BinaryTreeBase):
             result = None
         self.cleanUp(callEnviron)
         return result
-            
+
+    def insert(self, key, animation=False, **kwargs):
+        inserted = super().insert(key, animation=animation, **kwargs)
+        if inserted:
+            node, _ = self._find(key)
+            if self.getNode(node):
+                self.nodeColor(
+                    node, self.BLACK_COLOR if node == 0 else self.RED_COLOR)
+        return inserted
+        
     def delete(self, goal, start=True):
         wait = 0.1
         callEnviron = self.createCallEnvironment(startAnimations=start)
@@ -565,8 +596,7 @@ class RedBlackTree(BinaryTreeBase):
         self.emptyTree()
         for num in nums:
             self.insert(num, animation=animation)
-        self.display(treeLabel='RedBlackTree')
-        self.updateMeasures()
+        self.display()
 
         self.cleanUp(callEnviron)
     
