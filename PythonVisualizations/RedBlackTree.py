@@ -58,10 +58,11 @@ class RedBlackTree(BinaryTreeBase):
             ringColor = self.BLACK_COLOR if isRoot else self.RED_COLOR
         coords = self.nodeItemCoords((x, y), parent=parent, radius=radius)
         redBlackLabel = self.canvas.create_oval(
-            *coords[3], tag=tag, outline='', fill=ringColor)
+            *coords[3], tag=(tag, 'label'), outline='', fill=ringColor)
         items = super().createNodeShape(
             x, y, key, tag, color=color, parent=parent, radius=radius,
             **kwargs)
+        self.canvas.itemconfigure(items[1], tags=(tag, 'shape'))
         for item in (redBlackLabel, *items[1:]):
             self.canvas.tag_bind(item, '<Button-1>', self.flipColor(key))
             self.canvas.tag_bind(item, '<Double-Button-1>', self.rotateNode(key))
@@ -74,14 +75,25 @@ class RedBlackTree(BinaryTreeBase):
         return node
     
     def nodeColor(self, node, color=None):
-        nodeIndex = node if isinstance(node, int) else self.getIndex(node)
-        node = self.getNode(nodeIndex)
+        'Get or set the color of a node'
+        node = node if isinstance(node, Node) else self.getNode(node)
         if node:
             if color:
                 self.canvas.itemconfigure(node.drawnValue.items[3], fill=color)
             else:
                 return self.canvas.itemconfigure(
                     node.drawnValue.items[3], 'fill')[-1]
+    
+    def nodeRing(self, node, ring=None):
+        'Get or set the canvas oval representing the color ring around a node'
+        nodeIndex = node if isinstance(node, int) else self.getIndex(node)
+        node = self.getNode(nodeIndex)
+        if node:
+            if ring:
+                items = node.drawnValue.items
+                node.drawnValue.items = (*items[:3], ring, *items[4:])
+            else:
+                return node.drawnValue.items[3]
             
     def display(self, fields=[], treeLabel="RedBlackTree"):
         existingItems = set(self.canvas.find_withtag('all'))
@@ -356,7 +368,7 @@ class RedBlackTree(BinaryTreeBase):
                  len(redRedLinks) == 0),
                 (2, 'Black heights: {}'.format(blackHeights),
                  len(blackHeights) <= 1),
-                (3, '  BALANCED!' if allMet else '', allMet)):
+                (3, ' RED-BLACK CORRECT!' if allMet else '', allMet)):
             self.canvas.itemconfigure(
                 self.measures[m], text=text,
                 fill=self.MEASURE_MET if met else self.MEASURE_UNMET,
@@ -399,15 +411,78 @@ class RedBlackTree(BinaryTreeBase):
                 heights.add(blackHeight)
         return heights
         
-    def _find(self, goal, **kwargs):
+    def _find(self, goal, prepare=False, animation=False):
+        'Find a goal key in the tree, optionally preparing for insert'
+        callEnviron = self.createCallEnvironment()
         current = 0
         parent = -1
+        root = self.getNode(current)
+        if animation:
+            currentArrow = self.createArrow(current, label='current')
+            callEnviron |= set(currentArrow)
+        if (prepare and root and self.nodeColor(root) == self.BLACK_COLOR
+            and all(child and self.nodeColor(child) == self.RED_COLOR
+                    for child in self.getChildren(current))):
+            self.swapParentChildColors(
+                root, parentColor=self.BLACK_COLOR,
+                callEnviron=callEnviron if animation else None)
+            
         while self.getNode(current) and goal != self.nodes[current].getKey():
             parent = current
             goLeft = goal < self.nodes[current].getKey()
             current = 2 * current + (1 if goLeft else 2)
+            if animation:
+                self.moveArrow(currentArrow, current)
+            if (prepare and root and self.nodeColor(root) == self.BLACK_COLOR
+                and all(child and self.nodeColor(child) == self.RED_COLOR
+                        for child in self.getChildren(current))):
+                self.swapParentChildColors(
+                    current, callEnviron=callEnviron if animation else None)
+
+        self.cleanUp(callEnviron)
         return current, parent
 
+    def swapParentChildColors(
+            self, parent, parentColor=None, callEnviron=None, sleepTime=0.01):
+        '''Swap the color settings of a parent and its two child nodes.
+        Optionally, maintain the parent color and copy it to the children.
+        If callEnviron is provided, the operation is animated.'''
+        if isinstance(parent, int): parent = self.getNode(parent)
+        pRing = self.nodeRing(parent)
+        children = self.getChildren(parent)
+        cRings = tuple(self.nodeRing(child) for child in children)
+        if callEnviron:
+            label = self.canvas.create_text(
+                *self.upperRightNodeCoords(), anchor=E,
+                text='Swap node colors: {} <-> {}, {}'.format(
+                    parent.getKey(), children[0].getKey(), children[1].getKey()),
+                font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+            callEnviron.add(label)
+            self.wait(sleepTime * 10)
+            pShape = parent.drawnValue.items[1]
+            pRings = tuple(self.copyCanvasItem(pRing) for child in children)
+            cShapes = tuple(child.drawnValue.items[1] for child in children)
+            ringsToMove = pRings + (
+                tuple(self.copyCanvasItem(ring) for ring in cRings)
+                if parentColor is None else ())
+            callEnviron |= set(ringsToMove)
+            for ring in ringsToMove:
+                self.canvas.tag_lower(ring, 'shape')
+            coords = tuple(self.canvas.coords(ring) for ring in
+                           (cRings + ((pRing, pRing) if parentColor is None
+                                      else ())))
+            self.moveItemsOnCurve(
+                ringsToMove, coords, sleepTime=sleepTime, startAngle=45)
+            for item in (label, *ringsToMove):
+                self.canvas.delete(item)
+                callEnviron.discard(item)
+        pColor = self.nodeColor(parent)
+        cColor = self.nodeColor(children[0])
+        for child in children:
+            self.nodeColor(child, pColor)
+        if parentColor is None:
+            self.nodeColor(parent, cColor)
+            
     def search(self, goal, **kwwargs):
         callEnviron = self.createCallEnvironment()
         node, _ = self._find(goal)
@@ -419,13 +494,48 @@ class RedBlackTree(BinaryTreeBase):
         self.cleanUp(callEnviron)
         return result
 
-    def insert(self, key, animation=False, **kwargs):
-        inserted = super().insert(key, animation=animation, **kwargs)
-        if inserted:
-            node, _ = self._find(key)
-            if self.getNode(node):
-                self.nodeColor(
-                    node, self.BLACK_COLOR if node == 0 else self.RED_COLOR)
+    def insert(self, key, animation=True, **kwargs):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment()
+        node, parent = self._find(key, prepare=True, animation=animation)
+        inserted = self.getNode(node) is None
+        if node >= len(self.nodes):
+            self.cleanUp(callEnviron)
+            return inserted
+        newNode = self.createNode(
+            key, parent=None if parent < 0 or animation else self.nodes[parent],
+            direction=Child.LEFT if node % 2 == 1 else Child.RIGHT,
+            addToArray=not animation,
+            ringColor=self.BLACK_COLOR if parent < 0 else self.RED_COLOR,
+            center=self.newValueCoords() if animation else None)
+        newData = newNode.drawnValue.items[1]
+        existingNode = self.getNode(node)
+        if animation:
+            callEnviron |= set(newNode.drawnValue.items)
+            if inserted:
+                self.moveItemsLinearly( # Move first without connecting parent
+                    newNode.drawnValue.items, self.nodeItemCoords(node),
+                    sleepTime=wait / 10)
+                if parent >= 0:         # Then connect to parent node
+                    self.moveItemsLinearly(
+                        newNode.drawnValue.items, 
+                        self.nodeItemCoords(node, parent=parent),
+                        sleepTime=wait / 10)
+                self.nodes[node] = newNode
+                self.size += 1
+                callEnviron -= set(newNode.drawnValue.items)
+            else:
+                oldData = existingNode.drawnValue.items[1]
+                nodeHighlight = self.createNodeHighlight(node)
+                callEnviron.add(nodeHighlight)
+                self.canvas.tag_lower(newData, existingNode.drawnValue.items[2])
+                self.moveItemsTo(
+                    newData, self.canvas.coords(oldData), sleepTime=wait / 10)
+        if not inserted:
+            callEnviron |= set(newNode.drawnValue.items)
+            self.copyItemAttributes(newData, oldData, 'fill')
+
+        self.cleanUp(callEnviron)
         return inserted
         
     def delete(self, goal, start=True):
@@ -608,7 +718,7 @@ class RedBlackTree(BinaryTreeBase):
     def clickInsert(self):
         val = self.validArgument()
         if val is not None:
-            inserted = self.insert(val, animation=False)
+            inserted = self.insert(val)
             if inserted:
                 self.updateMeasures()
             self.setMessage('Key {} {}'.format(
