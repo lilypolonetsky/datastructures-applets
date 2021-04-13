@@ -1319,11 +1319,12 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
 
     def clickSearch(self):
         val = self.validArgument()
-        self.setMessage(
-            "Key {} not found".format(val) if self.search(
-                val, start=self.startMode()) is None else 
-            "Found key {}".format(val))
-        self.clearArgument()
+        if val:
+            self.setMessage(
+                "Key {} not found".format(val) if self.search(
+                    val, start=self.startMode()) is None else 
+                "Found key {}".format(val))
+            self.clearArgument()
 
     def clickFill(self):
         val = self.validArgument()
