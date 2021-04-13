@@ -561,11 +561,13 @@ class RedBlackTree(BinaryTreeBase):
             outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
 
             self.canvas.tag_raise(deletedKeyAndData[1], outBox)
-            self.canvas.tag_lower(deletedKeyAndData[0], outBox)
+            for j in (2, 0):
+                self.canvas.tag_lower(deletedKeyAndData[j], outBox)
             self.moveItemsTo(
                 deletedKeyAndData, self.nodeItemCoords(outBoxCenter)[1:],
                 sleepTime=wait / 10)
             self.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
+            self.dispose(callEnviron, deletedKeyAndData[0], deletedKeyAndData[2])
 
             if self.getNode(node):
                 if node % 2 == 1:
@@ -595,9 +597,10 @@ class RedBlackTree(BinaryTreeBase):
             *(V(upperRightNodeCoords) - V(self.CIRCLE_SIZE + 5, 0)), anchor=E,
             text='deleted', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(deletedLabel)
-        deletedKeyAndData = tuple(
-            self.copyCanvasItem(item) 
-            for item in self.getNode(node).drawnValue.items[1:])
+        nodeItems = self.getNode(node).drawnValue.items
+        ring, shape, text = tuple(   # Copy items in stacking order
+            self.copyCanvasItem(nodeItems[j]) for j in (3, 1, 2))
+        deletedKeyAndData = (shape, text, ring)
         self.moveItemsTo(
             deletedKeyAndData, self.nodeItemCoords(upperRightNodeCoords)[1:],
             sleepTime=wait / 10)
