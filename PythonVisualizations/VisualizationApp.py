@@ -158,7 +158,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
 
     def getOperations(self):
-        '''Get all the currently defined operations.  Return:
+        '''Get all the currently defined operations.  Return 4 results:
         withArgument: List of operation buttons that require 1+ argument(s)
         withoutArgument: List of operation buttons that require no arguments
         nColumns: number of columns in operations grid
@@ -168,18 +168,21 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         grid.  The self.playControlsFrame is returned as a single operation
         in the withoutArgument list, if it is present.
         '''
-        gridItems = gridDict(self.operations) # Operations inserted in grid
-        nColumns, nRows = self.operations.grid_size()
-        withArgument = [
-            gridItems[0, row] for row in range(nRows)
-            if isinstance(gridItems[0, row], self.buttonTypes)]
-        withoutArgument = [
-            gridItems[col, row]
-            for row in range(nRows) for col in range(4, nColumns)
-            if isinstance(gridItems[col, row], self.buttonTypes) or
-            gridItems[col, row] is getattr(self, 'playControlsFrame', False)]
-        return withArgument, withoutArgument, nColumns, nRows
-        
+        withArgument, withoutArgument = [], []
+        playControls = getattr(self, 'playControlsFrame', False)
+        for item in self.operations.grid_slaves():
+            if (isinstance(item, self.buttonTypes) and
+                getattr(item, 'required_args', 0) > 0):
+                withArgument.append(item)
+            elif isinstance(item, self.buttonTypes) or item is playControls:
+                withoutArgument.append(item)
+        return withArgument, withoutArgument
+
+    withArgsColumn = 0
+    argsColumn = 8
+    separatorColumn = argsColumn + 1
+    withoutArgsColumn = separatorColumn + 1
+    
     def addOperation(  # Add a button to the operations control panel
             self,      # The button can require N arguments provided by text
             label,     # entry widgets. Button label
@@ -211,12 +214,13 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         setattr(button, 'required_args', numArguments)
 
         # Placement
-        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        withArgs, withoutArgs = self.getOperations()
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
                 textEntry = self.makeArgumentEntry(validationCmd)
                 self.textEntries.append(textEntry)
-                textEntry.grid(column=2, row=len(self.textEntries), padx=8)
+                textEntry.grid(
+                    column=self.argsColumn, row=len(self.textEntries), padx=8)
             for help, textEntry in zip(argHelpText, self.textEntries):
                 helpTexts = getattr(textEntry, 'helpTexts', set())
                 helpTexts.add(help)
@@ -225,36 +229,38 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 self.setHint()
 
             # Place button in grid of buttons
-            buttonRow = len(withArgs) + 1
-            button.grid(column=0, row=buttonRow, padx=8, sticky=(E, W))
+            buttonColumn = self.withArgsColumn + len(withArgs) // maxRows
+            buttonRow = len(withArgs) % maxRows + 1
+            button.grid(
+                column=buttonColumn, row=buttonRow, padx=8, sticky=(E, W))
+            withArgs.append(button)
             self.widgetState(button, DISABLED)
             nEntries = len(self.textEntries)
-            rowSpan = max(1, (len(withArgs) + 1) // nEntries)
+            rowSpan = max(1, (min(maxRows, len(withArgs)) - 1) // nEntries)
             
             # Spread text entries across all rows of buttons with arguments
             # with the hint about what to enter below, if any
             for i, entry in enumerate(self.textEntries):
+                entryRow = rowSpan * i + 1
                 entryRowSpan = rowSpan if i < nEntries - 1 else max(
-                    1, len(withArgs) + 1 - (nEntries - 1) * rowSpan)
-                entry.grid_configure(row=rowSpan * i + 1, rowspan=entryRowSpan)
+                    1, 
+                    min(maxRows, len(withArgs)) - 1 - (nEntries - 1) * rowSpan)
+                entry.grid_configure(row=entryRow, rowspan=entryRowSpan)
             if self.entryHint:
-                self.entryHintRow = max(nEntries, len(withArgs) + 1) + (
-                    0 if entryRowSpan > 2 else 1)
-                self.entryHint.grid_configure(column=2, row=self.entryHintRow)
+                self.entryHintRow = max(
+                    entryRow + max(1, entryRowSpan - 1),
+                    min(max(len(withoutArgs), len(withArgs)), maxRows))
+                self.entryHint.grid_configure(
+                    column=self.argsColumn, row=self.entryHintRow)
 
         else:
+            buttonColumn = self.withoutArgsColumn + len(withoutArgs) // maxRows
             buttonRow = len(withoutArgs) % maxRows + 1
-            button.grid(column=4 + len(withoutArgs) // maxRows,
-                        row=buttonRow, padx=8, sticky=(E, W))
-        if ((len(withoutArgs) if numArguments else len(withArgs)) > 0
-                and not self.opSeparator):  # Add separator if both kinds of
-            self.opSeparator = Frame(  # buttons are present and none built
-                self.operations, width=2, bg=self.OPERATIONS_BORDER)
-            self.opSeparator.grid(column=3, row=1, sticky=(N, E, W, S))
-        if self.opSeparator:
-            self.opSeparator.grid_configure(
-                rowspan=max(nRows, buttonRow, 
-                            self.entryHintRow if self.entryHint else 1))
+            button.grid(
+                column=buttonColumn, row=buttonRow, padx=8, sticky=(E, W))
+            withoutArgs.append(button)
+
+        self.configureOperationsSeparator(withArgs, withoutArgs)
         if helpText:
             button.bind('<Enter>', self.makeArmHintHandler(button, helpText))
             button.bind('<Leave>', self.makeDisarmHandler(button))
@@ -262,6 +268,18 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.opButtons.append(button)
         return button
 
+    def configureOperationsSeparator(self, withArgs, withoutArgs):
+        'Add separator if both kinds of buttons are present and none built'
+        if withArgs and withoutArgs and not self.opSeparator:
+            self.opSeparator = Frame(
+                self.operations, width=2, bg=self.OPERATIONS_BORDER)
+            self.opSeparator.grid(
+                column=self.separatorColumn, row=1, sticky=(N, E, W, S))
+        if self.opSeparator:
+            nColumns, nRows = self.operations.grid_size()
+            self.opSeparator.grid_configure(
+                rowspan=max(nRows, self.entryHintRow if self.entryHint else 1))
+        
     def makeArgumentEntry(self, validationCmd):
         entry = Entry(
             self.operations, width=self.maxArgWidth, bg=self.ENTRY_BG,
@@ -375,9 +393,9 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         pressed.
         '''
         self.playControlsFrame = Frame(self.operations, bg=self.OPERATIONS_BG)
-        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        withArgs, withoutArgs = self.getOperations()
         self.playControlsFrame.grid(
-            column=4 + len(withoutArgs) // maxRows,
+            column=self.withoutArgsColumn + len(withoutArgs) // maxRows,
             row=len(withoutArgs) % maxRows + 1)
 
         self.pauseButton, self.stepButton, self.stopButton = (
@@ -396,6 +414,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             btn.bind('<FocusOut>', self.buttonFocus(btn, False))
             btn.bind('<Button>', self.recordModifierKeyState, add='+')
             btn.bind('<KeyPress>', self.recordModifierKeyState, add='+')
+        withoutArgs.append(self.playControlsFrame)
+        self.configureOperationsSeparator(withArgs, withoutArgs)
         
         if setDefaultButton and self.textEntries:
             if isinstance(setDefaultButton, self.buttonTypes):
@@ -426,7 +446,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             animationControls = [
                 b for b in (self.pauseButton, self.stepButton, self.stopButton)
                 if b]
-            withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+            withArgs, withoutArgs = self.getOperations()
             try:
                 if cleanUpBefore:
                     self.cleanUp()
@@ -482,7 +502,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             
     def argumentChanged(self, widget=None):
         args = self.getArguments()
-        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        withArgs, withoutArgs = self.getOperations()
         for button in withArgs:
             nArgs = getattr(button, 'required_args')
             self.widgetState(
@@ -910,7 +930,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         return focusHandler
             
     def enableButtons(self, enable=True):
-        withArgs, withoutArgs, nColumns, nRows = self.getOperations()
+        withArgs, withoutArgs = self.getOperations()
         args = self.getArguments()
         for btn in withArgs + withoutArgs:
             if isinstance(btn, self.buttonTypes):

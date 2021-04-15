@@ -299,6 +299,12 @@ class Visualization(object):  # Base class for Python visualizations
                     item, fill=colors[min(i, nColors - 1)])
         return itemColors
 
+    def dispose(self, callEnviron, *items):
+        'Delete items from the canvas and call environment'
+        for item in items:
+            callEnviron.discard(item)
+            self.canvas.delete(item)
+
     def getItemFont(self, item):
         font = self.canvas.itemconfigure(item, 'font')[-1].split()
         return (font[0], int(font[1]), *font[2:])

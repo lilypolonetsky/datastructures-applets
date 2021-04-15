@@ -78,10 +78,11 @@ def delete(self, goal={goal}):
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait / 10)
         else:
             self.highlightCode(('return', 2), callEnviron, wait=wait)
-            result = None
+            deletedKeyAndData = None
 
         self.cleanUp(callEnviron)
-        return self.canvas.itemconfigure(deletedKeyAndData[1], 'text')[-1]
+        return (self.canvas.itemconfigure(deletedKeyAndData[1], 'text')[-1]
+                if deletedKeyAndData else None)
     
     __deleteCode = '''
 def __delete(self, parent={parentStr}, node={nodeStr}):
@@ -308,7 +309,8 @@ def __promote_successor(self, node={nodeStr}):
             "Post-order Traverse", lambda: self.clickTraverse('post'), 
             helpText='Traverse tree in post-order')
         self.addAnimationButtons()
-        return [fillButton, searchButton, insertButton, deleteButton]
+        return [insertButton, searchButton, deleteButton, fillButton,
+                preOrderButton, inOrderButton, postOrderButton]
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
