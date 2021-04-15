@@ -136,7 +136,7 @@ class Tree234(BinaryTreeBase):
                 level, _ = self.getLevelAndChild(node.keys[0])
                 level += 1
         nodeWidth = self.CIRCLE_SIZE * Tree234.maxKeys * 2 * scale
-        bounds = self.desiredTreeBounds(max(2, self.maxLevel))
+        bounds = self.desiredTreeBounds(max(1, self.maxLevel))
         treeWidth = bounds[2] - bounds[0] - nodeWidth
         levelDX = treeWidth / (Tree234.maxLinks ** level)
         dY = (0 if levelDX > self.CIRCLE_SIZE * Tree234.maxKeys * 2 * scale
