@@ -1090,8 +1090,22 @@ def search(self, goal={goal}):
         node, p = self._find(
             goal, self.rootNode, self, prepare=False, wait=wait)
         indexConfig = {'keyNum': -0.2, 'orientation': -135, 'anchor': SE}
-        nodeArrow = self.createArrow(
-            node if node else self.childCoords(p, 1), 'node', **indexConfig)
+        if node:
+            indexConfig['keyNum'] = node.keys.index(goal)
+            nodeArrow = self.createArrow(node, 'node', **indexConfig)
+        else:
+            pIsNode = isinstance(p, Node234)
+            child = 0
+            while pIsNode and child < p.nKeys and goal > p.keys[child]:
+                child += 1
+            nodeCenter = V(self.childCoords(p, child)) - V(
+                    0, self.LEVEL_GAP * self.scale // 4)
+            noneText = self.canvas.create_text(
+                *nodeCenter, text='None', font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+            self.scaleTextItem(noneText, self.scale)
+            callEnviron.add(noneText)
+            nodeArrow = self.createArrow(nodeCenter, 'node', **indexConfig)
         pArrow = self.createArrow(p, 'p', **indexConfig)
         callEnviron |= set(nodeArrow + pArrow)
 
@@ -1113,7 +1127,7 @@ def search(self, goal={goal}):
             self.highlightCode((), callEnviron)
 
         self.cleanUp(callEnviron)
-        return node
+        return node if node else None
         
     def delete(self, goal, start=True):
         self.setMessage('Not yet implemented')
