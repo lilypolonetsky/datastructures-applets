@@ -21,6 +21,7 @@ class RedBlackTree(BinaryTreeBase):
     BLACK_COLOR = 'black'
     MEASURE_MET = 'dark olive green'
     MEASURE_UNMET = 'red3'
+    measureTag = 'measureHighlight'
     DEBUG = False
     
     def __init__(self, title="Red-Black Tree", values=None, **kwargs):
@@ -180,6 +181,7 @@ class RedBlackTree(BinaryTreeBase):
 
         if animation:
             self.disconnectLink(topNode, sleepTime=wait / 10)
+            self.canvas.delete(self.measureTag)
 
         # Get key nodes
         topLeft = self.getLeftChild(top)
@@ -242,6 +244,7 @@ class RedBlackTree(BinaryTreeBase):
 
         if animation:
             self.disconnectLink(topNode, sleepTime=wait / 10)
+            self.canvas.delete(self.measureTag)
 
         # Get key nodes
         topRight = self.getRightChild(top)
@@ -377,7 +380,7 @@ class RedBlackTree(BinaryTreeBase):
     def getRedRedLinks(self):
         links = []
         toDo = [0]
-        self.canvas.delete('measureHighlight')
+        self.canvas.delete(self.measureTag)
         while toDo:
             nodeIndex = toDo.pop(0)
             parentIndex = self.getParentIndex(nodeIndex)
@@ -389,7 +392,7 @@ class RedBlackTree(BinaryTreeBase):
                     links.append((parentIndex, nodeIndex))
                     highlightLine = self.createHighlightedLine(
                         node, width=8, color=self.ERROR_HIGHLIGHT,
-                        tags='measureHighlight')
+                        tags=self.measureTag)
                     self.canvas.tag_lower(highlightLine)
                 toDo.extend([self.getLeftChildIndex(nodeIndex),
                              self.getRightChildIndex(nodeIndex)])
