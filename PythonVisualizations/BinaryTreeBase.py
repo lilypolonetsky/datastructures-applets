@@ -752,7 +752,7 @@ class BinaryTreeBase(VisualizationApp):
     # empty the tree's data
     def emptyTree(self):
         self.size = 0
-        self.nodes = [None] * (2**self.MAX_LEVEL)
+        self.nodes = [None] * self.maxElems
 
     def display(self, fields=[], treeLabel="BinarySearchTree"):
         self.canvas.delete("all")
