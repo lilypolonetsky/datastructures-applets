@@ -181,7 +181,7 @@ class RedBlackTree(BinaryTreeBase):
 
         if animation:
             self.disconnectLink(topNode, sleepTime=wait / 10)
-            self.canvas.delete(self.measureTag)
+            self.clearMeasures()
 
         # Get key nodes
         topLeft = self.getLeftChild(top)
@@ -244,7 +244,7 @@ class RedBlackTree(BinaryTreeBase):
 
         if animation:
             self.disconnectLink(topNode, sleepTime=wait / 10)
-            self.canvas.delete(self.measureTag)
+            self.clearMeasures()
 
         # Get key nodes
         topRight = self.getRightChild(top)
@@ -376,6 +376,12 @@ class RedBlackTree(BinaryTreeBase):
                 self.measures[m], text=text,
                 fill=self.MEASURE_MET if met else self.MEASURE_UNMET,
                 font=self.VALUE_FONT + (() if met else ('underline',)))
+            
+    def clearMeasures(self):
+        for measure in self.measures:
+            if measure and self.canvas.type(measure) == 'text':
+                self.canvas.itemconfigure(measure, text='')
+        self.canvas.delete(self.measureTag)
 
     def getRedRedLinks(self):
         links = []
@@ -516,17 +522,21 @@ class RedBlackTree(BinaryTreeBase):
         if animation:
             callEnviron |= set(newNode.drawnValue.items)
             if inserted:
+                nodeItemCoords = self.nodeItemCoords(node)
                 self.moveItemsLinearly( # Move first without connecting parent
-                    newNode.drawnValue.items, self.nodeItemCoords(node),
+                    newNode.drawnValue.items, nodeItemCoords,
                     sleepTime=wait / 10)
+                newNode.center = nodeItemCoords[2]
+                self.nodes[node] = newNode
+                self.size += 1
+                callEnviron -= set(newNode.drawnValue.items)
                 if parent >= 0:         # Then connect to parent node
                     self.moveItemsLinearly(
                         newNode.drawnValue.items, 
                         self.nodeItemCoords(node, parent=parent),
                         sleepTime=wait / 10)
-                self.nodes[node] = newNode
-                self.size += 1
-                callEnviron -= set(newNode.drawnValue.items)
+                else:
+                    self.updateTreeObjectRootPointer(root=self.getRoot())
             else:
                 oldData = existingNode.drawnValue.items[1]
                 nodeHighlight = self.createNodeHighlight(node)
@@ -757,6 +767,7 @@ class RedBlackTree(BinaryTreeBase):
                     self.rotateLeft(node)
                 else:
                     self.rotateRight(node)
+                self.updateMeasures()
                 self.clearArgument()
             else:
                 self.setMessage('Key {} not in tree'.format(val))
