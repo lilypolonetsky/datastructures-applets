@@ -192,8 +192,8 @@ class BinaryTreeBase(VisualizationApp):
     def getHeight(self, node):
         n = self.getNode(node) if isinstance(node, int) else node
         if n is None: return 0
-        return max(self.getHeight(child) for child in
-                   (self.getLeftChild(node), self.getRightChild(node))) + 1
+        return max(
+            self.getHeight(child) for child in self.getChildren(node)) + 1
       
     # returns a tuple of the left and right child of node
     def getChildren(self, node):
