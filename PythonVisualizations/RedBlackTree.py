@@ -507,10 +507,10 @@ class RedBlackTree(BinaryTreeBase):
         wait = 0.1
         callEnviron = self.createCallEnvironment()
         node, parent = self._find(key, prepare=True, animation=animation)
-        inserted = self.getNode(node) is None
         if node >= len(self.nodes):
             self.cleanUp(callEnviron)
-            return inserted
+            return None
+        inserted = self.getNode(node) is None
         newNode = self.createNode(
             key, parent=None if parent < 0 or animation else self.nodes[parent],
             direction=Child.LEFT if node % 2 == 1 else Child.RIGHT,
