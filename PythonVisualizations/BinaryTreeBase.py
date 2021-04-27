@@ -51,9 +51,10 @@ class BinaryTreeBase(VisualizationApp):
     VALUE_FONT = ('Helvetica', FONT_SIZE)
     FOUND_FONT = ('Helvetica', FONT_SIZE)
     nextColor = 0
+    valMax = 99
 
-    def __init__(self, RECT=None, CIRCLE_SIZE = 15, VAL_MAX=99, 
-               ARROW_HEIGHT = 5, MAX_LEVEL = 5, **kwargs):
+    def __init__(self, RECT=None, CIRCLE_SIZE=None, VAL_MAX=99, 
+               ARROW_HEIGHT=None, MAX_LEVEL=None, **kwargs):
         """Build a VisualizationApp that will show a binary tree on part of the
         canvas within the rectangle bounded by RECT (X0, Y0, X1, Y1) which
         defaults to (0, 0, canvas width, canvas height).
@@ -65,23 +66,9 @@ class BinaryTreeBase(VisualizationApp):
         self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
         self.size = 0
         self.valMax = VAL_MAX
-        
-        self.CIRCLE_SIZE = CIRCLE_SIZE       # radius of each node
-        self.ARROW_HEIGHT = ARROW_HEIGHT     # indicator arrow height
-        self.MAX_LEVEL = MAX_LEVEL           # the max level of the tree plus 1
 
-        if RECT is None:
-            canvasDims = (self.targetCanvasWidth, self.targetCanvasHeight)
-            outputBoxCoords = self.outputBoxCoords(canvasDims=canvasDims)
-            RECT = (0, 0, canvasDims[0], outputBoxCoords[1] - 1)
-        X0, Y0, X1, Y1 = RECT
-        self.RECT = RECT
-        self.ROOT_X0 = (X0 + X1) // 2        # root's center
-        self.ROOT_Y0 = Y0 + CIRCLE_SIZE + ARROW_HEIGHT + 3 * abs(
-            self.VARIABLE_FONT[1])
-        self.TREE_WIDTH = X1 - X0 - 2 * CIRCLE_SIZE # max tree width
-        # the vertical gap between levels
-        self.LEVEL_GAP = (Y1 - CIRCLE_SIZE - self.ROOT_Y0) / max(1, MAX_LEVEL - 1)
+        self.setTreeSize(RECT, circleSize=CIRCLE_SIZE,
+                         arrowHeight=ARROW_HEIGHT, maxLevel=MAX_LEVEL)
 
         # tree will be stored in array
         # root will be index 0
@@ -93,7 +80,31 @@ class BinaryTreeBase(VisualizationApp):
 
     def __str__(self):
         return '<BinarySearchTree>'
-        
+
+    def setTreeSize(
+            self, rect=None, circleSize=None, arrowHeight=None, maxLevel=None):
+        if circleSize is None:
+            circleSize = getattr(self, 'CIRCLE_SIZE', 15)
+        self.CIRCLE_SIZE = circleSize
+        if arrowHeight is None:
+            arrowHeight = getattr(self, 'ARROW_HEIGHT', 5)
+        self.ARROW_HEIGHT = arrowHeight
+        if maxLevel is None:
+            maxLevel = getattr(self, 'MAX_LEVEL', 5)
+        self.MAX_LEVEL = maxLevel
+        if rect is None:
+            canvasDims = (self.targetCanvasWidth, self.targetCanvasHeight)
+            outputBoxCoords = self.outputBoxCoords(canvasDims=canvasDims)
+            rect = (0, 0, canvasDims[0], outputBoxCoords[1] - 1)
+        self.RECT = rect
+        X0, Y0, X1, Y1 = rect
+        self.ROOT_X0 = (X0 + X1) // 2        # root's center
+        self.ROOT_Y0 = Y0 + circleSize + arrowHeight + 3 * abs(
+            self.VARIABLE_FONT[1])
+        self.TREE_WIDTH = X1 - X0 - 2 * circleSize # max tree width
+        self.LEVEL_GAP = (        # the vertical gap between levels
+            Y1 - circleSize - self.ROOT_Y0) / max(1, maxLevel - 1)
+    
     # --------- ACCESSOR METHODS ---------------------------
 
     # returns the index of the node
@@ -553,7 +564,7 @@ class BinaryTreeBase(VisualizationApp):
     def outputBoxCoords(self, font=None, padding=6, N=None, canvasDims=None):
         '''Coordinates for an output box in lower right of canvas with enough
         space to hold N values, defaulting to current tree size'''
-        if N is None: N = max(1, self.size)
+        if N is None: N = max(1, getattr(self, 'size', 0))
         if font is None: font = self.VALUE_FONT
         spacing = self.outputBoxSpacing(font)
         if canvasDims is None:
