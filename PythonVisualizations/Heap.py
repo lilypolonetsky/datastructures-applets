@@ -567,7 +567,7 @@ def siftDown(array, j={j}, N={N}, key=identity):
 
         if N is not None:
             if code:
-                NIndex = self.createArrayIndex(N, name='N', level=2)
+                NIndex = self.createArrayIndex(N, name='N', level=5)
                 callEnviron |= set(NIndex)
                 self.highlightCode('N is None', callEnviron, wait=wait)
         else:
@@ -575,7 +575,7 @@ def siftDown(array, j={j}, N={N}, key=identity):
             if code:
                 self.highlightCode('N is None', callEnviron, wait=wait)
                 self.highlightCode('N = len(array)', callEnviron, wait=wait)
-                NIndex = self.createArrayIndex(N, name='N', level=2)
+                NIndex = self.createArrayIndex(N, name='N', level=5)
                 callEnviron |= set(NIndex)
 
         if code:
@@ -807,7 +807,7 @@ def heapify(array, N=None, key=identity):
             N = len(self.list)   # then use number of items in list
             if code:
                 self.highlightCode('N = len(array)', callEnviron, wait=wait)
-                NIndex = self.createArrayIndex(N, name='N', level=2)
+                NIndex = self.createArrayIndex(N, name='N', level=5)
                 callEnviron |= set(NIndex)
 
         if code:
