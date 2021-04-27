@@ -882,23 +882,28 @@ def peek(self):
         
         # draw output box
         outBoxCoords = self.outputBoxCoords(N=1)
-        outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
+        outBoxCenter = BBoxCenter(outBoxCoords)
         outputBox = self.canvas.create_rectangle(
             *outBoxCoords, fill=self.OPERATIONS_BG)
         callEnviron.add(outputBox)
 
         if self.nItems > 0:
             self.highlightCode(['return', 'self._arr[0]'], callEnviron)
-            # create the value to move to output box
-            outputValues = tuple(self.copyCanvasItem(i) for i in
-                                 (self.list[0].items[1], 
-                                  self.getRoot().drawnValue.items[2]))
-            callEnviron |= set(outputValues)
-            self.moveItemsTo(
-                outputValues, (outBoxCenter,) * 2, sleepTime=wait / 10,
-                startFont=self.VALUE_FONT, endFont=self.outputFont)
-
             root = self.list[0].val
+
+            # create the items to move to output box
+            outputValues = tuple(self.copyCanvasItem(i) for i in
+                                 self.getRoot().drawnValue.items[1:] +
+                                 (self.list[0].items[1],))
+            callEnviron |= set(outputValues)
+            self.canvas.tag_lower(outputValues[0], outputBox)
+            self.moveItemsTo(
+                outputValues, 
+                self.nodeItemCoords(outBoxCenter)[1:] + (outBoxCenter,),
+                sleepTime=wait / 10,
+                startFont=self.VALUE_FONT, endFont=self.outputFont)
+            self.copyItemAttributes(outputValues[0], outputBox, 'fill')
+            self.dispose(callEnviron, outputValues[0], outputValues[1])
 
         else:
             self.highlightCode('return None', callEnviron)
@@ -937,18 +942,25 @@ def remove(self):
         root = self.list[0]
         rootNode = self.getRoot()
         outBoxCoords = self.outputBoxCoords(N=1)
-        outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
+        outBoxCenter = BBoxCenter(outBoxCoords)
         outputBox = self.canvas.create_rectangle(
             *outBoxCoords, fill=self.OPERATIONS_BG)
         callEnviron.add(outputBox)
         callEnviron.add(self.canvas.create_text(
             outBoxCoords[0] - 10, outBoxCenter[1], text='root', anchor=E,
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
-        keyCopies = tuple(self.copyCanvasItem(item) for item in
-                          (root.items[1], rootNode.drawnValue.items[2]))
-        callEnviron |= set(keyCopies)
-        self.moveItemsTo(keyCopies, (outBoxCenter,) * 2, sleepTime=wait / 10,
-                         startFont=self.VALUE_FONT, endFont=self.outputFont)
+        itemCopies = tuple(self.copyCanvasItem(item) for item in
+                            rootNode.drawnValue.items[1:] + (root.items[1],))
+        callEnviron |= set(itemCopies)
+        self.canvas.tag_lower(itemCopies[0], outputBox)
+        
+        self.moveItemsTo(
+            itemCopies,
+            self.nodeItemCoords(outBoxCenter)[1:] + (outBoxCenter,),
+            sleepTime=wait / 10, startFont=self.VALUE_FONT,
+            endFont=self.outputFont)
+        self.copyItemAttributes(itemCopies[0], outputBox, 'fill')
+        self.dispose(callEnviron, itemCopies[0], itemCopies[1])
 
         isHeap = True
         itemsToMove = ()
