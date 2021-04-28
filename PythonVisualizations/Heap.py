@@ -1038,6 +1038,103 @@ def remove(self):
         self.highlightCode('return root', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
         return root.val
+
+    traverseExampleCode = '''
+for item in heap.traverse():
+   print(item)
+'''
+    
+    def traverseExample(self, code=traverseExampleCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code, sleepTime=wait / 10, startAnimations=start)
+        
+        outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=self.nItems)
+        outBoxCenter = BBoxCenter(outBoxCoords)
+        outputBox = self.createOutputBox(coords=outBoxCoords)
+        callEnviron.add(outputBox)
+        outputText = self.canvas.create_text(
+            outBoxCoords[0] + 5, outBoxCenter[1], text='', anchor=W, 
+            font=self.outputFont)
+        callEnviron.add(outputText)
+        
+        self.highlightCode('item in heap.traverse()', callEnviron, wait=wait)
+        arrayIndex, treeIndex = None, None
+        localVars = ()
+        colors = self.fadeNonLocalItems(localVars)
+        for i, item in self.traverse():
+            self.restoreLocalItems(localVars, colors)
+            if arrayIndex is None:
+                arrayIndex = self.createArrayIndex(i, 'item')
+                treeIndex = self.createArrow(i, 'item')
+                indices = arrayIndex + treeIndex
+                callEnviron |= set(indices)
+                localVars += (indices)
+            else:
+                self.moveItemsTo(
+                    indices, 
+                    self.arrayIndexCoords(i) + self.indexCoords(i, 1),
+                    sleepTime=wait / 10)
+
+            self.highlightCode('print(item)', callEnviron, wait=wait)
+            outputValues = tuple(self.copyCanvasItem(i) for i in
+                                 (item.drawnValue.items[2],
+                                  self.list[i].items[1]))
+            callEnviron |= set(outputValues)
+
+            currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
+            newText = (' ' if len(currentText) > 0 else '') + str(item.getKey())
+            textBBox = self.canvas.bbox(outputText)
+            newTextWidth = self.textWidth(self.outputFont, newText)
+            textCenter = (textBBox[2] + newTextWidth // 2, outBoxCenter[1])
+            self.moveItemsTo(
+                outputValues, (textCenter, textCenter), sleepTime=wait / 10, 
+                startFont=self.VALUE_FONT, endFont=self.outputFont)
+            self.canvas.itemconfigure(outputText, text=currentText + newText)
+            self.dispose(callEnviron, *outputValues)
+
+            self.highlightCode('item in heap.traverse()', callEnviron, wait=wait)
+            colors = self.fadeNonLocalItems(localVars)
+
+        self.restoreLocalItems(localVars, colors)
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron)
+
+    traverseCode = '''
+def traverse(self):
+   for i in range(len(self)):
+      yield self._arr[i]
+'''
+
+    def traverse(self, traverseType='in', code=traverseCode):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
+
+        self.highlightCode('i in range(len(self)', callEnviron, wait=wait)
+        iArrayIndex, iArrow = None, None
+        for i in range(self.nItems):
+            if iArrayIndex is None:
+                iArrayIndex = self.createArrayIndex(i, 'i')
+                iArrow = self.createArrow(i, 'i', orientation=-110)
+                indices = iArrayIndex + iArrow
+                callEnviron |= set(indices)
+            else:
+                self.moveItemsTo(
+                    indices,
+                    self.arrayIndexCoords(i) + 
+                    self.indexCoords(i, 1, orientation=-110),
+                    sleepTime=wait / 10)
+                
+            self.highlightCode('yield self._arr[i]', callEnviron, wait=wait)
+            itemCoords = self.yieldCallEnvironment(
+                callEnviron, sleepTime=wait / 10)
+            yield i, self.getNode(i)
+            self.resumeCallEnvironment(
+                callEnviron, itemCoords, sleepTime=wait / 10)
+            self.highlightCode('i in range(len(self)', callEnviron, wait=wait)
+        
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
     
     def randomFill(self, val, makeHeap=False):
         self.heapSize = max(self.heapSize, val)
@@ -1173,17 +1270,21 @@ def remove(self):
             numArguments=1, validationCmd=vcmd, argHelpText=['number of items'],
             helpText='Fill empty array with N random items')
         self.peekButton = self.addOperation(
-            "Peek", lambda: self.clickPeek(), maxRows=maxRows,
+            "Peek", self.clickPeek, maxRows=maxRows,
             helpText='Peek at maximum item')
         self.removeMaxButton = self.addOperation(
-            "Remove Max", lambda: self.clickRemoveMax(), maxRows=maxRows,
+            "Remove Max", self.clickRemoveMax, maxRows=maxRows,
             helpText='Remove maximum item from heap')
         self.heapifyButton = self.addOperation(
-            "Heapify", lambda: self.clickHeapify(), maxRows=maxRows,
+            "Heapify", self.clickHeapify, maxRows=maxRows,
+            helpText='Organize items into heap')
+        traverseButton = self.addOperation(
+            "Traverse", self.clickTraverse, maxRows=maxRows,
             helpText='Organize items into heap')
         self.addAnimationButtons(maxRows=maxRows)
         return [self.insertButton, randomHeapButton, randomFillButton,
-                self.peekButton, self.removeMaxButton, self.heapifyButton]
+                self.peekButton, self.removeMaxButton, self.heapifyButton,
+                traverseButton]
 
     # Button functions
     def clickInsert(self):
@@ -1223,6 +1324,9 @@ def remove(self):
 
     def clickHeapify(self):
         self.heapify(start=self.startMode())
+        
+    def clickTraverse(self):
+        self.traverseExample(start=self.startMode())
 
 if __name__ == '__main__':
     numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
