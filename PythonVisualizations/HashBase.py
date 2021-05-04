@@ -2,26 +2,34 @@ from tkinter import *
 from math import *
 
 try:
+    from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .drawnValue import *
     from .VisualizationApp import *
 
 class HashBase(VisualizationApp):
+    CELL_BORDER = 2
+    CELL_BORDER_COLOR = 'black'
+    MAX_CELLS = 61
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def createHasher(
-            self, x0=100, y0=320, x1=160, y1=380,
-            fill='saddle brown', sections=7, label='HASH',
+            self, x0=100, y0=314, x1=160, y1=386,
+            fill='saddle brown', sections=7, label='HASH', amplitude=0.1,
             font=VisualizationApp.VALUE_FONT, foreground='white'):
         """Create canvas items depicting a hash 'engine' that converts
-        strings to numbers.  The hasher will fit within the bounding box."""
+        strings to numbers.  The hasher will fit within the bounding
+        box reaching the maximal vertical dimensions when grinding.
+        """
         sections = max(2, sections)
         self.hasher = {
             'Blocks': [None] * sections,
             'BBox': (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)),
-            'SectionHeight': abs(y1 - y0) * 0.8,
-            'SectionOffset': abs(y1 - y0) * 0.1,
+            'SectionHeight': abs(y1 - y0) * (1 - 2 * amplitude),
+            'SectionOffset': abs(y1 - y0) * amplitude,
             'SectionWidth': abs(x1 - x0) / max(2, sections),
             'Phase': 0,
             }
@@ -41,13 +49,14 @@ class HashBase(VisualizationApp):
         p = h['Phase'] * (1 + fromEnd) + (blockIndex % 2) * pi
         x0 = h['BBox'][0] + h['SectionWidth'] * blockIndex
         x1 = h['BBox'][0] + h['SectionWidth'] * (blockIndex + 1)
-        y0 = h['BBox'][1] + h['SectionOffset'] * 2 * (sin(p) + 0.5)
+        y0 = h['BBox'][1] + h['SectionOffset'] * (sin(p) + 0.5)
         y1 = y0 + h['SectionHeight']
         return (x0, y0, x1, y1)
             
-    def hashInputCoords(self):
+    def hashInputCoords(self, nInputs=2):
         h = self.hasher
-        return (h['BBox'][0], (h['BBox'][1] * 2 + h['BBox'][3]) / 3)
+        return (h['BBox'][0],
+                (h['BBox'][1] * nInputs + h['BBox'][3]) / (nInputs + 1))
 
     def hashSeedCoords(self):
         h = self.hasher
@@ -139,3 +148,95 @@ class HashBase(VisualizationApp):
                 if callEnviron:
                     callEnviron.add(output[-1])
         return output
+
+    def setupDisplay(self, nColumns=3, hasherHeight=70):
+        'Define dimensions and coordinates for display items'
+        canvasDimensions = self.widgetDimensions(self.canvas)
+        self.hasherHeight = hasherHeight
+        self.nColumns = nColumns
+        self.cellsPerColumn = math.ceil(self.MAX_CELLS / self.nColumns)
+        self.columnWidth = self.targetCanvasWidth // self.nColumns
+        self.column_x0 = min(self.columnWidth // 4, 30)
+        self.cellHeight = (
+            (canvasDimensions[1] - hasherHeight) // (self.cellsPerColumn + 2))
+        self.VALUE_FONT = (self.VALUE_FONT[0],
+                           max(self.VALUE_FONT[1], - self.cellHeight * 7 // 10))
+        self.cellWidth = self.textWidth(self.VALUE_FONT,
+                                        'W' * (self.maxArgWidth + 2))
+
+    def cellColumn(self, index):
+        return (index % len(self.table)) // self.cellsPerColumn
+    
+    def cellCoords(self, index):
+        column = self.cellColumn(index)
+        row = (index % len(self.table)) % self.cellsPerColumn
+        x0 = self.columnWidth * column + self.column_x0
+        y0 = (row + 1) * self.cellHeight
+        return x0, y0, x0 + self.cellWidth, y0 + self.cellHeight
+
+    def cellCenter(self, index):
+        return V(BBoxCenter(self.cellCoords(index))) - V(0, 1)
+
+    def newValueCoords(self):
+        cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
+        canvasDims = self.widgetDimensions(self.canvas)
+        delta = V(V(canvasDims) / V(2, 1)) - V(cell0)
+        return V(cell0) + V(delta * 2)
+
+    def arrayCellDelta(self):
+        half_border = self.CELL_BORDER // 2
+        return (-half_border, -half_border,
+                half_border - self.CELL_BORDER, half_border - self.CELL_BORDER)
+    
+    def arrayCellCoords(self, index):
+        cell_coords = self.cellCoords(index)
+        return add_vector(cell_coords, self.arrayCellDelta())
+    
+    def createArrayCell(     # Create a box representing an array cell
+            self, index, tags=["arrayBox"], color=None, width=None):
+        if color is None: color = self.CELL_BORDER_COLOR
+        if width is None: width = self.CELL_BORDER
+        rect = self.canvas.create_rectangle(
+            *self.arrayCellCoords(index), fill=None, outline=color, width=width,
+            tags=tags)
+        self.canvas.lower(rect)
+        return rect
+    
+    nextColor = 0
+    
+    def createCellValue(self, indexOrCoords, key, color=None):
+        """Create new canvas items to represent a cell value.  A rectangle is
+        created filled with a particular color behind an optional text key.
+        The position of the cell can either be an integer index in the Array or
+        the bounding box coordinates of the rectangle.  If color is not
+        supplied, the next color in the palette is used.  An event handler is
+        set up to update the VisualizationApp argument with the cell's value
+        if clicked with any button.  Returns a tuple, (rectangle, text), of
+        canvas items, which may be 1-tuple if self.showValues is False.
+        """
+        # Determine position and color of cell
+        if isinstance(indexOrCoords, int):
+            rectPos = self.cellCoords(indexOrCoords)
+            valPos = self.cellCenter(indexOrCoords)
+        else:
+            rectPos = indexOrCoords
+            valPos = BBoxCenter(rectPos)
+        border = self.arrayCellDelta()
+        centeredRect = V(rectPos) + (0, 0, *(V(border[:2]) + V(border[2:])))
+            
+        if color is None:
+            # Take the next color from the palette
+            color = drawnValue.palette[self.nextColor]
+            self.nextColor = (self.nextColor + 1) % len(
+                drawnValue.palette)
+    
+        cell = (self.canvas.create_rectangle(*centeredRect, fill=color,
+                                             outline='', width=0),
+                self.canvas.create_text(
+                    *valPos, text=str(key), font=self.VALUE_FONT,
+                    fill=self.VALUE_COLOR, tags="cellVal"))
+        handler = lambda e: self.setArgument(str(key))
+        for item in cell:
+            self.canvas.tag_bind(item, '<Button>', handler)
+
+        return cell
