@@ -15,6 +15,8 @@ fraction = re.compile(r'0*\.\d+')
 class HashTableOpenAddressing(HashBase):
     MIN_LOAD_FACTOR = 0.2
     MAX_LOAD_FACTOR = 1.0
+    CELL_INDEX_COLOR = 'gray60'
+    __Deleted = (None, None)
     
     def __init__(
             self, maxArgWidth=8, title="Hash Table - Open Addressing",
@@ -22,6 +24,9 @@ class HashTableOpenAddressing(HashBase):
         kwargs['maxArgWidth'] = maxArgWidth
         super().__init__(title=title, **kwargs)
         self.probe = linearProbe
+        self.hash = simpleHash
+        self.hashAddressCharacters = ()
+        self.nItemsText, self.maxLoadFactorText = None, None
         self.buttons = self.makeButtons()
         self.setupDisplay()
         self.newHashTable()
@@ -42,12 +47,80 @@ class HashTableOpenAddressing(HashBase):
         callEnviron = self.createCallEnvironment(startAnimations=start)
         self.cleanUp(callEnviron)
 
-    def _find(self, key, deletedOK=False):
-        wait = 0.1
-        callEnviron = self.createCallEnvironment()
+    _findCode = '''
+def __find(self, key={key}, deletedOK={deletedOK}):
+   for i in self.__probe(self.hash(key), key, self.cells()):
+      if (self.__table[i] is None or
+          (self.__table[i] is HashTable.__Deleted and
+           deletedOK) or
+          self.__table[i][0] == key):
+         return i
+   return None
+'''
+    
+    def _find(self, key, deletedOK=False, code=_findCode, animate=True):
+        wait = 0.1 if animate else 0
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()) if animate and code else '',
+            startAnimations=animate)
 
+        hashAddress = self.hash(key)
+        if animate:
+            self.highlightCode(
+                'i in self.__probe(self.hash(key), key, self.cells())',
+                callEnviron)
+            self.hashAddressCharacters = self.animateStringHashing(
+                key, hashAddress, sleepTime=wait / 10,
+                callEnviron=callEnviron) if self.showHashing.get() else [
+                    self.canvas.create_text(
+                        *self.hashOutputCoords(), anchor=W,
+                        text=' ' + str(hashAddress), font=self.VARIABLE_FONT,
+                        fill=self.VARIABLE_COLOR)]
+
+            lastI, currentI = None, None
+
+        for i in self.probe(hashAddress, key, len(self.table)):
+            if animate:
+                if lastI is None:
+                    lastI = self.hashAddressCoords()
+                else:
+                    lastI = currentI[2:] + currentI[:2]
+                currentI = self.cellArrowCoords(i)
+                steps = max(abs(c) for c in V(lastI[:2]) - V(currentI[2:]))
+                arrow = self.canvas.create_line(
+                    *lastI, *currentI, arrow=LAST, width=1, fill='darkblue',
+                    smooth=True, splinesteps=steps, tags='probeline')
+                callEnviron.add(arrow)
+                self.highlightCode(
+                    'self.__table[i] is None', callEnviron, wait=wait)
+                if self.table[i] is not None:
+                    self.highlightCode(
+                        'self.__table[i] is HashTable.__Deleted', callEnviron,
+                        wait=wait)
+                    if self.table[i] is self.__Deleted:
+                        self.highlightCode(
+                            ('deletedOK', 2), callEnviron, wait=wait)
+                    if self.table[i] is not self.__Deleted or not deletedOK:
+                        self.highlightCode(
+                            'self.__table[i][0] == key', callEnviron, wait=wait)
+            if (self.table[i] is None or
+                (self.table[i] is self.__Deleted and deletedOK) or
+                self.table[i].val == key):
+                if animate:
+                    self.highlightCode('return i', callEnviron, wait=wait)
+                    self.cleanUp(callEnviron)
+                    return i
+
+            if animate:
+                self.highlightCode(
+                    'i in self.__probe(self.hash(key), key, self.cells())',
+                    callEnviron)
+            
+        if animate:
+            self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
-
+        return None
+    
     def display(self):
         '''Erase canvas and redisplay contents.  Call setupDisplay() before
         this to set the display parameters.'''
@@ -56,8 +129,15 @@ class HashTableOpenAddressing(HashBase):
         self.hasher = self.createHasher(
             y0=canvasDimensions[1] - self.hasherHeight,
             y1=canvasDimensions[1] - 1)
+        self.updateNItems()
+        self.updateMaxLoadFactor()
         self.arrayCells = [
             self.createArrayCell(j) for j in range(len(self.table))]
+        for j in range(len(self.table)):
+            coords = self.cellArrowCoords(j)
+            self.canvas.create_text(
+                *coords[2:], anchor=W, text='{:2d}'.format(j), tags='cellIndex',
+                font=self.cellIndexFont, fill=self.CELL_INDEX_COLOR)
         for j, item in enumerate(self.table):
             if item:
                 self.table[j] = drawnValue(
@@ -66,7 +146,33 @@ class HashTableOpenAddressing(HashBase):
                         color=self.canvas.itemconfigure(
                             item.items[0], 'fill')[-1] if item.items else None))
         self.window.update()
+
+    def updateNItems(self, nItems=None):
+        if nItems is None:
+            nItems = self.nItems
+        outputBoxCoords = self.outputBoxCoords()
+        if self.nItemsText is None or self.canvas.type(self.nItemsText) != 'text':
+            self.nItemsText = self.canvas.create_text(
+                *(V(outputBoxCoords[:2]) + V(5, -5)), anchor=SW,
+                text='', font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+        self.canvas.itemconfigure(
+            self.nItemsText, text='nItems = {}'.format(nItems))
         
+    def updateMaxLoadFactor(self, maxLoadFactor=None):
+        if maxLoadFactor is None:
+            maxLoadFactor = self.maxLoadFactor
+        outputBoxCoords = self.outputBoxCoords()
+        if (self.maxLoadFactorText is None or
+            self.canvas.type(self.maxLoadFactorText) != 'text'):
+            self.maxLoadFactorText = self.canvas.create_text(
+                outputBoxCoords[2] - 5, outputBoxCoords[1] - 5, anchor=SE,
+                text='', font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+        self.canvas.itemconfigure(
+            self.maxLoadFactorText, text='maxLoadFactor = {}%'.format(
+                int(100 * maxLoadFactor)))
+            
     def animateStringHashing(
             self, text, hashed, sleepTime=0.01,
             callEnviron=None, dx=2, font=VisualizationApp.VARIABLE_FONT, 
@@ -81,21 +187,15 @@ class HashTableOpenAddressing(HashBase):
         h = self.hasher
 
         # Create individual character text items to feed into hasher
-        text, seed, hashed = str(text), str(seed), str(hashed)
-        inputCoords = self.hashInputCoords()
-        seedCoords = self.hashSeedCoords()
+        text, hashed = str(text), str(hashed)
+        inputCoords = self.hashInputCoords(nInputs=1)
         outputCoords = self.hashOutputCoords()
         charWidth = self.textWidth(font, 'W')
         characters = set([
             self.canvas.create_text(
                 inputCoords[0] - ((len(text) - i) * charWidth),
                 inputCoords[1], text=c, font=font, fill=color, state=DISABLED)
-            for i, c in enumerate(text)] + [
-                    self.canvas.create_text(
-                        seedCoords[0] - ((len(seed) - i) * charWidth),
-                        seedCoords[1], text=c, font=font, fill=color,
-                        state=DISABLED)
-                    for i, c in enumerate(seed)])
+            for i, c in enumerate(text)])
         for c in characters:
             self.canvas.lower(c)
         if callEnviron:
@@ -119,8 +219,9 @@ class HashTableOpenAddressing(HashBase):
                 if coords[0] - pad >= h['BBox'][0]: # hasher bounding box and
                     deletion = True       # delete them if they did
                     if callEnviron:
-                        callEnviron.discard(char)
-                    self.canvas.delete(char)
+                        self.dispose(callEnviron, char)
+                    else:
+                        self.canvas.delete(char)
                     characters.discard(char)
                     
             if output:
@@ -140,7 +241,13 @@ class HashTableOpenAddressing(HashBase):
                 if callEnviron:
                     callEnviron.add(output[-1])
         return output
-
+ 
+    def hashAddressCoords(self):
+        bbox = BBoxUnion(self.canvas.bbox(c) 
+                         for c in self.hashAddressCharacters)
+        top = ((bbox[0] + bbox[2]) // 2, bbox[1])
+        return top + (V(top) + V(0, -60))
+                         
     # Button functions
     def clickSearch(self):
         entered_text = self.getArgument(0)

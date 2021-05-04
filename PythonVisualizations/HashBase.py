@@ -156,11 +156,13 @@ class HashBase(VisualizationApp):
         self.nColumns = nColumns
         self.cellsPerColumn = math.ceil(self.MAX_CELLS / self.nColumns)
         self.columnWidth = self.targetCanvasWidth // self.nColumns
-        self.column_x0 = min(self.columnWidth // 4, 30)
+        self.column_x0 = min(self.columnWidth // 4, 60)
         self.cellHeight = (
             (canvasDimensions[1] - hasherHeight) // (self.cellsPerColumn + 2))
         self.VALUE_FONT = (self.VALUE_FONT[0],
                            max(self.VALUE_FONT[1], - self.cellHeight * 7 // 10))
+        self.cellIndexFont = (self.VARIABLE_FONT[0],
+                              max(self.VALUE_FONT[1], -10))
         self.cellWidth = self.textWidth(self.VALUE_FONT,
                                         'W' * (self.maxArgWidth + 2))
 
@@ -175,8 +177,13 @@ class HashBase(VisualizationApp):
         return x0, y0, x0 + self.cellWidth, y0 + self.cellHeight
 
     def cellCenter(self, index):
-        return V(BBoxCenter(self.cellCoords(index))) - V(0, 1)
+        return BBoxCenter(self.cellCoords(index))
 
+    def cellArrowCoords(self, index):
+        cellCoords = self.cellCoords(index)
+        y = (cellCoords[1] + cellCoords[3]) / 2
+        return cellCoords[0] - 40, y, cellCoords[0] - 18, y
+        
     def newValueCoords(self):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
         canvasDims = self.widgetDimensions(self.canvas)
@@ -191,6 +198,17 @@ class HashBase(VisualizationApp):
     def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
         return add_vector(cell_coords, self.arrayCellDelta())
+    
+    def outputBoxCoords(self, outputFont=None, padding=10, nLines=3):
+        '''Coordinates for an output box in lower right of canvas with enough
+        space to hold several lines of text'''
+        canvasDims = self.widgetDimensions(self.canvas)
+        if outputFont is None:
+            outputFont = getattr(self, 'outputFont', self.VALUE_FONT)
+        lineHeight = self.textHeight(outputFont, ' ')
+        left = canvasDims[0] // 2
+        top = canvasDims[1] - padding * 3 - lineHeight * nLines
+        return left, top, canvasDims[0] - padding, canvasDims[1] - padding
     
     def createArrayCell(     # Create a box representing an array cell
             self, index, tags=["arrayBox"], color=None, width=None):
@@ -233,7 +251,7 @@ class HashBase(VisualizationApp):
         cell = (self.canvas.create_rectangle(*centeredRect, fill=color,
                                              outline='', width=0),
                 self.canvas.create_text(
-                    *valPos, text=str(key), font=self.VALUE_FONT,
+                    *(V(valPos) - V(0, 1)), text=str(key), font=self.VALUE_FONT,
                     fill=self.VALUE_COLOR, tags="cellVal"))
         handler = lambda e: self.setArgument(str(key))
         for item in cell:
