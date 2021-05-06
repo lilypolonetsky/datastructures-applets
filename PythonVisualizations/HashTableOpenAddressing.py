@@ -36,12 +36,237 @@ class HashTableOpenAddressing(HashBase):
         self.nItems = 0
         self.maxLoadFactor = maxLoadFactor
         self.display()
-        
-    def insert(self, key, start=True):
-        wait = 0.1
-        callEnviron = self.createCallEnvironment(startAnimations=start)
-        self.cleanUp(callEnviron)
 
+    def loadFactor(self):
+        return self.nItems / len(self.table)
+        
+    insertCode = '''
+def insert(self, key={key}, value):
+   i = self.__find(key, deletedOK=True)
+   if i is None:
+      raise Exception('Hash table probe sequence failed on insert')
+   if (self.__table[i] is None or
+       self.__table[i] is HashTable.__Deleted):
+      self.__table[i] = (key, value)
+      self.__nItems += 1
+      if self.loadFactor() > self.__maxLoadFactor:
+         self.__growTable()
+      return True
+                         
+   if self.__table[i][0] == key:
+      self.__table[i] = (key, value)
+      return False
+'''
+    
+    def insert(self, key, keyAndDataItems=None, code=insertCode, start=True):
+        '''Insert a user provided key or the key-data item from the old table
+        during growTable.  Animate operation if code is provided,
+        starting in the specified animation mode.
+        '''
+        wait = 0.1 if code else 0
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()) if code else '',
+            startAnimations=code and start)
+        
+        if code:
+            self.highlightCode('i = self.__find(key, deletedOK=True)',
+                               callEnviron)
+        i = self._find(key, deletedOK=True, code=self._findCode if code else '')
+        if i is not None and code:
+            iArrow = self.createArrayIndex(i, 'i')
+            callEnviron |= set(iArrow)
+
+        if code:
+            self.highlightCode('i is None', callEnviron, wait=wait)
+        if i is None:
+            if code:
+                self.highlightCode(
+                    "raise Exception('Hash table probe sequence failed on insert')",
+                    callEnviron, wait=wait, color=self.EXCEPTION_HIGHLIGHT)
+            self.setMessage('Probe sequence failed')
+            self.cleanUp(callEnviron)
+            return
+        
+        if code:
+            self.highlightCode('self.__table[i] is None', callEnviron, wait=wait)
+            if self.table[i] is not None:
+                self.highlightCode(
+                    'self.__table[i] is HashTable.__Deleted', callEnviron,
+                    wait=wait)
+                
+        newItems = keyAndDataItems or self.createCellValue(
+            self.newItemCoords() if code else self.cellCoords(i), key)
+        if self.table[i] is None or self.table[i].val is self.__Deleted:
+            if code:
+                callEnviron |= set(newItems)
+                self.highlightCode('self.__table[i] = (key, value)', callEnviron)
+                self.moveItemsTo(
+                    newItems, (self.cellCoords(i), self.cellCenter(i)),
+                    sleepTime=wait / 10)
+            else:
+                self.canvas.coords(newItems[0], self.cellCoords(i))
+                self.canvas.coords(newItems[1], self.cellCenter(i))
+            if self.table[i]:
+                self.dispose(callEnviron, *self.table[i].items)
+            self.table[i] = drawnValue(key, *newItems)
+            callEnviron -= set(newItems)
+
+            if code:
+                self.highlightCode('self.__nItems += 1', callEnviron, wait=wait)
+            self.nItems += 1
+            self.updateNItems()
+
+            if code:
+                self.highlightCode('self.loadFactor() > self.__maxLoadFactor',
+                                   callEnviron, wait=wait)
+                if self.loadFactor() > self.maxLoadFactor:
+                    self.highlightCode('self.__growTable()', callEnviron)
+                    colors = self.fadeNonLocalItems(iArrow)
+
+            if self.loadFactor() > self.maxLoadFactor:
+                self.__growTable(code=self._growTableCode if code else '')
+                if code:
+                    self.restoreLocalItems(iArrow, colors)
+
+            if code:
+                self.highlightCode('return True', callEnviron)
+            self.cleanUp(callEnviron)
+            return True
+                    
+        if code:
+            self.highlightCode('self.__table[i][0] == key', callEnviron, 
+                               wait=wait)
+        if self.table[i].val == key:
+            if code:
+                self.highlightCode(('self.__table[i] = (key, value)', 2),
+                                   callEnviron)
+                self.moveItemsTo(
+                    newItems, (self.cellCoords(i), self.cellCenter(i)),
+                    sleepTime=wait / 10)
+            self.dispose(callEnviron, *self.table[i].items)
+            self.table[i] = drawnValue(key, *newItems)
+            callEnviron -= set(newItems)
+            
+            if code:
+                self.highlightCode('return False', callEnviron)
+        self.cleanUp(callEnviron)
+        return False
+
+    _growTableCode = '''
+def __growTable(self):
+   oldTable = self.__table
+   size = len(oldTable) * 2 + 1
+   while not is_prime(size):
+      size += 2
+   self.__table = [None] * size
+   self.__nItems = 0
+   for i in range(len(oldTable)):
+      if (oldTable[i] and
+          oldTable[i] is not HashTable.__Deleted):
+         self.insert(*oldTable[i])
+ '''
+    
+    def __growTable(self, code=_growTableCode):
+        wait = 0.1 if code else 0
+        callEnviron = self.createCallEnvironment(code=code)
+        
+        oldTable = self.table
+        oldTableColor = 'blue2'
+        tagsToMove = ('arrayBox', 'cellShape', 'cellVal', 'sizeLabel')
+        if code:
+            self.highlightCode('oldTable = self.__table', callEnviron)
+            oldTableCells = self.arrayCells
+            cell0 = self.canvas.coords(oldTableCells[0])
+            arrow0 = self.cellArrowCoords(0)
+            delta = (cell0[2] - arrow0[0] - 16, 0)
+            for col in range(math.ceil(len(oldTable) / self.cellsPerColumn)):
+                callEnviron.add(self.canvas.create_text(
+                    *(V(V(BBoxCenter(self.canvas.coords(
+                        oldTableCells[col * self.cellsPerColumn]))) +
+                        V(delta)) - V(0, self.cellHeight)), text='oldTable',
+                    font=self.cellIndexFont, fill=oldTableColor))
+            self.moveItemsBy(tagsToMove, delta, sleepTime=wait / 10)
+            self.canvas.itemconfigure('arrayBox', outline=oldTableColor)
+
+        size = min(len(oldTable) * 2 + 1, self.MAX_CELLS)
+        if code:
+            self.highlightCode('size = len(oldTable) * 2 + 1', callEnviron,
+                               wait=wait)
+            sizeText = self.canvas.create_text(
+                *(V(self.canvas.coords(self.nItemsText)) - 
+                  V(0, self.VARIABLE_FONT[1])), anchor=SW,
+                text='size = {}'.format(size), font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+            callEnviron.add(sizeText)
+            if len(oldTable) * 2 + 1 > size:
+                self.setMessage('Reached maximum number of cells {}'.format(
+                    self.MAX_CELLS))
+                self.wait(10 * wait)
+                
+            self.highlightCode('not is_prime(size)', callEnviron, wait=wait)
+
+        while not is_prime(size) and size < self.MAX_CELLS:
+            size += 2
+            if code:
+                self.highlightCode('size += 2', callEnviron, wait=wait)
+                self.canvas.itemconfigure(sizeText, text='size = {}'.format(size))
+                self.highlightCode('not is_prime(size)', callEnviron, wait=wait)
+
+        if size == self.MAX_CELLS and len(oldTable) == self.MAX_CELLS:
+            if code:
+                self.moveItemsBy(tagsToMove, V(delta) * -1, sleepTime=0)
+                self.canvas.itemconfigure('arrayBox', outline='black')
+            self.cleanUp(callEnviron)
+            return
+            
+        if code:
+            self.highlightCode('self.__table = [None] * size', callEnviron,
+                               wait=wait)
+        callEnviron |= set(
+            self.arrayCells + list(self.canvas.find_withtag('sizeLabel')))
+        self.table = [None] * size
+        self.arrayCells = [
+            self.createArrayCell(j) for j in range(len(self.table))]
+        self.arrayLabels += [
+            self.createArrayIndexLabel(j) for j in range(len(oldTable), size)]
+        self.createArraySizeLabel()
+        self.nItems = 0
+        if code:
+            self.highlightCode('self.__nItems = 0', callEnviron, wait=wait)
+        self.updateNItems()
+
+        if code:
+            self.highlightCode('i in range(len(oldTable))', callEnviron)
+            iArrow = None
+        for i in range(len(oldTable)):
+            if code:
+                if iArrow is None:
+                    iArrow = self.createArrayIndex(
+                        self.canvas.coords(oldTableCells[i]), 'i')
+                    callEnviron |= set(iArrow)
+                else:
+                    self.moveItemsTo(
+                        iArrow, self.arrayIndexCoords(
+                            self.canvas.coords(oldTableCells[i])),
+                        sleepTime=wait / 10)
+                self.highlightCode('oldTable[i]', callEnviron, wait=wait)
+                if oldTable[i]:
+                    self.highlightCode('oldTable[i] is not HashTable.__Deleted',
+                                       callEnviron, wait=wait)
+            if oldTable[i] and oldTable[i] is not self.__Deleted:
+                if code:
+                    self.highlightCode('self.insert(*oldTable[i])', callEnviron)
+                    colors = self.fadeNonLocalItems(iArrow)
+                self.insert(oldTable[i].val, keyAndDataItems=oldTable[i].items,
+                            code=self.insertCode if code else '')
+                if code:
+                    self.restoreLocalItems(iArrow, colors)
+                    
+            if code:
+                self.highlightCode('i in range(len(oldTable))', callEnviron)
+                    
+        self.cleanUp(callEnviron)
+    
     def search(self, key, start=True):
         wait = 0.1
         callEnviron = self.createCallEnvironment(startAnimations=start)
@@ -58,35 +283,38 @@ def __find(self, key={key}, deletedOK={deletedOK}):
    return None
 '''
     
-    def _find(self, key, deletedOK=False, code=_findCode, animate=True):
-        wait = 0.1 if animate else 0
+    def _find(self, key, deletedOK=False, code=_findCode):
+        wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(
-            code=code.format(**locals()) if animate and code else '',
-            startAnimations=animate)
+            code=code.format(**locals()) if code else '',
+            startAnimations=True if code else False)
 
         hashAddress = self.hash(key)
-        if animate:
+        if code:
+            self.highlightCode('self.hash(key)', callEnviron)
+        self.hashAddressCharacters = self.animateStringHashing(
+            key, hashAddress, sleepTime=wait / 10,
+            callEnviron=callEnviron) if self.showHashing.get() else [
+                self.canvas.create_text(
+                    *self.hashOutputCoords(), anchor=W,
+                    text=' ' + str(hashAddress), font=self.VARIABLE_FONT,
+                    fill=self.VARIABLE_COLOR)]
+        callEnviron |= set(self.hashAddressCharacters)
+
+        lastI, currentI = None, None
+        if code:
             self.highlightCode(
                 'i in self.__probe(self.hash(key), key, self.cells())',
                 callEnviron)
-            self.hashAddressCharacters = self.animateStringHashing(
-                key, hashAddress, sleepTime=wait / 10,
-                callEnviron=callEnviron) if self.showHashing.get() else [
-                    self.canvas.create_text(
-                        *self.hashOutputCoords(), anchor=W,
-                        text=' ' + str(hashAddress), font=self.VARIABLE_FONT,
-                        fill=self.VARIABLE_COLOR)]
-
-            lastI, currentI = None, None
 
         for i in self.probe(hashAddress, key, len(self.table)):
-            if animate:
+            if code:
                 if lastI is None:
                     lastI = self.hashAddressCoords()
                 else:
                     lastI = currentI[2:] + currentI[:2]
                 currentI = self.cellArrowCoords(i)
-                steps = max(abs(c) for c in V(lastI[:2]) - V(currentI[2:]))
+                steps = int(max(abs(c) for c in V(lastI[:2]) - V(currentI[2:])))
                 arrow = self.canvas.create_line(
                     *lastI, *currentI, arrow=LAST, width=1, fill='darkblue',
                     smooth=True, splinesteps=steps, tags='probeline')
@@ -97,26 +325,26 @@ def __find(self, key={key}, deletedOK={deletedOK}):
                     self.highlightCode(
                         'self.__table[i] is HashTable.__Deleted', callEnviron,
                         wait=wait)
-                    if self.table[i] is self.__Deleted:
+                    if self.table[i].val is self.__Deleted:
                         self.highlightCode(
                             ('deletedOK', 2), callEnviron, wait=wait)
-                    if self.table[i] is not self.__Deleted or not deletedOK:
+                    if self.table[i].val is not self.__Deleted or not deletedOK:
                         self.highlightCode(
                             'self.__table[i][0] == key', callEnviron, wait=wait)
             if (self.table[i] is None or
-                (self.table[i] is self.__Deleted and deletedOK) or
+                (self.table[i].val is self.__Deleted and deletedOK) or
                 self.table[i].val == key):
-                if animate:
+                if code:
                     self.highlightCode('return i', callEnviron, wait=wait)
-                    self.cleanUp(callEnviron)
-                    return i
+                self.cleanUp(callEnviron)
+                return i
 
-            if animate:
+            if code:
                 self.highlightCode(
                     'i in self.__probe(self.hash(key), key, self.cells())',
                     callEnviron)
             
-        if animate:
+        if code:
             self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         return None
@@ -126,25 +354,25 @@ def __find(self, key={key}, deletedOK={deletedOK}):
         this to set the display parameters.'''
         canvasDimensions = self.widgetDimensions(self.canvas)
         self.canvas.delete("all")
-        self.hasher = self.createHasher(
+        self.createHasher(
             y0=canvasDimensions[1] - self.hasherHeight,
             y1=canvasDimensions[1] - 1)
         self.updateNItems()
         self.updateMaxLoadFactor()
         self.arrayCells = [
             self.createArrayCell(j) for j in range(len(self.table))]
-        for j in range(len(self.table)):
-            coords = self.cellArrowCoords(j)
-            self.canvas.create_text(
-                *coords[2:], anchor=W, text='{:2d}'.format(j), tags='cellIndex',
-                font=self.cellIndexFont, fill=self.CELL_INDEX_COLOR)
+        self.arrayLabels = [
+            self.createArrayIndexLabel(j) for j in range(len(self.table))]
+        self.createArraySizeLabel()
         for j, item in enumerate(self.table):
             if item:
                 self.table[j] = drawnValue(
                     item.val, *self.createCellValue(
                         j, item.val,
                         color=self.canvas.itemconfigure(
-                            item.items[0], 'fill')[-1] if item.items else None))
+                            item.items[0], 'fill')[-1] if item.items
+                        and self.canvas.type(item.items[0]) == 'rectangle'
+                        else None))
         self.window.update()
 
     def updateNItems(self, nItems=None):
@@ -243,8 +471,8 @@ def __find(self, key={key}, deletedOK={deletedOK}):
         return output
  
     def hashAddressCoords(self):
-        bbox = BBoxUnion(self.canvas.bbox(c) 
-                         for c in self.hashAddressCharacters)
+        bbox = BBoxUnion(*(self.canvas.bbox(c) 
+                           for c in self.hashAddressCharacters))
         top = ((bbox[0] + bbox[2]) // 2, bbox[1])
         return top + (V(top) + V(0, -60))
                          
@@ -269,10 +497,10 @@ def __find(self, key={key}, deletedOK={deletedOK}):
             self.setMessage("No printable text entered")
             return
         key = int(entered_text) if entered_text.isdigit() else entered_text
-        self.setMessage("{} {} in hash table".format(
-            repr(key),
-            "inserted" if self.insert(key, start=self.startMode()) else
-            "updated"))
+        result = self.insert(key, start=self.startMode())
+        self.setMessage("{} in hash table".format(
+            'Unable to insert {}'.format(repr(key)) if result is None else
+            '{} {}'.format(repr(key), 'inserted' if result else 'updated')))
         self.clearArgument()
 
     def clickDelete(self):
@@ -376,11 +604,23 @@ def makeFilterValidate(maxWidth, exclude=''):
 
 if __name__ == '__main__':
     hashTable = HashTableOpenAddressing()
+    animate = '-a' in sys.argv[1:]
+    for probe in (linearProbe, quadraticProbe, doubleHashProbe):
+        if ('-' + probe.__name__[0]) in sys.argv[1:]:
+            hashTable.probe = probe
+            hashTable.probeChoice.set(hashTable.probe.__name__)
+        
     showHashing = hashTable.showHashing.get()
-    hashTable.showHashing.set(0)
+    hashTable.showHashing.set(1 if animate else 0)
     for arg in sys.argv[1:]:
-        hashTable.setArgument(arg)
-        hashTable.insertButton.invoke()
+        if not(arg[0] == '-' and len(arg) == 2 and arg[1:].isalpha()):
+            if animate:
+                hashTable.setArgument(arg)
+                hashTable.insertButton.invoke()
+            else:
+                hashTable.insert(int(arg) if arg.isdigit() else arg, code='')
         
     hashTable.showHashing.set(showHashing)
+    if not animate:
+        hashTable.stopAnimations()
     hashTable.runVisualization()

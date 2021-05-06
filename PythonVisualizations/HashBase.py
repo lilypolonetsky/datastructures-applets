@@ -174,7 +174,9 @@ class HashBase(VisualizationApp):
         row = (index % len(self.table)) % self.cellsPerColumn
         x0 = self.columnWidth * column + self.column_x0
         y0 = (row + 1) * self.cellHeight
-        return x0, y0, x0 + self.cellWidth, y0 + self.cellHeight
+        return (x0, y0, 
+                x0 + self.cellWidth - self.CELL_BORDER,
+                y0 + self.cellHeight - self.CELL_BORDER)
 
     def cellCenter(self, index):
         return BBoxCenter(self.cellCoords(index))
@@ -182,22 +184,30 @@ class HashBase(VisualizationApp):
     def cellArrowCoords(self, index):
         cellCoords = self.cellCoords(index)
         y = (cellCoords[1] + cellCoords[3]) / 2
-        return cellCoords[0] - 40, y, cellCoords[0] - 18, y
+        return cellCoords[0] - 60, y, cellCoords[0] - 18, y
         
-    def newValueCoords(self):
+    def newItemCoords(self):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
-        canvasDims = self.widgetDimensions(self.canvas)
-        delta = V(V(canvasDims) / V(2, 1)) - V(cell0)
+        delta = V(self.newValueCoords()) - V(BBoxCenter(cell0))
         return V(cell0) + V(delta * 2)
 
     def arrayCellDelta(self):
         half_border = self.CELL_BORDER // 2
         return (-half_border, -half_border,
-                half_border - self.CELL_BORDER, half_border - self.CELL_BORDER)
+                self.CELL_BORDER - half_border, self.CELL_BORDER - half_border)
     
     def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
         return add_vector(cell_coords, self.arrayCellDelta())
+    
+    def arrayIndexCoords(self, indexOrCoords, level=1):
+        'Coordinates of an index arrow and anchor of its text label'
+        cell_coords = (
+            self.cellCoords(indexOrCoords) if isinstance(indexOrCoords, int)
+            else indexOrCoords)
+        tip = (cell_coords[0] - 18, (cell_coords[1] + cell_coords[3]) // 2)
+        base = V(tip) - V((level * 12 + 6, 0))
+        return (base + tip, base)
     
     def outputBoxCoords(self, outputFont=None, padding=10, nLines=3):
         '''Coordinates for an output box in lower right of canvas with enough
@@ -219,7 +229,19 @@ class HashBase(VisualizationApp):
             tags=tags)
         self.canvas.lower(rect)
         return rect
-    
+
+    def createArrayIndexLabel(self, index, tags='cellIndex'):
+        coords = self.cellArrowCoords(index)
+        return self.canvas.create_text(
+            *coords[2:], anchor=W, text='{:2d}'.format(index), tags=tags,
+            font=self.cellIndexFont, fill=self.CELL_INDEX_COLOR)
+
+    def createArraySizeLabel(self, tags='sizeLabel'):
+        coords = V(self.cellCenter(len(self.table) - 1)) + V(0, self.cellHeight)
+        return self.canvas.create_text(
+            *coords, text='{} cells'.format(len(self.table)), tags=tags,
+            font=self.VALUE_FONT, fill=self.VARIABLE_COLOR)
+
     nextColor = 0
     
     def createCellValue(self, indexOrCoords, key, color=None):
@@ -239,8 +261,6 @@ class HashBase(VisualizationApp):
         else:
             rectPos = indexOrCoords
             valPos = BBoxCenter(rectPos)
-        border = self.arrayCellDelta()
-        centeredRect = V(rectPos) + (0, 0, *(V(border[:2]) + V(border[2:])))
             
         if color is None:
             # Take the next color from the palette
@@ -248,13 +268,25 @@ class HashBase(VisualizationApp):
             self.nextColor = (self.nextColor + 1) % len(
                 drawnValue.palette)
     
-        cell = (self.canvas.create_rectangle(*centeredRect, fill=color,
-                                             outline='', width=0),
+        cell = (self.canvas.create_rectangle(*rectPos, fill=color, outline='',
+                                             width=0, tags='cellShape'),
                 self.canvas.create_text(
-                    *(V(valPos) - V(0, 1)), text=str(key), font=self.VALUE_FONT,
+                    *valPos, text=str(key), font=self.VALUE_FONT,
                     fill=self.VALUE_COLOR, tags="cellVal"))
         handler = lambda e: self.setArgument(str(key))
         for item in cell:
             self.canvas.tag_bind(item, '<Button>', handler)
 
         return cell
+
+    def createArrayIndex(
+            self, indexOrCoords, name=None, level=1, color=None, font=None):
+        if color is None: color = self.VARIABLE_COLOR
+        if font is None: font = self.cellIndexFont
+        coords = self.arrayIndexCoords(indexOrCoords, level=level)
+        items = (self.canvas.create_line(*coords[0], arrow=LAST, fill=color),)
+        if name:
+            items += (self.canvas.create_text(
+                *coords[1], text=name, anchor=SE if level > 0 else SW,
+                font=font, fill=color),)
+        return items
