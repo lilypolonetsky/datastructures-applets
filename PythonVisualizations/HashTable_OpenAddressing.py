@@ -31,7 +31,7 @@ def quadraticProbe(         # Generator to probe quadratically from a
 
 def doubleHashProbe(        # Generator to determine probe interval
       start, key, size):    # from a secondary hash of the key
-   yield start              # Yield the first cell index
+   yield start % size       # Yield the first cell index
    step = doubleHashStep(key, size) # Get the step size for this key
    for i in range(1, size): # Loop over all remaining cells using
       yield (start + i * step) % size # step from second hash of key
