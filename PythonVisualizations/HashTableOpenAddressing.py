@@ -16,7 +16,10 @@ class HashTableOpenAddressing(HashBase):
     MIN_LOAD_FACTOR = 0.2
     MAX_LOAD_FACTOR = 1.0
     CELL_INDEX_COLOR = 'gray60'
-    __Deleted = (None, None)
+    __Deleted = (None, 'Deletion marker')
+    deletedFillColor = 'lemon chiffon'
+    deletedFontModifiers = ('italic', 'overstrike', 'underline')
+    deletedStipple = 'gray50'
     
     def __init__(
             self, maxArgWidth=8, title="Hash Table - Open Addressing",
@@ -253,24 +256,64 @@ def __growTable(self):
                 if oldTable[i]:
                     self.highlightCode('oldTable[i] is not HashTable.__Deleted',
                                        callEnviron, wait=wait)
-            if oldTable[i] and oldTable[i] is not self.__Deleted:
-                if code:
-                    self.highlightCode('self.insert(*oldTable[i])', callEnviron)
-                    colors = self.fadeNonLocalItems(iArrow)
-                self.insert(oldTable[i].val, keyAndDataItems=oldTable[i].items,
-                            code=self.insertCode if code else '')
-                if code:
-                    self.restoreLocalItems(iArrow, colors)
+            if oldTable[i]:
+                if oldTable[i].val is self.__Deleted:
+                    self.dispose(callEnviron, *oldTable[i].items)
+                else:
+                    if code:
+                        self.highlightCode('self.insert(*oldTable[i])',
+                                           callEnviron)
+                        colors = self.fadeNonLocalItems(iArrow)
+                    self.insert(oldTable[i].val,
+                                keyAndDataItems=oldTable[i].items,
+                                code=self.insertCode if code else '')
+                    if code:
+                        self.restoreLocalItems(iArrow, colors)
                     
             if code:
                 self.highlightCode('i in range(len(oldTable))', callEnviron)
                     
         self.cleanUp(callEnviron)
+
+    searchCode = '''
+def search(self, key={key}):
+   i = self.__find(key)
+   return (None if (i is None) or
+           self.__table[i] is None or
+           self.__table[i][0] != key
+           else self.__table[i][1])
+'''
     
-    def search(self, key, start=True):
-        wait = 0.1
-        callEnviron = self.createCallEnvironment(startAnimations=start)
+    def search(self, key, code=searchCode, start=True):
+        wait = 0.1 if code else 0
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()) if code else '',
+            startAnimations=code and start)
+        
+        if code:
+            self.highlightCode('i = self.__find(key)', callEnviron)
+        i = self._find(key, code=self._findCode if code else '')
+        if i is not None and code:
+            iArrow = self.createArrayIndex(i, 'i')
+            callEnviron |= set(iArrow)
+
+        notFound = (i is None or self.table[i] is None or
+                    self.table[i].val != key)
+        if code:
+            self.highlightCode('(i is None)', callEnviron, wait=wait)
+            if i is not None:
+                self.highlightCode('self.__table[i] is None', callEnviron,
+                                   wait=wait)
+                if self.table[i] is not None:
+                    self.highlightCode('self.__table[i][0] != key', callEnviron,
+                                       wait=wait)
+                    
+            self.highlightCode(('return', 'None') if notFound else 
+                               ('return', 'self.__table[i][1]'), 
+                               callEnviron)
+            
         self.cleanUp(callEnviron)
+        return None if notFound else self.table[i]
 
     _findCode = '''
 def __find(self, key={key}, deletedOK={deletedOK}):
@@ -349,6 +392,77 @@ def __find(self, key={key}, deletedOK={deletedOK}):
         self.cleanUp(callEnviron)
         return None
     
+    deleteCode = '''
+def delete(self, key={key}, ignoreMissing={ignoreMissing}):
+   i = self.__find(key)
+   if (i is None or
+       self.__table[i] is None or
+       self.__table[i][0] != key):
+      if ignoreMissing:
+         return
+      raise Exception(
+         'Hash table does not contain key {brackets} so cannot delete'
+         .format(key))
+   self.__table[i] = HashTable.__Deleted
+   self.__nItems -= 1
+'''
+
+    hashDeleteException = re.compile(r'raise Exception.*\n.*\n.*key\)\)')
+    
+    def delete(self, key, ignoreMissing=False, code=deleteCode, start=True):
+        wait = 0.1
+        brackets = '{}'
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()) if code else '',
+            startAnimations=code and start)
+        
+        self.highlightCode('i = self.__find(key)', callEnviron)
+        i = self._find(key)
+        if i is not None:
+            iArrow = self.createArrayIndex(i, 'i')
+            callEnviron |= set(iArrow)
+
+        self.highlightCode('i is None', callEnviron, wait=wait)
+        if i is not None:
+            self.highlightCode('self.__table[i] is None', callEnviron,
+                               wait=wait)
+            if self.table[i] is not None:
+                self.highlightCode('self.__table[i][0] != key', callEnviron,
+                                   wait=wait)
+        if i is None or self.table[i] is None or self.table[i].val != key:
+            self.highlightCode(('ignoreMissing', 2), callEnviron, wait=wait)
+            if ignoreMissing:
+                self.highlightCode('return', callEnviron)
+                self.cleanUp(callEnviron)
+                return False
+            
+            self.highlightCode(
+                self.hashDeleteException, callEnviron, wait=wait,
+                color=self.EXCEPTION_HIGHLIGHT)
+            self.cleanUp(callEnviron)
+            return
+        
+        self.highlightCode('self.__table[i] = HashTable.__Deleted',
+                           callEnviron, wait=wait)
+        self.markCellDeleted(self.table[i])
+        
+        self.highlightCode('self.__nItems -= 1', callEnviron, wait=wait)
+        self.nItems -= 1
+        self.updateNItems()
+
+        self.highlightCode((), callEnviron)
+        self.cleanUp(callEnviron)
+        return True
+
+    def markCellDeleted(self, dValue):
+        self.canvas.itemconfigure(
+            dValue.items[0], fill=self.deletedFillColor,
+            stipple=self.deletedStipple)
+        self.canvas.itemconfigure(
+            dValue.items[1], text='DELETED', fill=self.CELL_INDEX_COLOR,
+            font=self.VALUE_FONT + self.deletedFontModifiers)
+        dValue.val = self.__Deleted
+        
     def display(self):
         '''Erase canvas and redisplay contents.  Call setupDisplay() before
         this to set the display parameters.'''
@@ -367,12 +481,16 @@ def __find(self, key={key}, deletedOK={deletedOK}):
         for j, item in enumerate(self.table):
             if item:
                 self.table[j] = drawnValue(
-                    item.val, *self.createCellValue(
-                        j, item.val,
+                    item.val,
+                    *self.createCellValue(
+                        j, 'DELETED' if item.val is self.__Deleted else item.val,
                         color=self.canvas.itemconfigure(
                             item.items[0], 'fill')[-1] if item.items
                         and self.canvas.type(item.items[0]) == 'rectangle'
                         else None))
+                if item.val is self.__Deleted:
+                    self.markCellDeleted(self.table[j])
+                    
         self.window.update()
 
     def updateNItems(self, nItems=None):
@@ -510,10 +628,11 @@ def __find(self, key={key}, deletedOK={deletedOK}):
             self.setMessage("No printable text entered")
             return
         key = int(entered_text) if entered_text.isdigit() else entered_text
+        result = self.delete(key, start=self.startMode())
         self.setMessage("{} {} hash table".format(
             repr(key),
-            "deleted from" if self.delete(key, start=self.startMode()) else
-            "not found in"))
+            "unexpectedly missing from" if result is None else
+            "deleted from" if result else "not found in"))
         self.clearArgument()
 
     def clickNew(self):
@@ -595,12 +714,6 @@ def __find(self, key={key}, deletedOK={deletedOK}):
             self.widgetState(               # selected while hash table has no
                 btn,                        # items
                 NORMAL if enable and self.nItems == 0 else DISABLED)
-    
-def makeFilterValidate(maxWidth, exclude=''):
-    "Register this with one parameter: %P"
-    return lambda value_if_allowed: (
-        len(value_if_allowed) <= maxWidth and
-        all(c not in exclude for c in value_if_allowed))
 
 if __name__ == '__main__':
     hashTable = HashTableOpenAddressing()

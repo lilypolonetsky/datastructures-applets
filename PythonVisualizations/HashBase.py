@@ -273,7 +273,9 @@ class HashBase(VisualizationApp):
                 self.canvas.create_text(
                     *valPos, text=str(key), font=self.VALUE_FONT,
                     fill=self.VALUE_COLOR, tags="cellVal"))
-        handler = lambda e: self.setArgument(str(key))
+        handler = lambda e: self.setArgument(
+            self.canvas.itemconfigure(cell[1], 'text')[-1] if
+            self.canvas.type(cell[1]) == 'text' else '')
         for item in cell:
             self.canvas.tag_bind(item, '<Button>', handler)
 
@@ -290,3 +292,9 @@ class HashBase(VisualizationApp):
                 *coords[1], text=name, anchor=SE if level > 0 else SW,
                 font=font, fill=color),)
         return items
+    
+def makeFilterValidate(maxWidth, exclude=''):
+    "Register this with one parameter: %P"
+    return lambda value_if_allowed: (
+        len(value_if_allowed) <= maxWidth and
+        all(c not in exclude for c in value_if_allowed))
