@@ -483,7 +483,7 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
             dValue.items[0], fill=self.deletedFillColor,
             stipple=self.deletedStipple)
         self.canvas.itemconfigure(
-            dValue.items[1], text='DELETED', fill=self.CELL_INDEX_COLOR,
+            dValue.items[1], text='DELETED\t', fill=self.CELL_INDEX_COLOR,
             font=self.VALUE_FONT + self.deletedFontModifiers)
         dValue.val = self.__Deleted
         
@@ -507,7 +507,8 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
                 self.table[j] = drawnValue(
                     item.val,
                     *self.createCellValue(
-                        j, 'DELETED' if item.val is self.__Deleted else item.val,
+                        j, 'DELETED\t' if item.val is self.__Deleted else
+                        item.val,
                         color=self.canvas.itemconfigure(
                             item.items[0], 'fill')[-1] if item.items
                         and self.canvas.type(item.items[0]) == 'rectangle'
