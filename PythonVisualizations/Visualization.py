@@ -234,7 +234,7 @@ class Visualization(object):  # Base class for Python visualizations
         self.canvas['scrollregion'] = ' '.join(map(str, self.canvasBounds))
             
     # CANVAS ITEM METHODS
-    def canvas_itemconfigure(  # Get a dictionary with the canvas item's
+    def canvas_itemConfig(  # Get a dictionary with the canvas item's
             self, canvasitem): # configuration
         config = self.canvas.itemconfigure(canvasitem)
         for key in config:     # Replace tuple values with the last item
@@ -247,12 +247,31 @@ class Visualization(object):  # Base class for Python visualizations
         creator = getattr(self.canvas,  # Get canvas creation function for type
                           'create_{}'.format(self.canvas.type(canvasitem)))
         newItem = creator(*self.canvas.coords(canvasitem),
-                          **self.canvas_itemconfigure(canvasitem))
+                          **self.canvas_itemConfig(canvasitem))
         for eventType in self.canvas.tag_bind(canvasitem): # Copy event handlers
             self.canvas.tag_bind(newItem, eventType,
                                  self.canvas.tag_bind(canvasitem, eventType))
         return newItem
 
+    anchorVectors = {
+        NW: (-1, -1), N: (0, -1), NE: (1, -1),
+        W: (-1, 0), CENTER: (0, 0), E: (1, 0),
+        SW: (-1, 1),  S: (0, 1),  SE: (1, 1)}
+
+    def changeAnchor(self, newAnchor, *items):
+        'Change the anchor but not the position of a text item'
+        for item in items:
+            if self.canvas.type(item) == 'text':
+                anchor = self.canvas.itemconfigure(item, 'anchor')[-1]
+                if anchor in self.anchorVectors and anchor != newAnchor:
+                    bbox = self.canvas.bbox(item)
+                    size = V(bbox[2:]) - V(bbox[:2])
+                    coords = self.canvas.coords(item)
+                    delta = V(V(self.anchorVectors[newAnchor]) - 
+                              V(self.anchorVectors[anchor])) / 2
+                    self.canvas.coords(item, V(coords) + V(V(delta) * V(size)))
+                    self.canvas.itemconfigure(item, anchor=newAnchor)
+    
     def copyItemAttributes(   # Copy attributes from one canvas item to another
             self, fromItem, toItem, *attributes):
         kwargs = dict((attrib, self.canvas.itemconfigure(fromItem, attrib)[-1])
@@ -300,9 +319,10 @@ class Visualization(object):  # Base class for Python visualizations
         return itemColors
 
     def dispose(self, callEnviron, *items):
-        'Delete items from the canvas and call environment'
+        'Delete items from the canvas and call environment, if it is a set'
         for item in items:
-            callEnviron.discard(item)
+            if isinstance(callEnviron, set):
+                callEnviron.discard(item)
             self.canvas.delete(item)
 
     def getItemFont(self, item):
@@ -917,3 +937,16 @@ if __name__ == '__main__':
 
         print('Bad BBox {} {} empty'.format(
                 badBBox, 'is' if BBoxEmpty(badBBox) else 'is not'))
+        
+    app = Visualization(title='Visualization test')
+
+    centerText = app.canvas.create_text(
+        app.targetCanvasWidth // 2, app.targetCanvasHeight // 2,
+        text='Center of the canvas', fill=app.VALUE_COLOR, font=app.VALUE_FONT)
+
+    app.startAnimations()
+    for anchor in app.anchorVectors:
+        app.changeAnchor(anchor, centerText)
+        app.wait(0.1)
+
+    app.runVisualization()
