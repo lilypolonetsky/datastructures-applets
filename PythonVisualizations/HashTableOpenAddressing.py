@@ -61,10 +61,14 @@ def insert(self, key={key}, value):
       return False
 '''
     
-    def insert(self, key, keyAndDataItems=None, code=insertCode, start=True):
+    def insert(
+            self, key, keyAndDataItems=None, inputText=None,
+            code=insertCode, start=True):
         '''Insert a user provided key or the key-data item from the old table
         during growTable.  Animate operation if code is provided,
-        starting in the specified animation mode.
+        starting in the specified animation mode.  InputItems are any canvas
+        items represnting inputs placed at the hasher input that will be
+        deleted and replaced for hashing animation.
         '''
         wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(
@@ -74,7 +78,8 @@ def insert(self, key={key}, value):
         if code:
             self.highlightCode('i = self.__find(key, deletedOK=True)',
                                callEnviron)
-        i = self._find(key, deletedOK=True, code=self._findCode if code else '')
+        i = self._find(key, deletedOK=True, code=self._findCode if code else '',
+                       inputText=inputText)
         if i is not None and code:
             iArrow = self.createArrayIndex(i, 'i')
             callEnviron |= set(iArrow)
@@ -204,7 +209,7 @@ def __growTable(self):
             if len(oldTable) * 2 + 1 > size:
                 self.setMessage('Reached maximum number of cells {}'.format(
                     self.MAX_CELLS))
-                self.wait(10 * wait)
+                self.wait(5 * wait)
                 
             self.highlightCode('not is_prime(size)', callEnviron, wait=wait)
 
@@ -226,7 +231,9 @@ def __growTable(self):
             self.highlightCode('self.__table = [None] * size', callEnviron,
                                wait=wait)
         callEnviron |= set(
-            self.arrayCells + list(self.canvas.find_withtag('sizeLabel')))
+            self.arrayCells + list(flat(*(
+                self.canvas.find_withtag(tag) 
+                for tag in ('sizeLabel', 'cellShape', 'cellVal')))))
         self.table = [None] * size
         self.arrayCells = [
             self.createArrayCell(j) for j in range(len(self.table))]
@@ -260,13 +267,18 @@ def __growTable(self):
                 if oldTable[i].val is self.__Deleted:
                     self.dispose(callEnviron, *oldTable[i].items)
                 else:
+                    keyCopy = None
                     if code:
                         self.highlightCode('self.insert(*oldTable[i])',
                                            callEnviron)
+                        if self.showHashing.get():
+                            keyCopy = self.copyCanvasItem(oldTable[i].items[1])
+                            callEnviron.add(keyCopy)
                         colors = self.fadeNonLocalItems(iArrow)
-                    self.insert(oldTable[i].val,
-                                keyAndDataItems=oldTable[i].items,
-                                code=self.insertCode if code else '')
+                    self.insert(
+                        oldTable[i].val, keyAndDataItems=oldTable[i].items,
+                        inputText=keyCopy, code=self.insertCode if code else '')
+                    callEnviron -= set(oldTable[i].items)
                     if code:
                         self.restoreLocalItems(iArrow, colors)
                     
@@ -275,6 +287,17 @@ def __growTable(self):
                     
         self.cleanUp(callEnviron)
 
+    def randomFill(self, nItems, animate=None):
+        if animate is None: animate = self.showHashing.get()
+        callEnviron = self.createCallEnvironment()
+        count = 0
+        for j in range(nItems):
+            key = random.randrange(10 ** self.maxArgWidth)
+            if self.insert(key, code=self.insertCode if animate else ''):
+                count += 1
+        self.cleanUp(callEnviron)
+        return count
+        
     searchCode = '''
 def search(self, key={key}):
    i = self.__find(key)
@@ -284,7 +307,7 @@ def search(self, key={key}):
            else self.__table[i][1])
 '''
     
-    def search(self, key, code=searchCode, start=True):
+    def search(self, key, inputText=None, code=searchCode, start=True):
         wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()) if code else '',
@@ -292,7 +315,8 @@ def search(self, key={key}):
         
         if code:
             self.highlightCode('i = self.__find(key)', callEnviron)
-        i = self._find(key, code=self._findCode if code else '')
+        i = self._find(
+            key, code=self._findCode if code else '', inputText=inputText)
         if i is not None and code:
             iArrow = self.createArrayIndex(i, 'i')
             callEnviron |= set(iArrow)
@@ -326,7 +350,7 @@ def __find(self, key={key}, deletedOK={deletedOK}):
    return None
 '''
     
-    def _find(self, key, deletedOK=False, code=_findCode):
+    def _find(self, key, deletedOK=False, code=_findCode, inputText=None):
         wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()) if code else '',
@@ -336,7 +360,7 @@ def __find(self, key={key}, deletedOK={deletedOK}):
         if code:
             self.highlightCode('self.hash(key)', callEnviron)
         self.hashAddressCharacters = self.animateStringHashing(
-            key, hashAddress, sleepTime=wait / 10,
+            key, hashAddress, textItem=inputText, sleepTime=wait / 10,
             callEnviron=callEnviron) if self.showHashing.get() else [
                 self.canvas.create_text(
                     *self.hashOutputCoords(), anchor=W,
@@ -520,18 +544,28 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
                 int(100 * maxLoadFactor)))
             
     def animateStringHashing(
-            self, text, hashed, sleepTime=0.01,
+            self, text, hashed, textItem=None, sleepTime=0.01,
             callEnviron=None, dx=2, font=VisualizationApp.VARIABLE_FONT, 
             color=VisualizationApp.VARIABLE_COLOR):
         """Animate text flowing into left of hasher and producing
         hashed output string while hasher churns.  Move characters by dx
         on each animation step. Returns list of canvas items for output
-        characters"""
+        characters. If textItem is provided, it is a text item that is
+        moved into the input of the hasher."""
         
         if not self.hasher:
             return
         h = self.hasher
 
+        if textItem and self.canvas.type(textItem) == 'text':
+            self.changeAnchor(E, textItem)
+            bbox = self.canvas.bbox(textItem)
+            self.moveItemsTo(
+                textItem, self.hashInputCoords(nInputs=1),
+                sleepTime=sleepTime, startFont=self.getItemFont(textItem),
+                endFont=self.VARIABLE_FONT)
+            self.canvas.itemconfigure(textItem, fill=color)
+            
         # Create individual character text items to feed into hasher
         text, hashed = str(text), str(hashed)
         inputCoords = self.hashInputCoords(nInputs=1)
@@ -540,8 +574,11 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
         characters = set([
             self.canvas.create_text(
                 inputCoords[0] - ((len(text) - i) * charWidth),
-                inputCoords[1], text=c, font=font, fill=color, state=DISABLED)
+                inputCoords[1], anchor=E, text=c, font=font, fill=color,
+                state=DISABLED)
             for i, c in enumerate(text)])
+        if textItem:
+            self.dispose(callEnviron, textItem)
         for c in characters:
             self.canvas.lower(c)
         if callEnviron:
@@ -635,6 +672,17 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
             "deleted from" if result else "not found in"))
         self.clearArgument()
 
+    def clickRandomFill(self):
+        nItems = self.getArgument(0)
+        if not (nItems and nItems.isdigit()):
+            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
+            self.setMessage("Number of items not entered")
+            return
+        result = self.randomFill(int(nItems))
+        self.setMessage('Inserted {} random item{}'.format(
+            result, '' if result == 1 else 's'))
+        self.clearArgument()
+        
     def clickNew(self):
         nCells, maxLoadFactor = self.getArguments()
         msg = []
@@ -690,6 +738,10 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
             helpText='Create new hash table with\n'
             'number of keys & max load factor',
             argHelpText=['number of cells', 'max load factor'])
+        randomFillButton = self.addOperation(
+            "Random fill", self.clickRandomFill, numArguments=1,
+            validationCmd=vcmd, helpText='Fill with N random items',
+            argHelpText=['number of items'])
         self.showHashing = IntVar()
         self.showHashing.set(1)
         showHashingButton = self.addOperation(
