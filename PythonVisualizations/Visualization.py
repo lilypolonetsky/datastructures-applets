@@ -89,6 +89,10 @@ def BBoxCenter(bbox):
     half = len(bbox) // 2
     return V(V(bbox[:half]) + V(bbox[half:])) / 2
 
+def BBoxSize(bbox):
+    half = len(bbox) // 2
+    return V(bbox[half:]) - V(bbox[:half])
+
 # Tk definitions
 # Modifier key constants
 SHIFT, CAPS_LOCK, CTRL, ALT = 0x01, 0x02, 0x04, 0x08
@@ -234,12 +238,17 @@ class Visualization(object):  # Base class for Python visualizations
         self.canvas['scrollregion'] = ' '.join(map(str, self.canvasBounds))
             
     # CANVAS ITEM METHODS
-    def canvas_itemConfig(  # Get a dictionary with the canvas item's
-            self, canvasitem): # configuration
-        config = self.canvas.itemconfigure(canvasitem)
-        for key in config:     # Replace tuple values with the last item
-            if isinstance(config[key], tuple):  # in tuple
-                config[key] = config[key][-1]
+    def canvas_itemConfig(self, canvasitem, *key, **kwargs):
+        '''Do what the tk canvas itemconfigure command does, but return only
+        the setting for each item attribute, not the tuple with the name and
+        default value.'''
+        config = self.canvas.itemconfigure(canvasitem, *key, **kwargs)
+        if isinstance(config, dict):
+            for k in config:     # Replace tuple values with the last item
+                if isinstance(config[k], tuple):  # in tuple
+                    config[k] = config[k][-1]
+        elif len(kwargs) == 0 and isinstance(config, tuple):
+            config = config[-1]
         return config
 
     def copyCanvasItem(      # Make a copy of an item in the canvas
