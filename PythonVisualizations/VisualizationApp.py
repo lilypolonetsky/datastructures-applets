@@ -134,10 +134,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             bg=self.DEFAULT_BG)
         self.fastLabel.grid(row=0, column=2, sticky=W)
         self.textEntries, self.entryHint = [], None
-        self.outputText = StringVar()
-        self.outputText.set('')
+        self.messageText = StringVar()
+        self.messageText.set('')
         self.message = Label(
-            self.operationsLowerCenter, textvariable=self.outputText,
+            self.operationsLowerCenter, textvariable=self.messageText,
             font=self.CONTROLS_FONT + ('italic',), fg="blue",
             bg=self.DEFAULT_BG)
         self.message.grid(row=0, column=4, sticky=(E, W))
@@ -515,10 +515,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 self.setArgumentHighlight(i) # clean any error highlight
             
     def setMessage(self, val=''):
-        self.outputText.set(val)
+        self.messageText.set(val)
 
     def getMessage(self):
-        return self.outputText.get()
+        return self.messageText.get()
         
     vScrollWidth = 10      # Guess for width of vertical scrollbar width
     

@@ -201,8 +201,7 @@ class SortingBase(VisualizationApp):
         if not color: color = self.VARIABLE_COLOR
 
         x0, y0, x1, y1 = self.indexCoords(index, level)
-        arrow = self.canvas.create_line(
-            x0, y0, x0, y1, arrow="last", fill=color)
+        arrow = self.canvas.create_line(x0, y0, x0, y1, arrow=LAST, fill=color)
         if name:
             label = self.canvas.create_text(
                 x0, y0, text=name, anchor=SW if level > 0 else NW,
