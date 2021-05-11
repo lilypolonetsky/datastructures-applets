@@ -175,28 +175,27 @@ def _growHeap(self):
         wait = 0.1
         callEnviron = self.createCallEnvironment(code=code)
 
+        oldTableColor = 'blue2'
         self.highlightCode('current = self._arr', callEnviron)
         callEnviron.add(self.canvas.create_text(
             *self.cellCenter(-1), text='_arr',
             anchor=S, font=self.SMALL_FONT, fill=self.VARIABLE_COLOR))
         callEnviron.add(self.canvas.create_text(
             *(V(self.cellCenter(-1)) + V(self.arrayCopyDelta)), text='current',
-            anchor=S, font=self.SMALL_FONT, fill=self.VARIABLE_COLOR))
+            anchor=S, font=self.SMALL_FONT, fill=oldTableColor))
         cells = self.canvas.find_withtag("arrayCell")
-        cells_and_values = list(cells)
-        for v in self.list: # move current array cells and values over
-            cells_and_values.extend(v.items)
-        self.moveItemsBy(cells_and_values, self.arrayCopyDelta,
+        values = flat(*(v.items for v in self.list))
+        self.moveItemsBy(cells + values, self.arrayCopyDelta,
                          sleepTime=wait / 10)
+        self.canvas_itemConfig('arrayCell', outline=oldTableColor)
             
         # Grow the the array 
         self.highlightCode('self._arr = [None] * 2 * len(self._arr)',
                            callEnviron)
-        for i in range(self.heapSize): 
-            callEnviron.add(self.createArrayCell(i)) # Temporary
-            if i + self.heapSize < self.MAX_SIZE:
-                self.createArrayCell(i + self.heapSize) # Lasting
         self.heapSize = min(self.heapSize * 2, self.MAX_SIZE)
+        for i in range(self.heapSize): 
+            self.createArrayCell(i)
+        callEnviron |= set(cells)   # Moved cells are now obsolete
             
         #copying the values back into the larger array 
         self.highlightCode('i in range(self._nItems)', callEnviron,
@@ -211,8 +210,9 @@ def _growHeap(self):
                                wait=wait / 5)
 
         # Move old cells back to original positions in one step
-        # These are lasting and overlap the temporary ones just created
-        self.moveItemsBy(cells_and_values, V(self.arrayCopyDelta) * -1, steps=1)
+        # The values are lasting but the cells have been replaced
+        self.dispose(callEnviron, *cells)
+        self.moveItemsBy(values, V(self.arrayCopyDelta) * -1, steps=1)
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
@@ -1316,7 +1316,7 @@ def traverse(self):
         val = self.validArgument()
         if val and self.MAX_SIZE < val:
             self.setMessage(
-                "Input value must be between 0 to {}.".format(self.MAX_SIZE))
+                "Input value must be between 0 and {}.".format(self.MAX_SIZE))
             self.setArgumentHighlight(color=self.ERROR_HIGHLIGHT)
         elif val is not None:
             self.randomFill(val, makeHeap=makeHeap)
