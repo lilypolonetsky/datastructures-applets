@@ -292,7 +292,9 @@ def __growTable(self):
         callEnviron = self.createCallEnvironment()
         count = 0
         for j in range(nItems):
-            key = random.randrange(10 ** self.maxArgWidth)
+            # key = random.randrange(10 ** self.maxArgWidth)
+            key = '{} {}'.format(random.randrange(10 ** 2),
+                                 random.randrange(10 ** 5))
             if self.insert(key, code=self.insertCode if animate else ''):
                 count += 1
         self.cleanUp(callEnviron)
@@ -486,6 +488,84 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
             dValue.items[1], text='DELETED\t', fill=self.CELL_INDEX_COLOR,
             font=self.VALUE_FONT + self.deletedFontModifiers)
         dValue.val = self.__Deleted
+
+    traverseExampleCode = '''
+for item in hashTable.traverse():
+   print(item)
+'''
+    def traverseExample(self, code=traverseExampleCode, start=True):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
+        
+        outputBox = self.createOutputBox(coords=self.outputBoxCoords())
+        callEnviron.add(outputBox)
+        
+        self.highlightCode(
+            'item in hashTable.traverse()', callEnviron, wait=wait)
+        arrayIndex = None
+        localVars = ()
+        colors = self.fadeNonLocalItems(localVars)
+        for i, item in self.traverse():
+            self.restoreLocalItems(localVars, colors)
+            if arrayIndex is None:
+                arrayIndex = self.createArrayIndex(i, 'item')
+                callEnviron |= set(arrayIndex)
+                localVars += arrayIndex
+            else:
+                self.moveItemsTo(
+                    arrayIndex, self.arrayIndexCoords(i), sleepTime=wait / 10)
+
+            self.highlightCode('print(item)', callEnviron, wait=wait)
+            self.appendTextToOutputBox(
+                item.items[1], callEnviron, sleepTime=wait / 10)
+
+            colors = self.fadeNonLocalItems(localVars)
+            self.highlightCode(
+                'item in hashTable.traverse()', callEnviron, wait=wait)
+        
+        self.highlightCode((), callEnviron)
+        self.cleanUp(callEnviron)
+
+    traverseCode = '''
+def traverse(self):
+   for i in range(len(self.__table)):
+      if (self.__table[i] and
+          self.__table[i] is not HashTable.__Deleted):
+         yield self.__table[i]
+'''
+
+    def traverse(self, code=traverseCode):
+        wait = 0.1
+        callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
+
+        self.highlightCode('i in range(len(self.__table)', callEnviron,
+                           wait=wait)
+        iArrayIndex = None
+        for i in range(len(self.table)):
+            if iArrayIndex is None:
+                iArrayIndex = self.createArrayIndex(i, 'i')
+                callEnviron |= set(iArrayIndex)
+            else:
+                self.moveItemsTo(iArrayIndex, self.arrayIndexCoords(i),
+                                 sleepTime=wait / 10)
+
+            self.highlightCode('self.__table[i]', callEnviron, wait=wait)
+            if self.table[i]:
+                self.highlightCode('self.__table[i] is not HashTable.__Deleted',
+                                   callEnviron, wait=wait)
+            if self.table[i] and self.table[i] is not self.__Deleted:
+                self.highlightCode('yield self.__table[i]', callEnviron)
+                itemCoords = self.yieldCallEnvironment(
+                    callEnviron, sleepTime=wait / 10)
+                yield i, self.table[i]
+                self.resumeCallEnvironment(
+                    callEnviron, itemCoords, sleepTime=wait / 10)
+            self.highlightCode('i in range(len(self.__table)', callEnviron,
+                               wait=wait)
+        
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
         
     def display(self):
         '''Erase canvas and redisplay contents.  Call setupDisplay() before
@@ -518,29 +598,28 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
                     
         self.window.update()
 
-    def updateNItems(self, nItems=None):
+    def updateNItems(self, nItems=None, gap=4):
         if nItems is None:
             nItems = self.nItems
         outputBoxCoords = self.outputBoxCoords()
         if self.nItemsText is None or self.canvas.type(self.nItemsText) != 'text':
             self.nItemsText = self.canvas.create_text(
-                *(V(outputBoxCoords[:2]) + V(5, -5)), anchor=SW,
-                text='', font=self.VARIABLE_FONT,
-                fill=self.VARIABLE_COLOR)
-        self.canvas.itemconfigure(
-            self.nItemsText, text='nItems = {}'.format(nItems))
+                *(V(outputBoxCoords[:2]) + V(gap, - gap)), anchor=SW,
+                text='', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        self.canvas_itemConfig(self.nItemsText,
+                               text='nItems = {}'.format(nItems))
         
-    def updateMaxLoadFactor(self, maxLoadFactor=None):
+    def updateMaxLoadFactor(self, maxLoadFactor=None, gap=4):
         if maxLoadFactor is None:
             maxLoadFactor = self.maxLoadFactor
         outputBoxCoords = self.outputBoxCoords()
         if (self.maxLoadFactorText is None or
             self.canvas.type(self.maxLoadFactorText) != 'text'):
             self.maxLoadFactorText = self.canvas.create_text(
-                outputBoxCoords[2] - 5, outputBoxCoords[1] - 5, anchor=SE,
+                outputBoxCoords[2] - gap, outputBoxCoords[1] - gap, anchor=SE,
                 text='', font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
-        self.canvas.itemconfigure(
+        self.canvas_itemConfig(
             self.maxLoadFactorText, text='maxLoadFactor = {}%'.format(
                 int(100 * maxLoadFactor)))
             
@@ -630,7 +709,7 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
         bbox = BBoxUnion(*(self.canvas.bbox(c) 
                            for c in self.hashAddressCharacters))
         top = ((bbox[0] + bbox[2]) // 2, bbox[1])
-        return top + (V(top) + V(0, -60))
+        return top + (V(top) + V(0, -50))
                          
     # Button functions
     def clickSearch(self):
@@ -710,6 +789,9 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
             self.setMessage('\n'.join(msg))
         self.newHashTable(nCells, maxLoadFactor)
 
+    def clickTraverse(self):
+        self.traverseExample(start=self.startMode())
+
     def clickShowHashing(self):
         if not self.showHashing.get():
             self.positionHashBlocks(0)
@@ -759,6 +841,9 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
                 value=probe.__name__,
                 helpText='Set probe to {}'.format(probe.__name__))
             for probe in (linearProbe, quadraticProbe, doubleHashProbe)]
+        traverseButton = self.addOperation(
+            "Traverse", self.clickTraverse, 
+            helpText='Traverse items in hash table')
         self.addAnimationButtons()
 
     def enableButtons(self, enable=True):
