@@ -292,9 +292,7 @@ def __growTable(self):
         callEnviron = self.createCallEnvironment()
         count = 0
         for j in range(nItems):
-            # key = random.randrange(10 ** self.maxArgWidth)
-            key = '{} {}'.format(random.randrange(10 ** 2),
-                                 random.randrange(10 ** 5))
+            key = random.randrange(10 ** self.maxArgWidth)
             if self.insert(key, code=self.insertCode if animate else ''):
                 count += 1
         self.cleanUp(callEnviron)

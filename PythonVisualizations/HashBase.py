@@ -386,7 +386,7 @@ class HashBase(VisualizationApp):
             for p, part in enumerate(textParts):
                 partCopy = self.copyCanvasItem(textOrItem)
                 items.append(partCopy)
-                self.changeAnchor(partCopy, NW)
+                self.changeAnchor(NW, partCopy)
                 if len(items) == 1:
                     partCoords = self.canvas.coords(partCopy)
                     toCoords.append(
