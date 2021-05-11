@@ -312,6 +312,15 @@ def search(self, key={key}):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()) if code else '',
             startAnimations=code and start)
+
+        pad = 5
+        outBox = self.outputBoxCoords(nLines=2, pad=pad)
+        cellSize = BBoxSize(self.cellCoords(0))
+        outBox = (outBox[0], outBox[1], 
+                  outBox[0] + cellSize[0] + 2 * pad, outBox[3])
+        outBoxCenter = BBoxCenter(outBox)
+        outputBox = self.createOutputBox(coords=outBox)
+        callEnviron.add(outputBox)
         
         if code:
             self.highlightCode('i = self.__find(key)', callEnviron)
@@ -321,8 +330,8 @@ def search(self, key={key}):
             iArrow = self.createArrayIndex(i, 'i')
             callEnviron |= set(iArrow)
 
-        notFound = (i is None or self.table[i] is None or
-                    self.table[i].val != key)
+        found = (i is not None and self.table[i] is not None and
+                 self.table[i].val == key)
         if code:
             self.highlightCode('(i is None)', callEnviron, wait=wait)
             if i is not None:
@@ -332,12 +341,26 @@ def search(self, key={key}):
                     self.highlightCode('self.__table[i][0] != key', callEnviron,
                                        wait=wait)
                     
-            self.highlightCode(('return', 'None') if notFound else 
+            self.highlightCode(('return', 'None') if not found else 
                                ('return', 'self.__table[i][1]'), 
                                callEnviron)
+
+            if found:
+                items = [self.copyCanvasItem(item)
+                         for item in self.table[i].items]
+                callEnviron |= set(items)
+                self.canvas.tag_lower(items[0])
+                upperLeft = V(outBox) + V(pad, pad)
+                self.moveItemsTo(
+                    items,
+                    (upperLeft + (V(upperLeft) + V(cellSize)), outBoxCenter),
+                    sleepTime=wait / 10, startFont=self.getItemFont(items[1]),
+                    endFont=self.outputFont)
+                self.copyItemAttributes(items[0], outputBox, 'fill')
+                self.dispose(callEnviron, items[0])
             
         self.cleanUp(callEnviron)
-        return None if notFound else self.table[i]
+        return self.table[i] if found else None
 
     _findCode = '''
 def __find(self, key={key}, deletedOK={deletedOK}):
