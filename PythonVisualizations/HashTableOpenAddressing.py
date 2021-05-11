@@ -840,7 +840,7 @@ def traverse(self):
         newButton = self.addOperation(
             "New", self.clickNew, numArguments=2, validationCmd=vcmd,
             helpText='Create new hash table with\n'
-            'number of keys & max load factor',
+            'number of cells & max load factor',
             argHelpText=['number of cells', 'max load factor'])
         randomFillButton = self.addOperation(
             "Random fill", self.clickRandomFill, numArguments=1,
