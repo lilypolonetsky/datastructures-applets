@@ -121,13 +121,15 @@ class Visualization(object):  # Base class for Python visualizations
     FOUND_FONT = ('Helvetica', FONT_SIZE)
     FOUND_COLOR = 'green2'
     SMALL_FONT = ('Helvetica', -9)
+    DEFAULT_CANVAS_WIDTH = 800
+    DEFAULT_CANVAS_HEIGHT = 400
 
     def __init__(  # Constructor
             self,
             window=None,      # Run visualization within given window
             title=None,
-            canvasWidth=800,  # Canvas portal size
-            canvasHeight=400,
+            canvasWidth=None,  # Canvas portal size
+            canvasHeight=None,
             canvasBounds=None): # Canvas extent (behind portal)
         self.title = title
         # Set up Tk windows for canvas and operational controls
@@ -140,6 +142,8 @@ class Visualization(object):  # Base class for Python visualizations
         self.destroyed = False
         self.window.bind('<Destroy>', self.setDestroyFlag)
 
+        if canvasWidth is None: canvasWidth = self.DEFAULT_CANVAS_WIDTH
+        if canvasHeight is None: canvasHeight = self.DEFAULT_CANVAS_HEIGHT
         self.targetCanvasWidth = canvasWidth
         self.targetCanvasHeight = canvasHeight
         self.canvasFrame = Frame(self.window)
@@ -226,6 +230,18 @@ class Visualization(object):  # Base class for Python visualizations
                 return key
         return default
 
+    def expandCanvasFor(self, *itemOrBBox):
+        '''Expand canvas scroll region if needed to view given canvas items
+        (integers) or bounding boxes (4-tuples or 4-element lists)'''
+        bounds = getattr(self, 'canvasBounds', 
+                         (0, 0, *self.widgetDimensions(self.canvas)))
+        bbox = BBoxUnion(*(
+            self.canvas.bbox(item) if isinstance(item, int) else item
+            for item in itemOrBBox if isinstance(item, int) or
+            isinstance(item, (list, tuple)) and len(item) == 4))
+        if not BBoxContains(bounds, bbox):
+            self.setCanvasBounds(BBoxUnion(bounds, bbox))
+        
     def setCanvasBounds(self, canvasBounds, expandOnly=True):
         if canvasBounds is None:
             self.canvasBounds = None
