@@ -66,9 +66,10 @@ def insert(self, key={key}, value):
             code=insertCode, start=True):
         '''Insert a user provided key or the key-data item from the old table
         during growTable.  Animate operation if code is provided,
-        starting in the specified animation mode.  InputItems are any canvas
-        items represnting inputs placed at the hasher input that will be
-        deleted and replaced for hashing animation.
+        starting in the specified animation mode.  The inputText can
+        be a text item that is moved into the input of the hasher.  It
+        will be deleted and replaced by the hashed address for hashing
+        animation.
         '''
         wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(

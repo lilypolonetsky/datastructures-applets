@@ -267,8 +267,7 @@ class HashBase(VisualizationApp):
         if color is None:
             # Take the next color from the palette
             color = drawnValue.palette[self.nextColor]
-            self.nextColor = (self.nextColor + 1) % len(
-                drawnValue.palette)
+            self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
     
         cell = (self.canvas.create_rectangle(*rectPos, fill=color, outline='',
                                              width=0, tags='cellShape'),
