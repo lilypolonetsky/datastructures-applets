@@ -20,6 +20,7 @@ class HashTableChaining(HashTableOpenAddressing):
             0, 0, kwargs.get('canvasWidth', self.DEFAULT_CANVAS_WIDTH),
             kwargs.get('canvasHeight', self.DEFAULT_CANVAS_HEIGHT))
         super().__init__(title=title, canvasBounds=self.initialRect, **kwargs)
+        self.probeChoiceButtons = ()
 
     def newHashTable(self, nCells=2, maxLoadFactor=1.0):
         self.table = [None] * max(1, nCells)
@@ -52,25 +53,20 @@ def insert(self, key={key}, value):
             code=code.format(**locals()) if code else '',
             startAnimations=code and start)
 
-        hashAddress = self.hash(key)
-        i = hashAddress % len(self.table)
-        localVars = ()
         if code:
             self.highlightCode('i = self.hash(key)', callEnviron)
-        self.hashAddressCharacters = self.animateStringHashing(
-            key, hashAddress, textItem=inputText, sleepTime=wait / 10,
-            callEnviron=callEnviron) if code and self.showHashing.get() else [
-                self.canvas.create_text(
-                    *self.hashOutputCoords(), anchor=W,
-                    text=' ' + str(hashAddress), font=self.VARIABLE_FONT,
-                    fill=self.VARIABLE_COLOR)]
-        callEnviron |= set(self.hashAddressCharacters)
-        localVars += tuple(self.hashAddressCharacters)
+        addressCharsAndArrow, i = self.hashAndGetIndex(
+            key, animate=code and self.showHashing.get(), sleepTime=wait / 10,
+            textItem=inputText)
+        callEnviron |= set(addressCharsAndArrow)
+        localVars = set(addressCharsAndArrow)
 
         if code:
             iArrow = self.createArrayIndex(i, 'i')
             callEnviron |= set(iArrow)
-            localVars += iArrow
+            localVars |= set(iArrow)
+            self.dispose(callEnviron, addressCharsAndArrow[-1])
+            localVars.discard(addressCharsAndArrow[-1])
             self.highlightCode(
                 'flag = self.insert(self.__table[i], key, value)', callEnviron)
 
@@ -85,7 +81,7 @@ def insert(self, key={key}, value):
                 text='flag = {}'.format(flag), font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
             callEnviron.add(flagText)
-            localVars += (flagText,)
+            localVars.add(flagText)
             self.highlightCode(('flag', 2), callEnviron, wait=wait)
 
         if flag:
@@ -381,22 +377,18 @@ def search(self, key={key}):
         outputBox = self.createOutputBox(coords=outBox)
         callEnviron.add(outputBox)
         
-        hashAddress = self.hash(key)
-        i = hashAddress % len(self.table)
         if code:
             self.highlightCode('i = self.hash(key)', callEnviron)
-        self.hashAddressCharacters = self.animateStringHashing(
-            key, hashAddress, textItem=inputText, sleepTime=wait / 10,
-            callEnviron=callEnviron) if code and self.showHashing.get() else [
-                self.canvas.create_text(
-                    *self.hashOutputCoords(), anchor=W,
-                    text=' ' + str(hashAddress), font=self.VARIABLE_FONT,
-                    fill=self.VARIABLE_COLOR)]
-        callEnviron |= set(self.hashAddressCharacters)
+        addressCharsAndArrow, i = self.hashAndGetIndex(
+            key, animate=code and self.showHashing.get(), sleepTime=wait / 10)
+        callEnviron |= set(addressCharsAndArrow)
+        localVars = set(addressCharsAndArrow)
 
         if code:
             iArrow = self.createArrayIndex(i, 'i')
             callEnviron |= set(iArrow)
+            self.dispose(callEnviron, addressCharsAndArrow[-1])
+            localVars.discard(addressCharsAndArrow[-1])
             self.highlightCode('self.__table[i] is None', callEnviron)
 
         if self.table[i] is None or len(self.table[i].val) == 0:
@@ -409,16 +401,14 @@ def search(self, key={key}):
             self.highlightCode('self.__table[i].search(key)', callEnviron)
             
         linkedList = self.table[i].val
-        itemArrow = None
+        itemArrow = self.createLinkIndex(i)
+        callEnviron |= set(itemArrow)
         linkIndex = 0
         while linkIndex < len(linkedList):
             if code:
-                if itemArrow is None:
-                    itemArrow = self.createLinkIndex(linkedList[linkIndex])
-                    callEnviron |= set(itemArrow)
-                else:
-                    self.moveItemsTo(itemArrow, self.linkIndexCoords(
-                        linkedList[linkIndex]), sleepTime=wait / 10)
+                self.moveItemsTo(itemArrow, self.linkIndexCoords(
+                    linkedList[linkIndex]), sleepTime=wait / 10)
+                self.wait(wait / 2)
             if linkedList[linkIndex].val == key:
                 break
             linkIndex += 1
@@ -429,120 +419,136 @@ def search(self, key={key}):
                      for item in linkedList[linkIndex].items[0:2]]
             callEnviron |= set(items)
             self.canvas.tag_lower(items[0])
-            upperLeft = V(outBox) + V(pad, pad)
-            self.moveItemsTo(
-                items,
-                    (upperLeft + (V(upperLeft) + V(cellSize)), outBoxCenter),
-                    sleepTime=wait / 10, startFont=self.getItemFont(items[1]),
-                    endFont=self.outputFont)
+            delta = V(BBoxCenter(outBox)) - V(self.canvas.coords(items[1])) 
+            self.moveItemsBy(
+                items, delta, sleepTime=wait / 10,
+                startFont=self.getItemFont(items[1]), endFont=self.outputFont)
             self.copyItemAttributes(items[0], outputBox, 'fill')
             self.dispose(callEnviron, items[0])
-            
+        else:
+            if itemArrow:
+                self.moveItemsTo(itemArrow, self.linkIndexCoords(i),
+                                 sleepTime=wait / 10)
+                
         self.cleanUp(callEnviron)
         return self.table[i] if found else None
     
     deleteCode = '''
 def delete(self, key={key}, ignoreMissing={ignoreMissing}):
-   if (i is None or
-       self.__table[i] is None or
-       self.__table[i][0] != key):
-      if ignoreMissing:
-         return
-      raise Exception(
-         'Hash table does not contain key {brackets} so cannot delete'
-         .format(key))
-   self.__table[i] = HashTable.__Deleted
-   self.__nItems -= 1
+   i = self.hash(key)
+   if self.__table[i] is not None:
+      if self.__table[i].delete(key):
+         self.__nItems -= 1
+         return True
+   if ignoreMissing:
+      return False
+   raise Exception(
+      'Hash table does not contain key {brackets} so cannot delete'
+      .format(key))
 '''
-
-    hashDeleteException = re.compile(r'raise Exception.*\n.*\n.*key\)\)')
     
     def delete(self, key, ignoreMissing=False, code=deleteCode, start=True):
-        wait = 0.1
+        wait = 0.1 if code else 0
         brackets = '{}'
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()) if code else '',
             startAnimations=code and start)
         
+        if code:
+            self.highlightCode('i = self.hash(key)', callEnviron)
+        addressCharsAndArrow, i = self.hashAndGetIndex(
+            key, animate=code and self.showHashing.get(), sleepTime=wait / 10)
+        callEnviron |= set(addressCharsAndArrow)
+        localVars = set(addressCharsAndArrow)
+
         if i is not None:
             iArrow = self.createArrayIndex(i, 'i')
             callEnviron |= set(iArrow)
+            localVars |= set(iArrow)
 
-        self.highlightCode('i is None', callEnviron, wait=wait)
-        if i is not None:
-            self.highlightCode('self.__table[i] is None', callEnviron,
+        if code:
+            self.highlightCode('self.__table[i] is not None', callEnviron,
                                wait=wait)
-            if self.table[i] is not None:
-                self.highlightCode('self.__table[i][0] != key', callEnviron,
-                                   wait=wait)
-        if i is None or self.table[i] is None or self.table[i].val != key:
-            self.highlightCode(('ignoreMissing', 2), callEnviron, wait=wait)
-            if ignoreMissing:
-                self.highlightCode('return', callEnviron)
+        colors = None
+        if self.table[i] is not None:
+            if code:
+                self.highlightCode('self.__table[i].delete(key)', callEnviron)
+                colors = self.fadeNonLocalItems(localVars)
+            if self.deleteFromList(
+                    key, i, callEnviron, animate=code, wait=wait):
+                if code:
+                    self.restoreLocalItems(localVars, colors)
+                    self.highlightCode('self.__nItems -= 1', callEnviron,
+                                       wait=wait)
+                self.nItems -= 1
+                self.updateNItems()
+                if code:
+                    self.highlightCode('return True', callEnviron)
                 self.cleanUp(callEnviron)
-                return False
-            
+                return True
+
+        if code:
+            if colors:
+                self.restoreLocalItems(localVars, colors)
+            self.highlightCode(('ignoreMissing', 2), callEnviron, wait=wait)
+        if ignoreMissing:
+            self.highlightCode('return False', callEnviron)
+            self.cleanUp(callEnviron)
+            return False
+
+
+        if code:
             self.highlightCode(
                 self.hashDeleteException, callEnviron, wait=wait,
                 color=self.EXCEPTION_HIGHLIGHT)
-            self.cleanUp(callEnviron)
+        self.cleanUp(callEnviron)
+        return
+
+    def deleteFromList(
+            self, key, cellIndex, callEnviron={}, animate=True, wait=0.1):
+        if self.table[cellIndex] is None or len(self.table[cellIndex].val) == 0:
             return
-        
-        self.highlightCode('self.__table[i] = HashTable.__Deleted',
-                           callEnviron, wait=wait)
-        
-        self.highlightCode('self.__nItems -= 1', callEnviron, wait=wait)
-        self.nItems -= 1
-        self.updateNItems()
+        linkedList = self.table[cellIndex].val
+        if animate:
+            itemArrow = self.createLinkIndex(cellIndex)
+            callEnviron |= set(itemArrow)
+        linkIndex = 0
+        while linkIndex < len(linkedList):
+            if animate:
+                self.moveItemsTo(itemArrow, self.linkIndexCoords(
+                    linkedList[linkIndex]), sleepTime=wait / 10)
+                self.wait(wait / 2)
+            if linkedList[linkIndex].val == key:
+                break
+            linkIndex += 1
 
-        self.highlightCode((), callEnviron)
-        self.cleanUp(callEnviron)
-        return True
-
-    traverseExampleCode = '''
-for item in hashTable.traverse():
-   print(item)
-'''
-    def traverseExample(self, code=traverseExampleCode, start=True):
-        wait = 0.1
-        callEnviron = self.createCallEnvironment(
-            code=code, startAnimations=start)
-        
-        outputBox = self.createOutputBox(coords=self.outputBoxCoords())
-        callEnviron.add(outputBox)
-        
-        self.highlightCode(
-            'item in hashTable.traverse()', callEnviron, wait=wait)
-        arrayIndex = None
-        localVars = ()
-        colors = self.fadeNonLocalItems(localVars)
-        for i, item in self.traverse():
-            self.restoreLocalItems(localVars, colors)
-            if arrayIndex is None:
-                arrayIndex = self.createArrayIndex(i, 'item')
-                callEnviron |= set(arrayIndex)
-                localVars += arrayIndex
+        found = linkIndex < len(linkedList)
+        if found:
+            if linkIndex == 0:
+                self.dispose(callEnviron, *self.table[cellIndex].items)
+                self.table[cellIndex].items = self.createInitialLink(
+                    cellIndex,
+                    linkedList[linkIndex + 1] if linkIndex + 1 < len(linkedList)
+                    else None)
             else:
-                self.moveItemsTo(
-                    arrayIndex, self.arrayIndexCoords(i), sleepTime=wait / 10)
-
-            self.highlightCode('print(item)', callEnviron, wait=wait)
-            self.appendTextToOutputBox(
-                item.items[1], callEnviron, sleepTime=wait / 10)
-
-            colors = self.fadeNonLocalItems(localVars)
-            self.highlightCode(
-                'item in hashTable.traverse()', callEnviron, wait=wait)
+                self.linkNodes(
+                    linkedList[linkIndex - 1],
+                    linkedList[linkIndex + 1] if linkIndex + 1 < len(linkedList)
+                    else None)
+            self.dispose(callEnviron, *linkedList[linkIndex].items)
+            linkedList[linkIndex:linkIndex + 1] = []
+        else:
+            if animate:
+                self.moveItemsTo(itemArrow, self.linkIndexCoords(cellIndex),
+                                 sleepTime=wait / 10)
+        return found
         
-        self.highlightCode((), callEnviron)
-        self.cleanUp(callEnviron)
-
     traverseCode = '''
 def traverse(self):
    for i in range(len(self.__table)):
-      if (self.__table[i] and
-          self.__table[i] is not HashTable.__Deleted):
-         yield self.__table[i]
+      if self.__table[i]:
+         for item in self.__table[i].traverse():
+            yield item
 '''
 
     def traverse(self, code=traverseCode):
@@ -551,7 +557,7 @@ def traverse(self):
 
         self.highlightCode('i in range(len(self.__table)', callEnviron,
                            wait=wait)
-        iArrayIndex = None
+        iArrayIndex, itemIndex = None, None
         for i in range(len(self.table)):
             if iArrayIndex is None:
                 iArrayIndex = self.createArrayIndex(i, 'i')
@@ -562,17 +568,23 @@ def traverse(self):
 
             self.highlightCode('self.__table[i]', callEnviron, wait=wait)
             if self.table[i]:
-                self.highlightCode('self.__table[i] is not HashTable.__Deleted',
+                self.highlightCode('item in self.__table[i].traverse()',
                                    callEnviron, wait=wait)
-            if self.table[i] and self.table[i] is not self.__Deleted:
-                self.highlightCode('yield self.__table[i]', callEnviron)
-                itemCoords = self.yieldCallEnvironment(
-                    callEnviron, sleepTime=wait / 10)
-                yield i, self.table[i]
-                self.resumeCallEnvironment(
-                    callEnviron, itemCoords, sleepTime=wait / 10)
-            self.highlightCode('i in range(len(self.__table)', callEnviron,
-                               wait=wait)
+                for link in self.table[i].val:
+                    if itemIndex is None:
+                        itemIndex = self.createLinkIndex(link, 'item')
+                    else:
+                        self.moveItemsTo(itemIndex, self.linkIndexCoords(link),
+                                         sleepTime=wait / 10)
+
+                    self.highlightCode('yield item', callEnviron)
+                    itemCoords = self.yieldCallEnvironment(
+                        callEnviron, sleepTime=wait / 10)
+                    yield i, link
+                    self.resumeCallEnvironment(
+                        callEnviron, itemCoords, sleepTime=wait / 10)
+                    self.highlightCode('item in self.__table[i].traverse()',
+                                       callEnviron, wait=wait)
         
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron, sleepTime=wait / 10)
@@ -632,6 +644,17 @@ def traverse(self):
         delta = self.newValueCoords()
         return tuple(V(coords) + V(delta * (len(coords) // len(delta)))
                      for coords in self.linkCoords((0, 0), key=key))
+    
+    def outputBoxCoords(self, font=None, pad=4, nLines=4):
+        '''Coordinates for an output box in upper right of canvas with enough
+        space to hold several lines of text'''
+        if font is None:
+            font = getattr(self, 'outputFont', self.VALUE_FONT)
+        lineHeight = self.textHeight(font, ' ')
+        left = self.targetCanvasWidth * 4 // 10
+        top = pad + abs(self.VARIABLE_FONT[1])
+        return (left, top,
+                self.targetCanvasWidth - pad, pad * 3 + lineHeight * nLines)
 
     def createLinkItems(self, cornerOrCoords, key, nextLink=None, color=None):
         '''Create all the canvas items in a linked list Link containing a key:
@@ -661,6 +684,9 @@ def traverse(self):
         arrow = self.canvas.create_line(
             *coords[4], fill=self.linkArrowColor, width=self.linkArrowWidth,
             arrow=LAST, tags=('link', 'linkArrow'))
+        for item in (box, rect, textKey, dot):
+            self.canvas.tag_bind(item, '<Button>',
+                                 lambda e: self.setArgument(str(key)))
         return rect, textKey, box, dot, arrow
 
     def createInitialLink(self, cell, firstNodeOrCoords=None):
@@ -709,12 +735,11 @@ def traverse(self):
     def setupDisplay(self, hasherHeight=70):
         'Define dimensions and coordinates for display items'
         self.hasherHeight = hasherHeight
-        # self.cellWidth = self.targetCanvasWidth // (self.MAX_CELLS + 10)
         self.cellWidth = 14
         self.cellHeight = self.cellWidth
         self.array_x0 = self.cellWidth * 4
-        self.array_y0 = 45 # self.cellHeight * 4
-        self.cellDotRadius = (self.cellWidth - 4) // 2
+        self.array_y0 = hasherHeight + 40
+        self.cellDotRadius = 4 # (self.cellWidth - 4) // 2
         self.cellDotColor = 'red'
 
         self.outputFont = (self.VALUE_FONT[0], - 12)
@@ -742,9 +767,7 @@ def traverse(self):
             flat(*(n.items for d in self.table if d for n in d.val)))
         self.canvas.delete("all")
         self.setCanvasBounds(self.initialRect, expandOnly=False)
-        self.createHasher(
-            y0=self.targetCanvasHeight - self.hasherHeight,
-            y1=self.targetCanvasHeight - 1)
+        self.createHasher(y0=1, y1=self.hasherHeight + 1)
         self.updateNItems()
         self.updateMaxLoadFactor()
         self.arrayCells = [
@@ -809,6 +832,38 @@ def traverse(self):
             self.maxLoadFactorText, text='maxLoadFactor = {}%'.format(
                 int(100 * maxLoadFactor)))
             
+    def hashAndGetIndex(
+            self, key, animate=True, width=1, indexLineColor='darkblue',
+            tags=('hashLine',), **kwargs):
+        '''Hash the input key into a hash address and get the index to
+        the hash table.  This wraps the animateStringHashing method when
+        animation is enabled, passing along all its keyword args.
+        Regardless of animation, this returns the animation characters
+        of the hashed key and the spline arrow connecting them to the
+        indexed cell in the hash table (as a tuple of integers).  
+        It also returns the cell index as the second value.
+        '''
+        hashAddress = self.hash(key)
+        i = hashAddress % len(self.table)
+        self.hashAddressCharacters = self.animateStringHashing(
+            key, hashAddress, **kwargs) if self.showHashing.get() else [
+                self.canvas.create_text(
+                    *self.hashOutputCoords(), anchor=W,
+                    text=' ' + str(hashAddress), font=self.VARIABLE_FONT,
+                    fill=self.VARIABLE_COLOR)]
+        bbox = BBoxUnion(*(self.canvas.bbox(c) 
+                           for c in self.hashAddressCharacters))
+        bottom = ((bbox[0] + bbox[2]) // 2, bbox[3])
+        arrayIndex, label = self.arrayIndexCoords(i, level=2)
+        steps = int(max(abs(c) for c in V(bottom) - V(arrayIndex[2:])))
+        arrow = self.canvas.create_line(
+            *bottom, *(V(bottom) + V(0, self.hasherHeight)), *arrayIndex, 
+            arrow=LAST, width=width, fill=indexLineColor,
+            splinesteps=steps, smooth=True, tags=tags)
+        if animate and 'sleepTime' in kwargs:
+            self.wait(kwargs['sleepTime'] * 5)
+        return tuple(self.hashAddressCharacters) + (arrow,), i  
+      
     def animateStringHashing(
             self, text, hashed, textItem=None, sleepTime=0.01,
             callEnviron=None, dx=2, font=VisualizationApp.VARIABLE_FONT, 
@@ -898,94 +953,9 @@ def traverse(self):
         return top + (V(top) + V(0, -50))
                          
     # Button functions
-    def clickSearch(self):
-        entered_text = self.getArgument(0)
-        if not entered_text or entered_text.isspace():
-            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
-            self.setMessage("No printable text entered")
-            return
-        key = int(entered_text) if entered_text.isdigit() else entered_text
-        self.setMessage("{} {} in hash table".format(
-            repr(key),
-            "found" if self.search(key, start=self.startMode()) else
-            "not found"))
-        self.clearArgument()
-
-    def clickInsert(self):
-        entered_text = self.getArgument(0)
-        if not entered_text or entered_text.isspace():
-            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
-            self.setMessage("No printable text entered")
-            return
-        key = int(entered_text) if entered_text.isdigit() else entered_text
-        result = self.insert(key, start=self.startMode())
-        self.setMessage("{} in hash table".format(
-            'Unable to insert {}'.format(repr(key)) if result is None else
-            '{} {}'.format(repr(key), 'inserted' if result else 'updated')))
-        self.clearArgument()
-
-    def clickDelete(self):
-        entered_text = self.getArgument(0)
-        if not entered_text or entered_text.isspace():
-            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
-            self.setMessage("No printable text entered")
-            return
-        key = int(entered_text) if entered_text.isdigit() else entered_text
-        result = self.delete(key, start=self.startMode())
-        self.setMessage("{} {} hash table".format(
-            repr(key),
-            "unexpectedly missing from" if result is None else
-            "deleted from" if result else "not found in"))
-        self.clearArgument()
-
-    def clickRandomFill(self):
-        nItems = self.getArgument(0)
-        if not (nItems and nItems.isdigit()):
-            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
-            self.setMessage("Number of items not entered")
-            return
-        result = self.randomFill(int(nItems))
-        self.setMessage('Inserted {} random item{}'.format(
-            result, '' if result == 1 else 's'))
-        self.clearArgument()
-        
-    def clickNew(self):
-        nCells, maxLoadFactor = self.getArguments()
-        msg = []
-        if (nCells.isdigit() and
-            1 <= int(nCells) and int(nCells) <= self.MAX_CELLS):
-            nCells = int(nCells)
-        else:
-            msg.append('Number of cells must be between 1 and {}.'.format(
-                self.MAX_CELLS))
-            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
-            nCells = 2
-            msg.append('Using {} cells'.format(nCells))
-        if fraction.match(maxLoadFactor):
-            maxLoadFactor = float(maxLoadFactor)
-        if not isinstance(maxLoadFactor, float) or not (
-                self.MIN_LOAD_FACTOR <= maxLoadFactor and
-                maxLoadFactor < self.MAX_LOAD_FACTOR):
-            msg.append('Max load factor must be fraction between {} and {}'
-                       .format(self.MIN_LOAD_FACTOR, self.MAX_LOAD_FACTOR))
-            self.setArgumentHighlight(1, self.ERROR_HIGHLIGHT)
-            maxLoadFactor = 1.0
-            msg.append('Using max load factor = {}'.format(maxLoadFactor))
-        if msg:
-            self.setMessage('\n'.join(msg))
-        self.newHashTable(nCells, maxLoadFactor)
 
     def clickTraverse(self):
-        self.traverseExample(start=self.startMode())
-
-    def clickShowHashing(self):
-        if not self.showHashing.get():
-            self.positionHashBlocks(0)
-
-    def clickChangeProbeHandler(self, probeFunction):
-        def changeProbe():
-            self.probe = probeFunction
-        return changeProbe
+        self.traverseExample(start=self.startMode(), indexLabel='')
         
     def makeButtons(self):
         vcmd = (self.window.register(
@@ -1003,7 +973,8 @@ def traverse(self):
             helpText='Delete a key in the hash table',
             argHelpText=['key'])
         newButton = self.addOperation(
-            "New", self.clickNew, numArguments=2, validationCmd=vcmd,
+            "New", lambda: self.clickNew(defaultMaxLoadFactor=1.0),
+            numArguments=2, validationCmd=vcmd,
             helpText='Create new hash table with\n'
             'number of cells & max load factor',
             argHelpText=['number of cells', 'max load factor'])
@@ -1017,27 +988,10 @@ def traverse(self):
             "Animate hashing", self.clickShowHashing, buttonType=Checkbutton,
             variable=self.showHashing, 
             helpText='Show/hide animation during hashing')
-        self.probeChoice = StringVar()
-        self.probeChoice.set(self.probe.__name__)
-        self.probeChoiceButtons = [
-            self.addOperation(
-                "Use {}".format(probe.__name__),
-                self.clickChangeProbeHandler(probe), buttonType=Radiobutton,
-                variable=self.probeChoice, cleanUpBefore=False, 
-                value=probe.__name__,
-                helpText='Set probe to {}'.format(probe.__name__))
-            for probe in (linearProbe, quadraticProbe, doubleHashProbe)]
         traverseButton = self.addOperation(
             "Traverse", self.clickTraverse, 
             helpText='Traverse items in hash table')
         self.addAnimationButtons()
-
-    def enableButtons(self, enable=True):
-        super().enableButtons(enable)
-        for btn in self.probeChoiceButtons: # Probe function can only be
-            self.widgetState(               # selected while hash table has no
-                btn,                        # items
-                NORMAL if enable and self.nItems == 0 else DISABLED)
 
 if __name__ == '__main__':
     hashTable = HashTableChaining()

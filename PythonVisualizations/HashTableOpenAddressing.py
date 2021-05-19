@@ -515,7 +515,8 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
 for item in hashTable.traverse():
    print(item)
 '''
-    def traverseExample(self, code=traverseExampleCode, start=True):
+    def traverseExample(
+            self, code=traverseExampleCode, start=True, indexLabel='item'):
         wait = 0.1
         callEnviron = self.createCallEnvironment(
             code=code, startAnimations=start)
@@ -531,7 +532,7 @@ for item in hashTable.traverse():
         for i, item in self.traverse():
             self.restoreLocalItems(localVars, colors)
             if arrayIndex is None:
-                arrayIndex = self.createArrayIndex(i, 'item')
+                arrayIndex = self.createArrayIndex(i, indexLabel)
                 callEnviron |= set(arrayIndex)
                 localVars += arrayIndex
             else:
@@ -785,7 +786,7 @@ def traverse(self):
             result, '' if result == 1 else 's'))
         self.clearArgument()
         
-    def clickNew(self):
+    def clickNew(self, defaultMaxLoadFactor=0.5):
         nCells, maxLoadFactor = self.getArguments()
         msg = []
         if (nCells.isdigit() and
@@ -805,7 +806,7 @@ def traverse(self):
             msg.append('Max load factor must be fraction between {} and {}'
                        .format(self.MIN_LOAD_FACTOR, self.MAX_LOAD_FACTOR))
             self.setArgumentHighlight(1, self.ERROR_HIGHLIGHT)
-            maxLoadFactor = 0.5
+            maxLoadFactor = defaultMaxLoadFactor
             msg.append('Using max load factor = {}'.format(maxLoadFactor))
         if msg:
             self.setMessage('\n'.join(msg))
