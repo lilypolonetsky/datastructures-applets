@@ -26,6 +26,7 @@ class HashTableOpenAddressing(HashBase):
             **kwargs):
         kwargs['maxArgWidth'] = maxArgWidth
         super().__init__(title=title, **kwargs)
+        self.maxFillAmount = 99
         self.probe = linearProbe
         self.hash = simpleHash
         self.hashAddressCharacters = ()
@@ -780,6 +781,11 @@ def traverse(self):
         if not (nItems and nItems.isdigit()):
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
             self.setMessage("Number of items not entered")
+            return
+        elif int(nItems) > self.maxFillAmount:
+            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
+            self.setMessage('Number of items cannot exceed {}'.format(
+                self.maxFillAmount))
             return
         result = self.randomFill(int(nItems))
         self.setMessage('Inserted {} random item{}'.format(

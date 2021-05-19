@@ -573,6 +573,7 @@ def traverse(self):
                 for link in self.table[i].val:
                     if itemIndex is None:
                         itemIndex = self.createLinkIndex(link, 'item')
+                        callEnviron |= set(itemIndex)
                     else:
                         self.moveItemsTo(itemIndex, self.linkIndexCoords(link),
                                          sleepTime=wait / 10)
@@ -606,7 +607,7 @@ def traverse(self):
         base = V(tip) + V(0, level * self.VARIABLE_FONT[1])
         return (base + tip, base)
 
-    def linkIndexCoords(self, linkOrCoords, level=1, orientation=-150):
+    def linkIndexCoords(self, linkOrCoords, level=1, orientation=-160):
         corner = (tuple(self.canvas.coords(linkOrCoords.items[2])[:2])
                   if isinstance(linkOrCoords, drawnValue) else
                   self.arrayCellCoords(linkOrCoords)[:2]
@@ -708,7 +709,7 @@ def traverse(self):
         return dot, arrow
     
     def createLinkIndex(
-            self, link, label='', level=1, orientation=-150, color='black',
+            self, link, label='', level=1, orientation=-160, color='black',
             width=1, anchor=SW, font=None):
         if font is None: font = self.VARIABLE_FONT
         coords = self.linkIndexCoords(
@@ -857,7 +858,7 @@ def traverse(self):
         arrayIndex, label = self.arrayIndexCoords(i, level=2)
         steps = int(max(abs(c) for c in V(bottom) - V(arrayIndex[2:])))
         arrow = self.canvas.create_line(
-            *bottom, *(V(bottom) + V(0, self.hasherHeight)), *arrayIndex, 
+            *bottom, *(V(bottom) + V(0, self.hasherHeight // 3)), *arrayIndex, 
             arrow=LAST, width=width, fill=indexLineColor,
             splinesteps=steps, smooth=True, tags=tags)
         if animate and 'sleepTime' in kwargs:

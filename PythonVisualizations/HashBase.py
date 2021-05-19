@@ -287,11 +287,11 @@ class HashBase(VisualizationApp):
         if color is None: color = self.VARIABLE_COLOR
         if font is None: font = self.cellIndexFont
         coords = self.arrayIndexCoords(indexOrCoords, level=level)
-        items = (self.canvas.create_line(*coords[0], arrow=LAST, fill=color),)
-        if name:
-            items += (self.canvas.create_text(
-                *coords[1], text=name, anchor=SE if level > 0 else SW,
-                font=font, fill=color),)
+        items = (
+            self.canvas.create_line(*coords[0], arrow=LAST, fill=color),
+            self.canvas.create_text(
+                *coords[1], text=name or '', anchor=SE if level > 0 else SW,
+                font=font, fill=color))
         return items
 
     def createOutputBox(self, coords=None, color=None):
