@@ -505,9 +505,10 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
         return
 
     def deleteFromList(
-            self, key, cellIndex, callEnviron={}, animate=True, wait=0.1):
+            self, key, cellIndex, callEnviron=None, animate=True, wait=0.1):
         if self.table[cellIndex] is None or len(self.table[cellIndex].val) == 0:
             return
+        if callEnvrion is None: callEnviron = set()
         linkedList = self.table[cellIndex].val
         if animate:
             itemArrow = self.createLinkIndex(cellIndex)
@@ -553,7 +554,7 @@ def traverse(self):
 
     def traverse(self, code=traverseCode):
         wait = 0.1
-        callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
+        callEnviron = self.createCallEnvironment(code=code)
 
         self.highlightCode('i in range(len(self.__table)', callEnviron,
                            wait=wait)
@@ -588,7 +589,7 @@ def traverse(self):
                                        callEnviron, wait=wait)
         
         self.highlightCode([], callEnviron)
-        self.cleanUp(callEnviron, sleepTime=wait / 10)
+        self.cleanUp(callEnviron)
         
     def cellCoords(self, index):
         x0 = self.array_x0 + index * self.cellWidth
@@ -946,17 +947,91 @@ def traverse(self):
                 if callEnviron:
                     callEnviron.add(output[-1])
         return output
- 
-    def hashAddressCoords(self):
-        bbox = BBoxUnion(*(self.canvas.bbox(c) 
-                           for c in self.hashAddressCharacters))
-        top = ((bbox[0] + bbox[2]) // 2, bbox[1])
-        return top + (V(top) + V(0, -50))
-                         
+
+    def adjustArrows(self, start=True, code='adjust arrows'):
+        wait = 0.1 if code else 0
+        callEnviron = self.createCallEnvironment(code=code)
+        if code:
+            self.highlightCode('arrows', callEnviron)
+        vertices = set(flat(*(
+            (self.canvas.coords(l)[:2], self.canvas.coords(l)[-2:])
+            for l in self.canvas.find_withtag('linkArrow'))))
+        arrows, coords, significant = [], [], []
+        box = V(1, 1)
+        for cell in self.table:
+            if cell:
+                arrow = cell.items[1]
+                arrows.append(arrow)
+                adjCoords, verts = self.adjustArrow(
+                    arrow, vertices, cell.val[0].items[2])
+                coords.append(adjCoords)
+                if code and verts:
+                    sig = [self.canvas.create_rectangle(
+                        *(V(vert) - box), *(V(vert) + box),
+                        fill='red', outline=None, tags='significant')]
+                    significant.extend(sig)
+                    callEnviron |= set(sig)
+                for linkIndex in range(len(cell.val) - 1):
+                    arrow = cell.val[linkIndex].items[-1]
+                    arrows.append(arrow)
+                    adjCoords, verts = self.adjustArrow(
+                        arrow, vertices, cell.val[linkIndex + 1].items[2])
+                    coords.append(adjCoords)
+                    if code and verts:
+                        sig = [self.canvas.create_rectangle(
+                            *(V(vert) - box), *(V(vert) + box),
+                            fill='red', outline=None, tags='significant')]
+                        significant.extend(sig)
+                        callEnviron |= set(sig)
+        if code:
+            self.highlightCode('adjust arrows', callEnviron)
+        self.moveItemsTo(arrows, coords, steps=10 if code else 1, 
+                         sleepTime=wait / 10)
+        self.cleanUp(callEnviron)
+
+    def adjustArrow(self, arrow, vertices, box, distanceThreshold=2):
+        arrowCoords = self.canvas.coords(arrow)
+        base, tip = arrowCoords[:2], arrowCoords[2:]
+        if distance2(base, tip) <= 1:
+            return arrowCoords, ()
+        unitNormal = V(V(V(V(tip) - V(base)).normal2d()).unit(minLength=1))
+        significant, score = set(), 0
+        otherVerts = vertices - set((base, tip))
+        for vert in otherVerts:
+            distance = self.distanceToSegment(vert, base, tip, unitNormal)
+            if distance <= distanceThreshold:
+                significant.add(vert)
+            if distance <= 10 * distanceThreshold:
+                score += 1 / max(distance, 1e-4)
+        if score == 0:
+            return arrowCoords, significant
+        boxCoords = self.canvas.coords(box)
+        boxWidth = boxCoords[2] - boxCoords[0]
+        for newTipIndex in range(boxWidth + 1):
+            s = 0
+            newTip = V(boxCoords[0]) + V(newTipIndex, 0)
+            s = sum(1 / max(
+                1e-4, self.distanceToSegement(vert, base, newTip, unitNormal))
+                    for vert in otherVerts)
+            if s < score:
+                score, tip = s, newTip
+        return base + tip, significant
+
+    def distanceToSegment(point, base, tip, unitNormal):
+        v = V(V(point) - V(base))
+        segemnt = V(V(tip) - V(base))
+        xProject = segment.dot(v)
+        if xProject < 0 or segment.len2() < xProject:
+            return math.inf
+        return abs(v.dot(unitNormal))
+        
     # Button functions
 
     def clickTraverse(self):
         self.traverseExample(start=self.startMode(), indexLabel='')
+
+    def clickAdjustArrows(self):
+        self.adjustArrows(start=self.startMode())
         
     def makeButtons(self):
         vcmd = (self.window.register(
@@ -992,6 +1067,9 @@ def traverse(self):
         traverseButton = self.addOperation(
             "Traverse", self.clickTraverse, 
             helpText='Traverse items in hash table')
+        adjustButton = self.addOperation(
+            "Adjust arrows", self.clickAdjustArrows, 
+            helpText='Adjust arrow links to avoid conflicts')
         self.addAnimationButtons()
 
 if __name__ == '__main__':
