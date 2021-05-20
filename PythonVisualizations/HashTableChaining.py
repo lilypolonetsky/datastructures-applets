@@ -954,7 +954,7 @@ def traverse(self):
         if code:
             self.highlightCode('arrows', callEnviron)
         vertices = set(flat(*(
-            (self.canvas.coords(l)[:2], self.canvas.coords(l)[-2:])
+            (tuple(self.canvas.coords(l)[:2]), tuple(self.canvas.coords(l)[-2:]))
             for l in self.canvas.find_withtag('linkArrow'))))
         arrows, coords, significant = [], [], []
         box = V(1, 1)
@@ -991,7 +991,7 @@ def traverse(self):
 
     def adjustArrow(self, arrow, vertices, box, distanceThreshold=2):
         arrowCoords = self.canvas.coords(arrow)
-        base, tip = arrowCoords[:2], arrowCoords[2:]
+        base, tip = tuple(arrowCoords[:2]), tuple(arrowCoords[2:])
         if distance2(base, tip) <= 1:
             return arrowCoords, ()
         unitNormal = V(V(V(V(tip) - V(base)).normal2d()).unit(minLength=1))
@@ -1006,20 +1006,20 @@ def traverse(self):
         if score == 0:
             return arrowCoords, significant
         boxCoords = self.canvas.coords(box)
-        boxWidth = boxCoords[2] - boxCoords[0]
+        boxWidth = int(boxCoords[2] - boxCoords[0])
         for newTipIndex in range(boxWidth + 1):
             s = 0
             newTip = V(boxCoords[0]) + V(newTipIndex, 0)
             s = sum(1 / max(
-                1e-4, self.distanceToSegement(vert, base, newTip, unitNormal))
+                1e-4, self.distanceToSegment(vert, base, newTip, unitNormal))
                     for vert in otherVerts)
             if s < score:
                 score, tip = s, newTip
         return base + tip, significant
 
-    def distanceToSegment(point, base, tip, unitNormal):
+    def distanceToSegment(self, point, base, tip, unitNormal):
         v = V(V(point) - V(base))
-        segemnt = V(V(tip) - V(base))
+        segment = V(V(tip) - V(base))
         xProject = segment.dot(v)
         if xProject < 0 or segment.len2() < xProject:
             return math.inf
