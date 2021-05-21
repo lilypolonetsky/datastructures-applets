@@ -97,7 +97,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
  
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window, bg=self.DEFAULT_BG)
-        self.controlPanel.pack(side=BOTTOM, expand=True, fill=X)
+        self.controlPanel.pack(side=BOTTOM, expand=False, fill=X)
         self.operationsUpper = LabelFrame(
             self.controlPanel, text="Operations", bg=self.DEFAULT_BG)
         self.operationsUpper.grid(row=0, column=0)
@@ -115,7 +115,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.operationsLowerCenter.pack(side=TOP)
         self.codeFrame = Frame(self.controlPanel, bg=self.DEFAULT_BG)
         self.codeFrame.grid(row=0, column=1, rowspan=2, sticky=(N, E, S, W))
-        # self.controlPanel.grid_columnconfigure(1, maxsize=200)
         self.codeText = None
 
         self.speedControl = None
