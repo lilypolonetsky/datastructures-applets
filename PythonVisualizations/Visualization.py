@@ -296,6 +296,9 @@ class Visualization(object):  # Base class for Python visualizations
                               V(self.anchorVectors[anchor])) / 2
                     self.canvas.coords(item, V(coords) + V(V(delta) * V(size)))
                     self.canvas.itemconfigure(item, anchor=newAnchor)
+
+    def canvas_coords(self, tagOrID):
+        return tuple(self.canvas.coords(tagOrID))
     
     def copyItemAttributes(   # Copy attributes from one canvas item to another
             self, fromItem, toItem, *attributes):
