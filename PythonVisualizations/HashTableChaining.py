@@ -508,7 +508,7 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
             self, key, cellIndex, callEnviron=None, animate=True, wait=0.1):
         if self.table[cellIndex] is None or len(self.table[cellIndex].val) == 0:
             return
-        if callEnvrion is None: callEnviron = set()
+        if callEnviron is None: callEnviron = set()
         linkedList = self.table[cellIndex].val
         if animate:
             itemArrow = self.createLinkIndex(cellIndex)
@@ -685,7 +685,8 @@ def traverse(self):
             tags=('link', 'linkDot'))
         arrow = self.canvas.create_line(
             *coords[4], fill=self.linkArrowColor, width=self.linkArrowWidth,
-            arrow=LAST, tags=('link', 'linkArrow'))
+            activefill=self.activeLinkArrowColor, arrow=LAST,
+            activewidth=self.activeLinkArrowWidth, tags=('link', 'linkArrow'))
         for item in (box, rect, textKey, dot):
             self.canvas.tag_bind(item, '<Button>',
                                  lambda e: self.setArgument(str(key)))
@@ -706,19 +707,21 @@ def traverse(self):
             tip = firstNodeOrCoords
         arrow = self.canvas.create_line(
             *center, *tip, fill=self.linkArrowColor, width=self.linkArrowWidth,
-            arrow=LAST, tags=('cell', 'cellArrow'))
+            activefill=self.activeLinkArrowColor, arrow=LAST,
+            activewidth=self.activeLinkArrowWidth, tags=('cell', 'cellArrow'))
         return dot, arrow
     
     def createLinkIndex(
             self, link, label='', level=1, orientation=-160, color='black',
-            width=1, anchor=SW, font=None):
+            width=1, anchor=SW, font=None, tags=()):
         if font is None: font = self.VARIABLE_FONT
         coords = self.linkIndexCoords(
             link, level=level, orientation=orientation)
         arrow = self.canvas.create_line(
-            *coords[0], arrow=LAST, width=width, fill=color)
+            *coords[0], arrow=LAST, width=width, fill=color, tags=tags)
         label = self.canvas.create_text(
-            *coords[1], text=label or '', fill=color, anchor=anchor, font=font)
+            *coords[1], text=label or '', fill=color, anchor=anchor, font=font,
+            tags=tags)
         return arrow, label
         
     def createArrayIndexLabel(self, index, tags='cellIndex'):
@@ -754,7 +757,9 @@ def traverse(self):
         self.linkDotRadius = 4
         self.linkDotColor = 'red'
         self.linkArrowColor = 'black'
+        self.activeLinkArrowColor = 'blue'
         self.linkArrowWidth = 1
+        self.activeLinkArrowWidth = 3
         self.linkBoxColor = 'black'
         
     def display(self):
@@ -950,81 +955,142 @@ def traverse(self):
 
     def adjustArrows(self, start=True, code='adjust arrows'):
         wait = 0.1 if code else 0
-        callEnviron = self.createCallEnvironment(code=code)
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
         if code:
             self.highlightCode('arrows', callEnviron)
-        vertices = set(flat(*(
-            (tuple(self.canvas.coords(l)[:2]), tuple(self.canvas.coords(l)[-2:]))
-            for l in self.canvas.find_withtag('linkArrow'))))
-        arrows, coords, significant = [], [], []
+        vertices = set(self.canvas_coords(l)[:2]  # Just the base point
+                       for l in self.canvas.find_withtag('linkArrow'))
+        arrows, coords = [], []
         box = V(1, 1)
         for cell in self.table:
             if cell:
-                arrow = cell.items[1]
-                arrows.append(arrow)
-                adjCoords, verts = self.adjustArrow(
-                    arrow, vertices, cell.val[0].items[2])
-                coords.append(adjCoords)
-                if code and verts:
-                    sig = [self.canvas.create_rectangle(
-                        *(V(vert) - box), *(V(vert) + box),
-                        fill='red', outline=None, tags='significant')]
-                    significant.extend(sig)
-                    callEnviron |= set(sig)
-                for linkIndex in range(len(cell.val) - 1):
-                    arrow = cell.val[linkIndex].items[-1]
+                nLinks = len(cell.val)
+                for linkIndex in range(nLinks):
+                    arrow = (cell.val[linkIndex].items[-1]
+                             if linkIndex < nLinks - 1 else
+                             cell.items[1])
                     arrows.append(arrow)
-                    adjCoords, verts = self.adjustArrow(
-                        arrow, vertices, cell.val[linkIndex + 1].items[2])
+                    adjCoords = self.adjustArrow(
+                        arrow, vertices, 
+                        cell.val[(linkIndex + 1) % nLinks].items[2])
                     coords.append(adjCoords)
-                    if code and verts:
-                        sig = [self.canvas.create_rectangle(
-                            *(V(vert) - box), *(V(vert) + box),
-                            fill='red', outline=None, tags='significant')]
-                        significant.extend(sig)
-                        callEnviron |= set(sig)
+                    
         if code:
             self.highlightCode('adjust arrows', callEnviron)
-        self.moveItemsTo(arrows, coords, steps=10 if code else 1, 
-                         sleepTime=wait / 10)
+        self.moveItemsLinearly(arrows, coords, steps=10 if code else 1, 
+                               sleepTime=wait / 10)
         self.cleanUp(callEnviron)
 
-    def adjustArrow(self, arrow, vertices, box, distanceThreshold=2):
-        arrowCoords = self.canvas.coords(arrow)
-        base, tip = tuple(arrowCoords[:2]), tuple(arrowCoords[2:])
+    def adjustArrow(self, arrow, vertices, box,
+                    distanceThreshold=None, epsilon = 1e-10):
+        if distanceThreshold is None: distanceThreshold = self.linkDotRadius
+        arrowCoords = self.canvas_coords(arrow)
+        base, tip = arrowCoords[:2], arrowCoords[2:]
         if distance2(base, tip) <= 1:
-            return arrowCoords, ()
-        unitNormal = V(V(V(V(tip) - V(base)).normal2d()).unit(minLength=1))
-        significant, score = set(), 0
+            return arrowCoords
         otherVerts = vertices - set((base, tip))
-        for vert in otherVerts:
-            distance = self.distanceToSegment(vert, base, tip, unitNormal)
-            if distance <= distanceThreshold:
-                significant.add(vert)
-            if distance <= 10 * distanceThreshold:
-                score += 1 / max(distance, 1e-4)
-        if score == 0:
-            return arrowCoords, significant
-        boxCoords = self.canvas.coords(box)
-        boxWidth = int(boxCoords[2] - boxCoords[0])
-        for newTipIndex in range(boxWidth + 1):
-            s = 0
-            newTip = V(boxCoords[0]) + V(newTipIndex, 0)
-            s = sum(1 / max(
-                1e-4, self.distanceToSegment(vert, base, newTip, unitNormal))
-                    for vert in otherVerts)
-            if s < score:
-                score, tip = s, newTip
-        return base + tip, significant
+        boxCoords = self.canvas_coords(box)
+        firstX = int(tip[0])
+        score = math.inf
+        for offset in range(
+                0, int(max(firstX - boxCoords[0], boxCoords[2] - firstX)) + 1):
+            signsUsed = 0
+            for sign in ((0,) if offset == 0 else (-1, +1)):
+                newTip = (firstX + sign * offset, tip[1])
+                if boxCoords[0] <= newTip[0] and newTip[0] <= boxCoords[2]:
+                    signsUsed += 1
+                    s = self.arrowCost(
+                        base, newTip, firstX, otherVerts, epsilon=epsilon)
+                    if s < score:
+                        score, tip = s, newTip
+            if signsUsed == 0:
+                break
+        return base + tip
 
-    def distanceToSegment(self, point, base, tip, unitNormal):
+    def arrowCost(self, base, tip, defaultX, vertices, unitNormal=None,
+                  epsilon=1e-10):
+        if unitNormal is None:
+            unitNormal = V(V(V(V(tip) - V(base)).normal2d()).unit(minLength=1))
+        return sum((1 + abs(tip[0] - defaultX) / self.linkHeight / 2) /
+                   max(epsilon, self.distance2ToSegment(
+                       vert, base, tip, unitNormal))
+                   for vert in vertices)
+
+    def distance2ToSegment(self, point, base, tip, unitNormal):
         v = V(V(point) - V(base))
         segment = V(V(tip) - V(base))
         xProject = segment.dot(v)
-        if xProject < 0 or segment.len2() < xProject:
+        if xProject <= 0 or segment.len2() <= xProject:
             return math.inf
-        return abs(v.dot(unitNormal))
-        
+        distance = v.dot(unitNormal)
+        return distance * distance
+
+    def analyzeArrow(
+            self, base, tip, defaultX=None, otherVertices=None,
+            callEnviron=None, top=10, epsilon=1e-10, tags='closeVert'):
+        if otherVertices is None:
+            otherVertices = set(self.canvas_coords(l)[:2]  # Just the base point
+                                for l in self.canvas.find_withtag('linkArrow'))
+        if defaultX is None: defaultX = tip[0]
+        otherVertices -= set((base, tip))
+        if callEnviron is None: callEnviron = set()
+        if distance2(base, tip) <= 1:
+            return 'Base is same as tip', 0, ()
+        unitNormal = V(V(V(V(tip) - V(base)).normal2d()).unit(minLength=1))
+        vertDistances = [
+            (vert, self.distance2ToSegment(vert, base, tip, unitNormal))
+            for vert in otherVertices]
+        vertDistances.sort(key=lambda x: x[1])
+        closeVerts = [
+            self.createLinkIndex(vertDistances[i][0], str(i + 1), 
+                                 orientation=-45, color='orange', tags=tags)
+            for i in range(top)]
+        score = self.arrowCost(base, tip, defaultX, otherVertices,
+                               unitNormal, epsilon)
+        if top > 0:
+            callEnviron |= set(closeVerts)
+            print('Score of', score, 'reached with closest', top, 'vertices')
+            for i in range(top):
+                vert, dist2 = vertDistances[i]
+                print('{:14s}: {:6.4f}'.format(
+                    str(vert), 
+                    (1 + abs(tip[0] - defaultX) / self.linkHeight / 2) /
+                    max(epsilon, dist2)))
+        return 'Score', score, closeVerts
+
+    def analyzeArrowTips(
+            self, arrow, vertices, box, callEnviron=None, epsilon=1e-10):
+        arrowCoords = self.canvas_coords(arrow)
+        base, tip = arrowCoords[:2], arrowCoords[2:]
+        if callEnviron is None: callEnviron = set()
+        otherVertices = vertices - set((base, tip))
+        boxCoords =  self.canvas_coords(box)
+        firstX = int(tip[0])
+        tipScores = []
+        for offset in range(
+                0, int(max(firstX - boxCoords[0], boxCoords[2] - firstX)) + 1):
+            signsUsed = 0
+            for sign in ((0,) if offset == 0 else (-1, +1)):
+                newTip = (firstX + sign * offset, tip[1])
+                if boxCoords[0] <= newTip[0] and newTip[0] <= boxCoords[2]:
+                    signsUsed += 1
+                    text, score, _ = self.analyzeArrow(
+                        base, newTip, defaultX=firstX, 
+                        otherVertices=otherVertices, callEnviron=callEnviron,
+                        top=0, epsilon=epsilon)
+                    tipScores.append((newTip, score))
+                    print('tip at {:15s} scores {:6.4f}'.format(
+                        str(newTip), score))
+            if signsUsed == 0:
+                break
+        minScore = min(tipScore[1] for tipScore in tipScores)
+        print('Minimum score {} occurs at'.format(minScore))
+        for tipScore in tipScores:
+            if tipScore[1] == minScore:
+                print(tipScore[0])
+        return tipScores
+            
     # Button functions
 
     def clickTraverse(self):
