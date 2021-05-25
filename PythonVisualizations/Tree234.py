@@ -1275,6 +1275,7 @@ for key, data in tree.traverse("{traverseType}"):
                                              **dataIndexConfig)
                 callEnviron |= set(dataIndex)
                 localVars += dataIndex
+                self.scrollToSee(dataIndex + items, sleepTime=wait / 10)
             else:
                 self.moveArrowsTo(dataIndex, node, dataIndexConfig, wait)
 
@@ -1288,7 +1289,7 @@ for key, data in tree.traverse("{traverseType}"):
             self.moveItemsTo(
                 keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
                 startFont=keyItemFont, endFont=self.outputFont, 
-                sleepTime=wait / 10)
+                see=((outputBox,)), sleepTime=wait / 10)
             self.canvas.itemconfigure(
                 outputText,
                 text=currentText + (' ' if len(currentText) > 0 else '') +
