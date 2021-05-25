@@ -552,8 +552,9 @@ class Visualization(object):  # Base class for Python visualizations
                             self.canvas.itemconfigure(item, font=font)
                 if see:
                     self.scrollToSee(
-                        items + 
-                        (tuple(see) if isinstance(see, (list, tuple)) else ()),
+                        tuple(items) + 
+                        (tuple(see) if isinstance(see, (list, tuple, set))
+                         else ()),
                         sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
                 
@@ -612,7 +613,8 @@ class Visualization(object):  # Base class for Python visualizations
                 if see and moved:
                     self.scrollToSee(
                         moved + 
-                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        (list(see) if isinstance(see, (list, tuple, set))
+                         else []),
                         sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
@@ -624,7 +626,7 @@ class Visualization(object):  # Base class for Python visualizations
             if see and moved:
                 self.scrollToSee(
                     moved + 
-                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    (list(see) if isinstance(see, (list, tuple, set)) else []),
                     sleepTime=0, expand=expand)
 
     # The moveItemsLinearly method uses all the coordinates of canvas
@@ -679,7 +681,8 @@ class Visualization(object):  # Base class for Python visualizations
                 if see and moved:
                     self.scrollToSee(
                         moved + 
-                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        (list(see) if isinstance(see, (list, tuple, set))
+                         else []),
                         sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
@@ -691,7 +694,7 @@ class Visualization(object):  # Base class for Python visualizations
             if see and moved:
                 self.scrollToSee(
                     moved + 
-                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    (list(see) if isinstance(see, (list, tuple, set)) else []),
                     sleepTime=0, expand=expand)
              
     def moveItemsOnCurve(    # Animate canvas items moving from their current
@@ -743,7 +746,8 @@ class Visualization(object):  # Base class for Python visualizations
                 if see and moved:
                     self.scrollToSee(
                         moved + 
-                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        (list(see) if isinstance(see, (list, tuple, set))
+                         else []),
                         sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
@@ -755,7 +759,7 @@ class Visualization(object):  # Base class for Python visualizations
             if see and moved:
                 self.scrollToSee(
                     moved + 
-                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    (list(see) if isinstance(see, (list, tuple, set)) else []),
                     sleepTime=0, expand=expand)
 
     def withinCanvas(self, point, visible=False):
@@ -792,18 +796,18 @@ class Visualization(object):  # Base class for Python visualizations
                      (V(self.widgetDimensions(self.canvas)) /
                       V(V(self.canvasBounds[2:]) - V(self.canvasBounds[:2]))))
 
-    def scrollToSee(self, items, sleepTime=0.01, steps=10, **kwargs):
-        '''Scroll to show all the provided canvas items. It uses the
-        scrollSettingsToSee method to determine what scroll settings
-        are needed to see all the itmes, or at least the highest
-        priority ones.  See that method for its keyword parameters.
-        If sleepTime is 0, the scrolling is done in a single jump with
-        waits inbetween.  If no scrolling is required to see all the
-        itmes, the scroll settings are not changed.
+    def scrollToSee(self, itemsOrBBoxes, sleepTime=0.01, steps=10, **kwargs):
+        '''Scroll to show all the provided canvas items or bounding boxes. It
+        uses the scrollSettingsToSee method to determine what scroll
+        settings are needed to see all the item bboxes, or at least the
+        highest priority ones.  See that method for its keyword
+        parameters.  If sleepTime is 0, the scrolling is done in a
+        single jump with no waits inbetween.  If no scrolling is required
+        to see all the itmes, the scroll settings are not changed.
         '''
         if self.canvasHScroll is None or self.canvasVScroll is None:
             return
-        newX, newY = self.scrollSettingsToSee(items, **kwargs)
+        newX, newY = self.scrollSettingsToSee(itemsOrBBoxes, **kwargs)
         xPos = self.canvasHScroll.get()
         yPos = self.canvasVScroll.get()
         if distance2(xPos + yPos, newX + newY) < .0001:
@@ -814,25 +818,33 @@ class Visualization(object):  # Base class for Python visualizations
                     (xPos[0] * (steps - step) + newX[0] * step) / steps)
                 self.canvas.yview_moveto(
                     (yPos[0] * (steps - step) + newY[0] * step) / steps)
-                self.wait(sleepTime)
+                if self.animationsRunning():
+                    self.wait(sleepTime)
         self.canvas.xview_moveto(newX[0])
         self.canvas.yview_moveto(newY[0])
 
-    def scrollSettingsToSee(self, items, expand=True, firstPriority=True):
-        '''Find the scroll settings needed to see the given canvas items.  The
-        union of the bounding boxes of the items (ignoring those that
+    def scrollSettingsToSee(
+            self, itemsOrBBoxes, expand=True, firstPriority=True):
+        '''Find the scroll settings needed to see the given canvas items (int
+        or string) or bounding boxes (sequence of 4 coordinates).  The
+        union of the bounding boxes of the items (ignoring any items that
         have been deleted) determines what should be seen.  If expand
         is true and the items bounding box extends beyond the canvas
         bounds, the bounds are expanded (and scrollbars adjusted).  If
         not all the items could fit in the (adjusted) visible region,
         a binary search is done to find the largest subset of items
         that could fit.  The subset is either the first items in the
-        sequence or the latter items depending on the firstPriority flag.
+        sequence or the latter items depending on the firstPriority
+        flag.
+
         '''
         if self.canvasHScroll is None or self.canvasVScroll is None:
             return
-        BBoxes = [self.canvas.bbox(item) for item in items
-                  if self.canvas.type(item)]
+        BBoxes = [self.canvas.bbox(item) if isinstance(item, (int, str)) 
+                  else tuple(item)
+                  for item in itemsOrBBoxes
+                  if (isinstance(item, (int, str)) and self.canvas.type(item))
+                  or (isinstance(item, (list, tuple)) and len(item) == 4)]
         BBox = BBoxUnion(*BBoxes)
         visibleCanvas = self.visibleCanvas()
         if expand and not BBoxEmpty(BBox) and (
@@ -854,7 +866,7 @@ class Visualization(object):  # Base class for Python visualizations
             BBox = BBoxUnion(*(BBoxes[:keep] if firstPriority else
                                BBoxes[-keep:]))
 
-        # When bounding box could fit on canvas, adjust each scrollbar dimension
+        # When bounding box could fit on canvas, determine scrollbar positions
         if (BBox[2] - BBox[0], BBox[3] - BBox[1]) <= canvasDims:
             for pos, XorY in ((xPos, 0), (yPos, 1)):
                 lo = max(canvasBounds[XorY],
