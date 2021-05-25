@@ -15,10 +15,12 @@ class HashTableChaining(HashTableOpenAddressing):
     MAX_LOAD_FACTOR = 2.0
     CELL_INDEX_COLOR = 'gray60'
     
-    def __init__(self, title="Hash Table - Open Chaining", **kwargs):
+    def __init__(self, title="Hash Table - Open Chaining",
+                 interactiveAdjustment=False, **kwargs):
         self.initialRect = (
             0, 0, kwargs.get('canvasWidth', self.DEFAULT_CANVAS_WIDTH),
             kwargs.get('canvasHeight', self.DEFAULT_CANVAS_HEIGHT))
+        self.interactiveAdjustment = interactiveAdjustment
         super().__init__(title=title, canvasBounds=self.initialRect, **kwargs)
         self.probeChoiceButtons = ()
 
@@ -26,6 +28,7 @@ class HashTableChaining(HashTableOpenAddressing):
         self.table = [None] * max(1, nCells)
         self.nItems = 0
         self.maxLoadFactor = maxLoadFactor
+        self.setCanvasBounds(self.initialRect, expandOnly=False)
         self.display()
         
     insertCode = '''
@@ -40,13 +43,14 @@ def insert(self, key={key}, value):
 '''
     
     def insert(self, key, nodeItems=None, inputText=None,
-               code=insertCode, start=True):
+               code=insertCode, start=True, adjust=True):
         '''Insert a user provided key or the link node items from the old table
         during growTable.  Animate operation if code is provided,
         starting in the specified animation mode.  The inputText can
         be a text item that is moved into the input of the hasher.  It
         will be deleted and replaced by the hashed address for hashing
-        animation.
+        animation.  When adjust is true, the arrow positions will be
+        adjusted after insertion.
         '''
         wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(
@@ -62,21 +66,20 @@ def insert(self, key={key}, value):
         localVars = set(addressCharsAndArrow)
 
         if code:
-            iArrow = self.createArrayIndex(i, 'i')
+            iArrow = self.createArrayIndex(i, 'i', level=2)
             callEnviron |= set(iArrow)
             localVars |= set(iArrow)
-            self.dispose(callEnviron, addressCharsAndArrow[-1])
-            localVars.discard(addressCharsAndArrow[-1])
             self.highlightCode(
                 'flag = self.insert(self.__table[i], key, value)', callEnviron)
 
-        flag = self.insertIntoList(i, key, nodeItems, callEnviron, wait)
+        flag = self.insertIntoList(i, key, nodeItems, callEnviron, wait,
+                                   adjust=adjust)
         
         if code:
             outputBoxCoords = self.outputBoxCoords()
             gap = 4
             flagText = self.canvas.create_text(
-                *(V(self.canvas.coords(self.nItemsText)) - 
+                *(V(self.canvas_coords(self.nItemsText)) - 
                   V(0, self.VARIABLE_FONT[1])), anchor=SW,
                 text='flag = {}'.format(flag), font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
@@ -98,7 +101,8 @@ def insert(self, key={key}, value):
                     colors = self.fadeNonLocalItems(localVars)
 
             if self.loadFactor() > self.maxLoadFactor:
-                self.__growTable(code=self._growTableCode if code else '')
+                self.__growTable(code=self._growTableCode if code else '',
+                                 adjust=adjust)
                 if code:
                     self.restoreLocalItems(localVars, colors)
 
@@ -107,7 +111,8 @@ def insert(self, key={key}, value):
         self.cleanUp(callEnviron)
         return flag
 
-    def insertIntoList(self, cell, key, nodeItems, callEnviron, wait):
+    def insertIntoList(
+            self, cell, key, nodeItems, callEnviron, wait, adjust=True):
         linkedList = self.table[cell].val if self.table[cell] else []
         listIndex = 0
         while listIndex < len(linkedList):
@@ -115,7 +120,7 @@ def insert(self, key={key}, value):
                 break
             listIndex += 1
         updateExisting = listIndex < len(linkedList)
-        linkCoords = ([self.canvas.coords(item) 
+        linkCoords = ([self.canvas_coords(item) 
                        for item in linkedList[listIndex].items]
                       if updateExisting else 
                       self.findSpaceForLink(cell, key=key))
@@ -125,12 +130,12 @@ def insert(self, key={key}, value):
         if wait:
             linkIndex = self.createLinkIndex(cell)
             callEnviron |= set(linkIndex)
-            for j in range(listIndex):
-                self.moveItemsTo(linkIndex, self.linkIndexCoords(linkedList[j]),
-                                 sleepTime=wait / 10)
+            for link in linkedList[:listIndex]:
+                self.moveItemsTo(linkIndex, self.linkIndexCoords(link),
+                                 sleepTime=wait / 10, see=link.items)
                 self.wait(wait / 2)
             self.moveItemsTo(linkIndex, self.linkIndexCoords(linkCoords),
-                             sleepTime=wait / 10)
+                             sleepTime=wait / 10, see=True)
             if updateExisting:
                 self.canvas.tag_lower(
                     newItems[0], linkedList[listIndex].items[1])
@@ -139,6 +144,7 @@ def insert(self, key={key}, value):
             else:
                 self.moveItemsLinearly(
                     newItems, linkCoords, sleepTime=wait / 10)
+            self.scrollToSee(linkCoords, sleepTime=wait / 10)
         else:
             if not updateExisting:
                 for item, coords in zip(newItems, linkCoords):
@@ -148,7 +154,7 @@ def insert(self, key={key}, value):
         if updateExisting:
             self.copyItemAttributes(newItems[0], linkedList[listIndex].items[0],
                                     'fill')
-            self.dispose(callEnviron, *newitems)
+            self.dispose(callEnviron, *newItems)
         else:
             linkedList.append(drawnValue(key, *newItems))
             if self.table[cell] is None:
@@ -158,6 +164,8 @@ def insert(self, key={key}, value):
                 self.table[cell].val = linkedList
                 self.linkNodes(linkedList[-2], linkedList[-1])
             callEnviron -= set(newItems)
+            if adjust:
+                self.adjustArrowsForCell(cell, wait=wait)
         if wait:
             self.dispose(callEnviron, *linkIndex)
         return not updateExisting
@@ -224,7 +232,7 @@ def __growTable(self):
              self.insert(*item)
  '''
     
-    def __growTable(self, code=_growTableCode):
+    def __growTable(self, code=_growTableCode, adjust=True):
         wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(code=code)
         
@@ -235,14 +243,15 @@ def __growTable(self):
         if code:
             self.highlightCode('oldTable = self.__table', callEnviron)
             oldTableCells = self.arrayCells
-            cell0 = self.canvas.coords(oldTableCells[0])
-            delta = (self.cellWidth * 2 * (len(self.table) + 2),
+            cell0 = self.canvas_coords(oldTableCells[0])
+            delta = (self.cellWidth *
+                     (min(self.MAX_CELLS, 2 * len(self.table)) + 4),
                      2 * self.cellHeight)
             callEnviron.add(self.canvas.create_text(
                 cell0[0] - self.cellWidth // 2 + delta[0],
                 (cell0[1] + cell0[3]) // 2 + delta[1], anchor=E,
                 text='oldTable', font=self.cellIndexFont, fill=oldTableColor))
-            self.moveItemsBy(tagsToMove, delta, sleepTime=wait / 10)
+            self.moveItemsBy(tagsToMove, delta, see=True, sleepTime=wait / 10)
             self.canvas_itemConfig('arrayBox', outline=oldTableColor)
             for tag in ('linkArrow', 'cellArrow'):
                 self.canvas_itemConfig(tag, fill=oldTableColor)
@@ -252,11 +261,12 @@ def __growTable(self):
             self.highlightCode('size = len(oldTable) * 2 + 1', callEnviron,
                                wait=wait)
             sizeText = self.canvas.create_text(
-                *(V(self.canvas.coords(self.nItemsText)) - 
+                *(V(self.canvas_coords(self.nItemsText)) - 
                   V(0, self.VARIABLE_FONT[1])), anchor=SW,
                 text='size = {}'.format(size), font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
             callEnviron.add(sizeText)
+            self.scrollToSee((sizeText, ), sleepTime=wait / 10)
             localVars.add(sizeText)
             if len(oldTable) * 2 + 1 > size:
                 self.setMessage('Reached maximum number of cells {}'.format(
@@ -274,8 +284,11 @@ def __growTable(self):
 
         if size == self.MAX_CELLS and len(oldTable) == self.MAX_CELLS:
             if code:
-                self.moveItemsBy(tagsToMove, V(delta) * -1, sleepTime=0)
+                self.moveItemsBy(tagsToMove, V(delta) * -1, see=True,
+                                 sleepTime=0)
                 self.canvas_itemConfig('arrayBox', outline='black')
+                for tag in ('linkArrow', 'cellArrow'):
+                    self.canvas_itemConfig(tag, fill=self.linkArrowColor)
             self.cleanUp(callEnviron)
             return
             
@@ -301,16 +314,19 @@ def __growTable(self):
             iArrow, itemArrow = None, None
         for i in range(len(oldTable)):
             if code:
+                cellsToView = oldTableCells[max(0, i - 1):
+                                            min(i + 1, len(oldTableCells))]
                 if iArrow is None:
                     iArrow = self.createArrayIndex(
-                        self.canvas.coords(oldTableCells[i]), 'i')
+                        self.canvas_coords(oldTableCells[i]), 'i')
                     callEnviron |= set(iArrow)
                     localVars |= set(iArrow)
+                    self.scrollToSee(cellsToView, sleepTime=wait / 10)
                 else:
                     self.moveItemsTo(
                         iArrow, self.arrayIndexCoords(
-                            self.canvas.coords(oldTableCells[i])),
-                        sleepTime=wait / 10)
+                            self.canvas_coords(oldTableCells[i])), 
+                        see=cellsToView, sleepTime=wait / 10)
                 self.highlightCode('oldTable[i]', callEnviron, wait=wait)
 
             if oldTable[i] and oldTable[i].val:
@@ -321,28 +337,28 @@ def __growTable(self):
                 linkedList = oldTable[i].val
                 self.dispose(callEnviron, *oldTable[i].items)
                 for linkIndex in range(len(linkedList)):
+                    link = linkedList[linkIndex]
                     if code:
                         if itemArrow is None:
-                            itemArrow = self.createLinkIndex(
-                                linkedList[linkIndex], 'item')
+                            itemArrow = self.createLinkIndex(link, 'item')
                             callEnviron |= set(itemArrow)
                             localVars |= set(itemArrow)
+                            self.scrollToSee(link.items, sleepTime=wait / 10)
                         else:
-                            self.moveItemsTo(itemArrow, self.linkIndexCoords(
-                                linkedList[linkIndex]), sleepTime=wait / 10)
+                            self.moveItemsTo(
+                                itemArrow, self.linkIndexCoords(link), 
+                                see=link.items, sleepTime=wait / 10)
                             
-                        self.highlightCode('self.insert(*item)',
-                                           callEnviron)
+                        self.highlightCode('self.insert(*item)', callEnviron)
                         if self.showHashing.get():
-                            keyCopy = self.copyCanvasItem(
-                                linkedList[linkIndex].items[1])
+                            keyCopy = self.copyCanvasItem(link.items[1])
                             callEnviron.add(keyCopy)
                         colors = self.fadeNonLocalItems(localVars)
                     self.insert(
-                        linkedList[linkIndex].val, 
-                        nodeItems=linkedList[linkIndex].items,
+                        link.val, 
+                        nodeItems=link.items, adjust=adjust,
                         inputText=keyCopy, code=self.insertCode if code else '')
-                    callEnviron -= set(linkedList[linkIndex].items)
+                    callEnviron -= set(link.items)
                     if code:
                         self.restoreLocalItems(localVars, colors)
                         self.highlightCode('item in oldTable[i].traverse()',
@@ -385,10 +401,8 @@ def search(self, key={key}):
         localVars = set(addressCharsAndArrow)
 
         if code:
-            iArrow = self.createArrayIndex(i, 'i')
+            iArrow = self.createArrayIndex(i, 'i', level=2)
             callEnviron |= set(iArrow)
-            self.dispose(callEnviron, addressCharsAndArrow[-1])
-            localVars.discard(addressCharsAndArrow[-1])
             self.highlightCode('self.__table[i] is None', callEnviron)
 
         if self.table[i] is None or len(self.table[i].val) == 0:
@@ -405,9 +419,10 @@ def search(self, key={key}):
         callEnviron |= set(itemArrow)
         linkIndex = 0
         while linkIndex < len(linkedList):
+            link = linkedList[linkIndex]
             if code:
-                self.moveItemsTo(itemArrow, self.linkIndexCoords(
-                    linkedList[linkIndex]), sleepTime=wait / 10)
+                self.moveItemsTo(itemArrow, self.linkIndexCoords(link),
+                                 see=link.items, sleepTime=wait / 10)
                 self.wait(wait / 2)
             if linkedList[linkIndex].val == key:
                 break
@@ -419,15 +434,15 @@ def search(self, key={key}):
                      for item in linkedList[linkIndex].items[0:2]]
             callEnviron |= set(items)
             self.canvas.tag_lower(items[0])
-            delta = V(BBoxCenter(outBox)) - V(self.canvas.coords(items[1])) 
+            delta = V(BBoxCenter(outBox)) - V(self.canvas_coords(items[1])) 
             self.moveItemsBy(
-                items, delta, sleepTime=wait / 10,
+                items, delta, see=True, sleepTime=wait / 10,
                 startFont=self.getItemFont(items[1]), endFont=self.outputFont)
             self.copyItemAttributes(items[0], outputBox, 'fill')
             self.dispose(callEnviron, items[0])
         else:
             if itemArrow:
-                self.moveItemsTo(itemArrow, self.linkIndexCoords(i),
+                self.moveItemsTo(itemArrow, self.linkIndexCoords(i), see=True,
                                  sleepTime=wait / 10)
                 
         self.cleanUp(callEnviron)
@@ -462,7 +477,7 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
         localVars = set(addressCharsAndArrow)
 
         if i is not None:
-            iArrow = self.createArrayIndex(i, 'i')
+            iArrow = self.createArrayIndex(i, 'i', level=2)
             callEnviron |= set(iArrow)
             localVars |= set(iArrow)
 
@@ -515,11 +530,12 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
             callEnviron |= set(itemArrow)
         linkIndex = 0
         while linkIndex < len(linkedList):
+            link = linkedList[linkIndex]
             if animate:
-                self.moveItemsTo(itemArrow, self.linkIndexCoords(
-                    linkedList[linkIndex]), sleepTime=wait / 10)
+                self.moveItemsTo(itemArrow, self.linkIndexCoords(link),
+                                 see=link.items, sleepTime=wait / 10)
                 self.wait(wait / 2)
-            if linkedList[linkIndex].val == key:
+            if link.val == key:
                 break
             linkIndex += 1
 
@@ -538,10 +554,15 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
                     else None)
             self.dispose(callEnviron, *linkedList[linkIndex].items)
             linkedList[linkIndex:linkIndex + 1] = []
+            if len(linkedList) == 0:
+                self.dispose(callEnviron, *self.table[cellIndex].items)
+                self.table[cellIndex] = None
+            self.adjustArrowsForCell(cellIndex, wait=wait)
+            self.dispose(callEnviron, *itemArrow)
         else:
             if animate:
                 self.moveItemsTo(itemArrow, self.linkIndexCoords(cellIndex),
-                                 sleepTime=wait / 10)
+                                 see=True, sleepTime=wait / 10)
         return found
         
     traverseCode = '''
@@ -565,7 +586,7 @@ def traverse(self):
                 callEnviron |= set(iArrayIndex)
             else:
                 self.moveItemsTo(iArrayIndex, self.arrayIndexCoords(i),
-                                 sleepTime=wait / 10)
+                                 see=True, sleepTime=wait / 10)
 
             self.highlightCode('self.__table[i]', callEnviron, wait=wait)
             if self.table[i]:
@@ -577,7 +598,7 @@ def traverse(self):
                         callEnviron |= set(itemIndex)
                     else:
                         self.moveItemsTo(itemIndex, self.linkIndexCoords(link),
-                                         sleepTime=wait / 10)
+                                         see=True, sleepTime=wait / 10)
 
                     self.highlightCode('yield item', callEnviron)
                     itemCoords = self.yieldCallEnvironment(
@@ -590,6 +611,21 @@ def traverse(self):
         
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
+
+    def randomFill(self, nItems, animate=None):
+        if animate is None: animate = self.showHashing.get()
+        callEnviron = self.createCallEnvironment()
+        count = 0
+        for j in range(nItems):
+            key = random.randrange(10 ** self.maxArgWidth)
+            if self.insert(key, code=self.insertCode if animate else '',
+                           adjust=animate):
+                count += 1
+        if count and not self.interactiveAdjustment and not animate:
+            self.adjustArrowsForCell(0, adjacentCells=len(self.table) - 1,
+                                     wait=0.1 if animate else 0)
+        self.cleanUp(callEnviron)
+        return count
         
     def cellCoords(self, index):
         x0 = self.array_x0 + index * self.cellWidth
@@ -609,7 +645,7 @@ def traverse(self):
         return (base + tip, base)
 
     def linkIndexCoords(self, linkOrCoords, level=1, orientation=-160):
-        corner = (tuple(self.canvas.coords(linkOrCoords.items[2])[:2])
+        corner = (self.canvas_coords(linkOrCoords.items[2])[:2]
                   if isinstance(linkOrCoords, drawnValue) else
                   self.arrayCellCoords(linkOrCoords)[:2]
                   if isinstance(linkOrCoords, int) else
@@ -636,7 +672,7 @@ def traverse(self):
         arrow = dot if nextLink is None else (
             dot[:2] + 
             (dot[0], nextLink[1] if isnstance(nextLink, (tuple, list)) else
-             self.canvas.coords(nextLink.items[0])[1]))
+             self.canvas_coords(nextLink.items[0])[1]))
         if nextLink is not None:
             dotRadius = (self.linkDotRadius, ) * 2
             dot = (V(dot[:2]) - V(dotRadius)) + (V(dot[:2]) + V(dotRadius))
@@ -701,7 +737,7 @@ def traverse(self):
         if firstNodeOrCoords is None:
             tip = center
         elif isinstance(firstNodeOrCoords, drawnValue):
-            boxCoords = self.canvas.coords(firstNodeOrCoords.items[2])
+            boxCoords = self.canvas_coords(firstNodeOrCoords.items[2])
             tip = (max(boxCoords[0], min(boxCoords[2], center[0])), boxCoords[1])
         else:
             tip = firstNodeOrCoords
@@ -709,6 +745,7 @@ def traverse(self):
             *center, *tip, fill=self.linkArrowColor, width=self.linkArrowWidth,
             activefill=self.activeLinkArrowColor, arrow=LAST,
             activewidth=self.activeLinkArrowWidth, tags=('cell', 'cellArrow'))
+        self.scrollToSee((dot, arrow))
         return dot, arrow
     
     def createLinkIndex(
@@ -722,20 +759,25 @@ def traverse(self):
         label = self.canvas.create_text(
             *coords[1], text=label or '', fill=color, anchor=anchor, font=font,
             tags=tags)
+        self.scrollToSee((arrow, label))
         return arrow, label
         
     def createArrayIndexLabel(self, index, tags='cellIndex'):
         coords = self.arrayCellCoords(index)
-        return self.canvas.create_text(
+        indexLabel = self.canvas.create_text(
             (coords[0] + coords[2]) // 2, coords[1] - 1, anchor=S,
             text=str(index), tags=tags,
             font=self.cellIndexFont, fill=self.CELL_INDEX_COLOR)
+        self.scrollToSee((indexLabel,))
+        return indexLabel
 
     def createArraySizeLabel(self, tags='sizeLabel'):
         coords = self.cellCenter(len(self.table))
-        return self.canvas.create_text(
+        sizeLabel = self.canvas.create_text(
             *coords, text='{} cells'.format(len(self.table)), anchor=W,
             tags=tags, font=self.VALUE_FONT, fill=self.VARIABLE_COLOR)
+        self.scrollToSee((sizeLabel,))
+        return sizeLabel
         
     def setupDisplay(self, hasherHeight=70):
         'Define dimensions and coordinates for display items'
@@ -743,7 +785,7 @@ def traverse(self):
         self.cellWidth = 14
         self.cellHeight = self.cellWidth
         self.array_x0 = self.cellWidth * 4
-        self.array_y0 = hasherHeight + 40
+        self.array_y0 = hasherHeight + 48
         self.cellDotRadius = 4 # (self.cellWidth - 4) // 2
         self.cellDotColor = 'red'
 
@@ -766,7 +808,7 @@ def traverse(self):
         '''Erase canvas and redisplay contents.  Call setupDisplay() before
         this to set the display parameters.'''
         saveCoords = dict(
-            (item, self.canvas.coords(item)) for item in
+            (item, self.canvas_coords(item)) for item in
             flat(*(d.items + flat(*(n.items for n in d.val))
                    for d in self.table if d)))
         saveColors = dict(
@@ -802,11 +844,11 @@ def traverse(self):
 
     def linkNodes(self, fromNode, toNode=None):
         dotItem, arrowItem = fromNode.items[-2:]
-        dotCenter = BBoxCenter(self.canvas.coords(dotItem))
+        dotCenter = BBoxCenter(self.canvas_coords(dotItem))
         radius = V((self.linkDotRadius if toNode else 0,) * 2)
         self.canvas.coords(dotItem,
                            (V(dotCenter) - radius) + (V(dotCenter) + radius))
-        toBox = self.canvas.coords((toNode or fromNode).items[2]) 
+        toBox = self.canvas_coords((toNode or fromNode).items[2]) 
         self.canvas.coords(
             arrowItem,
             dotCenter + (dotCenter if toNode is None else
@@ -822,6 +864,7 @@ def traverse(self):
             self.nItemsText = self.canvas.create_text(
                 *(V(outputBoxCoords[:2]) + V(gap, - gap)), anchor=SW,
                 text='', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        self.scrollToSee((self.nItemsText,))
         self.canvas_itemConfig(self.nItemsText,
                                text='nItems = {}'.format(nItems))
         
@@ -835,6 +878,7 @@ def traverse(self):
                 outputBoxCoords[2] - gap, outputBoxCoords[1] - gap, anchor=SE,
                 text='', font=self.VARIABLE_FONT,
                 fill=self.VARIABLE_COLOR)
+        self.scrollToSee((self.maxLoadFactorText,))
         self.canvas_itemConfig(
             self.maxLoadFactorText, text='maxLoadFactor = {}%'.format(
                 int(100 * maxLoadFactor)))
@@ -868,7 +912,13 @@ def traverse(self):
             arrow=LAST, width=width, fill=indexLineColor,
             splinesteps=steps, smooth=True, tags=tags)
         if animate and 'sleepTime' in kwargs:
-            self.wait(kwargs['sleepTime'] * 5)
+            sleepTime = kwargs['sleepTime']
+            self.scrollToSee(
+                (arrow, 
+                 *self.arrayCells[max(0, i - 1):min(i + 1, len(self.table))],
+                 *self.hashAddressCharacters),
+                sleepTime=sleepTime)
+            self.wait(sleepTime * 5)
         return tuple(self.hashAddressCharacters) + (arrow,), i  
       
     def animateStringHashing(
@@ -889,7 +939,7 @@ def traverse(self):
             self.changeAnchor(E, textItem)
             bbox = self.canvas.bbox(textItem)
             self.moveItemsTo(
-                textItem, self.hashInputCoords(nInputs=1),
+                textItem, self.hashInputCoords(nInputs=1), see=h['Blocks'],
                 sleepTime=sleepTime, startFont=self.getItemFont(textItem),
                 endFont=self.VARIABLE_FONT)
             self.canvas_itemConfig(textItem, fill=color)
@@ -911,6 +961,7 @@ def traverse(self):
             self.canvas.lower(c)
         if callEnviron:
             callEnviron |= characters
+        self.scrollToSee(characters, sleepTime=sleepTime)
 
         output = []        # Characters of hashed output
         pad = abs(font[1])
@@ -922,11 +973,12 @@ def traverse(self):
         while (characters or len(output) < len(hashed) or
                leftmostOutput < rightEdge):
             self.moveItemsBy(    # Move all characters
-                characters.union(output), (dx, 0), sleepTime=sleepTime, steps=1)
+                characters.union(output), (dx, 0), sleepTime=sleepTime, steps=1,
+                see=h['Blocks'])
             self.incrementHasherPhase()
             deletion = False
             for char in list(characters): # For all input characters
-                coords = self.canvas.coords(char)  # See if they entered the
+                coords = self.canvas_coords(char)  # See if they entered the
                 if coords[0] - pad >= h['BBox'][0]: # hasher bounding box and
                     deletion = True       # delete them if they did
                     if callEnviron:
@@ -953,6 +1005,30 @@ def traverse(self):
                     callEnviron.add(output[-1])
         return output
 
+    def adjustArrowsForCell(self, cellIndex, adjacentCells=2, wait=0.1):
+        if self.interactiveAdjustment:
+            return
+        vertices = set(self.canvas_coords(l)[:2]  # Just the base point
+                       for l in self.canvas.find_withtag('linkArrow'))
+        arrows, newCoords = [], []
+        for cell in range(max(0, cellIndex - adjacentCells),
+                          min(len(self.table), cellIndex + adjacentCells + 1)):
+            linkedList = [] if self.table[cell] is None else self.table[cell].val
+            nLinks = len(linkedList)
+            for linkIndex in range(nLinks):
+                arrow = (linkedList[linkIndex].items[-1]
+                         if linkIndex < nLinks - 1 else self.table[cell].items[1])
+                arrows.append(arrow)
+                adjCoords = self.adjustArrow(
+                    arrow, vertices,
+                    linkedList[(linkIndex + 1) % nLinks].items[2])
+                newCoords.append(adjCoords)
+        if wait:
+            self.moveItemsLinearly(arrows, newCoords, sleepTime=wait / 10)
+        else:
+            for item, coords in zip(arrows, newCoords):
+                self.canvas.coords(item, coords)
+            
     def adjustArrows(self, start=True, code='adjust arrows'):
         wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(
@@ -978,8 +1054,8 @@ def traverse(self):
                     
         if code:
             self.highlightCode('adjust arrows', callEnviron)
-        self.moveItemsLinearly(arrows, coords, steps=10 if code else 1, 
-                               sleepTime=wait / 10)
+        self.moveItemsLinearly(arrows, coords, steps=10 if code else 1,
+                               see=True, sleepTime=wait / 10)
         self.cleanUp(callEnviron)
 
     def adjustArrow(self, arrow, vertices, box,
@@ -1046,6 +1122,7 @@ def traverse(self):
             self.createLinkIndex(vertDistances[i][0], str(i + 1), 
                                  orientation=-45, color='orange', tags=tags)
             for i in range(top)]
+        self.scrollToSee(closeVerts)
         score = self.arrowCost(base, tip, defaultX, otherVertices,
                                unitNormal, epsilon)
         if top > 0:
@@ -1133,14 +1210,16 @@ def traverse(self):
         traverseButton = self.addOperation(
             "Traverse", self.clickTraverse, 
             helpText='Traverse items in hash table')
-        adjustButton = self.addOperation(
-            "Adjust arrows", self.clickAdjustArrows, 
-            helpText='Adjust arrow links to avoid conflicts')
+        if self.interactiveAdjustment:
+            adjustButton = self.addOperation(
+                "Adjust arrows", self.clickAdjustArrows, 
+                helpText='Adjust arrow links to avoid conflicts')
         self.addAnimationButtons()
 
 if __name__ == '__main__':
-    hashTable = HashTableChaining()
     animate = '-a' in sys.argv[1:]
+    hashTable = HashTableChaining(
+        interactiveAdjustment='-i' in sys.argv[1:])
     showHashing = hashTable.showHashing.get()
     hashTable.showHashing.set(1 if animate else 0)
     for arg in sys.argv[1:]:
