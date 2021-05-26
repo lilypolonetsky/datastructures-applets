@@ -157,15 +157,14 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
 
     def getOperations(self):
-        '''Get all the currently defined operations.  Return 4 results:
+        '''Get all the currently defined operations.  Return 2 results:
         withArgument: List of operation buttons that require 1+ argument(s)
         withoutArgument: List of operation buttons that require no arguments
-        nColumns: number of columns in operations grid
-        nRows: number of rows in opserations grid
 
-        Buttons are returned in the order they were added - top to bottom in
-        grid.  The self.playControlsFrame is returned as a single operation
-        in the withoutArgument list, if it is present.
+        Buttons are returned in the reverse order they were added -
+        bottom to top in the grid.  The self.playControlsFrame is returned
+        as a single operation in the withoutArgument list, if it is
+        present.
         '''
         withArgument, withoutArgument = [], []
         playControls = getattr(self, 'playControlsFrame', False)
@@ -176,6 +175,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             elif isinstance(item, self.buttonTypes) or item is playControls:
                 withoutArgument.append(item)
         return withArgument, withoutArgument
+
+    def getOperationGridLocation(self, btn):
+        'Get the row and column of an operations button'
+        info = btn.grid_info()
+        return int(info['row']), int(info['column'])
 
     withArgsColumn = 0
     argsColumn = 8
@@ -393,9 +397,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         '''
         self.playControlsFrame = Frame(self.operations, bg=self.OPERATIONS_BG)
         withArgs, withoutArgs = self.getOperations()
+        lastRow, lastColumn = self.getOperationGridLocation(
+            withoutArgs[0]) if withoutArgs else (1, self.withoutArgsColumn)
         self.playControlsFrame.grid(
-            column=self.withoutArgsColumn + len(withoutArgs) // maxRows,
-            row=len(withoutArgs) % maxRows + 1)
+            column=lastColumn + lastRow // maxRows, row=lastRow % maxRows + 1)
 
         self.pauseButton, self.stepButton, self.stopButton = (
             Button(self.playControlsFrame, image=self.playControlImages[name],
