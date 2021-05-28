@@ -289,12 +289,15 @@ def __growTable(self):
                     
         self.cleanUp(callEnviron)
 
-    def randomFill(self, nItems, animate=None):
+    def randomFill(
+            self, nItems, animate=None, alphabet=
+            'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ-_+.,&/:'):
         if animate is None: animate = self.showHashing.get()
         callEnviron = self.createCallEnvironment()
         count = 0
         for j in range(nItems):
-            key = random.randrange(10 ** self.maxArgWidth)
+            #key = random.randrange(10 ** self.maxArgWidth)
+            key = ''.join(random.choices(alphabet, k=self.maxArgWidth))
             if self.insert(key, code=self.insertCode if animate else ''):
                 count += 1
         self.cleanUp(callEnviron)

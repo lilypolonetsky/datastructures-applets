@@ -15,7 +15,7 @@ class HashTableChaining(HashTableOpenAddressing):
     MAX_LOAD_FACTOR = 2.0
     CELL_INDEX_COLOR = 'gray60'
     
-    def __init__(self, title="Hash Table - Open Chaining",
+    def __init__(self, title="Hash Table - Separate Chaining",
                  interactiveAdjustment=False, **kwargs):
         self.initialRect = (
             0, 0, kwargs.get('canvasWidth', self.DEFAULT_CANVAS_WIDTH),
@@ -612,12 +612,15 @@ def traverse(self):
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
-    def randomFill(self, nItems, animate=None):
+    def randomFill(
+            self, nItems, animate=None, alphabet=
+            'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ-_+.,&/:'):
         if animate is None: animate = self.showHashing.get()
         callEnviron = self.createCallEnvironment()
         count = 0
         for j in range(nItems):
-            key = random.randrange(10 ** self.maxArgWidth)
+            # key = random.randrange(10 ** self.maxArgWidth)
+            key = ''.join(random.choices(alphabet, k=self.maxArgWidth))
             if self.insert(key, code=self.insertCode if animate else '',
                            adjust=animate):
                 count += 1
