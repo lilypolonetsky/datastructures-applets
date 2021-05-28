@@ -285,7 +285,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         
     def makeArgumentEntry(self, validationCmd):
         entry = Entry(
-            self.operations, width=self.maxArgWidth, bg=self.ENTRY_BG,
+            self.operations, width=self.maxArgWidth * 5 // 4, bg=self.ENTRY_BG,
             validate='key', validatecommand=validationCmd, 
             font=self.CONTROLS_FONT)
         entry.bind(
