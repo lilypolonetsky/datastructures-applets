@@ -772,6 +772,8 @@ def traverse(self):
             text=str(index), tags=tags,
             font=self.cellIndexFont, fill=self.CELL_INDEX_COLOR)
         self.scrollToSee((indexLabel,))
+        self.canvas.tag_bind(indexLabel, '<Button>', 
+                             lambda e: self.setArgument(str(index)))
         return indexLabel
 
     def createArraySizeLabel(self, tags='sizeLabel'):

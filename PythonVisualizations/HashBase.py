@@ -234,9 +234,12 @@ class HashBase(VisualizationApp):
 
     def createArrayIndexLabel(self, index, tags='cellIndex'):
         coords = self.cellArrowCoords(index)
-        return self.canvas.create_text(
+        text = self.canvas.create_text(
             *coords[2:], anchor=W, text='{:2d}'.format(index), tags=tags,
             font=self.cellIndexFont, fill=self.CELL_INDEX_COLOR)
+        self.canvas.tag_bind(text, '<Button>', 
+                             lambda e: self.setArgument(str(index)))
+        return text
 
     def createArraySizeLabel(self, tags='sizeLabel'):
         coords = V(self.cellCenter(len(self.table) - 1)) + V(0, self.cellHeight)
