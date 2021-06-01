@@ -516,8 +516,8 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
         dValue.val = self.__Deleted
 
     traverseExampleCode = '''
-for item in hashTable.traverse():
-   print(item)
+for key, data in hashTable.traverse():
+   print(key)
 '''
     def traverseExample(
             self, code=traverseExampleCode, start=True, indexLabel='item'):
@@ -529,7 +529,7 @@ for item in hashTable.traverse():
         callEnviron.add(outputBox)
         
         self.highlightCode(
-            'item in hashTable.traverse()', callEnviron, wait=wait)
+            'key, data in hashTable.traverse()', callEnviron, wait=wait)
         arrayIndex = None
         localVars = ()
         colors = self.fadeNonLocalItems(localVars)
@@ -543,13 +543,13 @@ for item in hashTable.traverse():
                 self.moveItemsTo(
                     arrayIndex, self.arrayIndexCoords(i), sleepTime=wait / 10)
 
-            self.highlightCode('print(item)', callEnviron, wait=wait)
+            self.highlightCode('print(key)', callEnviron, wait=wait)
             self.appendTextToOutputBox(
                 item.items[1], callEnviron, sleepTime=wait / 10)
 
             colors = self.fadeNonLocalItems(localVars)
             self.highlightCode(
-                'item in hashTable.traverse()', callEnviron, wait=wait)
+                'key, data in hashTable.traverse()', callEnviron, wait=wait)
         
         self.highlightCode((), callEnviron)
         self.cleanUp(callEnviron)
@@ -581,7 +581,7 @@ def traverse(self):
             if self.table[i]:
                 self.highlightCode('self.__table[i] is not HashTable.__Deleted',
                                    callEnviron, wait=wait)
-            if self.table[i] and self.table[i] is not self.__Deleted:
+            if self.table[i] and self.table[i].val is not self.__Deleted:
                 self.highlightCode('yield self.__table[i]', callEnviron)
                 itemCoords = self.yieldCallEnvironment(
                     callEnviron, sleepTime=wait / 10)
