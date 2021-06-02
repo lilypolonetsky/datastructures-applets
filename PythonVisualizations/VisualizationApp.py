@@ -487,6 +487,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def clearArgument(self, index=0):
         self.setArgument('', index)
 
+    def clearArguments(self):
+        for index in range(len(self.textEntries)):
+            self.setArgument('', index)
+
     def setArgument(self, val='', index=0):
         if 0 <= index and index < len(self.textEntries):
             self.textEntries[index].delete(0, END)
