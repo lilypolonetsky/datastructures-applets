@@ -795,8 +795,10 @@ def traverse(self):
             result, '' if result == 1 else 's'))
         self.clearArgument()
         
-    def clickNew(self, defaultMaxLoadFactor=0.5):
-        nCells, maxLoadFactor = self.getArguments()
+    def clickNew(self, defaultMaxLoadFactor=0.5,
+                 loadFactorRange=(MIN_LOAD_FACTOR, MAX_LOAD_FACTOR),
+                 loadFactorPattern=fraction):
+        nCells, loadFactor = self.getArguments()
         msg = []
         if (nCells.isdigit() and
             1 <= int(nCells) and int(nCells) <= self.MAX_CELLS):
@@ -807,19 +809,21 @@ def traverse(self):
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
             nCells = 2
             msg.append('Using {} cells'.format(nCells))
-        if fraction.match(maxLoadFactor):
-            maxLoadFactor = float(maxLoadFactor)
-        if not isinstance(maxLoadFactor, float) or not (
-                self.MIN_LOAD_FACTOR <= maxLoadFactor and
-                maxLoadFactor < self.MAX_LOAD_FACTOR):
-            msg.append('Max load factor must be fraction between {} and {}'
-                       .format(self.MIN_LOAD_FACTOR, self.MAX_LOAD_FACTOR))
+        if loadFactorPattern.match(loadFactor):
+            loadFactor = float(loadFactor)
+        if not isinstance(loadFactor, float) or not (
+                loadFactorRange[0] <= loadFactor and
+                loadFactor < loadFactorRange[1]):
+            msg.append('Max load factor must be a fraction\nbetween {} and {}'
+                       .format(*loadFactorRange))
             self.setArgumentHighlight(1, self.ERROR_HIGHLIGHT)
-            maxLoadFactor = defaultMaxLoadFactor
-            msg.append('Using max load factor = {}'.format(maxLoadFactor))
+            loadFactor = defaultMaxLoadFactor
+            msg.append('Using max load factor = {}'.format(loadFactor))
+        self.newHashTable(nCells, loadFactor)
         if msg:
             self.setMessage('\n'.join(msg))
-        self.newHashTable(nCells, maxLoadFactor)
+        else:
+            self.clearArguments()
 
     def clickTraverse(self):
         self.traverseExample(start=self.startMode())

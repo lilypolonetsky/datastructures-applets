@@ -1197,7 +1197,10 @@ def traverse(self):
             helpText='Delete a key in the hash table',
             argHelpText=['key'])
         newButton = self.addOperation(
-            "New", lambda: self.clickNew(defaultMaxLoadFactor=1.0),
+            "New", lambda: self.clickNew(
+                defaultMaxLoadFactor=1.0, 
+                loadFactorRange=(self.MIN_LOAD_FACTOR, self.MAX_LOAD_FACTOR),
+                loadFactorPattern=maxLoadFactorPattern),
             numArguments=2, validationCmd=vcmd,
             helpText='Create new hash table with\n'
             'number of cells & max load factor',
