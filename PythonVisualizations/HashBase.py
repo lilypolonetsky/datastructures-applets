@@ -186,7 +186,7 @@ class HashBase(VisualizationApp):
     def cellArrowCoords(self, index):
         cellCoords = self.cellCoords(index)
         y = (cellCoords[1] + cellCoords[3]) / 2
-        return cellCoords[0] - 60, y, cellCoords[0] - 18, y
+        return cellCoords[0] - 50, y, cellCoords[0] - 18, y
         
     def newItemCoords(self):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
