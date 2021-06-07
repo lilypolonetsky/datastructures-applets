@@ -85,6 +85,18 @@ def BBoxUnion(*bboxes):
         return tuple((min if j < half else max)(bbox[j] for bbox in bboxes)
                      for j in range(len(bboxes[0])))
 
+def BBoxEnclosing(*coordinates, dims=2):
+    '''Compute the enclosing bounding box for a set of coordinates in the
+    form of a Tk coordinate list: x0, y0, x1, y1, ..., xN, yN
+    The dims keyword parameter can be 3 or more for higher dimensional BBoxes'''
+    minCoords = tuple(min(coordinates[j] 
+                          for j in range(dim, len(coordinates), dims))
+                      for dim in range(dims))
+    maxCoords = tuple(max(coordinates[j] 
+                          for j in range(dim, len(coordinates), dims))
+                      for dim in range(dims))
+    return minCoords + maxCoords
+
 def BBoxCenter(bbox):
     half = len(bbox) // 2
     return V(V(bbox[:half]) + V(bbox[half:])) / 2
@@ -826,25 +838,24 @@ class Visualization(object):  # Base class for Python visualizations
     def scrollSettingsToSee(
             self, itemsOrBBoxes, expand=True, firstPriority=True):
         '''Find the scroll settings needed to see the given canvas items (int
-        or string) or bounding boxes (sequence of 4 coordinates).  The
-        union of the bounding boxes of the items (ignoring any items that
-        have been deleted) determines what should be seen.  If expand
-        is true and the items bounding box extends beyond the canvas
-        bounds, the bounds are expanded (and scrollbars adjusted).  If
-        not all the items could fit in the (adjusted) visible region,
-        a binary search is done to find the largest subset of items
-        that could fit.  The subset is either the first items in the
-        sequence or the latter items depending on the firstPriority
-        flag.
-
+        or string) or bounding boxes (sequence of 4 coordinates) or
+        coordinate list.  The union of the bounding boxes of the items
+        (ignoring any items that have been deleted) determines what
+        should be seen.  If expand is true and the items bounding box
+        extends beyond the canvas bounds, the bounds are expanded (and
+        scrollbars adjusted).  If not all the items could fit in the
+        (adjusted) visible region, a binary search is done to find the
+        largest subset of items that could fit.  The subset is either
+        the first items in the sequence or the latter items depending
+        on the firstPriority flag.
         '''
         if self.canvasHScroll is None or self.canvasVScroll is None:
             return
         BBoxes = [self.canvas.bbox(item) if isinstance(item, (int, str)) 
-                  else tuple(item)
+                  else BBoxEnclosing(*item)
                   for item in itemsOrBBoxes
                   if (isinstance(item, (int, str)) and self.canvas.type(item))
-                  or (isinstance(item, (list, tuple)) and len(item) == 4)]
+                  or isinstance(item, (list, tuple))]
         BBox = BBoxUnion(*BBoxes)
         visibleCanvas = self.visibleCanvas()
         if expand and not BBoxEmpty(BBox) and (
@@ -942,6 +953,7 @@ class UserStop(Exception):   # Exception thrown when user stops animation
     pass
 
 if __name__ == '__main__':
+    import random
     for dims in range(2, 4):
         print('=' * 70)
         p1 = tuple(c for c in range(1, dims + 1))
@@ -984,6 +996,33 @@ if __name__ == '__main__':
         app.targetCanvasWidth // 2, app.targetCanvasHeight // 2,
         text='Center of the canvas', fill=app.VALUE_COLOR, font=app.VALUE_FONT)
 
+    def makeLineWithBBox(
+            N=9, color='blue', vertColor='red', bg='old lace', gap=10):
+        tags = ('crazyLine', 'crazyLineLabel', 'crazyBBox')
+        for tag in tags:
+            app.canvas.delete(tag)
+        crazyLineCoords = [(random.randrange(app.targetCanvasWidth // 2 - gap),
+                            random.randrange(app.targetCanvasHeight // 2 - gap))
+                           for j in range(N)]
+        bbox = BBoxEnclosing(*flat(*crazyLineCoords))
+        crazyBBox = app.canvas.create_rectangle(
+            *bbox, fill=bg, tags='crazyBBox')
+        crazyLine = app.canvas.create_line(
+            *flat(*crazyLineCoords[:-1]), tags='crazyLine', arrow=LAST,
+            fill=color, smooth=True,
+            splinesteps=max(app.targetCanvasWidth, app.targetCanvasHeight) // 4)
+        verts = [app.canvas.create_text(*p, text=str(i),
+                                        fill=vertColor, tags='crazyLine') 
+                 for i, p in enumerate(crazyLineCoords[:-1])]
+        crazyLineLabel = app.canvas.create_text(
+            *crazyLineCoords[-1], text='Crazy line', fill=color,
+            tags='crazyLineLabel')
+        for tag in tags:
+            app.canvas.tag_bind(tag, '<Button>', 
+                                lambda e: makeLineWithBBox(
+                                    N, color, vertColor, bg, gap))
+
+    makeLineWithBBox()
     app.startAnimations()
     for anchor in app.anchorVectors:
         app.changeAnchor(anchor, centerText)
