@@ -125,7 +125,7 @@ def insert(self, key={key}, value):
                       if updateExisting else 
                       self.findSpaceForLink(cell, key=key))
         newItems = nodeItems or self.createLinkItems(
-            self.newItemCoords()[:2] if wait else linkCoords, key)
+            self.newItemCoords(offCanvas=True)[:2] if wait else linkCoords, key)
         callEnviron |= set(newItems)
         if wait:
             linkIndex = self.createLinkIndex(cell)
@@ -682,7 +682,7 @@ def traverse(self):
         return rectAt, keyAt, boxAt, dot, arrow
 
     def newLinkCoords(self, key=''):
-        delta = self.newValueCoords()
+        delta = self.newValueCoords(offCanvas=True)
         return tuple(V(coords) + V(delta * (len(coords) // len(delta)))
                      for coords in self.linkCoords((0, 0), key=key))
     

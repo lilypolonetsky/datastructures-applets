@@ -188,9 +188,9 @@ class HashBase(VisualizationApp):
         y = (cellCoords[1] + cellCoords[3]) / 2
         return cellCoords[0] - 50, y, cellCoords[0] - 18, y
         
-    def newItemCoords(self):
+    def newItemCoords(self, offCanvas=False):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
-        delta = V(self.newValueCoords()) - V(BBoxCenter(cell0))
+        delta = V(self.newValueCoords(offCanvas=offCanvas)) - V(BBoxCenter(cell0))
         return V(cell0) + V(delta * 2)
 
     def arrayCellDelta(self):
