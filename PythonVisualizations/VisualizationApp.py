@@ -143,16 +143,20 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
 
-    def newValueCoords(self, buffer=30):
-        '''Return a set of canvas coords that are below the visible canvas
+    def newValueCoords(self, buffer=30, offCanvas=False):
+        '''Return a set of canvas coords that are below the canvas
         somewhere behind the control panel.  New values can be centered
         on these coordinates to make them appear as if they are coming from
-        the control panel'''
+        the control panel.  If the canvas is taller than the visible portion,
+        the the new coordinates are placed off the canvas when offCanvas is
+        true.'''
         visibleCanvas = self.visibleCanvas()
+        maxY = (self.canvasBounds[3] if self.canvasBounds and offCanvas else
+                visibleCanvas[3])
         upperDims = self.widgetDimensions(self.operationsUpper)
         lowerDims = self.widgetDimensions(self.operationsLower)
         midControlPanel = max(upperDims[0], lowerDims[0]) // 2
-        return visibleCanvas[0] + midControlPanel, visibleCanvas[3] + buffer
+        return visibleCanvas[0] + midControlPanel, maxY + buffer
 
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
 
