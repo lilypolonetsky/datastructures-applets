@@ -186,11 +186,11 @@ class HashBase(VisualizationApp):
     def cellArrowCoords(self, index):
         cellCoords = self.cellCoords(index)
         y = (cellCoords[1] + cellCoords[3]) / 2
-        return cellCoords[0] - 60, y, cellCoords[0] - 18, y
+        return cellCoords[0] - 50, y, cellCoords[0] - 18, y
         
-    def newItemCoords(self):
+    def newItemCoords(self, offCanvas=False):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
-        delta = V(self.newValueCoords()) - V(BBoxCenter(cell0))
+        delta = V(self.newValueCoords(offCanvas=offCanvas)) - V(BBoxCenter(cell0))
         return V(cell0) + V(delta * 2)
 
     def arrayCellDelta(self):
@@ -234,9 +234,12 @@ class HashBase(VisualizationApp):
 
     def createArrayIndexLabel(self, index, tags='cellIndex'):
         coords = self.cellArrowCoords(index)
-        return self.canvas.create_text(
+        text = self.canvas.create_text(
             *coords[2:], anchor=W, text='{:2d}'.format(index), tags=tags,
             font=self.cellIndexFont, fill=self.CELL_INDEX_COLOR)
+        self.canvas.tag_bind(text, '<Button>', 
+                             lambda e: self.setArgument(str(index)))
+        return text
 
     def createArraySizeLabel(self, tags='sizeLabel'):
         coords = V(self.cellCenter(len(self.table) - 1)) + V(0, self.cellHeight)
@@ -267,8 +270,7 @@ class HashBase(VisualizationApp):
         if color is None:
             # Take the next color from the palette
             color = drawnValue.palette[self.nextColor]
-            self.nextColor = (self.nextColor + 1) % len(
-                drawnValue.palette)
+            self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
     
         cell = (self.canvas.create_rectangle(*rectPos, fill=color, outline='',
                                              width=0, tags='cellShape'),
@@ -288,11 +290,11 @@ class HashBase(VisualizationApp):
         if color is None: color = self.VARIABLE_COLOR
         if font is None: font = self.cellIndexFont
         coords = self.arrayIndexCoords(indexOrCoords, level=level)
-        items = (self.canvas.create_line(*coords[0], arrow=LAST, fill=color),)
-        if name:
-            items += (self.canvas.create_text(
-                *coords[1], text=name, anchor=SE if level > 0 else SW,
-                font=font, fill=color),)
+        items = (
+            self.canvas.create_line(*coords[0], arrow=LAST, fill=color),
+            self.canvas.create_text(
+                *coords[1], text=name or '', anchor=SE if level > 0 else SW,
+                font=font, fill=color))
         return items
 
     def createOutputBox(self, coords=None, color=None):

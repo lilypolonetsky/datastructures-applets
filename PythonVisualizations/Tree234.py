@@ -1275,6 +1275,7 @@ for key, data in tree.traverse("{traverseType}"):
                                              **dataIndexConfig)
                 callEnviron |= set(dataIndex)
                 localVars += dataIndex
+                self.scrollToSee(dataIndex + items, sleepTime=wait / 10)
             else:
                 self.moveArrowsTo(dataIndex, node, dataIndexConfig, wait)
 
@@ -1288,7 +1289,7 @@ for key, data in tree.traverse("{traverseType}"):
             self.moveItemsTo(
                 keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
                 startFont=keyItemFont, endFont=self.outputFont, 
-                sleepTime=wait / 10)
+                see=((outputBox,)), sleepTime=wait / 10)
             self.canvas.itemconfigure(
                 outputText,
                 text=currentText + (' ' if len(currentText) > 0 else '') +
@@ -1463,24 +1464,24 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             validationCmd= vcmd, argHelpText=['nuber of items'],
             helpText='Fiill tree with N random items')
         newTreeButton = self.addOperation(
-            "New Tree", self.newTree,
+            "New Tree", self.newTree, maxRows=3,
             helpText='Create an empty tree')
         zoomInButton = self.addOperation(
-            "Zoom In", lambda: self.zoom(5/4),
+            "Zoom In", lambda: self.zoom(5/4), maxRows=3,
             helpText='Zoom in around center')
         zoomOutButton = self.addOperation(
-            "Zoom Out", lambda: self.zoom(4/5),
+            "Zoom Out", lambda: self.zoom(4/5), maxRows=3,
             helpText='Zoom out around center')
         self.setupCanvasZoomHandlers(zoomBy=5/4)
         preOrderTraverseButton = self.addOperation(
-            "Pre-order Traverse", lambda: self.clickTraverse('pre'),
+            "Pre-order Traverse", lambda: self.clickTraverse('pre'), maxRows=3,
             helpText='Traverse the tree pre-order')
         inOrderTraverseButton = self.addOperation(
-            "In-order Traverse", lambda: self.clickTraverse('in'),
+            "In-order Traverse", lambda: self.clickTraverse('in'), maxRows=3,
             helpText='Traverse the tree in-order')
         postOrderTraverseButton = self.addOperation(
             "Post-order Traverse", lambda: self.clickTraverse('post'),
-            helpText='Traverse the tree post-order')
+            maxRows=3, helpText='Traverse the tree post-order')
         self.addAnimationButtons()
         return [self.insertButton, searchButton, randomFillButton, 
                 newTreeButton, inOrderTraverseButton]

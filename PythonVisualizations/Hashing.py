@@ -70,6 +70,28 @@ def bitHash(key, h=0):      # Hash an arbitrary key into 64 bits
          h = bitHash(elem, h)
    return h
 
+#__bigPrime = 412670427844921037470771 # 79 bits = 0x5762e8a1d752ba9cbc33
+#__highBits = __bigPrime >> 64
+__bigPrime = 1111111111111111111 # 60 bits = 0xf6b75ab2bc471c7
+__salt = 777767777 # Another prime
+
+def multiplicativeHash(key, h=0): # Hash an arbitrary key into 64 bits
+   if isinstance(key, str): # by rotating and xor'ing bits
+      for c in key:         # Exclusive-or rotated hash with bits
+         h = (((h << 1) | (h >> 63)) ^ # from string character times
+               (__bigPrime * ord(c) + __salt) # prime plus bits
+              & __64bits)   # keeping 64 bits
+   elif isinstance(key, int): # Exclusive-or bits of integers
+      h = (((h << 1) | (h >> 63)) ^ # after multiplying with a big
+           (__bigPrime * key + __salt)) # prime and adding bits
+   elif key in (True, False):  # Hash True and False like 1 and 2
+      h = (((h << 1) | (h >> 63)) ^
+           (__bigPrime * (1 if key else 2) + __salt))
+   elif isinstance(key, (list, tuple, set)): # For sequences, apply
+      for elem in key:      # the hashing over the whole sequence
+         h = multiplicativeHash(elem, h)
+   return h
+
 def is_prime(N):            # Determine if an integer is prime
    if N < 2 or (N > 2 and N % 2 == 0): # If N is small or even
       return False          # then it's not prime

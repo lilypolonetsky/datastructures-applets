@@ -266,7 +266,7 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     appWindows.append(intro)
     intro.grid(row=1, column=0)
     top.rowconfigure(1, minsize=600)
-    top.columnconfigure(0, minsize=800)
+    top.columnconfigure(0, minsize=VAP.DEFAULT_CANVAS_WIDTH)
     # top.bind('<Configure>', resizeHandler)
     
     menu = Menu(menubutton, tearoff=0)

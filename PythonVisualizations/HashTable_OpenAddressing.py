@@ -39,7 +39,7 @@ def doubleHashProbe(        # Generator to determine probe interval
 def doubleHashStep(key, size): # Determine step size for a given key
    prime = primeBelow(size) # Find largest prime below array size
    return prime - (         # Step size is based on second hash and
-      bitHash(key) % prime) # is in range [1, prime]
+      simpleHash(key) % prime) # is in range [1, prime]
 
 def primeBelow(n):          # Find the largest prime below n
    n -= 1 if n % 2 == 0 else 2 # Start with an odd number below n

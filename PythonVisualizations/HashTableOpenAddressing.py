@@ -26,6 +26,7 @@ class HashTableOpenAddressing(HashBase):
             **kwargs):
         kwargs['maxArgWidth'] = maxArgWidth
         super().__init__(title=title, **kwargs)
+        self.maxFillAmount = 99
         self.probe = linearProbe
         self.hash = simpleHash
         self.hashAddressCharacters = ()
@@ -66,9 +67,10 @@ def insert(self, key={key}, value):
             code=insertCode, start=True):
         '''Insert a user provided key or the key-data item from the old table
         during growTable.  Animate operation if code is provided,
-        starting in the specified animation mode.  InputItems are any canvas
-        items represnting inputs placed at the hasher input that will be
-        deleted and replaced for hashing animation.
+        starting in the specified animation mode.  The inputText can
+        be a text item that is moved into the input of the hasher.  It
+        will be deleted and replaced by the hashed address for hashing
+        animation.
         '''
         wait = 0.1 if code else 0
         callEnviron = self.createCallEnvironment(
@@ -287,12 +289,15 @@ def __growTable(self):
                     
         self.cleanUp(callEnviron)
 
-    def randomFill(self, nItems, animate=None):
+    def randomFill(
+            self, nItems, animate=None, alphabet=
+            'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ-_+.,&/:'):
         if animate is None: animate = self.showHashing.get()
         callEnviron = self.createCallEnvironment()
         count = 0
         for j in range(nItems):
-            key = random.randrange(10 ** self.maxArgWidth)
+            #key = random.randrange(10 ** self.maxArgWidth)
+            key = ''.join(random.choices(alphabet, k=self.maxArgWidth))
             if self.insert(key, code=self.insertCode if animate else ''):
                 count += 1
         self.cleanUp(callEnviron)
@@ -511,10 +516,11 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
         dValue.val = self.__Deleted
 
     traverseExampleCode = '''
-for item in hashTable.traverse():
-   print(item)
+for key, data in hashTable.traverse():
+   print(key)
 '''
-    def traverseExample(self, code=traverseExampleCode, start=True):
+    def traverseExample(
+            self, code=traverseExampleCode, start=True, indexLabel='item'):
         wait = 0.1
         callEnviron = self.createCallEnvironment(
             code=code, startAnimations=start)
@@ -523,27 +529,27 @@ for item in hashTable.traverse():
         callEnviron.add(outputBox)
         
         self.highlightCode(
-            'item in hashTable.traverse()', callEnviron, wait=wait)
+            'key, data in hashTable.traverse()', callEnviron, wait=wait)
         arrayIndex = None
         localVars = ()
         colors = self.fadeNonLocalItems(localVars)
         for i, item in self.traverse():
             self.restoreLocalItems(localVars, colors)
             if arrayIndex is None:
-                arrayIndex = self.createArrayIndex(i, 'item')
+                arrayIndex = self.createArrayIndex(i, indexLabel)
                 callEnviron |= set(arrayIndex)
                 localVars += arrayIndex
             else:
                 self.moveItemsTo(
                     arrayIndex, self.arrayIndexCoords(i), sleepTime=wait / 10)
 
-            self.highlightCode('print(item)', callEnviron, wait=wait)
+            self.highlightCode('print(key)', callEnviron, wait=wait)
             self.appendTextToOutputBox(
                 item.items[1], callEnviron, sleepTime=wait / 10)
 
             colors = self.fadeNonLocalItems(localVars)
             self.highlightCode(
-                'item in hashTable.traverse()', callEnviron, wait=wait)
+                'key, data in hashTable.traverse()', callEnviron, wait=wait)
         
         self.highlightCode((), callEnviron)
         self.cleanUp(callEnviron)
@@ -575,7 +581,7 @@ def traverse(self):
             if self.table[i]:
                 self.highlightCode('self.__table[i] is not HashTable.__Deleted',
                                    callEnviron, wait=wait)
-            if self.table[i] and self.table[i] is not self.__Deleted:
+            if self.table[i] and self.table[i].val is not self.__Deleted:
                 self.highlightCode('yield self.__table[i]', callEnviron)
                 itemCoords = self.yieldCallEnvironment(
                     callEnviron, sleepTime=wait / 10)
@@ -779,13 +785,20 @@ def traverse(self):
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
             self.setMessage("Number of items not entered")
             return
+        elif int(nItems) > self.maxFillAmount:
+            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
+            self.setMessage('Number of items cannot exceed {}'.format(
+                self.maxFillAmount))
+            return
         result = self.randomFill(int(nItems))
         self.setMessage('Inserted {} random item{}'.format(
             result, '' if result == 1 else 's'))
         self.clearArgument()
         
-    def clickNew(self):
-        nCells, maxLoadFactor = self.getArguments()
+    def clickNew(self, defaultMaxLoadFactor=0.5,
+                 loadFactorRange=(MIN_LOAD_FACTOR, MAX_LOAD_FACTOR),
+                 loadFactorPattern=fraction):
+        nCells, loadFactor = self.getArguments()
         msg = []
         if (nCells.isdigit() and
             1 <= int(nCells) and int(nCells) <= self.MAX_CELLS):
@@ -796,19 +809,21 @@ def traverse(self):
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
             nCells = 2
             msg.append('Using {} cells'.format(nCells))
-        if fraction.match(maxLoadFactor):
-            maxLoadFactor = float(maxLoadFactor)
-        if not isinstance(maxLoadFactor, float) or not (
-                self.MIN_LOAD_FACTOR <= maxLoadFactor and
-                maxLoadFactor < self.MAX_LOAD_FACTOR):
-            msg.append('Max load factor must be fraction between {} and {}'
-                       .format(self.MIN_LOAD_FACTOR, self.MAX_LOAD_FACTOR))
+        if loadFactorPattern.match(loadFactor):
+            loadFactor = float(loadFactor)
+        if not isinstance(loadFactor, float) or not (
+                loadFactorRange[0] <= loadFactor and
+                loadFactor < loadFactorRange[1]):
+            msg.append('Max load factor must be a fraction\nbetween {} and {}'
+                       .format(*loadFactorRange))
             self.setArgumentHighlight(1, self.ERROR_HIGHLIGHT)
-            maxLoadFactor = 0.5
-            msg.append('Using max load factor = {}'.format(maxLoadFactor))
+            loadFactor = defaultMaxLoadFactor
+            msg.append('Using max load factor = {}'.format(loadFactor))
+        self.newHashTable(nCells, loadFactor)
         if msg:
             self.setMessage('\n'.join(msg))
-        self.newHashTable(nCells, maxLoadFactor)
+        else:
+            self.clearArguments()
 
     def clickTraverse(self):
         self.traverseExample(start=self.startMode())

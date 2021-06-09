@@ -85,6 +85,18 @@ def BBoxUnion(*bboxes):
         return tuple((min if j < half else max)(bbox[j] for bbox in bboxes)
                      for j in range(len(bboxes[0])))
 
+def BBoxEnclosing(*coordinates, dims=2):
+    '''Compute the enclosing bounding box for a set of coordinates in the
+    form of a Tk coordinate list: x0, y0, x1, y1, ..., xN, yN
+    The dims keyword parameter can be 3 or more for higher dimensional BBoxes'''
+    minCoords = tuple(min(coordinates[j] 
+                          for j in range(dim, len(coordinates), dims))
+                      for dim in range(dims))
+    maxCoords = tuple(max(coordinates[j] 
+                          for j in range(dim, len(coordinates), dims))
+                      for dim in range(dims))
+    return minCoords + maxCoords
+
 def BBoxCenter(bbox):
     half = len(bbox) // 2
     return V(V(bbox[:half]) + V(bbox[half:])) / 2
@@ -121,13 +133,15 @@ class Visualization(object):  # Base class for Python visualizations
     FOUND_FONT = ('Helvetica', FONT_SIZE)
     FOUND_COLOR = 'green2'
     SMALL_FONT = ('Helvetica', -9)
+    DEFAULT_CANVAS_WIDTH = 800
+    DEFAULT_CANVAS_HEIGHT = 400
 
     def __init__(  # Constructor
             self,
             window=None,      # Run visualization within given window
             title=None,
-            canvasWidth=800,  # Canvas portal size
-            canvasHeight=400,
+            canvasWidth=None,  # Canvas portal size
+            canvasHeight=None,
             canvasBounds=None): # Canvas extent (behind portal)
         self.title = title
         # Set up Tk windows for canvas and operational controls
@@ -140,6 +154,8 @@ class Visualization(object):  # Base class for Python visualizations
         self.destroyed = False
         self.window.bind('<Destroy>', self.setDestroyFlag)
 
+        if canvasWidth is None: canvasWidth = self.DEFAULT_CANVAS_WIDTH
+        if canvasHeight is None: canvasHeight = self.DEFAULT_CANVAS_HEIGHT
         self.targetCanvasWidth = canvasWidth
         self.targetCanvasHeight = canvasHeight
         self.canvasFrame = Frame(self.window)
@@ -226,6 +242,18 @@ class Visualization(object):  # Base class for Python visualizations
                 return key
         return default
 
+    def expandCanvasFor(self, *itemOrBBox):
+        '''Expand canvas scroll region if needed to view given canvas items
+        (integers) or bounding boxes (4-tuples or 4-element lists)'''
+        bounds = getattr(self, 'canvasBounds', 
+                         (0, 0, *self.widgetDimensions(self.canvas)))
+        bbox = BBoxUnion(*(
+            self.canvas.bbox(item) if isinstance(item, int) else item
+            for item in itemOrBBox if isinstance(item, int) or
+            isinstance(item, (list, tuple)) and len(item) == 4))
+        if not BBoxContains(bounds, bbox):
+            self.setCanvasBounds(BBoxUnion(bounds, bbox))
+        
     def setCanvasBounds(self, canvasBounds, expandOnly=True):
         if canvasBounds is None:
             self.canvasBounds = None
@@ -280,6 +308,9 @@ class Visualization(object):  # Base class for Python visualizations
                               V(self.anchorVectors[anchor])) / 2
                     self.canvas.coords(item, V(coords) + V(V(delta) * V(size)))
                     self.canvas.itemconfigure(item, anchor=newAnchor)
+
+    def canvas_coords(self, tagOrID):
+        return tuple(self.canvas.coords(tagOrID))
     
     def copyItemAttributes(   # Copy attributes from one canvas item to another
             self, fromItem, toItem, *attributes):
@@ -533,8 +564,9 @@ class Visualization(object):  # Base class for Python visualizations
                             self.canvas.itemconfigure(item, font=font)
                 if see:
                     self.scrollToSee(
-                        items + 
-                        (tuple(see) if isinstance(see, (list, tuple)) else ()),
+                        tuple(items) + 
+                        (tuple(see) if isinstance(see, (list, tuple, set))
+                         else ()),
                         sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
                 
@@ -593,7 +625,8 @@ class Visualization(object):  # Base class for Python visualizations
                 if see and moved:
                     self.scrollToSee(
                         moved + 
-                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        (list(see) if isinstance(see, (list, tuple, set))
+                         else []),
                         sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
@@ -605,7 +638,7 @@ class Visualization(object):  # Base class for Python visualizations
             if see and moved:
                 self.scrollToSee(
                     moved + 
-                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    (list(see) if isinstance(see, (list, tuple, set)) else []),
                     sleepTime=0, expand=expand)
 
     # The moveItemsLinearly method uses all the coordinates of canvas
@@ -660,7 +693,8 @@ class Visualization(object):  # Base class for Python visualizations
                 if see and moved:
                     self.scrollToSee(
                         moved + 
-                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        (list(see) if isinstance(see, (list, tuple, set))
+                         else []),
                         sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
@@ -672,7 +706,7 @@ class Visualization(object):  # Base class for Python visualizations
             if see and moved:
                 self.scrollToSee(
                     moved + 
-                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    (list(see) if isinstance(see, (list, tuple, set)) else []),
                     sleepTime=0, expand=expand)
              
     def moveItemsOnCurve(    # Animate canvas items moving from their current
@@ -724,7 +758,8 @@ class Visualization(object):  # Base class for Python visualizations
                 if see and moved:
                     self.scrollToSee(
                         moved + 
-                        (list(see) if isinstance(see, (list, tuple)) else []),
+                        (list(see) if isinstance(see, (list, tuple, set))
+                         else []),
                         sleepTime=0, expand=expand)
                 yield (step, steps) # Yield step in sequence
             
@@ -736,7 +771,7 @@ class Visualization(object):  # Base class for Python visualizations
             if see and moved:
                 self.scrollToSee(
                     moved + 
-                    (list(see) if isinstance(see, (list, tuple)) else []),
+                    (list(see) if isinstance(see, (list, tuple, set)) else []),
                     sleepTime=0, expand=expand)
 
     def withinCanvas(self, point, visible=False):
@@ -773,18 +808,18 @@ class Visualization(object):  # Base class for Python visualizations
                      (V(self.widgetDimensions(self.canvas)) /
                       V(V(self.canvasBounds[2:]) - V(self.canvasBounds[:2]))))
 
-    def scrollToSee(self, items, sleepTime=0.01, steps=10, **kwargs):
-        '''Scroll to show all the provided canvas items. It uses the
-        scrollSettingsToSee method to determine what scroll settings
-        are needed to see all the itmes, or at least the highest
-        priority ones.  See that method for its keyword parameters.
-        If sleepTime is 0, the scrolling is done in a single jump with
-        waits inbetween.  If no scrolling is required to see all the
-        itmes, the scroll settings are not changed.
+    def scrollToSee(self, itemsOrBBoxes, sleepTime=0.01, steps=10, **kwargs):
+        '''Scroll to show all the provided canvas items or bounding boxes. It
+        uses the scrollSettingsToSee method to determine what scroll
+        settings are needed to see all the item bboxes, or at least the
+        highest priority ones.  See that method for its keyword
+        parameters.  If sleepTime is 0, the scrolling is done in a
+        single jump with no waits inbetween.  If no scrolling is required
+        to see all the itmes, the scroll settings are not changed.
         '''
         if self.canvasHScroll is None or self.canvasVScroll is None:
             return
-        newX, newY = self.scrollSettingsToSee(items, **kwargs)
+        newX, newY = self.scrollSettingsToSee(itemsOrBBoxes, **kwargs)
         xPos = self.canvasHScroll.get()
         yPos = self.canvasVScroll.get()
         if distance2(xPos + yPos, newX + newY) < .0001:
@@ -795,25 +830,32 @@ class Visualization(object):  # Base class for Python visualizations
                     (xPos[0] * (steps - step) + newX[0] * step) / steps)
                 self.canvas.yview_moveto(
                     (yPos[0] * (steps - step) + newY[0] * step) / steps)
-                self.wait(sleepTime)
+                if self.animationsRunning():
+                    self.wait(sleepTime)
         self.canvas.xview_moveto(newX[0])
         self.canvas.yview_moveto(newY[0])
 
-    def scrollSettingsToSee(self, items, expand=True, firstPriority=True):
-        '''Find the scroll settings needed to see the given canvas items.  The
-        union of the bounding boxes of the items (ignoring those that
-        have been deleted) determines what should be seen.  If expand
-        is true and the items bounding box extends beyond the canvas
-        bounds, the bounds are expanded (and scrollbars adjusted).  If
-        not all the items could fit in the (adjusted) visible region,
-        a binary search is done to find the largest subset of items
-        that could fit.  The subset is either the first items in the
-        sequence or the latter items depending on the firstPriority flag.
+    def scrollSettingsToSee(
+            self, itemsOrBBoxes, expand=True, firstPriority=True):
+        '''Find the scroll settings needed to see the given canvas items (int
+        or string) or bounding boxes (sequence of 4 coordinates) or
+        coordinate list.  The union of the bounding boxes of the items
+        (ignoring any items that have been deleted) determines what
+        should be seen.  If expand is true and the items bounding box
+        extends beyond the canvas bounds, the bounds are expanded (and
+        scrollbars adjusted).  If not all the items could fit in the
+        (adjusted) visible region, a binary search is done to find the
+        largest subset of items that could fit.  The subset is either
+        the first items in the sequence or the latter items depending
+        on the firstPriority flag.
         '''
         if self.canvasHScroll is None or self.canvasVScroll is None:
             return
-        BBoxes = [self.canvas.bbox(item) for item in items
-                  if self.canvas.type(item)]
+        BBoxes = [self.canvas.bbox(item) if isinstance(item, (int, str)) 
+                  else BBoxEnclosing(*item)
+                  for item in itemsOrBBoxes
+                  if (isinstance(item, (int, str)) and self.canvas.type(item))
+                  or isinstance(item, (list, tuple))]
         BBox = BBoxUnion(*BBoxes)
         visibleCanvas = self.visibleCanvas()
         if expand and not BBoxEmpty(BBox) and (
@@ -835,7 +877,7 @@ class Visualization(object):  # Base class for Python visualizations
             BBox = BBoxUnion(*(BBoxes[:keep] if firstPriority else
                                BBoxes[-keep:]))
 
-        # When bounding box could fit on canvas, adjust each scrollbar dimension
+        # When bounding box could fit on canvas, determine scrollbar positions
         if (BBox[2] - BBox[0], BBox[3] - BBox[1]) <= canvasDims:
             for pos, XorY in ((xPos, 0), (yPos, 1)):
                 lo = max(canvasBounds[XorY],
@@ -911,6 +953,7 @@ class UserStop(Exception):   # Exception thrown when user stops animation
     pass
 
 if __name__ == '__main__':
+    import random
     for dims in range(2, 4):
         print('=' * 70)
         p1 = tuple(c for c in range(1, dims + 1))
@@ -953,6 +996,33 @@ if __name__ == '__main__':
         app.targetCanvasWidth // 2, app.targetCanvasHeight // 2,
         text='Center of the canvas', fill=app.VALUE_COLOR, font=app.VALUE_FONT)
 
+    def makeLineWithBBox(
+            N=9, color='blue', vertColor='red', bg='old lace', gap=10):
+        tags = ('crazyLine', 'crazyLineLabel', 'crazyBBox')
+        for tag in tags:
+            app.canvas.delete(tag)
+        crazyLineCoords = [(random.randrange(app.targetCanvasWidth // 2 - gap),
+                            random.randrange(app.targetCanvasHeight // 2 - gap))
+                           for j in range(N)]
+        bbox = BBoxEnclosing(*flat(*crazyLineCoords))
+        crazyBBox = app.canvas.create_rectangle(
+            *bbox, fill=bg, tags='crazyBBox')
+        crazyLine = app.canvas.create_line(
+            *flat(*crazyLineCoords[:-1]), tags='crazyLine', arrow=LAST,
+            fill=color, smooth=True,
+            splinesteps=max(app.targetCanvasWidth, app.targetCanvasHeight) // 4)
+        verts = [app.canvas.create_text(*p, text=str(i),
+                                        fill=vertColor, tags='crazyLine') 
+                 for i, p in enumerate(crazyLineCoords[:-1])]
+        crazyLineLabel = app.canvas.create_text(
+            *crazyLineCoords[-1], text='Crazy line', fill=color,
+            tags='crazyLineLabel')
+        for tag in tags:
+            app.canvas.tag_bind(tag, '<Button>', 
+                                lambda e: makeLineWithBBox(
+                                    N, color, vertColor, bg, gap))
+
+    makeLineWithBBox()
     app.startAnimations()
     for anchor in app.anchorVectors:
         app.changeAnchor(anchor, centerText)

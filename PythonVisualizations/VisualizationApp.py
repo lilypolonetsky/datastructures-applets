@@ -97,7 +97,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
  
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window, bg=self.DEFAULT_BG)
-        self.controlPanel.pack(side=BOTTOM, expand=True, fill=X)
+        self.controlPanel.pack(side=BOTTOM, expand=False, fill=X)
         self.operationsUpper = LabelFrame(
             self.controlPanel, text="Operations", bg=self.DEFAULT_BG)
         self.operationsUpper.grid(row=0, column=0)
@@ -115,7 +115,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.operationsLowerCenter.pack(side=TOP)
         self.codeFrame = Frame(self.controlPanel, bg=self.DEFAULT_BG)
         self.codeFrame.grid(row=0, column=1, rowspan=2, sticky=(N, E, S, W))
-        # self.controlPanel.grid_columnconfigure(1, maxsize=200)
         self.codeText = None
 
         self.speedControl = None
@@ -144,29 +143,32 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.operationsLowerCenter.grid_columnconfigure(4, minsize=200)
         self.operationsLowerCenter.grid_columnconfigure(3, minsize=10)
 
-    def newValueCoords(self, buffer=30):
-        '''Return a set of canvas coords that are below the visible canvas
+    def newValueCoords(self, buffer=30, offCanvas=False):
+        '''Return a set of canvas coords that are below the canvas
         somewhere behind the control panel.  New values can be centered
         on these coordinates to make them appear as if they are coming from
-        the control panel'''
+        the control panel.  If the canvas is taller than the visible portion,
+        the the new coordinates are placed off the canvas when offCanvas is
+        true.'''
         visibleCanvas = self.visibleCanvas()
+        maxY = (self.canvasBounds[3] if self.canvasBounds and offCanvas else
+                visibleCanvas[3])
         upperDims = self.widgetDimensions(self.operationsUpper)
         lowerDims = self.widgetDimensions(self.operationsLower)
         midControlPanel = max(upperDims[0], lowerDims[0]) // 2
-        return visibleCanvas[0] + midControlPanel, visibleCanvas[3] + buffer
+        return visibleCanvas[0] + midControlPanel, maxY + buffer
 
     buttonTypes = (ttk.Button, Button, Checkbutton, Radiobutton)
 
     def getOperations(self):
-        '''Get all the currently defined operations.  Return 4 results:
+        '''Get all the currently defined operations.  Return 2 results:
         withArgument: List of operation buttons that require 1+ argument(s)
         withoutArgument: List of operation buttons that require no arguments
-        nColumns: number of columns in operations grid
-        nRows: number of rows in opserations grid
 
-        Buttons are returned in the order they were added - top to bottom in
-        grid.  The self.playControlsFrame is returned as a single operation
-        in the withoutArgument list, if it is present.
+        Buttons are returned in the reverse order they were added -
+        bottom to top in the grid.  The self.playControlsFrame is returned
+        as a single operation in the withoutArgument list, if it is
+        present.
         '''
         withArgument, withoutArgument = [], []
         playControls = getattr(self, 'playControlsFrame', False)
@@ -177,6 +179,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             elif isinstance(item, self.buttonTypes) or item is playControls:
                 withoutArgument.append(item)
         return withArgument, withoutArgument
+
+    def getOperationGridLocation(self, btn):
+        'Get the row and column of an operations button'
+        info = btn.grid_info()
+        return int(info['row']), int(info['column'])
 
     withArgsColumn = 0
     argsColumn = 8
@@ -282,7 +289,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         
     def makeArgumentEntry(self, validationCmd):
         entry = Entry(
-            self.operations, width=self.maxArgWidth, bg=self.ENTRY_BG,
+            self.operations, width=self.maxArgWidth * 5 // 4, bg=self.ENTRY_BG,
             validate='key', validatecommand=validationCmd, 
             font=self.CONTROLS_FONT)
         entry.bind(
@@ -394,9 +401,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         '''
         self.playControlsFrame = Frame(self.operations, bg=self.OPERATIONS_BG)
         withArgs, withoutArgs = self.getOperations()
+        lastRow, lastColumn = self.getOperationGridLocation(
+            withoutArgs[0]) if withoutArgs else (1, self.withoutArgsColumn)
         self.playControlsFrame.grid(
-            column=self.withoutArgsColumn + len(withoutArgs) // maxRows,
-            row=len(withoutArgs) % maxRows + 1)
+            column=lastColumn + lastRow // maxRows, row=lastRow % maxRows + 1)
 
         self.pauseButton, self.stepButton, self.stopButton = (
             Button(self.playControlsFrame, image=self.playControlImages[name],
@@ -482,6 +490,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
     def clearArgument(self, index=0):
         self.setArgument('', index)
+
+    def clearArguments(self):
+        for index in range(len(self.textEntries)):
+            self.setArgument('', index)
 
     def setArgument(self, val='', index=0):
         if 0 <= index and index < len(self.textEntries):

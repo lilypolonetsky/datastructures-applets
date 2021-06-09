@@ -108,13 +108,17 @@ class vector(object):
     def vlen(self):
         return math.sqrt(self.len2())
 
-    def unit(self):
-        return self / self.vlen()
+    def unit(self, minLength=0):
+        length = self.vlen()
+        return self / (length if length >= minLength else 1)
 
     def rotate(self, angle, radians=False):
         a = angle if radians else math.radians(angle)
         s, c = math.sin(a), math.cos(a)
         return (self.dot(vector(c, -s)), self.dot(vector(s, c)))
+
+    def normal2d(self):
+        return - self.coords[1], self.coords[0]
 
 def distance2(point1, point2):
     return vector(vector(point1) - vector(point2)).len2()
@@ -169,8 +173,11 @@ if __name__ == '__main__':
         'A * 2', 'A + 2', 'A - 2', 'A / 2',
         'A < B', 'A == B', 'A > B', 'A == A', 'A <= B', 'A <= A',
         'A[0]', 'A[:2]', 'A[::2]', 'str(V(*A[::2]))', 'str(V(A[::2]))',
+        'A["x"]', 'A["y"]', 'A["z"]',
         'V(A[::2]).rotate(90)', 'A.rotate(37)',
-        'A.dot(B)', 'A.len2()', 'A.vlen()', 'A.unit()',
+        'A.dot(B)', 'A.len2()', 'A.vlen()', 'A.unit()', 'A.normal2d()',
+        'V(1e-1, 1e-10).unit()', 'V(1e-10, 0).unit(minLength=1e-9)',
+        'V(1e-10, 0).unit(minLength=1e-10)', 'V(1e-10, 0).unit(minLength=1e-11)',
         'bbox(A, B)', 'bbox(B[1:], A)',
         'flat(*bbox(A, B))',
         'bbox(A[1:], B[1:])', 'flat(*bbox(A[1:], B[1:]))',
