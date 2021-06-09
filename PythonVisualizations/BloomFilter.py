@@ -1,11 +1,11 @@
 from tkinter import *
 import re
 try:
-    from BitHash import BitHash
+    from Hashing import *
     from VisualizationApp import *
     from HashBase import *
 except ModuleNotFoundError:
-    from .BitHash import BitHash
+    from .Hashing import *
     from .VisualizationApp import *
     from .HashBase import *
 
@@ -130,7 +130,7 @@ class BloomFilter(HashBase):
         # create number of hash values passed into the bloom filter
         outputChars = []
         for i in range(self.__numHashes):
-            h = BitHash(key, seed)
+            h = bitHash(key, seed)
             hv = h % self.__size
 
             if self.showHashing.get():
@@ -185,7 +185,7 @@ class BloomFilter(HashBase):
         outputChars = []
         bits = 0
         for i in range(self.__numHashes):
-            h = BitHash(key, seed)
+            h = bitHash(key, seed)
             hv = h % self.__size
             
             if self.showHashing.get():
