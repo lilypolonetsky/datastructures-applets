@@ -19,7 +19,7 @@ showVisualizations(
 
 if __name__ == '__main__':
    mustHave = ['VisualizationApp.py']
-   replacements = [('▶', '=left_arrow='), ('▢', 'W'), ('✓', 'X')]
+   replacements = [('▶', '=left_arrow='), ('▢', 'W'), ('✓', 'X'), ('ø', '!')]
    parser = argparse.ArgumentParser(
       description=__doc__,
       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -32,6 +32,9 @@ if __name__ == '__main__':
       '-c', '--clean', nargs='*', default=[r'.*\.py'],
       help='Regex for filenames whose non-ASCII characters should be cleaned')
    parser.add_argument(
+      '-i', '--ignore', default=False, action='store_true',
+      help='Ignore files with non-ASCII characters after cleansing')
+   parser.add_argument(
       '-x', '--exclude', nargs='*', default=['__init__.*', '.*[Tt]est.*'],
       help='Regex for filenames to exclude from export')
    parser.add_argument(
@@ -41,6 +44,7 @@ if __name__ == '__main__':
    
    outdir = args.output_directory[0]
    verbose = args.verbose
+   ignore = args.ignore
    exclude = [re.compile(exp) for exp in args.exclude]
    clean = [re.compile(exp) for exp in args.clean]
 
@@ -87,9 +91,17 @@ if __name__ == '__main__':
             revised = content
             for pair in replacements:
                revised = revised.replace(*pair)
+            containsNonASCII = any(ord(c) > 127 for c in revised)
+            if containsNonASCII and not ignore:
+               print('=' * 70, '\n',
+                     ('File {} contains some non-ASCII characters '
+                      'after replacements').format(filename),
+                     '\n' + '=' * 70)
             if verbose > 0:
-               print('Exporting {}{}'.format(
-                  filename, ' with substitions' if content != revised else ''))
+               print('Exporting {}{}{}'.format(
+                  filename, ' with substitions' if content != revised else '',
+                  ' ignoring lingering non-ASCII characters' 
+                  if containsNonASCII and ignore else ''))
             with open(os.path.join(outdir, filename), 'w') as outfile:
                outfile.write(revised)
                outfile.close()
