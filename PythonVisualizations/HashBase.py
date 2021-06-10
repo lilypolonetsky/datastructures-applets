@@ -419,9 +419,3 @@ class HashBase(VisualizationApp):
                          startFont=startFont, endFont=font)
         self.canvas_itemConfig(self.outputText, text=text)
         self.dispose(callEnviron, *items)
-        
-def makeFilterValidate(maxWidth, exclude=''):
-    "Register this with one parameter: %P"
-    return lambda value_if_allowed: (
-        len(value_if_allowed) <= maxWidth and
-        all(c not in exclude for c in value_if_allowed))
