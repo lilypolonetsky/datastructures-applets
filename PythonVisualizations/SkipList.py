@@ -274,7 +274,7 @@ class SkipList(VisualizationApp):
         n.rect = self.canvas.create_rectangle(coords)
         coords = (n.x + self.CELL_WIDTH/2, \
                   n.y - (self.CELL_HEIGHT*n.levels)/2)
-        n.text = self.canvas.create_text(coords, text=str(n.key))
+        n.text = self.canvas.create_text(*coords, text=str(n.key))
         
         x1 = n.x + self.CELL_WIDTH
         x2 = n.x + self.CELL_WIDTH*2
@@ -597,16 +597,21 @@ class SkipList(VisualizationApp):
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         searchButton = self.addOperation(
             "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd, helpText="Click to enter number")
+            argHelpText=['key'],
+            validationCmd=vcmd, helpText="Search for an item by its key")
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd)        
+            argHelpText=['key'],
+            validationCmd=vcmd, helpText='Insert an item with a particular key')
         deleteButton = self.addOperation(
             "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd)
+            argHelpText=['key'],
+            validationCmd=vcmd, helpText='Delete an item by its key')
         fillButton = self.addOperation(
-            "Fill", lambda: self.clickFill(), numArguments=1, 
-            validationCmd=vcmd)
+            "Erase & Fill", lambda: self.clickFill(), numArguments=1, 
+            validationCmd=vcmd, 
+            argHelpText=['# of keys'],
+            helpText='Clear list and fill with N random items')
         # this makes the play, pause, and stop buttons 
         self.addAnimationButtons()
         return [searchButton, insertButton, deleteButton, fillButton]  
