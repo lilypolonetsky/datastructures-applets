@@ -280,14 +280,16 @@ class Visualization(object):  # Base class for Python visualizations
         return config
 
     def copyCanvasItem(      # Make a copy of an item in the canvas
-            self, canvasitem):
+            self, canvasitem, includeBindings=True):
         creator = getattr(self.canvas,  # Get canvas creation function for type
                           'create_{}'.format(self.canvas.type(canvasitem)))
         newItem = creator(*self.canvas.coords(canvasitem),
                           **self.canvas_itemConfig(canvasitem))
-        for eventType in self.canvas.tag_bind(canvasitem): # Copy event handlers
-            self.canvas.tag_bind(newItem, eventType,
-                                 self.canvas.tag_bind(canvasitem, eventType))
+        if includeBindings:  # Copy event handlers if requested
+            for eventType in self.canvas.tag_bind(canvasitem):
+                self.canvas.tag_bind(
+                    newItem, eventType,
+                    self.canvas.tag_bind(canvasitem, eventType))
         return newItem
 
     anchorVectors = {
