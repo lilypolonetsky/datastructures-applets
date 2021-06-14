@@ -116,7 +116,8 @@ class Graph(VisualizationApp):
         self.allowUserMoves = True
         self.window.update()
         
-    def createVertexItems(self, label, coords=None, color=None):
+    def createVertexItems(
+            self, label, coords=None, color=None, tags=('vertex',)):
         if label in self.vertices:
             raise ValueError('Cannot duplicate vertex labeled {}'.format(label))
         if not label:
@@ -137,13 +138,14 @@ class Graph(VisualizationApp):
         vr = V(self.VERTEX_RADIUS, self.VERTEX_RADIUS)
         shape = self.canvas.create_oval(
             *(V(coords) - vr), *(V(coords) + vr), fill=color,
-            tags=('vertex', 'shape', label), outline='', width=1,
+            tags=tags + ('shape', label), outline='', width=1,
             activeoutline=self.ACTIVE_VERTEX_OUTLINE_COLOR,
             activewidth=self.ACTIVE_VERTEX_OUTLINE_WIDTH)
         text = self.canvas.create_text(
-            *coords, text=label, tags=('vertex', 'text', label),
+            *coords, text=label, tags=tags + ('text', label),
             font=self.VERTEX_FONT, fill=self.VALUE_COLOR,
             activefill=self.ACTIVE_VERTEX_OUTLINE_COLOR)
+        self.canvas.tag_lower('vertex', 'edge')
         items = (shape, text)
         startMoveHandler = self.startMoveHandler(label)
         moveHandler = self.moveHandler(label)
@@ -154,19 +156,19 @@ class Graph(VisualizationApp):
             self.canvas.tag_bind(item, '<ButtonRelease-1>', releaseHandler)
         return items
 
-    def createEdgeItems(
-            self, base, tip, weight=0, removeRadius=VERTEX_RADIUS, tags='edge'):
+    def createEdgeItems(self, base, tip, weight=0, tags=('edge',),
+                        removeRadius=VERTEX_RADIUS):
         p0, p1, p2, steps, weightCenter = self.edgeCoords(
             base, tip, removeRadius=removeRadius)
         line = self.canvas.create_line(
             *p0, *p1, *p2, width=1, fill=self.EDGE_COLOR,
             arrow=None if self.bidirectionalEdges.get() else LAST,
-            activefill=self.ACTIVE_EDGE_COLOR, tags=tags,
+            activefill=self.ACTIVE_EDGE_COLOR, tags=tags + ('line',),
             activewidth=self.ACTIVE_EDGE_WIDTH, splinesteps=steps, smooth=True)
         weightText = self.canvas.create_text(
             *weightCenter,
             text='' if weight == 0 or not self.weighted else str(weight),
-            font=self.VERTEX_FONT, fill=self.EDGE_COLOR, tags=tags,
+            font=self.VERTEX_FONT, fill=self.EDGE_COLOR, tags=tags + ('text',),
             activefill=self.ACTIVE_EDGE_COLOR)
         return (line, weightText)
 
@@ -340,10 +342,11 @@ class Graph(VisualizationApp):
             self.createVertex(self.getArgument(), coords=(event.x, event.y))
         return newVertHandler
 
-    def createVertex(self, label, color=None, coords=None):
+    def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
         try:
             self.setMessage('')
-            items = self.createVertexItems(label, color=color, coords=coords)
+            items = self.createVertexItems(
+                label, color=color, coords=coords, tags=tags)
         except ValueError as e:
             self.setMessage(str(e))
             return
@@ -428,7 +431,29 @@ class Graph(VisualizationApp):
                 weightEntry['text'] = '' if newWeight == 0 else str(newWeight)
 
     def updateVertexEdges(self, vertexLabel):
-        self.setMessage("updateVertexEdges for {} TBD!".format(vertexLabel))
+        if not vertexLabel in self.vertices:
+            raise ValueError('Cannot update non-existant vertex {}'.format(
+                vertexLabel))
+        for edge in self.findEdges(vertexLabel):
+            items = self.edges[edge].items
+            other = 1 if edge[0] == vertexLabel else 0
+            p0, p1, p2, steps, wc = self.edgeCoords(
+                self.canvas_coords(self.vertices[edge[1 - other]].items[1]),
+                self.canvas_coords(self.vertices[edge[other]].items[1]),
+            )
+            self.canvas.coords(items[0], *p0, *p1, *p2)
+            self.canvas.itemconfigure(items[0], splinesteps=steps)
+            self.canvas.coords(items[1], *wc)
+
+    def findEdges(self, vertex, inbound=True, outbound=True, unique=None):
+        '''Find edges incident to a vertex, possibly filtering by direction.
+        Return only correctly oriented edge if unique is specified which
+        defaults to state of bidirectionalEdges.
+        '''
+        if unique is None: unique = self.bidirectionalEdges.get()
+        return [edge for edge in self.edges if
+                inbound and edge[1] == vertex or outbound and edge[0] == vertex
+                and (not unique or self.edges[edge].val == edge)]
 
     def changeEdgeWeight(self, fromVert, toVert, weight):
         edge = (fromVert, toVert)
@@ -455,13 +480,13 @@ class Graph(VisualizationApp):
                 self.dispose({}, *self.edges[reverseEdge].items)
                 del self.edges[reverseEdge]
                     
-    def createEdge(self, fromVert, toVert, weight=1):
+    def createEdge(self, fromVert, toVert, weight=1, tags=('edge',)):
         edgeKey = (fromVert, toVert)
         centers = tuple(self.canvas_coords(self.vertices[v].items[1])
                         for v in edgeKey)
         self.edges[edgeKey] = drawnValue(
-            weight,
-            *self.createEdgeItems(centers[0], centers[1], weight=weight))
+            edgeKey, *self.createEdgeItems(
+                centers[0], centers[1], weight=weight, tags=tags))
         reverseEdge = (toVert, fromVert)
         if self.bidirectionalEdges.get():
             self.edges[reverseEdge] = self.edges[edgeKey]
