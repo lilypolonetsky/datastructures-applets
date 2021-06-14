@@ -101,52 +101,67 @@ class drawnValue(object):
 
 if __name__ == '__main__':
     from tkinter import *
+    import random
     window = Tk()
     canvas = Canvas(window, width=800, height=400)
     canvas.pack()
 
     side = 50
+    N = 20
+    row = 5
+    numbers = [random.randrange(10) for j in range(N)]
     items = [drawnValue(
-        val,
+        (val, drawnValue.palette[i % len(drawnValue.palette)]),
         canvas.create_rectangle(
-            side + i*3*side, side, side*2 + i*3*side, side*2,
-            fill=drawnValue.palette[i], outline='', width=0),
+            (i % row * 3 + 1) * side, (i // row * 2 + 1) * side,
+            (i % row * 3 + 2) * side, (i // row * 2 + 2) * side,
+            fill=drawnValue.palette[i % len(drawnValue.palette)],
+            outline=''),
         canvas.create_oval(
-            side*1.5 + i*3*side, side, side*2.5 + i*3*side, side*2,
-            fill=drawnValue.palette[i], outline='', width=0),
+            (i % row * 3 + 1.5) * side, (i // row * 2 + 1) * side,
+            (i % row * 3 + 2.5) * side, (i // row * 2 + 2) * side,
+            fill=drawnValue.palette[i % len(drawnValue.palette)],
+            outline=''),
         canvas.create_text(
-            side*1.75 + i*3*side, side*1.5, text=str(val),
-            font=('Helvetica', -side // 2)))
-             for i, val in enumerate([3, 1, 3, 7, 1])
+            (i % row * 3 + 1.75) * side, (i // row * 2 + 1.5) * side,
+            text='{}, {}'.format(
+                val, drawnValue.palette[i % len(drawnValue.palette)]),
+            font=('Helvetica', -side // 3)))
+             for i, val in enumerate(numbers)
     ]
-    print('Integer drawn values:')
+    print('Drawn values:')
     for i in items:
         print(' ', i)
 
-    print('List of drawn values:', 
-          [str(i) + ' ' + i.color(canvas) for i in items])
+    print('Colors of first', row, 'drawn values:', 
+          [i.color(canvas) for i in items[:row]])
     print('Display_shapes:', [i.display_shape for i in items])
+
+    print('Sorting list by their values...')
     items.sort()
-    print('After sorting the list:',
-          [str(i) + ' ' + i.color(canvas) for i in items])
-    items[0].display_val = 'replaced'
-    print("Geting the first drawn value's display_shape:", 
-          items[0].display_shape)
-    print("Geting the first drawn value's index 1:", items[0][1])
-    print('After replacing display_val in first item it is', items[0])
-    items[0][1] = 'replaced'
-    print("After setting the first drawn value's index 1:", items[0])
+    print('After sorting the list by their values')
+    for i in items:
+        print(' ', i)
+
+    first = items[0]
+    first.display_val = 'replaced'
+    print("Geting the first sorted drawn value's display_shape:", 
+          first.display_shape)
+    print("The first drawn value's index 1 is:", first[1], 
+          "and its display_val is:", first.display_val)
+    first[1] = '2nd replacement'
+    print("After 2nd update to the first drawn value's index 1 it is:", first)
     
     try:
         print('Attempting to access an invalid foo attribute...')
-        print('The foo attribute of the first item is', items[0].foo)
+        print('The foo attribute of the first item is', first.foo)
     except Exception as e:
         print('Caught exception:', e)
     
     try:
         print('Attempting to set an invalid foo attribute...')
-        items[0].foo = 'bar'
-        print('The foo attribute of the first item was set to', items[0].foo)
+        first.foo = 'bar'
+        print('The foo attribute of the first item was set to', first.foo)
     except Exception as e:
         print('Caught exception:', e)
 
