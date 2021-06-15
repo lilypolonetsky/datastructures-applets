@@ -18,6 +18,8 @@ class Graph(VisualizationApp):
     VERTEX_FONT = ('Helvetica', -14)
     SELECTED_RADIUS = VERTEX_RADIUS * 6 // 5
     SELECTED_WIDTH = 2
+    SELECTED_COLOR = 'white'
+    SELECTED_OUTLINE = 'purple3'
     ADJACENCY_MATRIX_FONT = ('Helvetica', -12)
     ADJACENCY_MATRIX_BG = 'bisque'
     CANVAS_EXTERIOR = 'cyan'
@@ -29,6 +31,7 @@ class Graph(VisualizationApp):
     ACTIVE_EDGE_WIDTH = 3
     OVERLAP_OUTLINE_COLOR = 'red'
     OVERLAP_TEXT_COLOR = 'red'
+    DEFAULT_VERTEX_LABEL = 'A'
     nextColor = 0
     
     def __init__(                    # Create a graph visualization application
@@ -189,6 +192,7 @@ class Graph(VisualizationApp):
         def startHandler(event):
             if not self.allowUserMoves or self.dragItems:
                 return
+            self.enableButtons(False)
             vert = self.vertices[vertexLabel]
             self.setMessage('')
             moveVertex = event.state & SHIFT
@@ -197,6 +201,7 @@ class Graph(VisualizationApp):
                                for i in vert.items)
                 self.dragItems = copies
             else:
+                self.selectVertex(vertexLabel)
                 self.dragItems = self.createEdgeItems(
                     self.canvas_coords(vert.items[1]), (event.x, event.y),
                     weight=0, removeRadius=0)
@@ -207,6 +212,7 @@ class Graph(VisualizationApp):
         def mvHandler(event):
             if not self.dragItems or not self.allowUserMoves:
                 return
+            self.enableButtons(False)
             delta = (event.x - self.lastPos[0], event.y - self.lastPos[1])
             self.lastPos = (event.x, event.y)
             moveVertex = self.canvas.type(self.dragItems[0]) != 'line'
@@ -277,7 +283,7 @@ class Graph(VisualizationApp):
                             self.canvas.move(item, *delta)
                         self.dispose({}, *self.dragItems)
                         self.dragItems = None
-                        self.updateVertexEdges(vertexLabel)
+                        self.updateVertex(vertexLabel)
                 else:
                     toVert = self.findVertex((event.x, event.y), 
                                              exclude=(vertexLabel,))
@@ -288,6 +294,7 @@ class Graph(VisualizationApp):
                         self.createEdge(vertexLabel, toVert, 1)
                     else:
                         self.undoDrag(vertexLabel)
+            self.enableButtons(True)
         return relHandler
 
     def undoDrag(self, vertexLabel):
@@ -328,7 +335,31 @@ class Graph(VisualizationApp):
                     self.canvas.coords(self.dragItems[1], *wc)
                     self.undoDragRequest = self.canvas.after(
                         wait, lambda: self.undoDrag(vertexLabel))
-                        
+
+    def selectVertex(self, vertexLabel, tags='selected'):
+        if not (vertexLabel in self.vertices or vertexLabel is None):
+            return
+        radius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
+        if self.selectedVertex:
+            if vertexLabel is None:
+                self.canvas.delete(self.selectedVertex)
+                self.selectedVertex = None
+            else:
+                center = V(self.canvas.coords(
+                    self.vertices[vertexLabel].items[1]))
+                self.canvas.coords(self.selectedVertex[1],
+                                   *(center - radius), *(center + radius))
+                self.selectedVertex = (vertexLabel, self.selectedVertex[1])
+        elif vertexLabel:
+            center = V(self.canvas.coords(self.vertices[vertexLabel].items[1]))
+            self.selectedVertex = (
+                vertexLabel, 
+                self.canvas.create_oval(
+                    *(center - radius), *(center + radius),
+                    fill=self.SELECTED_COLOR, outline=self.SELECTED_OUTLINE,
+                    width=self.SELECTED_WIDTH, tags=tags))
+            self.canvas.tag_lower(self.selectedVertex[1], 'vertex')
+            
     def findVertex(self, point, exclude=()):
         for v in self.vertices:
             if v not in exclude:
@@ -402,7 +433,9 @@ class Graph(VisualizationApp):
             def toggleEdge():
                 entry = self.adjMat[edge]
                 if entry:
+                    self.enableButtons(False)
                     self.changeEdgeWeight(*edge, 0 if entry['text'] else 1)
+                    self.enableButtons(True)
             entry = Button(self.adjMatrixFrame, bg=color,
                            text='', font=self.ADJACENCY_MATRIX_FONT,
                            state=NORMAL, takefocus=False, 
@@ -430,7 +463,7 @@ class Graph(VisualizationApp):
             if (newWeight > 0 and str(newWeight) != text) or text != '':
                 weightEntry['text'] = '' if newWeight == 0 else str(newWeight)
 
-    def updateVertexEdges(self, vertexLabel):
+    def updateVertex(self, vertexLabel):
         if not vertexLabel in self.vertices:
             raise ValueError('Cannot update non-existant vertex {}'.format(
                 vertexLabel))
@@ -444,6 +477,8 @@ class Graph(VisualizationApp):
             self.canvas.coords(items[0], *p0, *p1, *p2)
             self.canvas.itemconfigure(items[0], splinesteps=steps)
             self.canvas.coords(items[1], *wc)
+        if self.selectedVertex and vertexLabel == self.selectedVertex[0]:
+            self.selectVertex(vertexLabel)
 
     def findEdges(self, vertex, inbound=True, outbound=True, unique=None):
         '''Find edges incident to a vertex, possibly filtering by direction.
@@ -496,7 +531,7 @@ class Graph(VisualizationApp):
         if label is None:
             label = self.getArgument()
         if label == '':
-            label = 'A'
+            label = self.DEFAULT_VERTEX_LABEL
         while label in self.vertices:
             previous = label
             if label.isalpha():
@@ -528,6 +563,10 @@ class Graph(VisualizationApp):
             "New Vertex", self.clickNewVertex, numArguments=1,
             validationCmd=vcmd, argHelpText=['vertex label'], 
             helpText='Create a new vertex with a label')
+        self.newVertexButton = self.addOperation(
+            "Random Fill", self.clickRandomFill, numArguments=1,
+            validationCmd=vcmd, argHelpText=['# vertices'], 
+            helpText='Fill with N random vertices')
         self.newGraphButton = self.addOperation(
             "New Graph", self.clickNewGraph,
             helpText='Create new, empty graph')
@@ -565,11 +604,17 @@ class Graph(VisualizationApp):
     def clickBidirectionalEdges(self):
         return
 
+    def randomFill(self, nVertices):
+        maxLabel = (self.DEFAULT_VERTEX_LABEL if len(self.vertices) == 0 else
+                    self.nextVertexLabel(max(v for v in self.vertices)))
+        for n in range(nVertices):
+            self.createVertex(maxLabel)
+            maxLabel = self.nextVertexLabel(maxLabel)
+        
     def clickRandomFill(self):
         val = self.validArgument()
-        if isinstance(val, int) and val <= self.MAX_VERTICES:
-            self.randomFill(val)
-            self.setArgument(self.nextVertexLabel())
+        if val and val.isdigit() and int(val) <= self.MAX_VERTICES:
+            self.randomFill(int(val))
         else:
             self.setMessage('Number of vertices must be {} or less'.format(
                 self.MAX_VERTICES))
