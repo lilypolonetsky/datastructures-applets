@@ -33,6 +33,7 @@ class Graph(VisualizationApp):
     OVERLAP_TEXT_COLOR = 'red'
     DEFAULT_VERTEX_LABEL = 'A'
     nextColor = 0
+    DEBUG = False
     
     def __init__(                    # Create a graph visualization application
             self, title="Graph", weighted=False, **kwargs):
@@ -153,10 +154,12 @@ class Graph(VisualizationApp):
         startMoveHandler = self.startMoveHandler(label)
         moveHandler = self.moveHandler(label)
         releaseHandler = self.releaseHandler(label)
+        deleteHandler = self.deleteHandler(label)
         for item in items:
             self.canvas.tag_bind(item, '<Button-1>', startMoveHandler)
             self.canvas.tag_bind(item, '<B1-Motion>', moveHandler)
             self.canvas.tag_bind(item, '<ButtonRelease-1>', releaseHandler)
+            self.canvas.tag_bind(item, '<Double-Button-1>', deleteHandler)
         return items
 
     def createEdgeItems(self, base, tip, weight=0, tags=('edge',),
@@ -190,7 +193,12 @@ class Graph(VisualizationApp):
        
     def startMoveHandler(self, vertexLabel):
         def startHandler(event):
+            if self.DEBUG:
+                print('Entering startHandler on "{}" #{}'.format(
+                    vertexLabel, event.serial))
             if not self.allowUserMoves or self.dragItems:
+                if self.DEBUG:
+                    print('Exiting startHandler #{} allowUserMoves = {} dragItems = {}"'.format(event.serial, self.allowUserMoves, self.dragItems))
                 return
             self.enableButtons(False)
             vert = self.vertices[vertexLabel]
@@ -206,17 +214,28 @@ class Graph(VisualizationApp):
                     self.canvas_coords(vert.items[1]), (event.x, event.y),
                     weight=0, removeRadius=0)
             self.lastPos = (event.x, event.y)
+            if self.DEBUG:
+                print('Finished startHandler on "{}" #{}'.format(
+                    vertexLabel, event.serial))
         return startHandler
 
     def moveHandler(self, vertexLabel):
         def mvHandler(event):
-            if not self.dragItems or not self.allowUserMoves:
+            if self.DEBUG:
+                print('Entering mvHandler on "{}" #{}'.format(
+                    vertexLabel, event.serial))
+            if not (self.allowUserMoves and self.dragItems):
+                if self.DEBUG:
+                    print(('Exiting mvHandler #{} allowUserMoves = {} '
+                           'dragItems = {}"').format(
+                               event.serial, self.allowUserMoves,
+                               self.dragItems))
                 return
             self.enableButtons(False)
             delta = (event.x - self.lastPos[0], event.y - self.lastPos[1])
             self.lastPos = (event.x, event.y)
-            moveVertex = self.canvas.type(self.dragItems[0]) != 'line'
-            if moveVertex:
+            dragItemType = self.canvas.type(self.dragItems[0])
+            if dragItemType == 'oval':
                 for item in self.dragItems:
                     self.canvas.move(item, *delta)
 
@@ -231,7 +250,7 @@ class Graph(VisualizationApp):
                     self.dragItems[1], 
                     fill= self.OVERLAP_TEXT_COLOR if overlap else
                     self.VALUE_COLOR)
-            else:
+            elif dragItemType == 'line':
                 vert = self.vertices[vertexLabel]
                 p0, p1, p2, steps, wc = self.edgeCoords(
                     self.canvas_coords(vert.items[1]), self.lastPos,
@@ -250,6 +269,12 @@ class Graph(VisualizationApp):
                         fill=self.ACTIVE_VERTEX_OUTLINE_COLOR)
                 else:
                     self.restoreVertexAppearance()
+            else:
+                raise Exception('Dragging items of type {} not supported'.
+                                format(dragItemType))
+            if self.DEBUG:
+                print('Finished mvHandler on "{}" #{}'.format(
+                    vertexLabel, event.serial))
                     
         return mvHandler
 
@@ -264,9 +289,12 @@ class Graph(VisualizationApp):
 
     def releaseHandler(self, vertexLabel):
         def relHandler(event):
+            if self.DEBUG:
+                print('Entering reHandler on "{}" #{}'.format(
+                    vertexLabel, event.serial))
             if self.dragItems:
-                moveVertex = self.canvas.type(self.dragItems[0]) != 'line'
-                if moveVertex:
+                dragItemType = self.canvas.type(self.dragItems[0])
+                if dragItemType == 'oval':
                     newCenter = self.canvas_coords(self.dragItems[1])
                     overlap = any(
                         distance2(newCenter, self.canvas_coords(v.items[1])) <
@@ -274,6 +302,10 @@ class Graph(VisualizationApp):
                         for v in self.vertices.values() 
                         if v.val[0] != vertexLabel)
                     if overlap:
+                        if self.DEBUG:
+                            print(('Release overlaps existing vertex, '
+                                   'ending #{}. Calling undoDrag').format(
+                                       event.serial))
                         self.undoDrag(vertexLabel)
                     else:
                         delta = V(self.canvas_coords(self.dragItems[1])) - V(
@@ -284,57 +316,107 @@ class Graph(VisualizationApp):
                         self.dispose({}, *self.dragItems)
                         self.dragItems = None
                         self.updateVertex(vertexLabel)
-                else:
+                        if self.DEBUG:
+                            print('Finished release of vertex "{}"  #{}.'
+                                  .format(vertexLabel, event.serial))
+                elif dragItemType == 'line':
                     toVert = self.findVertex((event.x, event.y), 
                                              exclude=(vertexLabel,))
                     self.restoreVertexAppearance()
                     if toVert:
+                        if self.DEBUG:
+                            print('Release new edge to "{}"  #{}.'.format(
+                                toVert, event.serial))
                         self.dispose({}, *self.dragItems)
                         self.dragItems = None
                         self.createEdge(vertexLabel, toVert, 1)
                     else:
+                        if self.DEBUG:
+                            print(('Released edge connects "{}" to nothing, '
+                                   'ending #{}. Calling undoDrag').format(
+                                       vertexLabel, event.serial))
                         self.undoDrag(vertexLabel)
+                else:
+                    raise Exception('Dragging items of type {} not supported'.
+                                    format(dragItemType))
             self.enableButtons(True)
         return relHandler
 
-    def undoDrag(self, vertexLabel):
-        if self.dragItems:
-            self.allowUserMoves = False
-            moveVertex = self.canvas.type(self.dragItems[0]) != 'line'
-            wait = 40
-            if moveVertex:
-                oldCenter = self.canvas_coords(
-                    self.vertices[vertexLabel].items[1])
-                center = self.canvas_coords(self.dragItems[1])
-                delta = V(V(V(oldCenter) - V(center)) * 0.1)
-                if delta.len2() <= 1:
-                    for item in self.dragItems:
-                        self.canvas.delete(item)
-                    self.dragItems = None
-                    self.allowUserMoves = True
-                else:
-                    for item in self.dragItems:
-                        self.canvas.move(item, *delta)
-                    self.undoDragRequest = self.canvas.after(
-                        wait, lambda: self.undoDrag(vertexLabel))
+    def undoDrag(self, vertexLabel, after=None, endDistance=16, serial=0):
+        if not self.dragItems:
+            return
+        self.allowUserMoves = False
+        dragItemType = self.canvas.type(self.dragItems[0])
+        if self.DEBUG:
+            print('Entered undoDrag #{} moving {} for vertex "{}" & after={}'
+                  .format(serial, dragItemType, vertexLabel, after),
+                  end=' ')
+        if not (dragItemType in ('line', 'oval') and 
+                vertexLabel in self.vertices):
+            if self.dragItems:
+                self.dispose({}, *self.dragItems)
+            self.dragItems = None
+            self.allowUserMoves = True
+            if self.DEBUG:
+                print('Unexpected end to undoing {} drag #{} for vertex "{}".'
+                      .format(dragItemType, serial, vertexLabel))
+            return
+        wait = 30
+        if dragItemType == 'oval':
+            oldCenter = self.canvas_coords(
+                self.vertices[vertexLabel].items[1])
+            center = self.canvas_coords(self.dragItems[1])
+            delta = V(V(V(oldCenter) - V(center)) * 0.2)
+            if self.DEBUG:
+                print('delta**2 = {:3.1f}'.format(delta.len2()))
+            if delta.len2() <= endDistance:
+                for item in self.dragItems:
+                    self.canvas.delete(item)
+                self.dragItems = None
+                self.allowUserMoves = True
+                if self.DEBUG:
+                    print('Finished undoing {} drag #{}.'.format(
+                        dragItemType, serial))
+                if callable(after):
+                    if self.DEBUG:
+                        print('Calling after...')
+                    after()
             else:
-                edge = self.canvas_coords(self.dragItems[0])
-                base, tip = edge[:2], edge[-2:]
-                newTip = V(V(V(tip) * 9) + V(base)) / 10
-                if distance2(base, newTip) <= 1:
-                    for item in self.dragItems:
-                        self.canvas.delete(item)
-                    self.dragItems = None
-                    self.allowUserMoves = True
-                else:
-                    p0, p1, p2, steps, wc = self.edgeCoords(
-                        base, newTip, removeRadius=0)
-                    self.canvas.coords(self.dragItems[0], *p0, *p1, *p2)
-                    self.canvas.itemconfigure(self.dragItems[0],
-                                              splinesteps=steps)
-                    self.canvas.coords(self.dragItems[1], *wc)
-                    self.undoDragRequest = self.canvas.after(
-                        wait, lambda: self.undoDrag(vertexLabel))
+                for item in self.dragItems:
+                    self.canvas.move(item, *delta)
+                self.undoDragRequest = self.canvas.after(
+                    wait, 
+                    lambda: self.undoDrag(vertexLabel, after, endDistance, serial))
+        elif dragItemType == 'line':
+            edgeCoords = self.canvas_coords(self.dragItems[0])
+            base, tip = edgeCoords[:2], edgeCoords[-2:]
+            newTip = V(V(V(tip) * 8) + V(V(base) * 2)) / 10
+            if self.DEBUG:
+                print('distance**2 = {:3.1f}'.format(distance2(base, newTip)))
+            if distance2(base, newTip) <= endDistance:
+                for item in self.dragItems:
+                    self.canvas.delete(item)
+                self.dragItems = None
+                self.allowUserMoves = True
+                if self.DEBUG:
+                    print('Finished undoing {} drag #{}.'.format(
+                        dragItemType, serial))
+                if callable(after):
+                    if self.DEBUG:
+                        print('Calling after...')
+                    after()
+            else:
+                p0, p1, p2, steps, wc = self.edgeCoords(
+                    base, newTip, removeRadius=0)
+                self.canvas.coords(self.dragItems[0], *p0, *p1, *p2)
+                self.canvas.itemconfigure(self.dragItems[0], splinesteps=steps)
+                self.canvas.coords(self.dragItems[1], *wc)
+                if self.DEBUG:
+                    print('Scheduling more undoing of {} drag #{} after {} ms.'
+                          .format(dragItemType, serial, wait))
+                self.undoDragRequest = self.canvas.after(
+                    wait,
+                    lambda: self.undoDrag(vertexLabel, after, endDistance, serial))
 
     def selectVertex(self, vertexLabel, tags='selected'):
         if not (vertexLabel in self.vertices or vertexLabel is None):
@@ -342,7 +424,7 @@ class Graph(VisualizationApp):
         radius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
         if self.selectedVertex:
             if vertexLabel is None:
-                self.canvas.delete(self.selectedVertex)
+                self.canvas.delete(self.selectedVertex[1])
                 self.selectedVertex = None
             else:
                 center = V(self.canvas.coords(
@@ -359,6 +441,27 @@ class Graph(VisualizationApp):
                     fill=self.SELECTED_COLOR, outline=self.SELECTED_OUTLINE,
                     width=self.SELECTED_WIDTH, tags=tags))
             self.canvas.tag_lower(self.selectedVertex[1], 'vertex')
+       
+    def deleteHandler(self, vertexLabel):
+        def delHandler(event):
+            if self.DEBUG:
+                print('Entered delHandler for "{}" #{}.'.format(
+                    vertexLabel, event.serial))
+            if not (vertexLabel in self.vertices and
+                    (self.allowUserMoves or self.dragItems)):
+                print(('Exit delHandler #{} on "{}" with allowUserMoves = {} '
+                       'and dragItems = {}')
+                      .format(event.serial, vertexLabel, self.allowUserMoves,
+                              self.dragItems))
+                return
+            self.enableButtons(False)
+            vert = self.deleteVertex(vertexLabel)
+            self.enableButtons(True)
+            self.setMessage('Deleted vertex {}'.format(vertexLabel))
+            if self.DEBUG:
+                print('Finished delHandler for "{}" #{}.'.format(
+                    vertexLabel, event.serial))
+        return delHandler
             
     def findVertex(self, point, exclude=()):
         for v in self.vertices:
@@ -419,6 +522,23 @@ class Graph(VisualizationApp):
             self.nextID += 1
             self.setArgument(self.nextVertexLabel())
 
+    def deleteVertex(self, vertexLabel):
+        if not vertexLabel in self.vertices:
+            raise ValueError('Cannot update non-existant vertex {}'.format(
+                vertexLabel))
+        if self.selectedVertex and self.selectedVertex[0] == vertexLabel:
+            self.selectVertex(None)
+        for edge in self.findEdges(vertexLabel):
+            self.changeEdgeWeight(*edge, 0)
+        vertex = self.vertices[vertexLabel]
+        ID = vertex.val[1]
+        adjMatrixWidgets = gridDict(self.adjMatrixFrame)
+        for row, column in adjMatrixWidgets:
+            if row == ID or (column == ID and row != ID):
+                adjMatrixWidgets[row, column].grid_forget()
+        self.dispose({}, *vertex.items)
+        del self.vertices[vertexLabel]
+
     def makeEdgeWeightEntry(self, color, edge):
         if self.weighted:
             entry = Entry(self.adjMatrixFrame, bg=color,
@@ -462,17 +582,16 @@ class Graph(VisualizationApp):
                 return int(text) if text else 0
             if (newWeight > 0 and str(newWeight) != text) or text != '':
                 weightEntry['text'] = '' if newWeight == 0 else str(newWeight)
-
+        
     def updateVertex(self, vertexLabel):
         if not vertexLabel in self.vertices:
             raise ValueError('Cannot update non-existant vertex {}'.format(
                 vertexLabel))
         for edge in self.findEdges(vertexLabel):
             items = self.edges[edge].items
-            other = 1 if edge[0] == vertexLabel else 0
             p0, p1, p2, steps, wc = self.edgeCoords(
-                self.canvas_coords(self.vertices[edge[1 - other]].items[1]),
-                self.canvas_coords(self.vertices[edge[other]].items[1]),
+                self.canvas_coords(self.vertices[edge[0]].items[1]),
+                self.canvas_coords(self.vertices[edge[1]].items[1]),
             )
             self.canvas.coords(items[0], *p0, *p1, *p2)
             self.canvas.itemconfigure(items[0], splinesteps=steps)
@@ -486,9 +605,10 @@ class Graph(VisualizationApp):
         defaults to state of bidirectionalEdges.
         '''
         if unique is None: unique = self.bidirectionalEdges.get()
-        return [edge for edge in self.edges if
-                inbound and edge[1] == vertex or outbound and edge[0] == vertex
-                and (not unique or self.edges[edge].val == edge)]
+        return [
+            edge for edge in self.edges if
+            (inbound and edge[1] == vertex or outbound and edge[0] == vertex)
+            and (not unique or self.edges[edge].val == edge)]
 
     def changeEdgeWeight(self, fromVert, toVert, weight):
         edge = (fromVert, toVert)
@@ -563,10 +683,14 @@ class Graph(VisualizationApp):
             "New Vertex", self.clickNewVertex, numArguments=1,
             validationCmd=vcmd, argHelpText=['vertex label'], 
             helpText='Create a new vertex with a label')
-        self.newVertexButton = self.addOperation(
+        self.randomFillButton = self.addOperation(
             "Random Fill", self.clickRandomFill, numArguments=1,
             validationCmd=vcmd, argHelpText=['# vertices'], 
             helpText='Fill with N random vertices')
+        self.deleteVertexButton = self.addOperation(
+            "Delete Vertex", self.clickDeleteVertex, numArguments=1,
+            validationCmd=vcmd, argHelpText=['vertex label'], 
+            helpText='Delete the labeled vertex')
         self.newGraphButton = self.addOperation(
             "New Graph", self.clickNewGraph,
             helpText='Create new, empty graph')
@@ -598,6 +722,15 @@ class Graph(VisualizationApp):
             return
         self.createVertex(val)
     
+    def clickDeleteVertex(self):
+        val = self.validArgument()
+        if val not in self.vertices:
+            self.setMessage('No vertex labeled {}'.format(val))
+            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
+            return
+        self.deleteVertex(val)
+        self.clearArgument()
+
     def clickNewGraph(self):
         self.newGraph()
     
@@ -624,7 +757,16 @@ if __name__ == '__main__':
     graph = Graph()
 
     for arg in sys.argv[1:]:
-        graph.setArgument(arg)
-        graph.newVertexButton.invoke()
+        if len(arg) > 1 and arg[0] == '-':
+            if arg == '-d':
+                graph.DEBUG = True
+            elif arg[1:].isdigit():
+                graph.setArgument(arg[1:])
+                graph.randomFillButton.invoke()
+                graph.setArgument(
+                    chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
+        else:
+            graph.setArgument(arg)
+            graph.newVertexButton.invoke()
         
     graph.runVisualization()
