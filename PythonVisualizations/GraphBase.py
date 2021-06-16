@@ -22,8 +22,9 @@ class GraphBase(VisualizationApp):
     SELECTED_COLOR = 'white'
     SELECTED_OUTLINE = 'purple3'
     ADJACENCY_MATRIX_FONT = ('Helvetica', -12)
-    ADJACENCY_MATRIX_BG = 'bisque'
+    ADJACENCY_MATRIX_BG = 'old lace'
     CANVAS_EXTERIOR = 'cyan'
+    GRAPH_REGION_BACKGROUND = 'old lace'
     MATRIX_CELL_WIDTH = 20
     ACTIVE_VERTEX_OUTLINE_COLOR = 'blue'
     ACTIVE_VERTEX_OUTLINE_WIDTH = 1
@@ -36,19 +37,21 @@ class GraphBase(VisualizationApp):
     DEBUG = False
     
     def __init__(                    # Create a graph visualization application
-            self, title="Graph", weighted=False, **kwargs):
+            self, title="Graph", graphRegion=None, weighted=False, **kwargs):
         kwargs['title'] = title
         if 'canvasBounds' not in kwargs:
             kwargs['canvasBounds'] = (0, 0, kwargs.get('canvasWidth', 800),
                                       kwargs.get('canvasHeight', 400))
         super().__init__(**kwargs)
+        if graphRegion is None:
+            graphRegion = V(self.canvasBounds) - V(0, 0, 100, 100)
+        self.graphRegion = graphRegion
         self.weighted = weighted
         self.weightValidate = (self.window.register(numericValidate),
                                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         self.buttons = self.makeButtons()
         self.createAdjacencyMatrixPanel()
         self.newGraph()
-        self.canvas.bind('<Double-Button-1>', self.newVertexHandler(), add='+')
     
     def __str__(self):
         verts = self.nVertices()
@@ -117,6 +120,10 @@ class GraphBase(VisualizationApp):
         
     def display(self):
         self.canvas.delete("all")
+        self.graphRegionRectangle = self.canvas.create_rectangle(
+            *self.graphRegion, fill=self.GRAPH_REGION_BACKGROUND, outline='')
+        self.canvas.tag_bind(self.graphRegionRectangle, '<Double-Button-1>',
+                             self.newVertexHandler())
         self.allowUserMoves = True
         self.window.update()
         
@@ -127,14 +134,12 @@ class GraphBase(VisualizationApp):
         if not label:
             raise ValueError('Cannot create unlabeled vertex')
         visibleCanvas = self.visibleCanvas()
-        vr = V(self.SELECTED_RADIUS, self.SELECTED_RADIUS)
-        region = (V(visibleCanvas[:2]) + vr) + (V(visibleCanvas[2:]) - vr)
+        border = V(1, 1, -1, -1) * self.SELECTED_RADIUS
+        region = V(self.graphRegion) + V(border)
         while coords is None:
             x = random.randrange(region[0], region[2])
             y = random.randrange(region[1], region[3])
-            if all(distance2((x, y), self.canvas_coords(v.items[1])) >=
-                   (2 * self.SELECTED_RADIUS) ** 2
-                   for v in self.vertices.values()):
+            if not self.badPosition((x, y)):
                 coords = (x, y)
         if color is None:
             color = drawnValue.palette[self.nextColor]
@@ -243,7 +248,7 @@ class GraphBase(VisualizationApp):
                     self.canvas.move(item, *delta)
 
                 newCenter = self.canvas_coords(self.dragItems[1])
-                bad = self.badPosition(newCenter)
+                bad = self.badPosition(newCenter, ignore=(vertexLabel,))
                 self.canvas.itemconfigure(
                     self.dragItems[0], state=HIDDEN if bad else NORMAL)
                 self.canvas.itemconfigure(
@@ -295,7 +300,7 @@ class GraphBase(VisualizationApp):
                 dragItemType = self.canvas.type(self.dragItems[0])
                 if dragItemType == 'oval':
                     newCenter = self.canvas_coords(self.dragItems[1])
-                    bad = self.badPosition(newCenter)
+                    bad = self.badPosition(newCenter, ignore=(vertexLabel,))
                     if bad:
                         if self.DEBUG:
                             print(('Release position is bad, '
@@ -491,17 +496,17 @@ class GraphBase(VisualizationApp):
             self.createVertex(self.getArgument(), coords=(event.x, event.y))
         return newVertHandler
 
-    def badPosition(self, center, border=None):
+    def badPosition(self, center, border=None, ignore=()):
         '''Check if a proposed vertex center would make it overlap other
         vertices or is outside the visible canvas minus a border.
         '''
         if border is None: border = self.VERTEX_RADIUS
         return (
             any(distance2(center, self.canvas_coords(v.items[1])) <
-                (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values())
-            or not BBoxContains(V(self.visibleCanvas()) + 
-                                V(V(1, 1, -1, -1) * border),
-                                center))
+                (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values()
+                if v.val[0] not in ignore)
+            or not BBoxContains(
+                V(self.graphRegion) + V(V(1, 1, -1, -1) * border), center))
     
     def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
         try:
