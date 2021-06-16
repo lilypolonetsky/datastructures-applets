@@ -15,6 +15,7 @@ V = vector
 class Graph(VisualizationApp):
     MAX_VERTICES = 16
     VERTEX_RADIUS = 18
+    vRadius = vector((VERTEX_RADIUS, VERTEX_RADIUS))
     VERTEX_FONT = ('Helvetica', -14)
     SELECTED_RADIUS = VERTEX_RADIUS * 6 // 5
     SELECTED_WIDTH = 2
@@ -29,8 +30,7 @@ class Graph(VisualizationApp):
     EDGE_COLOR = 'black'
     ACTIVE_EDGE_COLOR = 'blue'
     ACTIVE_EDGE_WIDTH = 3
-    OVERLAP_OUTLINE_COLOR = 'red'
-    OVERLAP_TEXT_COLOR = 'red'
+    BAD_POSITION_TEXT_COLOR = 'red'
     DEFAULT_VERTEX_LABEL = 'A'
     nextColor = 0
     DEBUG = False
@@ -141,8 +141,8 @@ class Graph(VisualizationApp):
             self.nextColor = (1 + self.nextColor) % len(drawnValue.palette)
         vr = V(self.VERTEX_RADIUS, self.VERTEX_RADIUS)
         shape = self.canvas.create_oval(
-            *(V(coords) - vr), *(V(coords) + vr), fill=color,
-            tags=tags + ('shape', label), outline='', width=1,
+            *(V(coords) - self.vRadius), *(V(coords) + self.vRadius),
+            tags=tags + ('shape', label), outline='', width=1, fill=color,
             activeoutline=self.ACTIVE_VERTEX_OUTLINE_COLOR,
             activewidth=self.ACTIVE_VERTEX_OUTLINE_WIDTH)
         text = self.canvas.create_text(
@@ -240,16 +240,12 @@ class Graph(VisualizationApp):
                     self.canvas.move(item, *delta)
 
                 newCenter = self.canvas_coords(self.dragItems[1])
-                overlap = any(
-                    distance2(newCenter, self.canvas_coords(v.items[1])) <
-                    (2 * self.SELECTED_RADIUS) ** 2
-                    for v in self.vertices.values() if v.val[0] != vertexLabel)
+                bad = self.badPosition(newCenter)
                 self.canvas.itemconfigure(
-                    self.dragItems[0], state=HIDDEN if overlap else NORMAL)
+                    self.dragItems[0], state=HIDDEN if bad else NORMAL)
                 self.canvas.itemconfigure(
                     self.dragItems[1], 
-                    fill= self.OVERLAP_TEXT_COLOR if overlap else
-                    self.VALUE_COLOR)
+                    fill=self.BAD_POSITION_TEXT_COLOR if bad else self.VALUE_COLOR)
             elif dragItemType == 'line':
                 vert = self.vertices[vertexLabel]
                 p0, p1, p2, steps, wc = self.edgeCoords(
@@ -296,14 +292,10 @@ class Graph(VisualizationApp):
                 dragItemType = self.canvas.type(self.dragItems[0])
                 if dragItemType == 'oval':
                     newCenter = self.canvas_coords(self.dragItems[1])
-                    overlap = any(
-                        distance2(newCenter, self.canvas_coords(v.items[1])) <
-                        (2 * self.SELECTED_RADIUS) ** 2
-                        for v in self.vertices.values() 
-                        if v.val[0] != vertexLabel)
-                    if overlap:
+                    bad = self.badPosition(newCenter)
+                    if bad:
                         if self.DEBUG:
-                            print(('Release overlaps existing vertex, '
+                            print(('Release position is bad, '
                                    'ending #{}. Calling undoDrag').format(
                                        event.serial))
                         self.undoDrag(vertexLabel)
@@ -476,6 +468,18 @@ class Graph(VisualizationApp):
             self.createVertex(self.getArgument(), coords=(event.x, event.y))
         return newVertHandler
 
+    def badPosition(self, center, border=None):
+        '''Check if a proposed vertex center would make it overlap other
+        vertices or is outside the visible canvas minus a border.
+        '''
+        if border is None: border = self.VERTEX_RADIUS
+        return (
+            any(distance2(center, self.canvas_coords(v.items[1])) <
+                (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values())
+            or not BBoxContains(V(self.visibleCanvas()) + 
+                                V(V(1, 1, -1, -1) * border),
+                                center))
+    
     def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
         try:
             self.setMessage('')
@@ -485,11 +489,9 @@ class Graph(VisualizationApp):
             self.setMessage(str(e))
             return
         newCenter = self.canvas_coords(items[1])
-        overlap = any(
-            distance2(newCenter, self.canvas_coords(v.items[1])) <
-            (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values())
-        if overlap:
-            self.setMessage('Vertices may not overlap')
+        bad = self.badPosition(newCenter)
+        if bad:
+            self.setMessage('Vertices must be visible and not overlap')
             self.dispose({}, *items)
         else:
             vert = drawnValue((label, self.nextID), *items)
