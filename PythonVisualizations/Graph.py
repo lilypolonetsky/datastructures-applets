@@ -154,7 +154,7 @@ class Graph(VisualizationApp):
         startMoveHandler = self.startMoveHandler(label)
         moveHandler = self.moveHandler(label)
         releaseHandler = self.releaseHandler(label)
-        deleteHandler = self.deleteHandler(label)
+        deleteHandler = self.deleteVertexHandler(label)
         for item in items:
             self.canvas.tag_bind(item, '<Button-1>', startMoveHandler)
             self.canvas.tag_bind(item, '<B1-Motion>', moveHandler)
@@ -163,7 +163,7 @@ class Graph(VisualizationApp):
         return items
 
     def createEdgeItems(self, base, tip, weight=0, tags=('edge',),
-                        removeRadius=VERTEX_RADIUS):
+                        removeRadius=VERTEX_RADIUS, edgePair=None):
         p0, p1, p2, steps, weightCenter = self.edgeCoords(
             base, tip, removeRadius=removeRadius)
         line = self.canvas.create_line(
@@ -176,6 +176,9 @@ class Graph(VisualizationApp):
             text='' if weight == 0 or not self.weighted else str(weight),
             font=self.VERTEX_FONT, fill=self.EDGE_COLOR, tags=tags + ('text',),
             activefill=self.ACTIVE_EDGE_COLOR)
+        if edgePair:
+            self.canvas.tag_bind(line, '<Double-Button-1>', 
+                                 self.deleteEdgeHandler(edgePair))
         return (line, weightText)
 
     def edgeCoords(self, base, tip, removeRadius=VERTEX_RADIUS):
@@ -434,27 +437,47 @@ class Graph(VisualizationApp):
                     width=self.SELECTED_WIDTH, tags=tags))
             self.canvas.tag_lower(self.selectedVertex[1], 'vertex')
        
-    def deleteHandler(self, vertexLabel):
-        def delHandler(event):
+    def deleteVertexHandler(self, vertexLabel):
+        def delVertHandler(event):
             if self.DEBUG:
-                print('Entered delHandler for "{}" #{}.'.format(
+                print('Entered delVertHandler for "{}" #{}.'.format(
                     vertexLabel, event.serial))
             if not (vertexLabel in self.vertices and
                     (self.allowUserMoves or self.dragItems)):
-                print(('Exit delHandler #{} on "{}" with allowUserMoves = {} '
-                       'and dragItems = {}')
-                      .format(event.serial, vertexLabel, self.allowUserMoves,
-                              self.dragItems))
+                if self.DEBUG:
+                    print(('Exit delVertHandler #{} on "{}" with '
+                           'allowUserMoves = {} and dragItems = {}')
+                          .format(event.serial, vertexLabel,
+                                  self.allowUserMoves, self.dragItems))
                 return
             self.enableButtons(False)
             vert = self.deleteVertex(vertexLabel)
             self.enableButtons(True)
             self.setMessage('Deleted vertex {}'.format(vertexLabel))
             if self.DEBUG:
-                print('Finished delHandler for "{}" #{}.'.format(
+                print('Finished delVertHandler for "{}" #{}.'.format(
                     vertexLabel, event.serial))
-        return delHandler
-            
+        return delVertHandler
+
+    def deleteEdgeHandler(self, edge):
+        def delEdgeHandler(event):
+            if self.DEBUG:
+                print('Entered delEdgeHandler for {} #{}.'.format(
+                    edge, event.serial))
+            if not (edge in self.edges and self.allowUserMoves):
+                if self.DEBUG:
+                    print('Exit delEdgeHandler #{} on {} with allowUserMoves = {}'
+                          .format(event.serial, edge, self.allowUserMoves))
+                return
+            self.enableButtons(False)
+            self.changeEdgeWeight(*edge, 0)
+            self.enableButtons(True)
+            self.setMessage('Deleted edge {}'.format(edge))
+            if self.DEBUG:
+                print('Finished delEdgeHandler for {} #{}.'.format(
+                    edge, event.serial))
+        return delEdgeHandler
+    
     def findVertex(self, point, exclude=()):
         for v in self.vertices:
             if v not in exclude:
@@ -643,7 +666,8 @@ class Graph(VisualizationApp):
                         for v in edgeKey)
         self.edges[edgeKey] = drawnValue(
             edgeKey, *self.createEdgeItems(
-                centers[0], centers[1], weight=weight, tags=tags))
+                centers[0], centers[1], weight=weight, tags=tags,
+                edgePair=edgeKey))
         reverseEdge = (toVert, fromVert)
         if self.bidirectionalEdges.get():
             self.edges[reverseEdge] = self.edges[edgeKey]
