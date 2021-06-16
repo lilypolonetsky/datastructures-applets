@@ -12,7 +12,7 @@ except ModuleNotFoundError:
 
 V = vector
 
-class Graph(VisualizationApp):
+class GraphBase(VisualizationApp):
     MAX_VERTICES = 16
     VERTEX_RADIUS = 18
     vRadius = vector((VERTEX_RADIUS, VERTEX_RADIUS))
@@ -779,20 +779,3 @@ class Graph(VisualizationApp):
                 self.MAX_VERTICES))
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
 
-if __name__ == '__main__':
-    graph = Graph()
-
-    for arg in sys.argv[1:]:
-        if len(arg) > 1 and arg[0] == '-':
-            if arg == '-d':
-                graph.DEBUG = True
-            elif arg[1:].isdigit():
-                graph.setArgument(arg[1:])
-                graph.randomFillButton.invoke()
-                graph.setArgument(
-                    chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
-        else:
-            graph.setArgument(arg)
-            graph.newVertexButton.invoke()
-        
-    graph.runVisualization()
