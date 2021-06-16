@@ -53,15 +53,19 @@ def rangesOverlap(lo1, hi1, lo2, hi2, zeroOK=True):
     return ((hi1 > lo2 or (zeroOK and hi1 == lo2)) and
             (lo1 < hi2 or (zeroOK and lo1 == hi2)))
 
-def BBoxContains(bbox1, bbox2):
-    'Return whether bounding box 1 fully contains bounding box 2'
+def BBoxContains(bbox1, bboxOrPoints):
+    '''Return whether bounding box 1 fully contains a bounding box or point 
+    list of the form (x0, y0, x1, y1, ... , xN, yN) which can be a single
+    point.'''
     half = len(bbox1) // 2
-    return all(bbox1[j] <= bbox2[j] and bbox1[j + half] >= bbox2[j + half]
-               for j in range(half))
+    return all(bbox1[j] <= bboxOrPoints[j + k] and
+               bboxOrPoints[j + k] <= bbox1[j + half]
+               for j in range(half) for k in range(0, len(bboxOrPoints), half))
 
 def BBoxEmpty(bbox):
     'Return whether a bounding box has any area'
-    return not(bbox[0] < bbox[2] and bbox[1] < bbox[3])
+    half = len(bbox) // 2
+    return not all(bbox[j] < bbox[j + half] for j in range(half))
 
 def BBoxIntersection(*bboxes):
     'Return the, possibly empty, intersection of sequence of bounding boxes'
@@ -988,6 +992,11 @@ if __name__ == '__main__':
                            for bb in (bboxes[i], bboxes[j])):
                     print(('The bounding boxes {} {} do not both contain'
                            'their intersection!').format(bboxes[i], bboxes[j]))
+                if not all(BBoxContains(
+                        bb, BBoxIntersection(bboxes[i], bboxes[j]) * 2)
+                           for bb in (bboxes[i], bboxes[j])):
+                    print(('The bounding boxes {} {} do not both contain'
+                           'their corner points!').format(bboxes[i], bboxes[j]))
 
         print('Bad BBox {} {} empty'.format(
                 badBBox, 'is' if BBoxEmpty(badBBox) else 'is not'))
