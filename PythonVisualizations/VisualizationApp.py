@@ -48,6 +48,12 @@ def numericValidate(action, index, value_if_allowed, prior_value, text,
 def makeWidthValidate(maxWidth):
     "Register this with one parameter: %P"
     return lambda value_if_allowed: len(value_if_allowed) <= maxWidth
+        
+def makeFilterValidate(maxWidth, exclude=''):
+    "Register this with one parameter: %P"
+    return lambda value_if_allowed: (
+        len(value_if_allowed) <= maxWidth and
+        all(c not in exclude for c in value_if_allowed))
 
 class VisualizationApp(Visualization): # Base class for visualization apps
 

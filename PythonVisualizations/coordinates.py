@@ -110,7 +110,7 @@ class vector(object):
 
     def unit(self, minLength=0):
         length = self.vlen()
-        return self / (length if length >= minLength else 1)
+        return self / (length if length > minLength else 1)
 
     def rotate(self, angle, radians=False):
         a = angle if radians else math.radians(angle)
