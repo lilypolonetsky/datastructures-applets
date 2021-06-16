@@ -49,8 +49,8 @@ class GraphBase(VisualizationApp):
         self.weighted = weighted
         self.weightValidate = (self.window.register(numericValidate),
                                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        self.buttons = self.makeButtons()
         self.createAdjacencyMatrixPanel()
+        self.buttons = self.makeButtons()
         self.newGraph()
     
     def __str__(self):
@@ -708,6 +708,8 @@ class GraphBase(VisualizationApp):
         return label
             
     def makeButtons(self):
+        '''Make buttons common to weighted and unweighted graphs without
+        the animation control buttons'''
         vcmd = (self.window.register(
             makeFilterValidate(self.maxArgWidth)), '%P')
         self.newVertexButton = self.addOperation(
@@ -731,7 +733,7 @@ class GraphBase(VisualizationApp):
             "Bidirectional", self.clickBidirectionalEdges,
             buttonType=Checkbutton, variable=self.bidirectionalEdges, 
             helpText='Use bidirectional edges')
-        self.addAnimationButtons()
+        return vcmd
 
     def validArgument(self):
         text = self.getArgument()
