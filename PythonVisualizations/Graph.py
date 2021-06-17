@@ -10,6 +10,68 @@ V = vector
 
 class Graph(GraphBase):
 
+    adjacentVerticesCode = '''
+def adjacentVertices(self, n={nVal}):
+   self.validIndex(n)
+   for j in self.vertices():
+      if j != n and self.hasEdge(n, j):
+         yield j
+'''
+    
+    def adjacentVertices(self, n, code=adjacentVerticesCode, wait=0.1):
+        nVal = "{} ('{}')".format(self.getVertexIndex(n), n)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()))
+            
+        self.cleanUp(callEnviron)
+
+    adjacentUnvisitedVerticesCode = '''
+def adjacentUnvisitedVertices(
+      self, n={nVal}, visited, markVisits={markVisits}):
+   for j in self.adjacentVertices(n):
+      if not visited[j]:
+         if markVisits:
+            visited[j] = True
+         yield j
+'''
+
+    depthFirstCode = '''
+def depthFirst(self, n={nVal}):
+   self.validIndex(n)
+   visited = [False] * self.nVertices()
+   stack = Stack()
+   stack.push(n)
+   visited[n] = True
+   yield (n, stack)
+   while not stack.isEmpty():
+      visit = stack.peek()
+      adj = None
+      for j in self.adjacentUnvisitedVertices(
+         visit, visited):
+         adj = j
+         break
+      if adj is not None:
+         stack.push(adj)
+         yield (adj, stack)
+      else:
+         stack.pop()
+'''
+
+    breadthFirstCode = '''
+def breadthFirst(self, n={nVal}):
+   self.validIndex(n)
+   visited = [False] * self.nVertices()
+   queue = Queue()
+   queue.insert(n)
+   visited[n] = True
+   while not queue.isEmpty():
+      visit = queue.remove()
+      yield visit
+      for j in self.adjacentUnvisitedVertices(
+            visit, visited):
+         queue.insert(j)
+'''
+    
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
         for btn in (self.depthFirstTraverseButton, 
