@@ -5,10 +5,12 @@ try:
     from VisualizationApp import *
     from coordinates import *
     from drawnValue import *
+    from TableDisplay import *
 except ModuleNotFoundError:
     from .VisualizationApp import *
     from .coordinates import *
     from .drawnValue import *
+    from .TableDisplay import *
 
 V = vector
 
@@ -44,7 +46,7 @@ class GraphBase(VisualizationApp):
                                       kwargs.get('canvasHeight', 400))
         super().__init__(**kwargs)
         if graphRegion is None:
-            graphRegion = V(self.canvasBounds) - V(0, 0, 100, 100)
+            graphRegion = V(self.canvasBounds) - V(0, 0, 120, 100)
         self.graphRegion = graphRegion
         self.weighted = weighted
         self.weightValidate = (self.window.register(numericValidate),
@@ -124,6 +126,10 @@ class GraphBase(VisualizationApp):
             *self.graphRegion, fill=self.GRAPH_REGION_BACKGROUND, outline='')
         self.canvas.tag_bind(self.graphRegionRectangle, '<Double-Button-1>',
                              self.newVertexHandler())
+        self.vertexTable = Table(
+            self, (self.graphRegion[2] + 40, 40), label='_vertices',
+            vertical=True, cellHeight=self.VERTEX_RADIUS,
+            cellWidth=self.VERTEX_RADIUS * 3 // 2, cellBorderWidth=1)
         self.allowUserMoves = True
         self.window.update()
         
@@ -493,7 +499,9 @@ class GraphBase(VisualizationApp):
         
     def newVertexHandler(self):
         def newVertHandler(event):
-            self.createVertex(self.getArgument(), coords=(event.x, event.y))
+            self.createVertex(self.getArgument(), 
+                              coords=(self.canvas.canvasx(event.x),
+                                      self.canvas.canvasy(event.y)))
         return newVertHandler
 
     def badPosition(self, center, border=None, ignore=()):
@@ -521,36 +529,52 @@ class GraphBase(VisualizationApp):
         if bad:
             self.setMessage('Vertices must be visible and not overlap')
             self.dispose({}, *items)
-        else:
-            vert = drawnValue((label, self.nextID), *items)
-            self.vertices[label] = vert
-            vertColor = self.canvas_itemConfig(items[0], 'fill')
-            columnLabel = Label(
-                self.adjMatrixFrame, text=label, bg=vertColor,
-                font=self.ADJACENCY_MATRIX_FONT)
-            columnLabel.grid(row=0, column=self.nextID, sticky=(N, E, S, W))
-            rowLabel = Label(
-                self.adjMatrixFrame, text=label, bg=vertColor,
-                font=self.ADJACENCY_MATRIX_FONT)
-            rowLabel.grid(row=self.nextID, column=0, sticky=(N, E, S, W))
-            for otherVert in self.vertices.values():
-                if vert == otherVert:
-                    frame = Frame(self.adjMatrixFrame, bg=vertColor)
-                    frame.grid(row=self.nextID, column=self.nextID, 
+            return
+        
+        vert = drawnValue((label, self.nextID), *items)
+        self.vertices[label] = vert
+        vertColor = self.canvas_itemConfig(items[0], 'fill')
+
+        self.vertexTable.append(
+            drawnValue(label,
+                       self.canvas.create_rectangle(
+                           *self.vertexTable.cellCoords(len(self.vertexTable)),
+                           fill=vertColor, outline='', width=1,
+                           tags='vertexTableItem'),
+                       self.canvas.create_text(
+                           *self.vertexTable.cellCenter(len(self.vertexTable)),
+                           text=label, font=self.ADJACENCY_MATRIX_FONT,
+                           fill=self.VALUE_COLOR, tags='vertexTableItem')))
+        for item in self.vertexTable[-1].items:
+            self.canvas.tag_bind(item, '<Button-1>',
+                                 lambda e: self.setArgument(label))
+
+        columnLabel = Label(
+            self.adjMatrixFrame, text=label, bg=vertColor,
+            font=self.ADJACENCY_MATRIX_FONT)
+        columnLabel.grid(row=0, column=self.nextID, sticky=(N, E, S, W))
+        rowLabel = Label(
+            self.adjMatrixFrame, text=label, bg=vertColor,
+            font=self.ADJACENCY_MATRIX_FONT)
+        rowLabel.grid(row=self.nextID, column=0, sticky=(N, E, S, W))
+        for otherVert in self.vertices.values():
+            if vert == otherVert:
+                frame = Frame(self.adjMatrixFrame, bg=vertColor)
+                frame.grid(row=self.nextID, column=self.nextID, 
                                sticky=(N, E, S, W))
-                else:
-                    otherVertColor = self.canvas_itemConfig(otherVert.items[0],
-                                                            'fill')
-                    entry = self.makeEdgeWeightEntry(
-                        vertColor, (vert.val[0], otherVert.val[0]))
-                    entry.grid(row=self.nextID, column=otherVert.val[1], 
-                               sticky=(N, E, S, W))
-                    entry = self.makeEdgeWeightEntry(
-                        otherVertColor, (otherVert.val[0], vert.val[0]))
-                    entry.grid(row=otherVert.val[1], column=self.nextID,
-                               sticky=(N, E, S, W))
-            self.nextID += 1
-            self.setArgument(self.nextVertexLabel())
+            else:
+                otherVertColor = self.canvas_itemConfig(otherVert.items[0], 
+                                                        'fill')
+                entry = self.makeEdgeWeightEntry(
+                    vertColor, (vert.val[0], otherVert.val[0]))
+                entry.grid(row=self.nextID, column=otherVert.val[1], 
+                           sticky=(N, E, S, W))
+                entry = self.makeEdgeWeightEntry(
+                    otherVertColor, (otherVert.val[0], vert.val[0]))
+                entry.grid(row=otherVert.val[1], column=self.nextID,
+                           sticky=(N, E, S, W))
+        self.nextID += 1
+        self.setArgument(self.nextVertexLabel())
 
     def deleteVertex(self, vertexLabel):
         if not vertexLabel in self.vertices:
@@ -566,7 +590,12 @@ class GraphBase(VisualizationApp):
         for row, column in adjMatrixWidgets:
             if row == ID or (column == ID and row != ID):
                 adjMatrixWidgets[row, column].grid_forget()
-        self.dispose({}, *vertex.items)
+        tableIndex = [dv.val for dv in self.vertexTable].index(vertexLabel)
+        self.dispose({}, *vertex.items, *self.vertexTable[tableIndex].items)
+        del self.vertexTable[tableIndex]
+        for dValue in self.vertexTable[tableIndex:]:
+            for item in dValue.items:
+                self.canvas.move(item, 0, - self.vertexTable.cellHeight)
         del self.vertices[vertexLabel]
 
     def makeEdgeWeightEntry(self, color, edge):

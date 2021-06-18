@@ -48,6 +48,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
             raise ValueError('Table only works with Visualization objects')
         super().__init__(args)
         self.app = visualizationApp
+        app = visualizationApp
         self.x0, self.y0 = origin
         self.VOrigin = V(origin)
         self.cellWidth, self.cellHeight = cellWidth, cellHeight
