@@ -25,7 +25,6 @@ class GraphBase(VisualizationApp):
     SELECTED_OUTLINE = 'purple3'
     ADJACENCY_MATRIX_FONT = ('Helvetica', -12)
     ADJACENCY_MATRIX_BG = 'old lace'
-    CANVAS_EXTERIOR = 'cyan'
     GRAPH_REGION_BACKGROUND = 'old lace'
     MATRIX_CELL_WIDTH = 20
     ACTIVE_VERTEX_OUTLINE_COLOR = 'blue'
@@ -69,24 +68,27 @@ class GraphBase(VisualizationApp):
     def nEdges(self):
         return len(self.edges) // (2 if self.bidirectionalEdges.get() else 1)
 
-    def createAdjacencyMatrixPanel(self):
-        self.canvasFrame['bg'] = self.CANVAS_EXTERIOR
-        self.adjacencyMatrixPanel = Frame(
-            self.canvasFrame, bg=self.ADJACENCY_MATRIX_BG)
-        self.adjacencyMatrixPanel.pack(
-            side=RIGHT, before=self.canvasVScroll, expand=False, fill=Y)
-        controlbar = Frame(self.adjacencyMatrixPanel)
-        controlbar.pack(side=TOP)
-        panelTitle = Label(controlbar, text='Adjacency\nMatrix',
+    def createAdjacencyMatrixPanel(
+            self, suffix=' Adjacency Matrix', anchor=SE):
+        newTitle = self.window.title() + suffix
+        self.adjacencyMatrixPanel = Toplevel()
+        self.adjacencyMatrixPanel.title(newTitle)
+        self.adjMatControlBar = Frame(self.adjacencyMatrixPanel)
+        self.adjMatControlBar.pack(side=TOP)
+        panelTitle = Label(self.adjMatControlBar, text='Adjacency\nMatrix',
                            font=self.ADJACENCY_MATRIX_FONT)
         panelTitle.pack(side=LEFT)
         self.matrixExpose = Button(
-            controlbar, text='X', font=self.ADJACENCY_MATRIX_FONT, 
+            self.adjMatControlBar, text='X', font=self.ADJACENCY_MATRIX_FONT, 
             command=self.toggleAdjacencyMatrixDisplay)
         self.matrixExpose.pack(side=LEFT, expand=False, fill=Y)
         self.adjMatrixFrame = Frame(
             self.adjacencyMatrixPanel, bg=self.ADJACENCY_MATRIX_BG)
         self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
+        
+        self.adjacencyMatrixPanel.transient(self.window)
+        self.adjacencyMatrixPanel.overrideredirect(True)
+        self.positionAdjacencyMatrix(anchor=anchor)
 
     def toggleAdjacencyMatrixDisplay(self):
         if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves():
@@ -95,6 +97,24 @@ class GraphBase(VisualizationApp):
         else:
             self.matrixExpose['text'] = 'X'
             self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
+        self.positionAdjacencyMatrix()
+
+    def positionAdjacencyMatrix(self, anchor=None):
+        if anchor is None: anchor = self.AdjacencyMatrixAnchor
+        self.AdjacencyMatrixAnchor = anchor
+        self.window.update_idletasks()
+        shown = (
+            self.adjMatrixFrame
+            if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves()
+            else self.adjMatControlBar)
+        w, h = max(70, shown.winfo_reqwidth()), max(15, shown.winfo_reqheight())
+        winW, winH, x0, y0  = self.widgetGeometry(self.window)
+        canW, canH = self.widgetDimensions(self.canvas)
+        x = x0 + (0 if W in anchor else canW - w if E in anchor else
+                  int(canW - w) // 2)
+        y = y0 + (0 if N in anchor else canH - h if S in anchor else
+                  int(canH - h) // 2)
+        self.adjacencyMatrixPanel.wm_geometry('+{}+{}'.format(x, y))
         
     def newGraph(self):
         self.allowUserMoves = False
@@ -160,7 +180,8 @@ class GraphBase(VisualizationApp):
             *coords, text=label, tags=tags + ('text', label),
             font=self.VERTEX_FONT, fill=self.VALUE_COLOR,
             activefill=self.ACTIVE_VERTEX_OUTLINE_COLOR)
-        self.canvas.tag_lower('vertex', 'edge')
+        if self.nEdges():
+            self.canvas.tag_lower('vertex', 'edge')
         items = (shape, text)
         startMoveHandler = self.startMoveHandler(label)
         moveHandler = self.moveHandler(label)
@@ -575,6 +596,7 @@ class GraphBase(VisualizationApp):
                            sticky=(N, E, S, W))
         self.nextID += 1
         self.setArgument(self.nextVertexLabel())
+        self.positionAdjacencyMatrix()
 
     def deleteVertex(self, vertexLabel):
         if not vertexLabel in self.vertices:
@@ -597,6 +619,7 @@ class GraphBase(VisualizationApp):
             for item in dValue.items:
                 self.canvas.move(item, 0, - self.vertexTable.cellHeight)
         del self.vertices[vertexLabel]
+        self.positionAdjacencyMatrix()
 
     def makeEdgeWeightEntry(self, color, edge):
         if self.weighted:

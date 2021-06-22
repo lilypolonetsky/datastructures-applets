@@ -197,10 +197,27 @@ class Visualization(object):  # Base class for Python visualizations
         
     # General Tk widget methods
     def widgetDimensions(self, widget):  # Get widget's (width, height)
-        geom = geom_delims.split(widget.winfo_geometry())
-        if geom[0] == '1' and geom[1] == '1':  # If not yet managed, use config
-            geom = (widget.config('width')[-1], widget.config('height')[-1])
-        return int(geom[0]), int(geom[1])
+        geom = self.widgetGeometry(widget) # Use config if not yet negotiated
+        return ((int(widget.config('width')[-1]), 
+                 int(widget.config('height')[-1]))
+                if geom[0] == 1 and geom[1] == 1 else geom[:2])
+
+    def widgetGeometry(self, widget, geom=None):
+        'Get widget geometry from <width>x<height><sign>x0<sign>y0 geom string'
+        if geom is None: geom = widget.winfo_geometry()
+        coords = tuple(int(p) if p.isdigit() else 0 for p in
+                       geom_delims.split(geom))
+        if '-' in geom:
+            delims = geom_delims.findall(geom)
+            if len(delims) == 3:
+                return (
+                    coords[0], coords[1],
+                    widget.winfo_screenwidth() - coords[2] if delims[1] == '-'
+                    else coords[2],
+                    widget.winfo_screenheight() - coords[3] if delims[2] == '-'
+                    else coords[3])
+        else:
+            return coords
 
     def widgetState(self, widget, state=None): # Get or set widget state
         if isinstance(widget, (ttk.Button,)):
