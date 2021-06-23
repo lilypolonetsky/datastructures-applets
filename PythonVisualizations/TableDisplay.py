@@ -59,8 +59,8 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.segmentGap = segmentGap
         self.label = label
         self.labelOffset = labelOffset
-        self.labelAnchor = ((S if direction > 0 else N) if vertical else
-                            (E if direction > 0 else W) if labelAnchor is None
+        self.labelAnchor = (((S if direction > 0 else N) if vertical else
+                             (E if direction > 0 else W)) if labelAnchor is None
                             else labelAnchor)
         self.labelFont = app.VARIABLE_FONT if labelFont is None else labelFont
         self.labelColor = (
@@ -86,7 +86,11 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.drawCells()
 
     def drawCells(self):
-        self.cells = [
+        while len(self.cells) > len(self):  # Remove any excess cells/indices
+            self.app.canvas.delete(self.cells.pop())
+            if len(self.indices) > len(self.cells):
+                self.app.canvas.delete(self.indices.pop())
+        self.cells = [                      # Create any needed new cells
             self.cells[j] if (
                 j < len(self.cells) and
                 self.app.canvas.type(self.cells[j]) == 'rectangle') else
@@ -94,7 +98,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
                 *self.arrayCellCoords(j), fill='', outline=self.cellBorderColor,
                 width=self.cellBorderWidth, tags=self.cellBorderTags)
             for j in range(len(self))]
-        if self.indicesFont and self.indicesColor:
+        if self.indicesFont and self.indicesColor: # Create any needed indices
             self.indices = [
                 self.indices[j] if (
                     j < len(self.indices) and
@@ -170,15 +174,18 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
     arraCellCenter = cellCenter
 
-    def append(self, item):
-        result = super().append(item)
-        self.drawCells()
-        return result
+    def updateCells(func):  # Wrapper to update cells after changes to list
+        def fWrapper(self, *args, **kwargs):
+            result = func(self, *args, **kwargs)
+            self.drawCells()
+            return result
+        return fWrapper
 
-    def extend(self, items):
-        result = super().extend(items)
-        self.drawCells()
-        return result
+    pop = updateCells(list.pop)
+    insert = updateCells(list.insert)
+    append = updateCells(list.append)
+    extend = updateCells(list.extend)
+    remove = updateCells(list.remove)
 
     def __delitem__(self, key):
         result = super().__delitem__(key)
@@ -250,7 +257,7 @@ if __name__ == '__main__':
                    vertical=False, segmentLength=7, cellHeight=40, 
                    segmentGap=90, cellBorderWidth=1)
     print('table3 contains:', table3)
-    extras = (True, False)
+    extras = (True, False, True)
     app.wait(0.5)
     
     table3.extend(extras)
@@ -269,21 +276,37 @@ if __name__ == '__main__':
     print('Filled in', count, 'table cells')
     app.wait(1)
 
+    while table3[0].val > 15:
+        print('Popping first item,', table3[0].val, ', off', table3.label)
+        app.moveItemsBy(table3[0].items, (-10, -table3.y0), sleepTime=0.02)
+        app.moveItemsTo(
+            flat(*(dv.items for dv in table3[1:])),
+            flat(*((table3.cellCoords(j), table3.cellCenter(j))
+                   for j in range(len(table3) - 1))), sleepTime=0.02)
+        table3.pop(0)
+    
     j = 0
     movedItems = []
     jArrowConfig = {'level': 1, 'orientation': -40}
     jArrow = table3.createLabeledArrow(
         table3.labeledArrowCoords(0, **jArrowConfig), 'j')
+    
     while j < len(table3):
         if isinstance(table3[j].val, bool):
-            print('Deleting cell', j, 'of table', table3.label)
+            print('Deleting cell', j, 'of table', table3.label, 'item',
+                  table3[j].val)
             movedItems.extend(table3[j].items)
-            app.moveItemsBy(movedItems, (50, 40), sleepTime=0.02)
+            app.moveItemsBy(movedItems, (table3.cellWidth, table3.cellHeight),
+                            sleepTime=0.02)
             del table3[j]
         else:
             j += 1
             app.moveItemsTo(
                 jArrow, table3.labeledArrowCoords(j, **jArrowConfig),
                 sleepTime=0.02)
+
+    print('Contents of table3, ', table3.label, ':')
+    for j in range(len(table3)):
+        print('{:3d}: {}'.format(j, table3[j]))
         
     app.runVisualization()
