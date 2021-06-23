@@ -15,6 +15,13 @@ except ModuleNotFoundError:
 
 V = vector
 
+def updateCells(func):  # Wrapper to update cells after changes to Table array
+    def fWrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        self.drawCells()
+        return result
+    return fWrapper
+
 class Table(list):     # Display a table (array/list) in a visualization app
 
     def __init__(  # Constructor
@@ -176,13 +183,6 @@ class Table(list):     # Display a table (array/list) in a visualization app
                 cell0[side + 1] - gap if self.vertical else center[1])
 
     arrayCellCenter = cellCenter
-
-    def updateCells(func):  # Wrapper to update cells after changes to list
-        def fWrapper(self, *args, **kwargs):
-            result = func(self, *args, **kwargs)
-            self.drawCells()
-            return result
-        return fWrapper
 
     pop = updateCells(list.pop)
     insert = updateCells(list.insert)
