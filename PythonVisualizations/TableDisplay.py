@@ -108,18 +108,21 @@ class Table(list):     # Display a table (array/list) in a visualization app
                     anchor=E if self.vertical else S, font=self.indicesFont,
                     fill=self.indicesColor, tags=self.indicesTags)
                 for j in range(len(self))]
-        for cell in self.indices:
+        for textItem in self.indices:
             for event, handler in self.eventHandlers:
                 if (callable(handler) and hasattr(Table, handler.__name__) and
                     callable(getattr(self, handler.__name__)())):
                     handler = getattr(self, handler.__name__)()
-                self.app.canvas.tag_bind(cell, event, handler)
+                self.app.canvas.tag_bind(textItem, event, handler)
 
     def drawLabel(self):
         self.labelItem = self.app.canvas.create_text(
             *self.labelCoords(), anchor=self.labelAnchor, text=self.label,
             fill=self.labelColor, font=self.labelFont)
 
+    def items(self):       # Tuple of all canvas items being used
+        return self.labelItem, *self.cells, *self.indices
+    
     def cellCoords(self, indexOrCoords):
         if isinstance(indexOrCoords, int):
             row = (indexOrCoords // self.segmentLength) * self.direction
@@ -172,7 +175,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return (center[0] if self.vertical else cell0[side] - gap,
                 cell0[side + 1] - gap if self.vertical else center[1])
 
-    arraCellCenter = cellCenter
+    arrayCellCenter = cellCenter
 
     def updateCells(func):  # Wrapper to update cells after changes to list
         def fWrapper(self, *args, **kwargs):
@@ -278,7 +281,8 @@ if __name__ == '__main__':
 
     while table3[0].val > 15:
         print('Popping first item,', table3[0].val, ', off', table3.label)
-        app.moveItemsBy(table3[0].items, (-10, -table3.y0), sleepTime=0.02)
+        app.moveItemsBy(table3[0].items, (-3 * len(table3), -table3.y0),
+                        sleepTime=0.02)
         app.moveItemsTo(
             flat(*(dv.items for dv in table3[1:])),
             flat(*((table3.cellCoords(j), table3.cellCenter(j))
@@ -308,5 +312,9 @@ if __name__ == '__main__':
     print('Contents of table3, ', table3.label, ':')
     for j in range(len(table3)):
         print('{:3d}: {}'.format(j, table3[j]))
+    for tbl in (table2, table3):
+        print('The', len(tbl.items()), 
+              'canvas items used to draw the cells and label of the',
+              tbl.label, 'table are:', tbl.items())
         
     app.runVisualization()
