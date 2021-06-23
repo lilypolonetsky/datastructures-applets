@@ -199,18 +199,19 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return result
 
     def createLabeledArrow(
-            self, labeledArrowCoords, label, color=None, font=None, width=1,
-            anchor=None, tags=('arrow',)):
+            self, labeledArrowIndexOrCoords, label, color=None, font=None,
+            width=1, anchor=None, tags=('arrow',), **kwargs):
         if color is None: color = self.labeledArrowColor
         if font is None: font = self.labeledArrowFont
+        coords = (self.labeledArrowCoords(labeledArrowIndexOrCoords, **kwargs)
+                  if isinstance(labeledArrowIndexOrCoords, int) else
+                  labeledArrowIndexOrCoords)
         if anchor is None: 
-            anchor = self.labeledArrowAnchor(labeledArrowCoords[0])
+            anchor = self.labeledArrowAnchor(coords[0])
         arrow = self.app.canvas.create_line(
-            *labeledArrowCoords[0], arrow=LAST, fill=color, width=width,
-            tags=tags)
+            *coords[0], arrow=LAST, fill=color, width=width, tags=tags)
         text = self.app.canvas.create_text(
-            *labeledArrowCoords[1], anchor=anchor, text=label, fill=color,
-            tags=tags)
+            *coords[1], anchor=anchor, text=label, fill=color, tags=tags)
         return arrow, text
 
     def labeledArrowAnchor(self, arrowCoords):
@@ -250,8 +251,7 @@ if __name__ == '__main__':
                    eventHandlerPairs=(('<Button-1>', 
                                        Table.populateArgWithCellIndexHandler),))
     print('table2 contains:', table2)
-    l1arrow = table2.createLabeledArrow(
-        table2.labeledArrowCoords(1, level=-1), 'level -1')
+    l1arrow = table2.createLabeledArrow(1, 'level -1', level=-1)
     l2arrow = table2.createLabeledArrow(
         table2.labeledArrowCoords(2, level=2), 'level 2')
 
@@ -292,8 +292,7 @@ if __name__ == '__main__':
     j = 0
     movedItems = []
     jArrowConfig = {'level': 1, 'orientation': -40}
-    jArrow = table3.createLabeledArrow(
-        table3.labeledArrowCoords(0, **jArrowConfig), 'j')
+    jArrow = table3.createLabeledArrow(0, 'j', **jArrowConfig)
     
     while j < len(table3):
         if isinstance(table3[j].val, bool):
