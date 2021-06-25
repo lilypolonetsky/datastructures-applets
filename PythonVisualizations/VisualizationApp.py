@@ -698,7 +698,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             color = self.CODE_HIGHLIGHT
         if isinstance(fragments, (list, tuple)):
             if (len(fragments) == 2 and   # Look for (str, int) pair
-                isinstance(fragments[0], (str, type(geom_delims))) and
+                isinstance(fragments[0], (str, type(geometryPattern))) and
                 isinstance(fragments[1], int)):
                 frags = [tuple(fragments)] # Look up by (str, int) tuple
             else:
