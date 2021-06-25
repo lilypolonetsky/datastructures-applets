@@ -45,7 +45,7 @@ class GraphBase(VisualizationApp):
                                       kwargs.get('canvasHeight', 400))
         super().__init__(**kwargs)
         if graphRegion is None:
-            graphRegion = V(self.canvasBounds) - V(0, 0, 120, 100)
+            graphRegion = V(self.canvasBounds) - V(0, 0, 140, 100)
         self.graphRegion = graphRegion
         self.weighted = weighted
         self.weightValidate = (self.window.register(numericValidate),
@@ -53,6 +53,10 @@ class GraphBase(VisualizationApp):
         self.createAdjacencyMatrixPanel()
         self.buttons = self.makeButtons()
         self.newGraph()
+        self.window.bind('<Configure>', self.reconfigureHandler())
+        mapHandler = self.mapHandler()
+        for event in ('<Map>', '<Unmap>'):
+            self.window.bind(event, mapHandler)
     
     def __str__(self):
         verts = self.nVertices()
@@ -62,7 +66,23 @@ class GraphBase(VisualizationApp):
             'bidirectional ' if self.bidirectionalEdges.get() else '',
             '' if edges == 1 else 's')
 
-    def nVerticess(self):
+    def reconfigureHandler(self):
+        def reconfigHandler(event):
+            if event.widget == self.window:
+                self.positionAdjacencyMatrix()
+        return reconfigHandler
+
+    def mapHandler(self):
+        def map_handler(event):
+            if event.widget == self.window:
+                if event.type == EventType.Map:
+                    self.adjacencyMatrixPanel.deiconify()
+                    self.positionAdjacencyMatrix()
+                elif event.type == EventType.Unmap:
+                    self.adjacencyMatrixPanel.withdraw()
+        return map_handler
+    
+    def nVertices(self):
         return len(self.vertices)
 
     def nEdges(self):
@@ -70,7 +90,7 @@ class GraphBase(VisualizationApp):
 
     def createAdjacencyMatrixPanel(
             self, suffix=' Adjacency Matrix', anchor=SE):
-        newTitle = self.window.title() + suffix
+        newTitle = self.title + suffix
         self.adjacencyMatrixPanel = Toplevel()
         self.adjacencyMatrixPanel.title(newTitle)
         self.adjMatControlBar = Frame(self.adjacencyMatrixPanel)
@@ -85,10 +105,14 @@ class GraphBase(VisualizationApp):
         self.adjMatrixFrame = Frame(
             self.adjacencyMatrixPanel, bg=self.ADJACENCY_MATRIX_BG)
         self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
-        
+
         self.adjacencyMatrixPanel.transient(self.window)
         self.adjacencyMatrixPanel.overrideredirect(True)
-        self.positionAdjacencyMatrix(anchor=anchor)
+        if hasattr(self.window, 'title'):  # If top window is exposed
+            self.positionAdjacencyMatrix(anchor=anchor)
+        else:                              # otherwise hide until it is exposed
+            self.adjacencyMatrixAnchor = anchor
+            self.adjacencyMatrixPanel.withdraw()
 
     def toggleAdjacencyMatrixDisplay(self):
         if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves():
@@ -100,15 +124,15 @@ class GraphBase(VisualizationApp):
         self.positionAdjacencyMatrix()
 
     def positionAdjacencyMatrix(self, anchor=None):
-        if anchor is None: anchor = self.AdjacencyMatrixAnchor
-        self.AdjacencyMatrixAnchor = anchor
+        if anchor is None: anchor = self.adjacencyMatrixAnchor
+        self.adjacencyMatrixAnchor = anchor
         self.window.update_idletasks()
         shown = (
             self.adjMatrixFrame
             if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves()
             else self.adjMatControlBar)
-        w, h = max(70, shown.winfo_reqwidth()), max(15, shown.winfo_reqheight())
-        winW, winH, x0, y0  = self.widgetGeometry(self.window)
+        w, h = max(80, shown.winfo_reqwidth()), max(10, shown.winfo_reqheight())
+        winW, winH, x0, y0  = self.widgetGeometry(self.window.winfo_toplevel())
         canW, canH = self.widgetDimensions(self.canvas)
         x = x0 + (0 if W in anchor else canW - w if E in anchor else
                   int(canW - w) // 2)
@@ -147,8 +171,9 @@ class GraphBase(VisualizationApp):
         self.canvas.tag_bind(self.graphRegionRectangle, '<Double-Button-1>',
                              self.newVertexHandler())
         self.vertexTable = Table(
-            self, (self.graphRegion[2] + 40, 40), label='_vertices',
-            vertical=True, cellHeight=self.VERTEX_RADIUS,
+            self, (self.graphRegion[2] + 50, 40), label='_vertices',
+            vertical=True, cellHeight=self.VERTEX_RADIUS, labelAnchor=SE,
+            labelFont=(self.VARIABLE_FONT[0], -12),
             cellWidth=self.VERTEX_RADIUS * 3 // 2, cellBorderWidth=1)
         self.allowUserMoves = True
         self.window.update()
@@ -225,6 +250,46 @@ class GraphBase(VisualizationApp):
         p2 = V(tip) + V(V(V(V(inflection) - V(tip)).unit()) * removeRadius)
         steps = int(max(abs(delta[0]), abs(delta[1]), 5))
         return p0, p1, p2, steps, weightCenter
+
+    def createLabeledArrow(
+            self, vertexOrCoords, label, color=None, font=None,
+            width=1, anchor=None, tags=('arrow',), **kwargs):
+        if color is None: color = 'black'
+        if font is None: font = self.VARIABLE_FONT
+        coords = (self.labeledArrowCoords(vertexOrCoords, **kwargs)
+                  if isinstance(vertexOrCoords, (int, str)) or
+                  (isinstance(vertexOrCoords, (list, tuple)) and
+                   len(vertexOrCoords) == 2 and
+                   isinstance(vertexOrCoords[0], (int, float)))
+                  else vertexOrCoords)
+        if anchor is None: 
+            anchor = self.labeledArrowAnchor(coords[0])
+        arrow = self.canvas.create_line(
+            *coords[0], arrow=LAST, fill=color, width=width, tags=tags)
+        text = self.canvas.create_text(
+            *coords[1], anchor=anchor, text=label, fill=color, tags=tags)
+        return arrow, text
+
+    def labeledArrowAnchor(self, arrowCoords):
+        dx, dy = V(arrowCoords[2:]) - V(arrowCoords[:2])
+        return (W if dx < 0 else E) if abs(dx) > abs(dy) else (
+            N if dy < 0 else S)
+
+    def labeledArrowCoords(
+            self, vertexOrCoords, level=1, orientation=0, offset=5):
+        center = (self.canvas_coords(self.vertices[vertexOrCoords].items[1])
+                  if isinstance(vertexOrCoords, str) else
+                  self.canvas_coords(self.vertices[
+                      self.vertexTable[vertexOrCoords].val].items[1])
+                  if isinstance(vertexOrCoords, int) and 
+                  vertexOrCoords < len(self.vertexTable) else
+                  vertexOrCoords)
+        Vrad = V(V(0, self.VERTEX_RADIUS + offset).rotate(orientation))
+        tip = V(center) - Vrad
+        Vdelta = V(
+            V(0, abs(level) * abs(self.VARIABLE_FONT[1])).rotate(orientation))
+        base = V(tip) - Vdelta
+        return base + tip, base
        
     def startMoveHandler(self, vertexLabel):
         def startHandler(event):
@@ -502,7 +567,7 @@ class GraphBase(VisualizationApp):
                           .format(event.serial, edge, self.allowUserMoves))
                 return
             self.enableButtons(False)
-            self.changeEdgeWeight(*edge, 0)
+            self.edgeWeight(*edge, 0)
             self.enableButtons(True)
             self.setMessage('Deleted edge {}'.format(edge))
             if self.DEBUG:
@@ -605,14 +670,14 @@ class GraphBase(VisualizationApp):
         if self.selectedVertex and self.selectedVertex[0] == vertexLabel:
             self.selectVertex(None)
         for edge in self.findEdges(vertexLabel):
-            self.changeEdgeWeight(*edge, 0)
+            self.edgeWeight(*edge, 0)
         vertex = self.vertices[vertexLabel]
         ID = vertex.val[1]
         adjMatrixWidgets = gridDict(self.adjMatrixFrame)
         for row, column in adjMatrixWidgets:
             if row == ID or (column == ID and row != ID):
                 adjMatrixWidgets[row, column].grid_forget()
-        tableIndex = [dv.val for dv in self.vertexTable].index(vertexLabel)
+        tableIndex = self.getVertexIndex(vertexLabel)
         self.dispose({}, *vertex.items, *self.vertexTable[tableIndex].items)
         del self.vertexTable[tableIndex]
         for dValue in self.vertexTable[tableIndex:]:
@@ -620,6 +685,9 @@ class GraphBase(VisualizationApp):
                 self.canvas.move(item, 0, - self.vertexTable.cellHeight)
         del self.vertices[vertexLabel]
         self.positionAdjacencyMatrix()
+
+    def getVertexIndex(self, label):
+        return [dv.val for dv in self.vertexTable].index(label)
 
     def makeEdgeWeightEntry(self, color, edge):
         if self.weighted:
@@ -629,14 +697,14 @@ class GraphBase(VisualizationApp):
                           takefocus=False, validate='key', 
                           validatecommand=self.weightValidate)
             def edgeWeightChange(event):
-                self.changeEdgeWeight(*edge, self.getWeight(entry))
+                self.edgeWeight(*edge, self.weight(entry))
             entry.bind('<KeyRelease>', edgeWeightChange)
         else:
             def toggleEdge():
                 entry = self.adjMat[edge]
                 if entry:
                     self.enableButtons(False)
-                    self.changeEdgeWeight(*edge, 0 if entry['text'] else 1)
+                    self.edgeWeight(*edge, 0 if entry['text'] else 1)
                     self.enableButtons(True)
             entry = Button(self.adjMatrixFrame, bg=color,
                            text='', font=self.ADJACENCY_MATRIX_FONT,
@@ -692,8 +760,16 @@ class GraphBase(VisualizationApp):
             (inbound and edge[1] == vertex or outbound and edge[0] == vertex)
             and (not unique or self.edges[edge].val == edge)]
 
-    def changeEdgeWeight(self, fromVert, toVert, weight):
+    def edgeWeight(self, fromVert, toVert, weight=None):
+        'Get or set the weight of the edge from one vertex to another'
         edge = (fromVert, toVert)
+        if weight is None:   # When no weight provided, get existing weight
+            if edge in self.adjMat:
+                return self.weight(self.adjMat[edge])
+            else:
+                raise Exception('Missing adjacency matrix entry {}->{}'.format(
+                    *edge))
+            
         reverseEdge = (toVert, fromVert)
         edges = (edge, reverseEdge) if self.bidirectionalEdges.get() else (edge,)
         for ed in edges:
@@ -728,7 +804,7 @@ class GraphBase(VisualizationApp):
         reverseEdge = (toVert, fromVert)
         if self.bidirectionalEdges.get():
             self.edges[reverseEdge] = self.edges[edgeKey]
-        self.changeEdgeWeight(fromVert, toVert, weight)
+        self.edgeWeight(fromVert, toVert, weight)
 
     def nextVertexLabel(self, label=None):
         if label is None:
