@@ -159,7 +159,8 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return (cell[0] - self.indicesOffset, center[1]) if self.vertical else (
             center[0], cell[1] - self.indicesOffset)
 
-    def labeledArrowCoords(self, indexOrCoords, level=1, orientation=0):
+    def labeledArrowCoords(
+            self, indexOrCoords, level=1, orientation=0, **kwargs):
         cell = self.cellCoords(indexOrCoords)
         center = BBoxCenter(cell)
         gap = (-1 if level < 0 else 1) * (
