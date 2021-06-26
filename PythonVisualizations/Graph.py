@@ -187,6 +187,7 @@ def depthFirst(self, n={nVal}):
         nArrowConfig = {'level': 1, 'anchor': SE}
         nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
         callEnviron |= set(nArrow)
+        localVars = nArrow
         
         if code:
             self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
@@ -236,6 +237,7 @@ def depthFirst(self, n={nVal}):
         visitArrow, visitArrowConfig = None, {'level': 1, 'orientation': -30}
         jArrowConfig = {'level': 2, 'anchor': SE}
         vertArrow, adjArrow, jArrow = None, None, None
+        lowerRight = V(self.graphRegion[2:]) + V((self.VERTEX_RADIUS,) * 2)
         while len(stack) > 0:
             visitLabel = stack[-1].val
             visit = self.getVertexIndex(visitLabel)
@@ -251,8 +253,9 @@ def depthFirst(self, n={nVal}):
                 else:
                     self.moveItemsTo(
                         visitArrow + vertArrow,
-                        stack.labeledArrowCoords(len(stack) - 1) +
-                        self.labeledArrowCoords(visit),
+                        stack.labeledArrowCoords(len(stack) - 1, 
+                                                 **visitArrowConfig) +
+                        self.labeledArrowCoords(visit, **visitArrowConfig),
                         sleepTime=wait / 10)
 
             adj = None
@@ -260,15 +263,16 @@ def depthFirst(self, n={nVal}):
                 self.highlightCode('adj = None', callEnviron, wait=wait)
                 if adjArrow is None:
                     adjArrow = self.createLabeledArrow(
-                        self.graphRegion[2:], 'adj', **visitArrowConfig)
+                        lowerRight, 'adj', **visitArrowConfig)
                     callEnviron |= set(adjArrow)
                 else:
                     self.moveItemsTo(
-                        adjArrow, self.labeledArrowCoords(self.graphRegion[2:],
+                        adjArrow, self.labeledArrowCoords(lowerRight,
                                                           **visitArrowConfig),
                         sleepTime=wait / 10)
                 self.highlightCode(self.innerLoopIterator, callEnviron,
                                    wait=wait)
+                colors = self.fadeNonLocalItems(localVars)
 
             for j in self.adjacentUnvisitedVertices(
                     visit, visited, wait=wait,
@@ -276,10 +280,14 @@ def depthFirst(self, n={nVal}):
                 adj = j
                 adjVertex = self.vertexTable[j].val
                 if code:
+                    self.restoreLocalItems(localVars, colors)
                     if jArrow is None:
                         jArrow = self.vertexTable.createLabeledArrow(
                             j, 'j', **jArrowConfig)
                         callEnviron |= set(jArrow)
+                        localVars += jArrow
+                        colors += tuple(self.canvas_itemConfig(i, 'fill')
+                                        for i in jArrow)
                     else:
                         self.moveItemsTo(
                             jArrow, self.vertexTable.labeledArrowCoords(
@@ -294,6 +302,7 @@ def depthFirst(self, n={nVal}):
                 break
 
             if code:
+                self.restoreLocalItems(localVars, colors)
                 self.highlightCode('adj is not None', callEnviron, wait=wait)
                 if adj is not None:
                     self.highlightCode('stack.push(adj)', callEnviron,
@@ -328,6 +337,7 @@ def depthFirst(self, n={nVal}):
                 self.highlightCode('not stack.isEmpty()', callEnviron)
 
         if code:
+            self.restoreLocalItems(localVars, colors)
             self.highlightCode((), callEnviron)
         self.cleanUp(callEnviron)
 
@@ -412,6 +422,8 @@ for vertex{vars} in graph.{order}First(start={startVal}):
                 **locals()))
         vertexArrow, vertexArrowConfig, localVars, colors = None, {}, (), {}
         self.highlightCode(iterator, callEnviron, wait=wait)
+
+        output = 0
         
         for thing in (
                 self.depthFirst if order == 'depth' else self.breadthFirst)(
@@ -419,6 +431,10 @@ for vertex{vars} in graph.{order}First(start={startVal}):
             self.restoreLocalItems(localVars, colors)
             vertex = thing[0] if order == 'depth' else thing
             vertexLabel = self.vertexTable[vertex].val
+            path = thing[1] if order == 'depth' else ()
+            edgesInPath = [
+                self.edges[path[v].val, path[v + 1].val].items[0]
+                for v in range(len(path) - 1)]
             if vertexArrow is None:
                 vertexArrow = self.vertexTable.createLabeledArrow(
                     vertex, 'vertex', **vertexArrowConfig)
@@ -427,13 +443,26 @@ for vertex{vars} in graph.{order}First(start={startVal}):
             else:
                 self.moveItemsTo(
                     vertexArrow, 
-                    self.labeledArrowCoords(vertex, **vertexArrowConfig),
-                    sleepTime=wait / 10)
+                    self.vertexTable.labeledArrowCoords(
+                        vertex, **vertexArrowConfig), sleepTime=wait / 10)
+            for edge in edgesInPath:
+                self.canvas.itemconfigure(
+                    edge, width=self.ACTIVE_EDGE_WIDTH,
+                    fill=self.ACTIVE_EDGE_COLOR)
             self.highlightCode('print(graph.getVertex(vertex))', callEnviron,
                                wait=wait)
-            print(vertexLabel)
+            copy = self.copyCanvasItem(self.vertices[vertexLabel].items[1])
+            callEnviron.add(copy)
+            self.moveItemsTo(
+                copy, V(self.graphRegion[2:]) + V(-150 + output, 20),
+                             sleepTime=wait/ 10)
+            output += self.textWidth(self.VALUE_FONT, 
+                                     self.canvas_itemConfig(copy, 'text') + ' ')
 
             self.highlightCode(iterator, callEnviron, wait=wait)
+            for edge in edgesInPath:
+                self.canvas.itemconfigure(
+                    edge, width=self.EDGE_WIDTH, fill=self.EDGE_COLOR)
             colors = self.fadeNonLocalItems(localVars)
             
         if code:

@@ -29,6 +29,7 @@ class GraphBase(VisualizationApp):
     MATRIX_CELL_WIDTH = 20
     ACTIVE_VERTEX_OUTLINE_COLOR = 'blue'
     ACTIVE_VERTEX_OUTLINE_WIDTH = 1
+    EDGE_WIDTH = 1
     EDGE_COLOR = 'black'
     ACTIVE_EDGE_COLOR = 'blue'
     ACTIVE_EDGE_WIDTH = 3
@@ -45,7 +46,7 @@ class GraphBase(VisualizationApp):
                                       kwargs.get('canvasHeight', 400))
         super().__init__(**kwargs)
         if graphRegion is None:
-            graphRegion = V(self.canvasBounds) - V(0, 0, 140, 100)
+            graphRegion = V(self.canvasBounds) - V(0, -30, 140, 100)
         self.graphRegion = graphRegion
         self.weighted = weighted
         self.weightValidate = (self.window.register(numericValidate),
@@ -224,7 +225,7 @@ class GraphBase(VisualizationApp):
         p0, p1, p2, steps, weightCenter = self.edgeCoords(
             base, tip, removeRadius=removeRadius)
         line = self.canvas.create_line(
-            *p0, *p1, *p2, width=1, fill=self.EDGE_COLOR,
+            *p0, *p1, *p2, width=self.EDGE_WIDTH, fill=self.EDGE_COLOR,
             arrow=None if self.bidirectionalEdges.get() else LAST,
             activefill=self.ACTIVE_EDGE_COLOR, tags=tags + ('line',),
             activewidth=self.ACTIVE_EDGE_WIDTH, splinesteps=steps, smooth=True)
