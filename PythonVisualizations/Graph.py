@@ -500,7 +500,7 @@ if __name__ == '__main__':
         else:
             graph.setArgument(arg)
             graph.newVertexButton.invoke()
-        for fromVert, toVert in edges:
-            graph.createEdge(fromVert, toVert, 1)
+    for fromVert, toVert in edges:
+        graph.createEdge(fromVert, toVert, 1)
         
     graph.runVisualization()

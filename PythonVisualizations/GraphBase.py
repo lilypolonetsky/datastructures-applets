@@ -763,35 +763,31 @@ class GraphBase(VisualizationApp):
     def edgeWeight(self, fromVert, toVert, weight=None):
         'Get or set the weight of the edge from one vertex to another'
         edge = (fromVert, toVert)
-        if weight is None:   # When no weight provided, get existing weight
-            if edge in self.adjMat:
-                return self.weight(self.adjMat[edge])
-            else:
-                raise Exception('Missing adjacency matrix entry {}->{}'.format(
-                    *edge))
-            
-        reverseEdge = (toVert, fromVert)
-        edges = (edge, reverseEdge) if self.bidirectionalEdges.get() else (edge,)
+        revEdge = (toVert, fromVert)
+        edges = (edge, revEdge) if (
+            self.bidirectionalEdges.get() and weight is not None) else (edge,)
         for ed in edges:
-            if ed not in self.adjMat:
+            if ed not in self.adjMat and (weight is None or weight == 0):
                 raise Exception('Missing adjacency matrix entry {}->{}'.format(
                     *ed))
-            self.weight(self.adjMat[ed], weight)
+            self.weight(self.adjMat[ed], weight)  # Set weight in adj matrix
+        if weight is None:   # When no weight provided, return existing weight
+            return self.weight(self.adjMat[edge])
 
-        if weight > 0:
+        if weight > 0:         # For new/updated edges, update canvas display
             if edge not in self.edges:
                 self.createEdge(fromVert, toVert, weight)
             else:
                 self.canvas.itemconfigure(
                     self.edges[edge].items[1],
                     text=str(weight) if self.weighted else '')
-        else:
+        else:                  # weight == 0 means edge is deleted
             if edge in self.edges:
                 self.dispose({}, *self.edges[edge].items)
                 del self.edges[edge]
-            if self.bidirectionalEdges.get() and reverseEdge in self.edges:
-                self.dispose({}, *self.edges[reverseEdge].items)
-                del self.edges[reverseEdge]
+            if self.bidirectionalEdges.get() and revEdge in self.edges:
+                self.dispose({}, *self.edges[revEdge].items)
+                del self.edges[revEdge]
                     
     def createEdge(self, fromVert, toVert, weight=1, tags=('edge',)):
         edgeKey = (fromVert, toVert)
@@ -801,9 +797,8 @@ class GraphBase(VisualizationApp):
             edgeKey, *self.createEdgeItems(
                 centers[0], centers[1], weight=weight, tags=tags,
                 edgePair=edgeKey))
-        reverseEdge = (toVert, fromVert)
         if self.bidirectionalEdges.get():
-            self.edges[reverseEdge] = self.edges[edgeKey]
+            self.edges[toVert, fromVert] = self.edges[edgeKey]
         self.edgeWeight(fromVert, toVert, weight)
 
     def nextVertexLabel(self, label=None):
