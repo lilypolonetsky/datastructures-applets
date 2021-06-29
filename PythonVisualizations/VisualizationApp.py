@@ -835,12 +835,13 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                       if self.canvasBounds else 
                       self.widgetDimensions(self.canvas))
         away = V(canvasDims) * 10
+        itemOrder = self.canvas.find_all()
         for item in callEnviron:
             if isinstance(item, int) and self.canvas.type(item):
                 coords = self.canvas.coords(item)
                 if any(self.withinCanvas((coords[j], coords[j + 1]))
                        for j in range(0, len(coords), 2)):
-                    itemCoords[item] = coords
+                    itemCoords[item] = (coords, itemOrder.index(item))
                     self.canvas.coords(item, V(coords) +
                                        V(away * (len(coords) // 2)))
         return itemCoords
@@ -853,8 +854,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                           addBoundary=True, allowStepping=False)
             codeBlock.markStart()
             self.highlightCode(codeBlock.currentFragments, callEnviron, wait=0)
-        for item in itemCoords:
-            self.canvas.coords(item, *itemCoords[item])
+        for item in sorted(itemCoords.keys(), key=lambda x: itemCoords[x][1]):
+            self.canvas.coords(item, *itemCoords[item][0])
             self.canvas.tag_raise(item)
 
     def callStackHighlights(self):
