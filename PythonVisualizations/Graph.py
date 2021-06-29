@@ -17,6 +17,7 @@ class Graph(GraphBase):
     VISITED_COLORS = {False: 'light coral' , 0: 'light coral' , 
                       True: 'green3', 1: 'green3'}
     VISITED_HIGHLIGHT_COLOR = 'yellow'
+    EDGE_HIGHLIGHT_PAD = 5
 
     def vertexIndices(self):
       return range(self.nVertices()) # Same as range up to nVertices
@@ -45,6 +46,7 @@ def adjacentVertices(self, n={nVal}):
         jArrowConfig = {'level': 2, 'anchor': SE}
         jArrow = None
         for j in self.vertexIndices():
+            jLabel = self.vertexTable[j].val
             if code:
                 if jArrow is None:
                     jArrow = self.vertexTable.createLabeledArrow(
@@ -57,9 +59,13 @@ def adjacentVertices(self, n={nVal}):
                         sleepTime=wait / 10)
                 self.highlightCode('j != n', callEnviron, wait=wait)
                 if j != n:
+                    edgeEntry = self.adjMat[nLabel, jLabel]
+                    edgeEntry.grid(padx=self.EDGE_HIGHLIGHT_PAD,
+                                   pady=self.EDGE_HIGHLIGHT_PAD)
                     self.highlightCode('self.hasEdge(n, j)', callEnviron,
                                        wait=wait)
-            jLabel = self.vertexTable[j].val
+                    edgeEntry.grid(padx=0, pady=0)
+                    
             if j != n and self.edgeWeight(nLabel, jLabel):
                 if code:
                     self.highlightCode('yield j', callEnviron)

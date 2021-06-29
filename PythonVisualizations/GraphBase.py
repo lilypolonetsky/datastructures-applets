@@ -24,7 +24,7 @@ class GraphBase(VisualizationApp):
     SELECTED_COLOR = 'white'
     SELECTED_OUTLINE = 'purple3'
     ADJACENCY_MATRIX_FONT = ('Helvetica', -12)
-    ADJACENCY_MATRIX_BG = 'old lace'
+    ADJACENCY_MATRIX_BG = 'red3'
     GRAPH_REGION_BACKGROUND = 'old lace'
     MATRIX_CELL_WIDTH = 20
     ACTIVE_VERTEX_OUTLINE_COLOR = 'blue'
