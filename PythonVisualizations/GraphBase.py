@@ -159,6 +159,8 @@ class GraphBase(VisualizationApp):
 
         for cell in self.adjMatrixFrame.grid_slaves():
             cell.grid_forget()
+        self.adjMatrix00 = Frame(self.adjMatrixFrame, bg='white')
+        self.adjMatrix00.grid(row=0, column=0, sticky=(N, E, S, W))
         self.selectedVertex = None
         self.dragItems = None
         self.nextID = 1
