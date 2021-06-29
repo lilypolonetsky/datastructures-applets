@@ -1,5 +1,5 @@
 from tkinter import *
-import random, re
+import re
 
 try:
     from GraphBase import *
@@ -234,9 +234,11 @@ def depthFirst(self, n={nVal}):
             self.resumeCallEnvironment(callEnviron, itemCoords)
             self.highlightCode('not stack.isEmpty()', callEnviron)
 
-        visitArrow, visitArrowConfig = None, {'level': 1, 'orientation': -30}
+        visitArrow = None
+        visitArrowConfig = {'level': 1, 'orientation': -30, 'anchor': SE}
         jArrowConfig = {'level': 2, 'anchor': SE}
         vertArrow, adjArrow, jArrow = None, None, None
+        adjArrowConfig = {'level': 1, 'orientation': -30, 'anchor': SW}
         lowerRight = V(self.graphRegion[2:]) + V((self.VERTEX_RADIUS,) * 2)
         while len(stack) > 0:
             visitLabel = stack[-1].val
@@ -250,6 +252,7 @@ def depthFirst(self, n={nVal}):
                     vertArrow = self.createLabeledArrow(
                         visitLabel, 'visit', **visitArrowConfig)
                     callEnviron |= set(visitArrow + vertArrow)
+                    localVars += visitArrow + vertArrow
                 else:
                     self.moveItemsTo(
                         visitArrow + vertArrow,
@@ -263,12 +266,13 @@ def depthFirst(self, n={nVal}):
                 self.highlightCode('adj = None', callEnviron, wait=wait)
                 if adjArrow is None:
                     adjArrow = self.createLabeledArrow(
-                        lowerRight, 'adj', **visitArrowConfig)
+                        lowerRight, 'adj', **adjArrowConfig)
                     callEnviron |= set(adjArrow)
+                    localVars += adjArrow
                 else:
                     self.moveItemsTo(
                         adjArrow, self.labeledArrowCoords(lowerRight,
-                                                          **visitArrowConfig),
+                                                          **adjArrowConfig),
                         sleepTime=wait / 10)
                 self.highlightCode(self.innerLoopIterator, callEnviron,
                                    wait=wait)
@@ -296,7 +300,7 @@ def depthFirst(self, n={nVal}):
                     self.highlightCode('adj = j', callEnviron, wait=wait)
                     self.moveItemsTo(
                         adjArrow, self.labeledArrowCoords(adjVertex,
-                                                          **visitArrowConfig),
+                                                          **adjArrowConfig),
                         sleepTime=wait / 10)
                     self.highlightCode('break', callEnviron, wait=wait)
                 break
@@ -337,7 +341,6 @@ def depthFirst(self, n={nVal}):
                 self.highlightCode('not stack.isEmpty()', callEnviron)
 
         if code:
-            self.restoreLocalItems(localVars, colors)
             self.highlightCode((), callEnviron)
         self.cleanUp(callEnviron)
 

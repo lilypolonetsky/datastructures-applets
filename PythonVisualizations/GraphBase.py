@@ -277,7 +277,7 @@ class GraphBase(VisualizationApp):
             N if dy < 0 else S)
 
     def labeledArrowCoords(
-            self, vertexOrCoords, level=1, orientation=0, offset=5):
+            self, vertexOrCoords, level=1, orientation=0, offset=5, **kwargs):
         center = (self.canvas_coords(self.vertices[vertexOrCoords].items[1])
                   if isinstance(vertexOrCoords, str) else
                   self.canvas_coords(self.vertices[
