@@ -4,9 +4,11 @@ import re
 try:
     from GraphBase import *
     from TableDisplay import *
+    from OutputBox import *
 except ModuleNotFoundError:
     from .GraphBase import *
     from .TableDisplay import *
+    from .OutputBox import *
 
 V = vector
 
@@ -420,14 +422,19 @@ for vertex{vars} in graph.{order}First(start={startVal}):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
 
+        visible = self.visibleCanvas()
+        outputBox = OutputBox(
+            self, bbox=(self.graphRegion[2] - 250, visible[3] - 40,
+                        self.graphRegion[2], visible[3] - 10),
+            outputFont=(self.VALUE_FONT[0], -16))
+        callEnviron |= set(outputBox.items())
+        
         iterator = (
             'vertex{vars} in graph.{order}First(start={startVal})'.format(
                 **locals()))
         vertexArrow, vertexArrowConfig, localVars, colors = None, {}, (), {}
         self.highlightCode(iterator, callEnviron, wait=wait)
 
-        output = 0
-        
         for thing in (
                 self.depthFirst if order == 'depth' else self.breadthFirst)(
                     startVertex, wait=wait):
@@ -456,11 +463,7 @@ for vertex{vars} in graph.{order}First(start={startVal}):
                                wait=wait)
             copy = self.copyCanvasItem(self.vertices[vertexLabel].items[1])
             callEnviron.add(copy)
-            self.moveItemsTo(
-                copy, V(self.graphRegion[2:]) + V(-150 + output, 20),
-                             sleepTime=wait/ 10)
-            output += self.textWidth(self.VALUE_FONT, 
-                                     self.canvas_itemConfig(copy, 'text') + ' ')
+            outputBox.appendText(copy, sleepTime=wait / 10)
 
             self.highlightCode(iterator, callEnviron, wait=wait)
             for edge in edgesInPath:
