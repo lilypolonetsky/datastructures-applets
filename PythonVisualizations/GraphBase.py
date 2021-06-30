@@ -142,7 +142,6 @@ class GraphBase(VisualizationApp):
         self.adjacencyMatrixPanel.wm_geometry('+{}+{}'.format(x, y))
         
     def newGraph(self):
-        self.allowUserMoves = False
         # The vertices hash maps vertex labels to the drawnValue representing
         # the vertex.  The drawnValue's val attribute is (label, ID) where
         # ID is unique integer ID used for the adjacency grid rows & columns
@@ -178,8 +177,7 @@ class GraphBase(VisualizationApp):
             vertical=True, cellHeight=self.VERTEX_RADIUS, labelAnchor=SE,
             labelFont=(self.VARIABLE_FONT[0], -12),
             cellWidth=self.VERTEX_RADIUS * 3 // 2, cellBorderWidth=1)
-        self.allowUserMoves = True
-        self.window.update()
+        self.window.update_idletasks()
         
     def createVertexItems(
             self, label, coords=None, color=None, tags=('vertex',)):
@@ -299,9 +297,10 @@ class GraphBase(VisualizationApp):
             if self.DEBUG:
                 print('Entering startHandler on "{}" #{}'.format(
                     vertexLabel, event.serial))
-            if not self.allowUserMoves or self.dragItems:
+            if self.dragItems:
                 if self.DEBUG:
-                    print('Exiting startHandler #{} allowUserMoves = {} dragItems = {}"'.format(event.serial, self.allowUserMoves, self.dragItems))
+                    print('Exiting startHandler #{} dragItems = {}"'.format(
+                        event.serial, self.dragItems))
                 return
             self.enableButtons(False)
             vert = self.vertices[vertexLabel]
@@ -327,12 +326,10 @@ class GraphBase(VisualizationApp):
             if self.DEBUG:
                 print('Entering mvHandler on "{}" #{}'.format(
                     vertexLabel, event.serial))
-            if not (self.allowUserMoves and self.dragItems):
+            if not self.dragItems:
                 if self.DEBUG:
-                    print(('Exiting mvHandler #{} allowUserMoves = {} '
-                           'dragItems = {}"').format(
-                               event.serial, self.allowUserMoves,
-                               self.dragItems))
+                    print(('Exiting mvHandler #{} dragItems = {}"').format(
+                        event.serial, self.dragItems))
                 return
             self.enableButtons(False)
             delta = (event.x - self.lastPos[0], event.y - self.lastPos[1])
@@ -357,8 +354,9 @@ class GraphBase(VisualizationApp):
                 self.canvas.coords(self.dragItems[0], *p0, *p1, *p2)
                 self.canvas.itemconfigure(self.dragItems[0], splinesteps=steps)
                 self.canvas.coords(self.dragItems[1], *wc)
-                toVert = self.findVertex(self.lastPos, 
-                                         exclude=(vertexLabel,))
+                toVert = self.findVertex(
+                    self.lastPos, 
+                    exclude=self.vertexPlusAdjacent(vertexLabel))
                 if toVert:
                     self.canvas.itemconfigure(
                         self.vertices[toVert].items[0],
@@ -415,8 +413,9 @@ class GraphBase(VisualizationApp):
                             print('Finished release of vertex "{}"  #{}.'
                                   .format(vertexLabel, event.serial))
                 elif dragItemType == 'line':
-                    toVert = self.findVertex((event.x, event.y), 
-                                             exclude=(vertexLabel,))
+                    toVert = self.findVertex(
+                        (event.x, event.y), 
+                        exclude=self.vertexPlusAdjacent(vertexLabel))
                     self.restoreVertexAppearance()
                     if toVert:
                         if self.DEBUG:
@@ -440,7 +439,6 @@ class GraphBase(VisualizationApp):
     def undoDrag(self, vertexLabel, after=None, endDistance=16, serial=0):
         if not self.dragItems:
             return
-        self.allowUserMoves = False
         dragItemType = self.canvas.type(self.dragItems[0])
         if self.DEBUG:
             print('Entered undoDrag #{} moving {} for vertex "{}" & after={}'
@@ -451,7 +449,6 @@ class GraphBase(VisualizationApp):
             if self.dragItems:
                 self.dispose({}, *self.dragItems)
             self.dragItems = None
-            self.allowUserMoves = True
             if self.DEBUG:
                 print('Unexpected end to undoing {} drag #{} for vertex "{}".'
                       .format(dragItemType, serial, vertexLabel))
@@ -468,7 +465,6 @@ class GraphBase(VisualizationApp):
                 for item in self.dragItems:
                     self.canvas.delete(item)
                 self.dragItems = None
-                self.allowUserMoves = True
                 if self.DEBUG:
                     print('Finished undoing {} drag #{}.'.format(
                         dragItemType, serial))
@@ -492,7 +488,6 @@ class GraphBase(VisualizationApp):
                 for item in self.dragItems:
                     self.canvas.delete(item)
                 self.dragItems = None
-                self.allowUserMoves = True
                 if self.DEBUG:
                     print('Finished undoing {} drag #{}.'.format(
                         dragItemType, serial))
@@ -513,8 +508,14 @@ class GraphBase(VisualizationApp):
                     wait,
                     lambda: self.undoDrag(vertexLabel, after, endDistance, serial))
 
-    def selectVertex(self, vertexLabel, tags='selected'):
+    def selectVertex(self, vertexLabel, tags='selected', checkMutex=True):
         if not (vertexLabel in self.vertices or vertexLabel is None):
+            return
+        if checkMutex and not self.operationMutex.acquire(blocking=False):
+            if vertexLabel != (
+                    self.selectedVertex[0] if self.selectedVertex else None):
+                self.setMessage('Cannot {}select vertex during operation'
+                                .format('de' if vertexLabel is None else ''))
             return
         radius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
         if self.selectedVertex:
@@ -536,24 +537,22 @@ class GraphBase(VisualizationApp):
                     fill=self.SELECTED_COLOR, outline=self.SELECTED_OUTLINE,
                     width=self.SELECTED_WIDTH, tags=tags))
             self.canvas.tag_lower(self.selectedVertex[1], 'vertex')
+        if checkMutex and self.operationMutex.locked():
+            self.operationMutex.release()
        
     def deleteVertexHandler(self, vertexLabel):
         def delVertHandler(event):
             if self.DEBUG:
                 print('Entered delVertHandler for "{}" #{}.'.format(
                     vertexLabel, event.serial))
-            if not (vertexLabel in self.vertices and
-                    (self.allowUserMoves or self.dragItems)):
+            if not (vertexLabel in self.vertices and self.dragItems):
                 if self.DEBUG:
                     print(('Exit delVertHandler #{} on "{}" with '
-                           'allowUserMoves = {} and dragItems = {}')
-                          .format(event.serial, vertexLabel,
-                                  self.allowUserMoves, self.dragItems))
+                           'dragItems = {}')
+                          .format(event.serial, vertexLabel, self.dragItems))
                 return
-            self.enableButtons(False)
-            vert = self.deleteVertex(vertexLabel)
-            self.enableButtons(True)
-            self.setMessage('Deleted vertex {}'.format(vertexLabel))
+            if self.deleteVertex(vertexLabel):
+                self.setMessage('Deleted vertex {}'.format(vertexLabel))
             if self.DEBUG:
                 print('Finished delVertHandler for "{}" #{}.'.format(
                     vertexLabel, event.serial))
@@ -564,15 +563,13 @@ class GraphBase(VisualizationApp):
             if self.DEBUG:
                 print('Entered delEdgeHandler for {} #{}.'.format(
                     edge, event.serial))
-            if not (edge in self.edges and self.allowUserMoves):
+            if not (edge in self.edges):
                 if self.DEBUG:
-                    print('Exit delEdgeHandler #{} on {} with allowUserMoves = {}'
-                          .format(event.serial, edge, self.allowUserMoves))
+                    print('Exit delEdgeHandler #{} on {}'
+                          .format(event.serial, edge))
                 return
-            self.enableButtons(False)
-            self.edgeWeight(*edge, 0)
-            self.enableButtons(True)
-            self.setMessage('Deleted edge {}'.format(edge))
+            if self.deleteEdge(*edge):
+                self.setMessage('Deleted edge {}'.format(edge))
             if self.DEBUG:
                 print('Finished delEdgeHandler for {} #{}.'.format(
                     edge, event.serial))
@@ -585,6 +582,9 @@ class GraphBase(VisualizationApp):
                 center = self.canvas_coords(vert.items[1])
                 if distance2(point, center) <= self.VERTEX_RADIUS **2:
                     return v
+
+    def vertexPlusAdjacent(self, vert):
+        return (vert, *(v for v in self.vertices if self.edgeWeight(vert, v)))
         
     def newVertexHandler(self):
         def newVertHandler(event):
@@ -606,18 +606,22 @@ class GraphBase(VisualizationApp):
                 V(self.graphRegion) + V(V(1, 1, -1, -1) * border), center))
     
     def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
+        if not self.operationMutex.acquire(blocking=False):
+            self.setMessage('Cannot create vertex during other operation')
+            return
         try:
             self.setMessage('')
             items = self.createVertexItems(
                 label, color=color, coords=coords, tags=tags)
         except ValueError as e:
             self.setMessage(str(e))
+            self.operationMutex.release()
             return
         newCenter = self.canvas_coords(items[1])
-        bad = self.badPosition(newCenter)
-        if bad:
+        if self.badPosition(newCenter):
             self.setMessage('Vertices must be visible and not overlap')
             self.dispose({}, *items)
+            self.operationMutex.release()
             return
         
         vert = drawnValue((label, self.nextID), *items)
@@ -654,24 +658,29 @@ class GraphBase(VisualizationApp):
             else:
                 otherVertColor = self.canvas_itemConfig(otherVert.items[0], 
                                                         'fill')
-                entry = self.makeEdgeWeightEntry(
+                entry = self.createEdgeWeightEntry(
                     vertColor, (vert.val[0], otherVert.val[0]))
                 entry.grid(row=self.nextID, column=otherVert.val[1], 
                            sticky=(N, E, S, W))
-                entry = self.makeEdgeWeightEntry(
+                entry = self.createEdgeWeightEntry(
                     otherVertColor, (otherVert.val[0], vert.val[0]))
                 entry.grid(row=otherVert.val[1], column=self.nextID,
                            sticky=(N, E, S, W))
         self.nextID += 1
         self.setArgument(self.nextVertexLabel())
         self.positionAdjacencyMatrix()
+        self.operationMutex.release()
+        return True
 
     def deleteVertex(self, vertexLabel):
         if not vertexLabel in self.vertices:
             raise ValueError('Cannot update non-existant vertex {}'.format(
                 vertexLabel))
+        if not self.operationMutex.acquire(blocking=False):
+            self.setMessage('Cannot delete vertex during other operation')
+            return
         if self.selectedVertex and self.selectedVertex[0] == vertexLabel:
-            self.selectVertex(None)
+            self.selectVertex(None, checkMutex=False)
         for edge in self.findEdges(vertexLabel):
             self.edgeWeight(*edge, 0)
         vertex = self.vertices[vertexLabel]
@@ -688,11 +697,21 @@ class GraphBase(VisualizationApp):
                 self.canvas.move(item, 0, - self.vertexTable.cellHeight)
         del self.vertices[vertexLabel]
         self.positionAdjacencyMatrix()
+        self.operationMutex.release()
+        return True
 
+    def deleteEdge(self, fromVert, toVert):
+        if not self.operationMutex.acquire(blocking=False):
+            self.setMessage('Cannot delete edge during other operation')
+            return
+        self.edgeWeight(fromVert, toVert, 0)        
+        self.operationMutex.release()
+        return True
+    
     def getVertexIndex(self, label):
         return [dv.val for dv in self.vertexTable].index(label)
 
-    def makeEdgeWeightEntry(self, color, edge):
+    def createEdgeWeightEntry(self, color, edge):
         if self.weighted:
             entry = Entry(self.adjMatrixFrame, bg=color,
                           font=self.ADJACENCY_MATRIX_FONT, width=2,
@@ -700,19 +719,25 @@ class GraphBase(VisualizationApp):
                           takefocus=False, validate='key', 
                           validatecommand=self.weightValidate)
             def edgeWeightChange(event):
+                if not self.operationMutex.acquire(blocking=False):
+                    self.setMessage('Cannot change edge during other operation')
+                    self.weight(entry, self.edgeWeight(*edge))
+                    return
                 self.edgeWeight(*edge, self.weight(entry))
+                self.operationMutex.release()
             entry.bind('<KeyRelease>', edgeWeightChange)
         else:
-            def toggleEdge():
-                entry = self.adjMat[edge]
-                if entry:
-                    self.enableButtons(False)
-                    self.edgeWeight(*edge, 0 if entry['text'] else 1)
-                    self.enableButtons(True)
             entry = Button(self.adjMatrixFrame, bg=color,
                            text='', font=self.ADJACENCY_MATRIX_FONT,
-                           state=NORMAL, takefocus=False, 
-                           command=toggleEdge)
+                           state=NORMAL, takefocus=False)
+            def toggleEdge():
+                if not self.operationMutex.acquire(blocking=False):
+                    self.setMessage('Cannot change edge during other operation')
+                    return
+                self.edgeWeight(*edge, 0 if entry['text'] else 1)
+                self.operationMutex.release()
+            entry['command'] = toggleEdge
+            
         self.adjMat[edge] = entry
         return entry
 
@@ -750,7 +775,7 @@ class GraphBase(VisualizationApp):
             self.canvas.itemconfigure(items[0], splinesteps=steps)
             self.canvas.coords(items[1], *wc)
         if self.selectedVertex and vertexLabel == self.selectedVertex[0]:
-            self.selectVertex(vertexLabel)
+            self.selectVertex(vertexLabel, checkMutex=False)
 
     def findEdges(self, vertex, inbound=True, outbound=True, unique=None):
         '''Find edges incident to a vertex, possibly filtering by direction.
@@ -765,6 +790,10 @@ class GraphBase(VisualizationApp):
 
     def edgeWeight(self, fromVert, toVert, weight=None):
         'Get or set the weight of the edge from one vertex to another'
+        if fromVert == toVert:  # Cannot have edge with same vertex at both ends
+            if weight is None:
+                return 0
+            return
         edge = (fromVert, toVert)
         revEdge = (toVert, fromVert)
         edges = (edge, revEdge) if (
@@ -779,7 +808,7 @@ class GraphBase(VisualizationApp):
 
         if weight > 0:         # For new/updated edges, update canvas display
             if edge not in self.edges:
-                self.createEdge(fromVert, toVert, weight)
+                self.createEdge(fromVert, toVert, weight, checkMutex=False)
             else:
                 self.canvas.itemconfigure(
                     self.edges[edge].items[1],
@@ -792,10 +821,17 @@ class GraphBase(VisualizationApp):
                 self.dispose({}, *self.edges[revEdge].items)
                 del self.edges[revEdge]
                     
-    def createEdge(self, fromVert, toVert, weight=1, tags=('edge',)):
+    def createEdge(
+            self, fromVert, toVert, weight=1, tags=('edge',), checkMutex=True):
         edgeKey = (fromVert, toVert)
+        if fromVert == toVert or edgeKey in self.edges and isinstance(
+                self.edge[edgeKey], drawnValue):
+            return
         centers = tuple(self.canvas_coords(self.vertices[v].items[1])
                         for v in edgeKey)
+        if checkMutex and not self.operationMutex.acquire(blocking=False):
+            self.setMessage('Cannot create edge during other operation')
+            return
         self.edges[edgeKey] = drawnValue(
             edgeKey, *self.createEdgeItems(
                 centers[0], centers[1], weight=weight, tags=tags,
@@ -803,6 +839,9 @@ class GraphBase(VisualizationApp):
         if self.bidirectionalEdges.get():
             self.edges[toVert, fromVert] = self.edges[edgeKey]
         self.edgeWeight(fromVert, toVert, weight)
+        if checkMutex and self.operationMutex.locked():
+            self.operationMutex.release()
+        return True
 
     def nextVertexLabel(self, label=None):
         if label is None:
@@ -839,16 +878,16 @@ class GraphBase(VisualizationApp):
         vcmd = (self.window.register(
             makeFilterValidate(self.maxArgWidth)), '%P')
         self.newVertexButton = self.addOperation(
-            "New Vertex", self.clickNewVertex, numArguments=1,
+            "New Vertex", self.clickNewVertex, numArguments=1, mutex=False,
             validationCmd=vcmd, argHelpText=['vertex label'], 
             helpText='Create a new vertex with a label')
         self.randomFillButton = self.addOperation(
-            "Random Fill", self.clickRandomFill, numArguments=1,
+            "Random Fill", self.clickRandomFill, numArguments=1, mutex=False,
             validationCmd=vcmd, argHelpText=['# vertices'], 
             helpText='Fill with N random vertices')
         self.deleteVertexButton = self.addOperation(
             "Delete Vertex", self.clickDeleteVertex, numArguments=1,
-            validationCmd=vcmd, argHelpText=['vertex label'], 
+            validationCmd=vcmd, argHelpText=['vertex label'], mutex=False, 
             helpText='Delete the labeled vertex')
         self.newGraphButton = self.addOperation(
             "New Graph", self.clickNewGraph,
