@@ -302,7 +302,6 @@ class GraphBase(VisualizationApp):
                     print('Exiting startHandler #{} dragItems = {}"'.format(
                         event.serial, self.dragItems))
                 return
-            self.enableButtons(False)
             vert = self.vertices[vertexLabel]
             self.setMessage('')
             moveVertex = event.state & SHIFT
@@ -316,6 +315,7 @@ class GraphBase(VisualizationApp):
                     self.canvas_coords(vert.items[1]), (event.x, event.y),
                     weight=0, removeRadius=0)
             self.lastPos = (event.x, event.y)
+            self.enableButtons()
             if self.DEBUG:
                 print('Finished startHandler on "{}" #{}'.format(
                     vertexLabel, event.serial))
@@ -553,6 +553,7 @@ class GraphBase(VisualizationApp):
                 return
             if self.deleteVertex(vertexLabel):
                 self.setMessage('Deleted vertex {}'.format(vertexLabel))
+            self.enableButtons()
             if self.DEBUG:
                 print('Finished delVertHandler for "{}" #{}.'.format(
                     vertexLabel, event.serial))
@@ -570,6 +571,7 @@ class GraphBase(VisualizationApp):
                 return
             if self.deleteEdge(*edge):
                 self.setMessage('Deleted edge {}'.format(edge))
+            self.enableButtons()
             if self.DEBUG:
                 print('Finished delEdgeHandler for {} #{}.'.format(
                     edge, event.serial))
@@ -591,6 +593,7 @@ class GraphBase(VisualizationApp):
             self.createVertex(self.getArgument(), 
                               coords=(self.canvas.canvasx(event.x),
                                       self.canvas.canvasy(event.y)))
+            self.enableButtons()
         return newVertHandler
 
     def badPosition(self, center, border=None, ignore=()):
@@ -725,6 +728,7 @@ class GraphBase(VisualizationApp):
                     return
                 self.edgeWeight(*edge, self.weight(entry))
                 self.operationMutex.release()
+                self.enableButtons()
             entry.bind('<KeyRelease>', edgeWeightChange)
         else:
             entry = Button(self.adjMatrixFrame, bg=color,
@@ -736,6 +740,7 @@ class GraphBase(VisualizationApp):
                     return
                 self.edgeWeight(*edge, 0 if entry['text'] else 1)
                 self.operationMutex.release()
+                self.enableButtons()
             entry['command'] = toggleEdge
             
         self.adjMat[edge] = entry
