@@ -436,7 +436,10 @@ def breadthFirst(self, n={nVal}):
 '''
 
     def breadthFirst(self, n, code=breadthFirstCode, wait=0.1):
-        nLabel = self.vertexTable[n].val if n < len(self.vertexTable) else None
+        nLabel = (n if isinstance(n, str) else
+                  self.vertexTable[n].val if n < len(self.vertexTable) else
+                  None)
+        n = n if isinstance(n, int) else self.getVertexIndex(n)
         nVal = "{} ('{}')".format(n, nLabel)
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()))
@@ -444,9 +447,162 @@ def breadthFirst(self, n={nVal}):
         nArrowConfig = {'level': 1, 'anchor': SE}
         nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
         callEnviron |= set(nArrow)
+        localVars = nArrow
         
         if code:
             self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
+            self.highlightCode('visited = [False] * self.nVertices()',
+                               callEnviron, wait=wait)
+        visited = self.createVisitedTable(
+            self.nVertices(), initialValue=False, visible=code)
+        if code:
+            callEnviron |= set(flat(*(dv.items for dv in visited)) +
+                               visited.items())
+            self.highlightCode('queue = Queue()', callEnviron, wait=wait)
+
+        queue = Table(
+            self, (50, self.graphRegion[3] + 20),
+            label='queue', vertical=False, cellHeight=self.VERTEX_RADIUS,
+            labelFont=(self.VARIABLE_FONT[0], -12),
+            cellWidth=self.VERTEX_RADIUS * 3 // 2,
+            cellBorderWidth=1 if code else 0)
+        callEnviron |= set(queue.items())
+
+        if code:
+            self.highlightCode('queue.insert(n)', callEnviron, wait=wait)
+            copyItems = tuple(self.copyCanvasItem(item)
+                              for item in self.vertices[nLabel].items)
+            callEnviron |= set(copyItems)
+            self.moveItemsLinearly(
+                copyItems, 
+                (queue.cellCoords(len(queue)), queue.cellCenter(len(queue))),
+                sleepTime=wait / 10, startFont=self.getItemFont(copyItems[1]),
+                endFont=self.ADJACENCY_MATRIX_FONT)
+        queue.append(drawnValue(nLabel))
+        if code:
+            queue[-1].items = (
+                self.canvas.create_rectangle(
+                    *queue.cellCoords(len(queue) - 1),
+                    fill=self.canvas_itemConfig(copyItems[0], 'fill'),
+                    width=0),
+                copyItems[1])
+            self.canvas.tag_lower(*queue[-1].items)
+            callEnviron |= set(queue[-1].items + queue.items())
+            self.dispose(callEnviron, copyItems[0])
+
+            self.highlightCode('visited[n] = True', callEnviron, wait=wait)
+
+        visited[n].val = True
+        if code:
+            self.updateVisitedCells(visited, n)
+            self.highlightCode('not queue.isEmpty()', callEnviron)
+
+        visitArrow, visitArrowConfig = None, {'orientation': -30, 'anchor': SE}
+        jArrowConfig = {'level': 2, 'anchor': SE}
+        jVertConfig = {'orientation': 40, 'anchor': SW}
+        jArrow, jVertArrow = None, None
+        lowerRight = V(self.graphRegion[2:]) + V((self.VERTEX_RADIUS,) * 2)
+        while len(queue) > 0:
+            visitLabel = queue[0].val
+            visit = self.getVertexIndex(visitLabel)
+            if code:
+                self.highlightCode('visit = queue.remove()', callEnviron,
+                                   wait=wait)
+                if visitArrow is None:
+                    visitArrow = queue.createLabeledArrow(
+                        0, 'visit', **visitArrowConfig)
+                    callEnviron |= set(visitArrow)
+                    localVars += visitArrow
+                else:
+                    self.moveItemsTo(
+                        visitArrow,
+                        queue.labeledArrowCoords(len(queue) - 1, 
+                                                 **visitArrowConfig),
+                        sleepTime=wait / 10)
+                    
+            visitDValue = queue.pop(0)
+            if code:
+                for item in visitDValue.items:
+                    self.canvas.tag_lower(
+                        item, self.vertices[visitLabel].items[0])
+                self.moveItemsLinearly(
+                    visitArrow + visitDValue.items + 
+                    flat(*(dv.items for dv in queue)),
+                    self.labeledArrowCoords(visitLabel, **visitArrowConfig) +
+                    tuple(self.canvas_coords(item) 
+                          for item in self.vertices[visitLabel].items) +
+                    flat(*((queue.cellCoords(j), queue.cellCenter(j)) for
+                           j in range(len(queue)))),
+                    sleepTime=wait / 10)
+                self.dispose(callEnviron, *visitDValue.items)
+
+                self.highlightCode('yield visit', callEnviron)
+                itemCoords = self.yieldCallEnvironment(callEnviron)
+                
+            yield visit
+            if code:
+                self.resumeCallEnvironment(callEnviron, itemCoords)
+                self.highlightCode(self.innerLoopIterator, callEnviron,
+                                   wait=wait)
+                colors = self.fadeNonLocalItems(localVars)
+
+            for j in self.adjacentUnvisitedVertices(
+                    visit, visited, wait=wait,
+                    code=self.adjacentUnvisitedVerticesCode if code else ''):
+                adjVertex = self.vertexTable[j].val
+                if code:
+                    self.restoreLocalItems(localVars, colors)
+                    if jArrow is None:
+                        jArrow = self.vertexTable.createLabeledArrow(
+                            j, 'j', **jArrowConfig)
+                        jVertArrow = self.createLabeledArrow(
+                            adjVertex, 'j', **jVertConfig)
+                        callEnviron |= set(jArrow + jVertArrow)
+                        localVars += jArrow + jVertArrow
+                    else:
+                        self.moveItemsTo(
+                            jArrow + jVertArrow,
+                            self.vertexTable.labeledArrowCoords(
+                                j, **jArrowConfig) +
+                            self.labeledArrowCoords(adjVertex, **jVertConfig),
+                            sleepTime=wait / 10)
+
+                    self.highlightCode('queue.insert(j)', callEnviron,
+                                       wait=wait)
+
+                queue.append(drawnValue(adjVertex))
+                if code:
+                    copyItems = tuple(self.copyCanvasItem(i)
+                                      for i in self.vertices[adjVertex].items)
+                    callEnviron |= set(copyItems + queue.items())
+                    self.moveItemsLinearly(
+                        copyItems,
+                        (queue.cellCoords(len(queue) - 1),
+                         queue.cellCenter(len(queue) - 1)),
+                        sleepTime=wait / 10,
+                        startFont=self.getItemFont(copyItems[1]),
+                        endFont=self.ADJACENCY_MATRIX_FONT)
+                    queue[-1].items = (
+                        self.canvas.create_rectangle(
+                            *queue.cellCoords(len(queue) - 1),
+                            fill=self.canvas_itemConfig(copyItems[0], 'fill'),
+                            width=0),
+                        copyItems[1])
+                    self.canvas.tag_lower(*queue[-1].items)
+                    callEnviron |= set(queue[-1].items)
+                    self.dispose(callEnviron, copyItems[0])
+                    
+                    self.highlightCode(self.innerLoopIterator, callEnviron,
+                                       wait=wait)
+                    colors = self.fadeNonLocalItems(localVars)
+
+            if code:
+                self.restoreLocalItems(localVars, colors)
+                self.highlightCode('not queue.isEmpty()', callEnviron, 
+                                   wait=wait)
+
+        if code:
+            self.highlightCode((), callEnviron, wait=wait)
         self.cleanUp(callEnviron)
 
     traverseExampleCode = '''
@@ -554,9 +710,8 @@ for vertex{vars} in graph.{order}First(start={startVal}):
 
     def clickBreadthFirstTraverse(self):
         if self.selectedVertex:
-            self.setMessage('BF Traverse TBD')
-            # self.traverseExample('breadth', self.selectedVertex[0],
-            #                      start=self.startMode())
+            self.traverseExample('breadth', self.selectedVertex[0],
+                                 start=self.startMode())
         else:
             self.setMessage('Must select start vertex before traversal')
         
