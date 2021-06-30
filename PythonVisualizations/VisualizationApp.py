@@ -10,7 +10,7 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-import time, re, pdb, sys, os.path
+import time, re, pdb, sys, os.path, threading
 from collections import *
 from tkinter import *
 from tkinter import ttk
@@ -94,6 +94,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         # Set up instance variables for managing animations and operations
         self.callStack = []    # Stack of local environments for visualziation
 
+        self.operationMutex = threading.Lock()
         self.pauseButton, self.stopButton, self.stepButton = None, None, None
         self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
@@ -207,6 +208,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             maxRows=4,      # Operations w/o args beyond maxRows -> new columns
             buttonType=ttk.Button, # Type of button (see buttonTypes)
             cleanUpBefore=True, # Clean up all previous animations before Op
+            mutex=True,     # Operation is mutually exclusive of others
             bg=None,        # Background color, default is OPERATIONS_BG
             **kwargs):      # Tk button keyword args
         if buttonType not in self.buttonTypes:
@@ -221,10 +223,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             button = buttonType( # Create button based on type
                 self.operations, text=label, font=self.CONTROLS_FONT, bg=bg,
                 **kwargs)
-        button['command'] = self.runOperation(callback, cleanUpBefore, button)
+        button['command'] = self.runOperation(
+            callback, cleanUpBefore, button, mutex)
         button.bind('<Button>', self.recordModifierKeyState)
         button.bind('<KeyPress>', self.recordModifierKeyState)
         setattr(button, 'required_args', numArguments)
+        setattr(button, 'mutex', mutex)
 
         # Placement
         withArgs, withoutArgs = self.getOperations()
@@ -451,7 +455,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 (int(round(d)) for d in V(images[name].size) * ratios[name]))))
             for name in names)
         
-    def runOperation(self, command, cleanUpBefore, button=None):
+    def runOperation(self, command, cleanUpBefore, button=None, mutex=True):
         def animatedOperation(): # If button that uses arguments is provided,
             if button and getattr(button, 'required_args', 0) > 0: # record it
                 for entry in self.textEntries[:getattr( # as the last button
@@ -461,6 +465,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 b for b in (self.pauseButton, self.stepButton, self.stopButton)
                 if b]
             withArgs, withoutArgs = self.getOperations()
+            if mutex:
+                if not self.operationMutex.acquire(blocking=False):
+                    self.setMessage('Cannot run more than one operation')
+                    return
             try:
                 if cleanUpBefore:
                     self.cleanUp()
@@ -470,9 +478,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             except UserStop as e:
                 self.cleanUp(self.callStack[0] if self.callStack else None,
                              ignoreStops=True)
+            if mutex:
+                self.operationMutex.release()
             self.enableButtons()
             focus = self.window.focus_get()
-            if (focus and  # If focus ended on an argument button or an
+            if (focus and  # If focus ended on a button needing arguments or an
                 (focus in withArgs or  # animation control run on something w/
                  focus in animationControls and button in withArgs) # args
                 and self.textEntries): # and there are text entry boxes
@@ -954,8 +964,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         for btn in withArgs + withoutArgs:
             if isinstance(btn, self.buttonTypes):
                 nArgs = getattr(btn, 'required_args', 0)
+                mutex = getattr(btn, 'mutex', False)
                 self.widgetState(
-                    btn, NORMAL if enable and all(args[:nArgs]) else DISABLED)
+                    btn, NORMAL if enable and all(args[:nArgs]) and not (
+                        mutex and self.operationMutex.locked()) else DISABLED)
             
             elif btn is getattr(self, 'playControlsFrame', False):
                 for b in (self.pauseButton, self.stepButton, self.stopButton):
