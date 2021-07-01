@@ -114,7 +114,7 @@ def BBoxSize(bbox):
 SHIFT, CAPS_LOCK, CTRL, ALT = 0x01, 0x02, 0x04, 0x08
 
 # Window geometry specification strings
-geom_delims = re.compile(r'[\sXx+-]')
+geomPattern = re.compile(r'(\d+)[\sXx]+(\d+)([+-])(-?\d+)([+-])(-?\d+)')
 
 # Animation states
 class Animation(Enum):
@@ -197,10 +197,28 @@ class Visualization(object):  # Base class for Python visualizations
         
     # General Tk widget methods
     def widgetDimensions(self, widget):  # Get widget's (width, height)
-        geom = geom_delims.split(widget.winfo_geometry())
-        if geom[0] == '1' and geom[1] == '1':  # If not yet managed, use config
-            geom = (widget.config('width')[-1], widget.config('height')[-1])
-        return int(geom[0]), int(geom[1])
+        geom = self.widgetGeometry(widget) # Use config if not yet negotiated
+        return ((int(widget.config('width')[-1]), 
+                 int(widget.config('height')[-1]))
+                if geom[0] == 1 and geom[1] == 1 else geom[:2])
+
+    def widgetGeometry(self, widget, geom=None):
+        'Get widget geometry from <width>x<height><sign>x0<sign>y0 geom string'
+        if geom is None:
+            self.window.update_idletasks()
+            geom = widget.winfo_geometry()
+        parsed = geomPattern.match(geom)
+        if parsed is None:
+            return
+        nums = tuple(int(parsed.group(p)) for p in (1, 2, 4, 6))
+        if parsed.group(3) == '-' or parsed.group(5) == '-':
+            nums = nums[:2] + (
+                widget.winfo_screenwidth() - nums[2] if parsed.group(3) == '-'
+                else nums[2],
+                widget.winfo_screenheight() - nums[3] if parsed.group(5) == '-'
+                else nums[3])
+        else:
+            return nums
 
     def widgetState(self, widget, state=None): # Get or set widget state
         if isinstance(widget, (ttk.Button,)):

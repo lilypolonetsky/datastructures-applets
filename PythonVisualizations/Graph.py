@@ -1,798 +1,746 @@
 from tkinter import *
-import random
+import re
 
 try:
-    from VisualizationApp import *
-    from coordinates import *
-    from drawnValue import *
+    from GraphBase import *
+    from TableDisplay import *
+    from OutputBox import *
 except ModuleNotFoundError:
-    from .VisualizationApp import *
-    from .coordinates import *
-    from .drawnValue import *
+    from .GraphBase import *
+    from .TableDisplay import *
+    from .OutputBox import *
 
 V = vector
 
-class Graph(VisualizationApp):
-    MAX_VERTICES = 16
-    VERTEX_RADIUS = 18
-    vRadius = vector((VERTEX_RADIUS, VERTEX_RADIUS))
-    VERTEX_FONT = ('Helvetica', -14)
-    SELECTED_RADIUS = VERTEX_RADIUS * 6 // 5
-    SELECTED_WIDTH = 2
-    SELECTED_COLOR = 'white'
-    SELECTED_OUTLINE = 'purple3'
-    ADJACENCY_MATRIX_FONT = ('Helvetica', -12)
-    ADJACENCY_MATRIX_BG = 'bisque'
-    CANVAS_EXTERIOR = 'cyan'
-    MATRIX_CELL_WIDTH = 20
-    ACTIVE_VERTEX_OUTLINE_COLOR = 'blue'
-    ACTIVE_VERTEX_OUTLINE_WIDTH = 1
-    EDGE_COLOR = 'black'
-    ACTIVE_EDGE_COLOR = 'blue'
-    ACTIVE_EDGE_WIDTH = 3
-    BAD_POSITION_TEXT_COLOR = 'red'
-    DEFAULT_VERTEX_LABEL = 'A'
-    nextColor = 0
-    DEBUG = False
+class Graph(GraphBase):
+    VISITED_SYMBOLS = {False: 'F' , 0: 'F', True: 'T', 1: 'T'}
+    VISITED_COLORS = {False: 'light coral' , 0: 'light coral' , 
+                      True: 'green3', 1: 'green3'}
+    VISITED_HIGHLIGHT_COLOR = 'yellow'
+    EDGE_HIGHLIGHT_PAD = 5
+
+    def vertexIndices(self):
+      return range(self.nVertices()) # Same as range up to nVertices
+
+    adjacentVerticesCode = '''
+def adjacentVertices(self, n={nVal}):
+   self.validIndex(n)
+   for j in self.vertices():
+      if j != n and self.hasEdge(n, j):
+         yield j
+'''
     
-    def __init__(                    # Create a graph visualization application
-            self, title="Graph", weighted=False, **kwargs):
-        kwargs['title'] = title
-        if 'canvasBounds' not in kwargs:
-            kwargs['canvasBounds'] = (0, 0, kwargs.get('canvasWidth', 800),
-                                      kwargs.get('canvasHeight', 400))
-        super().__init__(**kwargs)
-        self.weighted = weighted
-        self.weightValidate = (self.window.register(numericValidate),
-                               '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        self.buttons = self.makeButtons()
-        self.createAdjacencyMatrixPanel()
-        self.newGraph()
-        self.canvas.bind('<Double-Button-1>', self.newVertexHandler(), add='+')
-    
-    def __str__(self):
-        verts = self.nVertices()
-        edges = self.nEdges()
-        return '<Graph of {} vert{} and {} {}edge{}>'.format(
-            verts, 'ex' if verts == 1 else 'ices', edges,
-            'bidirectional ' if self.bidirectionalEdges.get() else '',
-            '' if edges == 1 else 's')
+    def adjacentVertices(self, n, code=adjacentVerticesCode, wait=0.1):
+        nLabel = self.vertexTable[n].val if n < len(self.vertexTable) else None
+        nVal = "{} ('{}')".format(n, nLabel)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()))
 
-    def nVerticess(self):
-        return len(self.vertices)
-
-    def nEdges(self):
-        return len(self.edges) // (2 if self.bidirectionalEdges.get() else 1)
-
-    def createAdjacencyMatrixPanel(self):
-        self.canvasFrame['bg'] = self.CANVAS_EXTERIOR
-        self.adjacencyMatrixPanel = Frame(
-            self.canvasFrame, bg=self.ADJACENCY_MATRIX_BG)
-        self.adjacencyMatrixPanel.pack(
-            side=RIGHT, before=self.canvasVScroll, expand=False, fill=Y)
-        controlbar = Frame(self.adjacencyMatrixPanel)
-        controlbar.pack(side=TOP)
-        panelTitle = Label(controlbar, text='Adjacency\nMatrix',
-                           font=self.ADJACENCY_MATRIX_FONT)
-        panelTitle.pack(side=LEFT)
-        self.matrixExpose = Button(
-            controlbar, text='X', font=self.ADJACENCY_MATRIX_FONT, 
-            command=self.toggleAdjacencyMatrixDisplay)
-        self.matrixExpose.pack(side=LEFT, expand=False, fill=Y)
-        self.adjMatrixFrame = Frame(
-            self.adjacencyMatrixPanel, bg=self.ADJACENCY_MATRIX_BG)
-        self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
-
-    def toggleAdjacencyMatrixDisplay(self):
-        if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves():
-            self.matrixExpose['text'] = '+'
-            self.adjMatrixFrame.pack_forget()
-        else:
-            self.matrixExpose['text'] = 'X'
-            self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
+        nArrowConfig = {'level': 1, 'anchor': SE}
+        nVertConfig = {'level': 1, 'orientation': 10, 'anchor': SW}
+        if code:
+            nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+            nVertArrow = self.createLabeledArrow(nLabel, 'n', **nVertConfig)
+            callEnviron |= set(nArrow + nVertArrow)
+            self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
+            self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
         
-    def newGraph(self):
-        self.allowUserMoves = False
-        # The vertices hash maps vertex labels to the drawnValue representing
-        # the vertex.  The drawnValue's val attribute is (label, ID) where
-        # ID is unique integer ID used for the adjacency grid rows & columns
-        self.vertices = {}
-
-        # The adjMat hash maps vertex label pairs to the weight widget
-        # in the adjacency matrix panel.  
-        self.adjMat = {}
-
-        # The edges hash maps vertex label pairs to the drawnValue representing
-        # the arrow and text items in the canvas for the edge.  The drawnValue's
-        # val attribute is the vertex label pair
-        self.edges = {}
-
-        for cell in self.adjMatrixFrame.grid_slaves():
-            cell.grid_forget()
-        self.selectedVertex = None
-        self.dragItems = None
-        self.nextID = 1
-        self.display()
-        self.setArgument(self.nextVertexLabel())
-        
-    def display(self):
-        self.canvas.delete("all")
-        self.allowUserMoves = True
-        self.window.update()
-        
-    def createVertexItems(
-            self, label, coords=None, color=None, tags=('vertex',)):
-        if label in self.vertices:
-            raise ValueError('Cannot duplicate vertex labeled {}'.format(label))
-        if not label:
-            raise ValueError('Cannot create unlabeled vertex')
-        visibleCanvas = self.visibleCanvas()
-        vr = V(self.SELECTED_RADIUS, self.SELECTED_RADIUS)
-        region = (V(visibleCanvas[:2]) + vr) + (V(visibleCanvas[2:]) - vr)
-        while coords is None:
-            x = random.randrange(region[0], region[2])
-            y = random.randrange(region[1], region[3])
-            if all(distance2((x, y), self.canvas_coords(v.items[1])) >=
-                   (2 * self.SELECTED_RADIUS) ** 2
-                   for v in self.vertices.values()):
-                coords = (x, y)
-        if color is None:
-            color = drawnValue.palette[self.nextColor]
-            self.nextColor = (1 + self.nextColor) % len(drawnValue.palette)
-        vr = V(self.VERTEX_RADIUS, self.VERTEX_RADIUS)
-        shape = self.canvas.create_oval(
-            *(V(coords) - self.vRadius), *(V(coords) + self.vRadius),
-            tags=tags + ('shape', label), outline='', width=1, fill=color,
-            activeoutline=self.ACTIVE_VERTEX_OUTLINE_COLOR,
-            activewidth=self.ACTIVE_VERTEX_OUTLINE_WIDTH)
-        text = self.canvas.create_text(
-            *coords, text=label, tags=tags + ('text', label),
-            font=self.VERTEX_FONT, fill=self.VALUE_COLOR,
-            activefill=self.ACTIVE_VERTEX_OUTLINE_COLOR)
-        self.canvas.tag_lower('vertex', 'edge')
-        items = (shape, text)
-        startMoveHandler = self.startMoveHandler(label)
-        moveHandler = self.moveHandler(label)
-        releaseHandler = self.releaseHandler(label)
-        deleteHandler = self.deleteVertexHandler(label)
-        for item in items:
-            self.canvas.tag_bind(item, '<Button-1>', startMoveHandler)
-            self.canvas.tag_bind(item, '<B1-Motion>', moveHandler)
-            self.canvas.tag_bind(item, '<ButtonRelease-1>', releaseHandler)
-            self.canvas.tag_bind(item, '<Double-Button-1>', deleteHandler)
-        return items
-
-    def createEdgeItems(self, base, tip, weight=0, tags=('edge',),
-                        removeRadius=VERTEX_RADIUS, edgePair=None):
-        p0, p1, p2, steps, weightCenter = self.edgeCoords(
-            base, tip, removeRadius=removeRadius)
-        line = self.canvas.create_line(
-            *p0, *p1, *p2, width=1, fill=self.EDGE_COLOR,
-            arrow=None if self.bidirectionalEdges.get() else LAST,
-            activefill=self.ACTIVE_EDGE_COLOR, tags=tags + ('line',),
-            activewidth=self.ACTIVE_EDGE_WIDTH, splinesteps=steps, smooth=True)
-        weightText = self.canvas.create_text(
-            *weightCenter,
-            text='' if weight == 0 or not self.weighted else str(weight),
-            font=self.VERTEX_FONT, fill=self.EDGE_COLOR, tags=tags + ('text',),
-            activefill=self.ACTIVE_EDGE_COLOR)
-        if edgePair:
-            self.canvas.tag_bind(line, '<Double-Button-1>', 
-                                 self.deleteEdgeHandler(edgePair))
-        return (line, weightText)
-
-    def edgeCoords(self, base, tip, removeRadius=VERTEX_RADIUS):
-        midPoint = V(V(base) + V(tip)) / 2
-        delta = V(tip) - V(base)
-        offset = V(V(V(delta).rotate(-90)).unit()) * self.VERTEX_RADIUS
-        inflection = midPoint if self.bidirectionalEdges.get() else V(
-            midPoint) + V(offset)
-        weightCenter = V(inflection) + V(V(offset) * 0.5)
-        p0 = V(base) + V(V(V(V(inflection) - V(base)).unit()) * removeRadius)
-        p1 = inflection
-        p2 = V(tip) + V(V(V(V(inflection) - V(tip)).unit()) * removeRadius)
-        steps = int(max(abs(delta[0]), abs(delta[1]), 5))
-        return p0, p1, p2, steps, weightCenter
-       
-    def startMoveHandler(self, vertexLabel):
-        def startHandler(event):
-            if self.DEBUG:
-                print('Entering startHandler on "{}" #{}'.format(
-                    vertexLabel, event.serial))
-            if not self.allowUserMoves or self.dragItems:
-                if self.DEBUG:
-                    print('Exiting startHandler #{} allowUserMoves = {} dragItems = {}"'.format(event.serial, self.allowUserMoves, self.dragItems))
-                return
-            self.enableButtons(False)
-            vert = self.vertices[vertexLabel]
-            self.setMessage('')
-            moveVertex = event.state & SHIFT
-            if moveVertex:
-                copies = tuple(self.copyCanvasItem(i, includeBindings=False)
-                               for i in vert.items)
-                self.dragItems = copies
-            else:
-                self.selectVertex(vertexLabel)
-                self.dragItems = self.createEdgeItems(
-                    self.canvas_coords(vert.items[1]), (event.x, event.y),
-                    weight=0, removeRadius=0)
-            self.lastPos = (event.x, event.y)
-            if self.DEBUG:
-                print('Finished startHandler on "{}" #{}'.format(
-                    vertexLabel, event.serial))
-        return startHandler
-
-    def moveHandler(self, vertexLabel):
-        def mvHandler(event):
-            if self.DEBUG:
-                print('Entering mvHandler on "{}" #{}'.format(
-                    vertexLabel, event.serial))
-            if not (self.allowUserMoves and self.dragItems):
-                if self.DEBUG:
-                    print(('Exiting mvHandler #{} allowUserMoves = {} '
-                           'dragItems = {}"').format(
-                               event.serial, self.allowUserMoves,
-                               self.dragItems))
-                return
-            self.enableButtons(False)
-            delta = (event.x - self.lastPos[0], event.y - self.lastPos[1])
-            self.lastPos = (event.x, event.y)
-            dragItemType = self.canvas.type(self.dragItems[0])
-            if dragItemType == 'oval':
-                for item in self.dragItems:
-                    self.canvas.move(item, *delta)
-
-                newCenter = self.canvas_coords(self.dragItems[1])
-                bad = self.badPosition(newCenter)
-                self.canvas.itemconfigure(
-                    self.dragItems[0], state=HIDDEN if bad else NORMAL)
-                self.canvas.itemconfigure(
-                    self.dragItems[1], 
-                    fill=self.BAD_POSITION_TEXT_COLOR if bad else self.VALUE_COLOR)
-            elif dragItemType == 'line':
-                vert = self.vertices[vertexLabel]
-                p0, p1, p2, steps, wc = self.edgeCoords(
-                    self.canvas_coords(vert.items[1]), self.lastPos,
-                    removeRadius=0)
-                self.canvas.coords(self.dragItems[0], *p0, *p1, *p2)
-                self.canvas.itemconfigure(self.dragItems[0], splinesteps=steps)
-                self.canvas.coords(self.dragItems[1], *wc)
-                toVert = self.findVertex(self.lastPos, 
-                                         exclude=(vertexLabel,))
-                if toVert:
-                    self.canvas.itemconfigure(
-                        self.vertices[toVert].items[0],
-                        outline=self.ACTIVE_VERTEX_OUTLINE_COLOR)
-                    self.canvas.itemconfigure(
-                        self.vertices[toVert].items[1],
-                        fill=self.ACTIVE_VERTEX_OUTLINE_COLOR)
+        jArrowConfig = {'level': 2, 'anchor': SE}
+        jVertConfig = {'level': 1, 'orientation': 40, 'anchor': SW}
+        jArrow, jVertArrow = None, None
+        for j in self.vertexIndices():
+            jLabel = self.vertexTable[j].val
+            if code:
+                if jArrow is None:
+                    jArrow = self.vertexTable.createLabeledArrow(
+                        j, 'j', **jArrowConfig)
+                    jVertArrow = self.createLabeledArrow(
+                        jLabel, 'j', **jVertConfig)
+                    callEnviron |= set(jArrow + jVertArrow)
                 else:
-                    self.restoreVertexAppearance()
-            else:
-                raise Exception('Dragging items of type {} not supported'.
-                                format(dragItemType))
-            if self.DEBUG:
-                print('Finished mvHandler on "{}" #{}'.format(
-                    vertexLabel, event.serial))
+                    self.moveItemsTo(
+                        jArrow + jVertArrow,
+                        self.vertexTable.labeledArrowCoords(j, **jArrowConfig) +
+                        self.labeledArrowCoords(jLabel, **jVertConfig),
+                        sleepTime=wait / 10)
+                self.highlightCode('j != n', callEnviron, wait=wait)
+                if j != n:
+                    edgeEntry = self.adjMat[nLabel, jLabel] # Highlight edge in
+                    edgeEntry.grid(padx=self.EDGE_HIGHLIGHT_PAD, # adj matrix
+                                   pady=self.EDGE_HIGHLIGHT_PAD)
+                    self.highlightCode('self.hasEdge(n, j)', callEnviron,
+                                       wait=wait)
+                    edgeEntry.grid(padx=0, pady=0)
                     
-        return mvHandler
-
-    def restoreVertexAppearance(self, tags=('vertex',)):
-        for tag in tags:
-            for item in self.canvas.find_withtag(tag):
-                if self.canvas.type(item) == 'oval':
-                    self.canvas.itemconfigure(item, outline='', state=NORMAL)
-                elif self.canvas.type(item) == 'text':
-                    self.canvas.itemconfigure(item, fill=self.VALUE_COLOR, 
-                                              state=NORMAL)
-
-    def releaseHandler(self, vertexLabel):
-        def relHandler(event):
-            if self.DEBUG:
-                print('Entering reHandler on "{}" #{}'.format(
-                    vertexLabel, event.serial))
-            if self.dragItems:
-                dragItemType = self.canvas.type(self.dragItems[0])
-                if dragItemType == 'oval':
-                    newCenter = self.canvas_coords(self.dragItems[1])
-                    bad = self.badPosition(newCenter)
-                    if bad:
-                        if self.DEBUG:
-                            print(('Release position is bad, '
-                                   'ending #{}. Calling undoDrag').format(
-                                       event.serial))
-                        self.undoDrag(vertexLabel)
-                    else:
-                        delta = V(self.canvas_coords(self.dragItems[1])) - V(
-                            self.canvas_coords(
-                                self.vertices[vertexLabel].items[1]))
-                        for item in self.vertices[vertexLabel].items:
-                            self.canvas.move(item, *delta)
-                        self.dispose({}, *self.dragItems)
-                        self.dragItems = None
-                        self.updateVertex(vertexLabel)
-                        if self.DEBUG:
-                            print('Finished release of vertex "{}"  #{}.'
-                                  .format(vertexLabel, event.serial))
-                elif dragItemType == 'line':
-                    toVert = self.findVertex((event.x, event.y), 
-                                             exclude=(vertexLabel,))
-                    self.restoreVertexAppearance()
-                    if toVert:
-                        if self.DEBUG:
-                            print('Release new edge to "{}"  #{}.'.format(
-                                toVert, event.serial))
-                        self.dispose({}, *self.dragItems)
-                        self.dragItems = None
-                        self.createEdge(vertexLabel, toVert, 1)
-                    else:
-                        if self.DEBUG:
-                            print(('Released edge connects "{}" to nothing, '
-                                   'ending #{}. Calling undoDrag').format(
-                                       vertexLabel, event.serial))
-                        self.undoDrag(vertexLabel)
-                else:
-                    raise Exception('Dragging items of type {} not supported'.
-                                    format(dragItemType))
-            self.enableButtons(True)
-        return relHandler
-
-    def undoDrag(self, vertexLabel, after=None, endDistance=16, serial=0):
-        if not self.dragItems:
-            return
-        self.allowUserMoves = False
-        dragItemType = self.canvas.type(self.dragItems[0])
-        if self.DEBUG:
-            print('Entered undoDrag #{} moving {} for vertex "{}" & after={}'
-                  .format(serial, dragItemType, vertexLabel, after),
-                  end=' ')
-        if not (dragItemType in ('line', 'oval') and 
-                vertexLabel in self.vertices):
-            if self.dragItems:
-                self.dispose({}, *self.dragItems)
-            self.dragItems = None
-            self.allowUserMoves = True
-            if self.DEBUG:
-                print('Unexpected end to undoing {} drag #{} for vertex "{}".'
-                      .format(dragItemType, serial, vertexLabel))
-            return
-        wait = 30
-        if dragItemType == 'oval':
-            oldCenter = self.canvas_coords(
-                self.vertices[vertexLabel].items[1])
-            center = self.canvas_coords(self.dragItems[1])
-            delta = V(V(V(oldCenter) - V(center)) * 0.2)
-            if self.DEBUG:
-                print('delta**2 = {:3.1f}'.format(delta.len2()))
-            if delta.len2() <= endDistance:
-                for item in self.dragItems:
-                    self.canvas.delete(item)
-                self.dragItems = None
-                self.allowUserMoves = True
-                if self.DEBUG:
-                    print('Finished undoing {} drag #{}.'.format(
-                        dragItemType, serial))
-                if callable(after):
-                    if self.DEBUG:
-                        print('Calling after...')
-                    after()
-            else:
-                for item in self.dragItems:
-                    self.canvas.move(item, *delta)
-                self.undoDragRequest = self.canvas.after(
-                    wait, 
-                    lambda: self.undoDrag(vertexLabel, after, endDistance, serial))
-        elif dragItemType == 'line':
-            edgeCoords = self.canvas_coords(self.dragItems[0])
-            base, tip = edgeCoords[:2], edgeCoords[-2:]
-            newTip = V(V(V(tip) * 8) + V(V(base) * 2)) / 10
-            if self.DEBUG:
-                print('distance**2 = {:3.1f}'.format(distance2(base, newTip)))
-            if distance2(base, newTip) <= endDistance:
-                for item in self.dragItems:
-                    self.canvas.delete(item)
-                self.dragItems = None
-                self.allowUserMoves = True
-                if self.DEBUG:
-                    print('Finished undoing {} drag #{}.'.format(
-                        dragItemType, serial))
-                if callable(after):
-                    if self.DEBUG:
-                        print('Calling after...')
-                    after()
-            else:
-                p0, p1, p2, steps, wc = self.edgeCoords(
-                    base, newTip, removeRadius=0)
-                self.canvas.coords(self.dragItems[0], *p0, *p1, *p2)
-                self.canvas.itemconfigure(self.dragItems[0], splinesteps=steps)
-                self.canvas.coords(self.dragItems[1], *wc)
-                if self.DEBUG:
-                    print('Scheduling more undoing of {} drag #{} after {} ms.'
-                          .format(dragItemType, serial, wait))
-                self.undoDragRequest = self.canvas.after(
-                    wait,
-                    lambda: self.undoDrag(vertexLabel, after, endDistance, serial))
-
-    def selectVertex(self, vertexLabel, tags='selected'):
-        if not (vertexLabel in self.vertices or vertexLabel is None):
-            return
-        radius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
-        if self.selectedVertex:
-            if vertexLabel is None:
-                self.canvas.delete(self.selectedVertex[1])
-                self.selectedVertex = None
-            else:
-                center = V(self.canvas.coords(
-                    self.vertices[vertexLabel].items[1]))
-                self.canvas.coords(self.selectedVertex[1],
-                                   *(center - radius), *(center + radius))
-                self.selectedVertex = (vertexLabel, self.selectedVertex[1])
-        elif vertexLabel:
-            center = V(self.canvas.coords(self.vertices[vertexLabel].items[1]))
-            self.selectedVertex = (
-                vertexLabel, 
-                self.canvas.create_oval(
-                    *(center - radius), *(center + radius),
-                    fill=self.SELECTED_COLOR, outline=self.SELECTED_OUTLINE,
-                    width=self.SELECTED_WIDTH, tags=tags))
-            self.canvas.tag_lower(self.selectedVertex[1], 'vertex')
-       
-    def deleteVertexHandler(self, vertexLabel):
-        def delVertHandler(event):
-            if self.DEBUG:
-                print('Entered delVertHandler for "{}" #{}.'.format(
-                    vertexLabel, event.serial))
-            if not (vertexLabel in self.vertices and
-                    (self.allowUserMoves or self.dragItems)):
-                if self.DEBUG:
-                    print(('Exit delVertHandler #{} on "{}" with '
-                           'allowUserMoves = {} and dragItems = {}')
-                          .format(event.serial, vertexLabel,
-                                  self.allowUserMoves, self.dragItems))
-                return
-            self.enableButtons(False)
-            vert = self.deleteVertex(vertexLabel)
-            self.enableButtons(True)
-            self.setMessage('Deleted vertex {}'.format(vertexLabel))
-            if self.DEBUG:
-                print('Finished delVertHandler for "{}" #{}.'.format(
-                    vertexLabel, event.serial))
-        return delVertHandler
-
-    def deleteEdgeHandler(self, edge):
-        def delEdgeHandler(event):
-            if self.DEBUG:
-                print('Entered delEdgeHandler for {} #{}.'.format(
-                    edge, event.serial))
-            if not (edge in self.edges and self.allowUserMoves):
-                if self.DEBUG:
-                    print('Exit delEdgeHandler #{} on {} with allowUserMoves = {}'
-                          .format(event.serial, edge, self.allowUserMoves))
-                return
-            self.enableButtons(False)
-            self.changeEdgeWeight(*edge, 0)
-            self.enableButtons(True)
-            self.setMessage('Deleted edge {}'.format(edge))
-            if self.DEBUG:
-                print('Finished delEdgeHandler for {} #{}.'.format(
-                    edge, event.serial))
-        return delEdgeHandler
-    
-    def findVertex(self, point, exclude=()):
-        for v in self.vertices:
-            if v not in exclude:
-                vert = self.vertices[v]
-                center = self.canvas_coords(vert.items[1])
-                if distance2(point, center) <= self.VERTEX_RADIUS **2:
-                    return v
-        
-    def newVertexHandler(self):
-        def newVertHandler(event):
-            self.createVertex(self.getArgument(), coords=(event.x, event.y))
-        return newVertHandler
-
-    def badPosition(self, center, border=None):
-        '''Check if a proposed vertex center would make it overlap other
-        vertices or is outside the visible canvas minus a border.
-        '''
-        if border is None: border = self.VERTEX_RADIUS
-        return (
-            any(distance2(center, self.canvas_coords(v.items[1])) <
-                (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values())
-            or not BBoxContains(V(self.visibleCanvas()) + 
-                                V(V(1, 1, -1, -1) * border),
-                                center))
-    
-    def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
-        try:
-            self.setMessage('')
-            items = self.createVertexItems(
-                label, color=color, coords=coords, tags=tags)
-        except ValueError as e:
-            self.setMessage(str(e))
-            return
-        newCenter = self.canvas_coords(items[1])
-        bad = self.badPosition(newCenter)
-        if bad:
-            self.setMessage('Vertices must be visible and not overlap')
-            self.dispose({}, *items)
-        else:
-            vert = drawnValue((label, self.nextID), *items)
-            self.vertices[label] = vert
-            vertColor = self.canvas_itemConfig(items[0], 'fill')
-            columnLabel = Label(
-                self.adjMatrixFrame, text=label, bg=vertColor,
-                font=self.ADJACENCY_MATRIX_FONT)
-            columnLabel.grid(row=0, column=self.nextID, sticky=(N, E, S, W))
-            rowLabel = Label(
-                self.adjMatrixFrame, text=label, bg=vertColor,
-                font=self.ADJACENCY_MATRIX_FONT)
-            rowLabel.grid(row=self.nextID, column=0, sticky=(N, E, S, W))
-            for otherVert in self.vertices.values():
-                if vert == otherVert:
-                    frame = Frame(self.adjMatrixFrame, bg=vertColor)
-                    frame.grid(row=self.nextID, column=self.nextID, 
-                               sticky=(N, E, S, W))
-                else:
-                    otherVertColor = self.canvas_itemConfig(otherVert.items[0],
-                                                            'fill')
-                    entry = self.makeEdgeWeightEntry(
-                        vertColor, (vert.val[0], otherVert.val[0]))
-                    entry.grid(row=self.nextID, column=otherVert.val[1], 
-                               sticky=(N, E, S, W))
-                    entry = self.makeEdgeWeightEntry(
-                        otherVertColor, (otherVert.val[0], vert.val[0]))
-                    entry.grid(row=otherVert.val[1], column=self.nextID,
-                               sticky=(N, E, S, W))
-            self.nextID += 1
-            self.setArgument(self.nextVertexLabel())
-
-    def deleteVertex(self, vertexLabel):
-        if not vertexLabel in self.vertices:
-            raise ValueError('Cannot update non-existant vertex {}'.format(
-                vertexLabel))
-        if self.selectedVertex and self.selectedVertex[0] == vertexLabel:
-            self.selectVertex(None)
-        for edge in self.findEdges(vertexLabel):
-            self.changeEdgeWeight(*edge, 0)
-        vertex = self.vertices[vertexLabel]
-        ID = vertex.val[1]
-        adjMatrixWidgets = gridDict(self.adjMatrixFrame)
-        for row, column in adjMatrixWidgets:
-            if row == ID or (column == ID and row != ID):
-                adjMatrixWidgets[row, column].grid_forget()
-        self.dispose({}, *vertex.items)
-        del self.vertices[vertexLabel]
-
-    def makeEdgeWeightEntry(self, color, edge):
-        if self.weighted:
-            entry = Entry(self.adjMatrixFrame, bg=color,
-                          font=self.ADJACENCY_MATRIX_FONT, width=2,
-                          state=NORMAL,
-                          takefocus=False, validate='key', 
-                          validatecommand=self.weightValidate)
-            def edgeWeightChange(event):
-                self.changeEdgeWeight(*edge, self.getWeight(entry))
-            entry.bind('<KeyRelease>', edgeWeightChange)
-        else:
-            def toggleEdge():
-                entry = self.adjMat[edge]
-                if entry:
-                    self.enableButtons(False)
-                    self.changeEdgeWeight(*edge, 0 if entry['text'] else 1)
-                    self.enableButtons(True)
-            entry = Button(self.adjMatrixFrame, bg=color,
-                           text='', font=self.ADJACENCY_MATRIX_FONT,
-                           state=NORMAL, takefocus=False, 
-                           command=toggleEdge)
-        self.adjMat[edge] = entry
-        return entry
-
-    def weight(self, weightEntry, newWeight=None):
-        'Get or set the weight in a weight entry widget'
-        if isinstance(weightEntry, Entry):
-            text = weightEntry.get() 
-            if newWeight is None:
-                return int(text) if text else 0
-            if (newWeight > 0 and str(newWeight) != text) or text != '':
-                state = weightEntry['state']
-                weightEntry['state'] = NORMAL
-                weightEntry.delete(0, END)
-                if newWeight:
-                    weightEntry.insert(0, str(newWeight))
-                weightEntry['state'] = state
-        elif isinstance(weightEntry, Button):
-            text = weightEntry['text']
-            if newWeight is None:
-                return int(text) if text else 0
-            if (newWeight > 0 and str(newWeight) != text) or text != '':
-                weightEntry['text'] = '' if newWeight == 0 else str(newWeight)
-        
-    def updateVertex(self, vertexLabel):
-        if not vertexLabel in self.vertices:
-            raise ValueError('Cannot update non-existant vertex {}'.format(
-                vertexLabel))
-        for edge in self.findEdges(vertexLabel):
-            items = self.edges[edge].items
-            p0, p1, p2, steps, wc = self.edgeCoords(
-                self.canvas_coords(self.vertices[edge[0]].items[1]),
-                self.canvas_coords(self.vertices[edge[1]].items[1]),
-            )
-            self.canvas.coords(items[0], *p0, *p1, *p2)
-            self.canvas.itemconfigure(items[0], splinesteps=steps)
-            self.canvas.coords(items[1], *wc)
-        if self.selectedVertex and vertexLabel == self.selectedVertex[0]:
-            self.selectVertex(vertexLabel)
-
-    def findEdges(self, vertex, inbound=True, outbound=True, unique=None):
-        '''Find edges incident to a vertex, possibly filtering by direction.
-        Return only correctly oriented edge if unique is specified which
-        defaults to state of bidirectionalEdges.
-        '''
-        if unique is None: unique = self.bidirectionalEdges.get()
-        return [
-            edge for edge in self.edges if
-            (inbound and edge[1] == vertex or outbound and edge[0] == vertex)
-            and (not unique or self.edges[edge].val == edge)]
-
-    def changeEdgeWeight(self, fromVert, toVert, weight):
-        edge = (fromVert, toVert)
-        reverseEdge = (toVert, fromVert)
-        edges = (edge, reverseEdge) if self.bidirectionalEdges.get() else (edge,)
-        for ed in edges:
-            if ed not in self.adjMat:
-                raise Exception('Missing adjacency matrix entry {}->{}'.format(
-                    *ed))
-            self.weight(self.adjMat[ed], weight)
-
-        if weight > 0:
-            if edge not in self.edges:
-                self.createEdge(fromVert, toVert, weight)
-            else:
-                self.canvas.itemconfigure(
-                    self.edges[edge].items[1],
-                    text=str(weight) if self.weighted else '')
-        else:
-            if edge in self.edges:
-                self.dispose({}, *self.edges[edge].items)
-                del self.edges[edge]
-            if self.bidirectionalEdges.get() and reverseEdge in self.edges:
-                self.dispose({}, *self.edges[reverseEdge].items)
-                del self.edges[reverseEdge]
+            if j != n and self.edgeWeight(nLabel, jLabel):
+                if code:
+                    self.highlightCode('yield j', callEnviron)
+                    itemCoords = self.yieldCallEnvironment(callEnviron)
+                yield j
+                if code:
+                    self.resumeCallEnvironment(callEnviron, itemCoords)
                     
-    def createEdge(self, fromVert, toVert, weight=1, tags=('edge',)):
-        edgeKey = (fromVert, toVert)
-        centers = tuple(self.canvas_coords(self.vertices[v].items[1])
-                        for v in edgeKey)
-        self.edges[edgeKey] = drawnValue(
-            edgeKey, *self.createEdgeItems(
-                centers[0], centers[1], weight=weight, tags=tags,
-                edgePair=edgeKey))
-        reverseEdge = (toVert, fromVert)
-        if self.bidirectionalEdges.get():
-            self.edges[reverseEdge] = self.edges[edgeKey]
-        self.changeEdgeWeight(fromVert, toVert, weight)
+            if code:
+                self.highlightCode('j in self.vertices()', callEnviron,
+                                   wait=wait)
 
-    def nextVertexLabel(self, label=None):
-        if label is None:
-            label = self.getArgument()
-        if label == '':
-            label = self.DEFAULT_VERTEX_LABEL
-        while label in self.vertices:
-            previous = label
-            if label.isalpha():
-                for i in range(len(label) - 1, -1, -1):
-                    nextAlpha = chr(ord(label[i]) + 1)
-                    if nextAlpha.isalpha():
-                        label = label[:i] + nextAlpha + (
-                            'a' if nextAlpha.islower() else 'A') * (
-                                len(label) - 1 - i)
-                        break
-                if previous == label:
-                    if len(label) == self.maxArgWidth:
-                        return ''
-                    lower = label[0].islower()
-                    label = ('a' if lower else 'A') * (len(label) + 1)
-            elif label.isdigit():
-                fmt = '{{:0{}d}}'.format(len(label))
-                label = fmt.format(int(label) + 1)
-                if len(label) > self.maxArgWidth:
-                    return ''
+        if code:
+            self.highlightCode((), callEnviron)
+        self.cleanUp(callEnviron)
+
+    adjacentUnvisitedVerticesCode = '''
+def adjacentUnvisitedVertices(
+      self, n={nVal}, visited, markVisits={markVisits}):
+   for j in self.adjacentVertices(n):
+      if not visited[j]:
+         if markVisits:
+            visited[j] = True
+         yield j
+'''
+
+    def adjacentUnvisitedVertices(
+            self, n, visited, markVisits=True,
+            code=adjacentUnvisitedVerticesCode, wait=0.1):
+        nLabel = self.vertexTable[n].val if n < len(self.vertexTable) else None
+        nVal = "{} ('{}')".format(n, nLabel)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()))
+
+        nArrowConfig = {'level': 1, 'anchor': SE}
+        nVertConfig = {'level': 1, 'orientation': 10, 'anchor': SW}
+        if code:
+            nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+            nVertArrow = self.createLabeledArrow(nLabel, 'n', **nVertConfig)
+            callEnviron |= set(nArrow + nVertArrow)
+            localVars = nArrow + nVertArrow
+        
+            self.highlightCode('j in self.adjacentVertices(n)', callEnviron,
+                               wait=wait)
+            colors = self.fadeNonLocalItems(localVars)
+        
+        jArrowConfig = {'level': 2, 'anchor': SE}
+        jVertConfig = {'level': 1, 'orientation': 40, 'anchor': SW}
+        jArrow, jVertArrow = None, None
+        for j in self.adjacentVertices(
+                n, code=self.adjacentVerticesCode if code else '', wait=wait):
+            if code:
+                self.restoreLocalItems(localVars, colors)
+                if jArrow is None:
+                    jArrow = self.vertexTable.createLabeledArrow(
+                        j, 'j', **jArrowConfig)
+                    jVertArrow = self.createLabeledArrow(
+                        self.vertexTable[j].val, 'j', **jVertConfig)
+                    callEnviron |= set(jArrow + jVertArrow)
+                    localVars += jArrow + jVertArrow
+                else:
+                    self.moveItemsTo(
+                        jArrow + jVertArrow,
+                        self.vertexTable.labeledArrowCoords(j, **jArrowConfig) +
+                        self.labeledArrowCoords(self.vertexTable[j].val,
+                                                **jVertConfig),
+                        sleepTime=wait / 10)
+                self.canvas.itemconfigure(visited[j].items[0], width=2)
+                self.highlightCode('not visited[j]', callEnviron, wait=wait)
+                self.canvas.itemconfigure(visited[j].items[0], width=0)
+                if not visited[j].val:
+                    self.highlightCode(('markVisits', 2), callEnviron,
+                                       wait=wait)
+                    
+            if not visited[j].val:
+                if markVisits:
+                    if code:
+                        self.highlightCode('visited[j] = True', callEnviron, 
+                                           wait=wait)
+                    visited[j].val = True
+                    if code:
+                        self.updateVisitedCells(visited, j)
+                
+                if code:
+                    self.highlightCode('yield j', callEnviron)
+                    itemCoords = self.yieldCallEnvironment(callEnviron)
+                yield j
+                if code:
+                    self.resumeCallEnvironment(callEnviron, itemCoords)
+                    
+            if code:
+                self.highlightCode('j in self.adjacentVertices(n)', callEnviron,
+                                   wait=wait)
+                colors = self.fadeNonLocalItems(localVars)
+
+        if code:
+            self.restoreLocalItems(localVars, colors)
+            self.highlightCode((), callEnviron)
+        self.cleanUp(callEnviron)
+
+    depthFirstCode = '''
+def depthFirst(self, n={nVal}):
+   self.validIndex(n)
+   visited = [False] * self.nVertices()
+   stack = Stack()
+   stack.push(n)
+   visited[n] = True
+   yield (n, stack)
+   while not stack.isEmpty():
+      visit = stack.peek()
+      adj = None
+      for j in self.adjacentUnvisitedVertices(
+         visit, visited):
+         adj = j
+         break
+      if adj is not None:
+         stack.push(adj)
+         yield (adj, stack)
+      else:
+         stack.pop()
+'''
+    innerLoopIterator = re.compile(
+        r'j in self.adjacentUnvisitedVertices.\n.* visited\)')
+
+    def depthFirst(self, n, code=depthFirstCode, wait=0.1):
+        nLabel = (n if isinstance(n, str) else
+                  self.vertexTable[n].val if n < len(self.vertexTable) else
+                  None)
+        n = n if isinstance(n, int) else self.getVertexIndex(n)
+        nVal = "{} ('{}')".format(n, nLabel)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()))
+
+        nArrowConfig = {'level': 1, 'anchor': SE}
+        nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+        callEnviron |= set(nArrow)
+        localVars = nArrow
+        
+        if code:
+            self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
+            self.highlightCode('visited = [False] * self.nVertices()',
+                               callEnviron, wait=wait)
+        visited = self.createVisitedTable(
+            self.nVertices(), initialValue=False, visible=code)
+        if code:
+            callEnviron |= set(flat(*(dv.items for dv in visited)) +
+                               visited.items())
+            self.highlightCode('stack = Stack()', callEnviron, wait=wait)
+
+        stack = Table(
+            self, (50, self.graphRegion[3] + 20),
+            label='stack', vertical=False, cellHeight=self.VERTEX_RADIUS,
+            labelFont=(self.VARIABLE_FONT[0], -12),
+            cellWidth=self.VERTEX_RADIUS * 3 // 2,
+            cellBorderWidth=1 if code else 0)
+        callEnviron |= set(stack.items())
+
+        if code:
+            self.highlightCode('stack.push(n)', callEnviron, wait=wait)
+            copyItems = tuple(self.copyCanvasItem(item)
+                              for item in self.vertices[nLabel].items)
+            callEnviron |= set(copyItems)
+            self.moveItemsLinearly(
+                copyItems, 
+                (stack.cellCoords(len(stack)), stack.cellCenter(len(stack))),
+                sleepTime=wait / 10, startFont=self.getItemFont(copyItems[1]),
+                endFont=self.ADJACENCY_MATRIX_FONT)
+        stack.append(drawnValue(nLabel))
+        if code:
+            stack[-1].items = (
+                self.canvas.create_rectangle(
+                    *stack.cellCoords(len(stack) - 1),
+                    fill=self.canvas_itemConfig(copyItems[0], 'fill'),
+                    width=0),
+                copyItems[1])
+            self.canvas.tag_lower(*stack[-1].items)
+            callEnviron |= set(stack[-1].items + stack.items())
+            self.dispose(callEnviron, copyItems[0])
+
+            self.highlightCode('visited[n] = True', callEnviron, wait=wait)
+
+        visited[n].val = True
+        if code:
+            self.updateVisitedCells(visited, n)
+            self.highlightCode('yield (n, stack)', callEnviron)
+            itemCoords = self.yieldCallEnvironment(callEnviron)
+        yield n, stack
+        if code:
+            self.resumeCallEnvironment(callEnviron, itemCoords)
+            self.highlightCode('not stack.isEmpty()', callEnviron)
+
+        visitArrow = None
+        visitArrowConfig = {'level': 1, 'orientation': -30, 'anchor': SE}
+        jArrowConfig = {'level': 2, 'anchor': SE}
+        jVertConfig = {'level': 1, 'orientation': 40, 'anchor': SW}
+        vertArrow, adjArrow, jArrow, jVertArrow = None, None, None, None
+        adjArrowConfig = {'level': 1, 'orientation': -30, 'anchor': SW}
+        lowerRight = V(self.graphRegion[2:]) + V((self.VERTEX_RADIUS,) * 2)
+        while len(stack) > 0:
+            visitLabel = stack[-1].val
+            visit = self.getVertexIndex(visitLabel)
+            if code:
+                self.highlightCode('visit = stack.peek()', callEnviron,
+                                   wait=wait)
+                if visitArrow is None:
+                    visitArrow = stack.createLabeledArrow(
+                        len(stack) - 1, 'visit', **visitArrowConfig)
+                    vertArrow = self.createLabeledArrow(
+                        visitLabel, 'visit', **visitArrowConfig)
+                    callEnviron |= set(visitArrow + vertArrow)
+                    localVars += visitArrow + vertArrow
+                else:
+                    self.moveItemsTo(
+                        visitArrow + vertArrow,
+                        stack.labeledArrowCoords(len(stack) - 1, 
+                                                 **visitArrowConfig) +
+                        self.labeledArrowCoords(visit, **visitArrowConfig),
+                        sleepTime=wait / 10)
+
+            adj = None
+            if code:
+                self.highlightCode('adj = None', callEnviron, wait=wait)
+                if adjArrow is None:
+                    adjArrow = self.createLabeledArrow(
+                        lowerRight, 'adj', **adjArrowConfig)
+                    callEnviron |= set(adjArrow)
+                    localVars += adjArrow
+                else:
+                    self.moveItemsTo(
+                        adjArrow, self.labeledArrowCoords(lowerRight,
+                                                          **adjArrowConfig),
+                        sleepTime=wait / 10)
+                self.highlightCode(self.innerLoopIterator, callEnviron,
+                                   wait=wait)
+                colors = self.fadeNonLocalItems(localVars)
+
+            for j in self.adjacentUnvisitedVertices(
+                    visit, visited, wait=wait,
+                    code=self.adjacentUnvisitedVerticesCode if code else ''):
+                adj = j
+                adjVertex = self.vertexTable[j].val
+                if code:
+                    self.restoreLocalItems(localVars, colors)
+                    if jArrow is None:
+                        jArrow = self.vertexTable.createLabeledArrow(
+                            j, 'j', **jArrowConfig)
+                        jVertArrow = self.createLabeledArrow(
+                            adjVertex, 'j', **jVertConfig)
+                        callEnviron |= set(jArrow + jVertArrow)
+                        localVars += jArrow + jVertArrow
+                        colors += tuple(self.canvas_itemConfig(i, 'fill')
+                                        for i in jArrow + jVertArrow)
+                    else:
+                        self.moveItemsTo(
+                            jArrow + jVertArrow,
+                            self.vertexTable.labeledArrowCoords(
+                                j, **jArrowConfig) +
+                            self.labeledArrowCoords(adjVertex, **jVertConfig),
+                            sleepTime=wait / 10)
+                    self.highlightCode('adj = j', callEnviron, wait=wait)
+                    self.moveItemsTo(
+                        adjArrow, self.labeledArrowCoords(adjVertex,
+                                                          **adjArrowConfig),
+                        sleepTime=wait / 10)
+                    self.highlightCode('break', callEnviron, wait=wait)
+                break
+
+            if code:
+                self.restoreLocalItems(localVars, colors)
+                self.highlightCode('adj is not None', callEnviron, wait=wait)
+                if adj is not None:
+                    self.highlightCode('stack.push(adj)', callEnviron,
+                                       wait=wait)
+            if adj is not None:
+                stack.append(drawnValue(adjVertex))
+                if code:
+                    copyItems = tuple(self.copyCanvasItem(i)
+                                      for i in self.vertices[adjVertex].items)
+                    callEnviron |= set(copyItems + stack.items())
+                    self.moveItemsLinearly(
+                        copyItems,
+                        (stack.cellCoords(len(stack) - 1),
+                         stack.cellCenter(len(stack) - 1)),
+                        sleepTime=wait / 10,
+                        startFont=self.getItemFont(copyItems[1]),
+                        endFont=self.ADJACENCY_MATRIX_FONT)
+                    stack[-1].items = (
+                        self.canvas.create_rectangle(
+                            *stack.cellCoords(len(stack) - 1),
+                            fill=self.canvas_itemConfig(copyItems[0], 'fill'),
+                            width=0),
+                        copyItems[1])
+                    self.canvas.tag_lower(*stack[-1].items)
+                    callEnviron |= set(stack[-1].items)
+                    self.dispose(callEnviron, copyItems[0])
+                    
+                    self.highlightCode('yield (adj, stack)', callEnviron)
+                    itemCoords = self.yieldCallEnvironment(callEnviron)
+                yield adj, stack
+                if code:
+                    self.resumeCallEnvironment(callEnviron, itemCoords)
+                    
             else:
-                label = ''
-        return label
+                if code:
+                    self.highlightCode('stack.pop()', callEnviron, wait=wait)
+                    self.moveItemsOffCanvas(
+                        stack[-1].items, edge=S, sleepTime=wait / 10)
+                    self.dispose(callEnviron, stack[-1].items)
+                stack.pop()
+
+            if code:
+                self.highlightCode('not stack.isEmpty()', callEnviron)
+
+        if code:
+            self.highlightCode((), callEnviron)
+        self.cleanUp(callEnviron)
+
+    def createVisitedTable(self, size, initialValue=False, visible=True,
+                           gap=5, tags=('visited',)):
+        visited = Table(
+            self, (self.vertexTable.x0 + self.vertexTable.cellWidth + gap,
+                   self.vertexTable.y0),
+            *[drawnValue(initialValue) for k in range(size)],
+            label='visited', labelAnchor=SW, vertical=True, 
+            labelFont=self.vertexTable.labelFont, 
+            cellWidth=self.vertexTable.cellHeight,
+            cellHeight=self.vertexTable.cellHeight, cellBorderWidth=1)
+        if visible:
+            for j, dValue in enumerate(visited):
+                dValue.items = (
+                    self.canvas.create_rectangle(
+                        *visited.cellCoords(j), 
+                        fill=self.VISITED_COLORS[initialValue], width=0,
+                        outline=self.VISITED_HIGHLIGHT_COLOR, tags=tags),
+                    self.canvas.create_text(
+                        *visited.cellCenter(j),
+                        text=self.VISITED_SYMBOLS[initialValue], 
+                        font=self.ADJACENCY_MATRIX_FONT, tags=tags))
+        return visited
+
+    def updateVisitedCells(self, visited, index=None):
+        for v in visited[0 if index is None else index:
+                         len(visited) if index is None else index + 1]:
+            self.canvas.itemconfigure(
+                v.items[0], fill=self.VISITED_COLORS[v.val])
+            self.canvas.itemconfigure(
+                v.items[1], text=self.VISITED_SYMBOLS[v.val])
             
-    def makeButtons(self):
-        vcmd = (self.window.register(
-            makeFilterValidate(self.maxArgWidth)), '%P')
-        self.newVertexButton = self.addOperation(
-            "New Vertex", self.clickNewVertex, numArguments=1,
-            validationCmd=vcmd, argHelpText=['vertex label'], 
-            helpText='Create a new vertex with a label')
-        self.randomFillButton = self.addOperation(
-            "Random Fill", self.clickRandomFill, numArguments=1,
-            validationCmd=vcmd, argHelpText=['# vertices'], 
-            helpText='Fill with N random vertices')
-        self.deleteVertexButton = self.addOperation(
-            "Delete Vertex", self.clickDeleteVertex, numArguments=1,
-            validationCmd=vcmd, argHelpText=['vertex label'], 
-            helpText='Delete the labeled vertex')
-        self.newGraphButton = self.addOperation(
-            "New Graph", self.clickNewGraph,
-            helpText='Create new, empty graph')
-        self.bidirectionalEdges = IntVar()
-        self.bidirectionalEdges.set(1)
-        self.bidirectionalEdgesButton = self.addOperation(
-            "Bidirectional", self.clickBidirectionalEdges,
-            buttonType=Checkbutton, variable=self.bidirectionalEdges, 
-            helpText='Use bidirectional edges')
-        self.addAnimationButtons()
+    breadthFirstCode = '''
+def breadthFirst(self, n={nVal}):
+   self.validIndex(n)
+   visited = [False] * self.nVertices()
+   queue = Queue()
+   queue.insert(n)
+   visited[n] = True
+   while not queue.isEmpty():
+      visit = queue.remove()
+      yield visit
+      for j in self.adjacentUnvisitedVertices(
+            visit, visited):
+         queue.insert(j)
+'''
 
-    def validArgument(self):
-        text = self.getArgument()
-        return text
+    def breadthFirst(self, n, code=breadthFirstCode, wait=0.1):
+        nLabel = (n if isinstance(n, str) else
+                  self.vertexTable[n].val if n < len(self.vertexTable) else
+                  None)
+        n = n if isinstance(n, int) else self.getVertexIndex(n)
+        nVal = "{} ('{}')".format(n, nLabel)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()))
 
+        nArrowConfig = {'level': 1, 'anchor': SE}
+        nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+        callEnviron |= set(nArrow)
+        localVars = nArrow
+        
+        if code:
+            self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
+            self.highlightCode('visited = [False] * self.nVertices()',
+                               callEnviron, wait=wait)
+        visited = self.createVisitedTable(
+            self.nVertices(), initialValue=False, visible=code)
+        if code:
+            callEnviron |= set(flat(*(dv.items for dv in visited)) +
+                               visited.items())
+            self.highlightCode('queue = Queue()', callEnviron, wait=wait)
+
+        queue = Table(
+            self, (50, self.graphRegion[3] + 20),
+            label='queue', vertical=False, cellHeight=self.VERTEX_RADIUS,
+            labelFont=(self.VARIABLE_FONT[0], -12),
+            cellWidth=self.VERTEX_RADIUS * 3 // 2,
+            cellBorderWidth=1 if code else 0)
+        callEnviron |= set(queue.items())
+
+        if code:
+            self.highlightCode('queue.insert(n)', callEnviron, wait=wait)
+            copyItems = tuple(self.copyCanvasItem(item)
+                              for item in self.vertices[nLabel].items)
+            callEnviron |= set(copyItems)
+            self.moveItemsLinearly(
+                copyItems, 
+                (queue.cellCoords(len(queue)), queue.cellCenter(len(queue))),
+                sleepTime=wait / 10, startFont=self.getItemFont(copyItems[1]),
+                endFont=self.ADJACENCY_MATRIX_FONT)
+        queue.append(drawnValue(nLabel))
+        if code:
+            queue[-1].items = (
+                self.canvas.create_rectangle(
+                    *queue.cellCoords(len(queue) - 1),
+                    fill=self.canvas_itemConfig(copyItems[0], 'fill'),
+                    width=0),
+                copyItems[1])
+            self.canvas.tag_lower(*queue[-1].items)
+            callEnviron |= set(queue[-1].items + queue.items())
+            self.dispose(callEnviron, copyItems[0])
+
+            self.highlightCode('visited[n] = True', callEnviron, wait=wait)
+
+        visited[n].val = True
+        if code:
+            self.updateVisitedCells(visited, n)
+            self.highlightCode('not queue.isEmpty()', callEnviron)
+
+        visitArrow, visitArrowConfig = None, {'orientation': -30, 'anchor': SE}
+        jArrowConfig = {'level': 2, 'anchor': SE}
+        jVertConfig = {'orientation': 40, 'anchor': SW}
+        jArrow, jVertArrow = None, None
+        lowerRight = V(self.graphRegion[2:]) + V((self.VERTEX_RADIUS,) * 2)
+        while len(queue) > 0:
+            visitLabel = queue[0].val
+            visit = self.getVertexIndex(visitLabel)
+            if code:
+                self.highlightCode('visit = queue.remove()', callEnviron,
+                                   wait=wait)
+                if visitArrow is None:
+                    visitArrow = queue.createLabeledArrow(
+                        0, 'visit', **visitArrowConfig)
+                    callEnviron |= set(visitArrow)
+                    localVars += visitArrow
+                else:
+                    self.moveItemsTo(
+                        visitArrow,
+                        queue.labeledArrowCoords(len(queue) - 1, 
+                                                 **visitArrowConfig),
+                        sleepTime=wait / 10)
+                    
+            visitDValue = queue.pop(0)
+            if code:
+                for item in visitDValue.items:
+                    self.canvas.tag_lower(
+                        item, self.vertices[visitLabel].items[0])
+                self.moveItemsLinearly(
+                    visitArrow + visitDValue.items + 
+                    flat(*(dv.items for dv in queue)),
+                    self.labeledArrowCoords(visitLabel, **visitArrowConfig) +
+                    tuple(self.canvas_coords(item) 
+                          for item in self.vertices[visitLabel].items) +
+                    flat(*((queue.cellCoords(j), queue.cellCenter(j)) for
+                           j in range(len(queue)))),
+                    sleepTime=wait / 10)
+                self.dispose(callEnviron, *visitDValue.items)
+
+                self.highlightCode('yield visit', callEnviron)
+                itemCoords = self.yieldCallEnvironment(callEnviron)
+                
+            yield visit
+            if code:
+                self.resumeCallEnvironment(callEnviron, itemCoords)
+                self.highlightCode(self.innerLoopIterator, callEnviron,
+                                   wait=wait)
+                colors = self.fadeNonLocalItems(localVars)
+
+            for j in self.adjacentUnvisitedVertices(
+                    visit, visited, wait=wait,
+                    code=self.adjacentUnvisitedVerticesCode if code else ''):
+                adjVertex = self.vertexTable[j].val
+                if code:
+                    self.restoreLocalItems(localVars, colors)
+                    if jArrow is None:
+                        jArrow = self.vertexTable.createLabeledArrow(
+                            j, 'j', **jArrowConfig)
+                        jVertArrow = self.createLabeledArrow(
+                            adjVertex, 'j', **jVertConfig)
+                        callEnviron |= set(jArrow + jVertArrow)
+                        localVars += jArrow + jVertArrow
+                    else:
+                        self.moveItemsTo(
+                            jArrow + jVertArrow,
+                            self.vertexTable.labeledArrowCoords(
+                                j, **jArrowConfig) +
+                            self.labeledArrowCoords(adjVertex, **jVertConfig),
+                            sleepTime=wait / 10)
+
+                    self.highlightCode('queue.insert(j)', callEnviron,
+                                       wait=wait)
+
+                queue.append(drawnValue(adjVertex))
+                if code:
+                    copyItems = tuple(self.copyCanvasItem(i)
+                                      for i in self.vertices[adjVertex].items)
+                    callEnviron |= set(copyItems + queue.items())
+                    self.moveItemsLinearly(
+                        copyItems,
+                        (queue.cellCoords(len(queue) - 1),
+                         queue.cellCenter(len(queue) - 1)),
+                        sleepTime=wait / 10,
+                        startFont=self.getItemFont(copyItems[1]),
+                        endFont=self.ADJACENCY_MATRIX_FONT)
+                    queue[-1].items = (
+                        self.canvas.create_rectangle(
+                            *queue.cellCoords(len(queue) - 1),
+                            fill=self.canvas_itemConfig(copyItems[0], 'fill'),
+                            width=0),
+                        copyItems[1])
+                    self.canvas.tag_lower(*queue[-1].items)
+                    callEnviron |= set(queue[-1].items)
+                    self.dispose(callEnviron, copyItems[0])
+                    
+                    self.highlightCode(self.innerLoopIterator, callEnviron,
+                                       wait=wait)
+                    colors = self.fadeNonLocalItems(localVars)
+
+            if code:
+                self.restoreLocalItems(localVars, colors)
+                self.highlightCode('not queue.isEmpty()', callEnviron, 
+                                   wait=wait)
+
+        if code:
+            self.highlightCode((), callEnviron, wait=wait)
+        self.cleanUp(callEnviron)
+
+    traverseExampleCode = '''
+for vertex{vars} in graph.{order}First(start={startVal}):
+   print(graph.getVertex(vertex))
+'''
+    
+    def traverseExample(self, order, startVertex, code=traverseExampleCode,
+                        start=True, wait=0.1):
+        orderings = ('breadth', 'depth')
+        if order not in orderings:
+            raise ValueError('Traverse order must be in {}'.format(orderings))
+        startVal = "{} ('{}')".format(
+            self.getVertexIndex(startVertex), startVertex)
+        vars = '' if order == 'breadth' else ', stack'
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start)
+
+        visible = self.visibleCanvas()
+        outputBox = OutputBox(
+            self, bbox=(self.graphRegion[2] - 250, visible[3] - 40,
+                        self.graphRegion[2], visible[3] - 10),
+            outputFont=(self.VALUE_FONT[0], -16))
+        callEnviron |= set(outputBox.items())
+        
+        iterator = (
+            'vertex{vars} in graph.{order}First(start={startVal})'.format(
+                **locals()))
+        vertexArrow, vertexArrowConfig = None, {}
+        vertexVertArrow = None
+        vertexVertConfig = {'orientation': 30, 'anchor': SW}
+        localVars, colors = (), {}
+        self.highlightCode(iterator, callEnviron, wait=wait)
+
+        for thing in (
+                self.depthFirst if order == 'depth' else self.breadthFirst)(
+                    startVertex, wait=wait):
+            self.restoreLocalItems(localVars, colors)
+            vertex = thing[0] if order == 'depth' else thing
+            vertexLabel = self.vertexTable[vertex].val
+            path = thing[1] if order == 'depth' else ()
+            edgesInPath = [
+                self.edges[path[v].val, path[v + 1].val].items[0]
+                for v in range(len(path) - 1)]
+            if vertexArrow is None:
+                vertexArrow = self.vertexTable.createLabeledArrow(
+                    vertex, 'vertex', **vertexArrowConfig)
+                vertexVertArrow = self.createLabeledArrow(
+                    vertexLabel, 'vertex', **vertexVertConfig)
+                callEnviron |= set(vertexArrow + vertexVertArrow)
+                localVars += vertexArrow + vertexVertArrow
+            else:
+                self.moveItemsTo(
+                    vertexArrow + vertexVertArrow, 
+                    self.vertexTable.labeledArrowCoords(
+                        vertex, **vertexArrowConfig) +
+                    self.labeledArrowCoords(vertexLabel, **vertexVertConfig),
+                    sleepTime=wait / 10)
+            for edge in edgesInPath:
+                self.canvas.itemconfigure(
+                    edge, width=self.ACTIVE_EDGE_WIDTH,
+                    fill=self.ACTIVE_EDGE_COLOR)
+            self.highlightCode('print(graph.getVertex(vertex))', callEnviron,
+                               wait=wait)
+            copy = self.copyCanvasItem(self.vertices[vertexLabel].items[1])
+            callEnviron.add(copy)
+            outputBox.appendText(copy, sleepTime=wait / 10)
+
+            self.highlightCode(iterator, callEnviron, wait=wait)
+            for edge in edgesInPath:
+                self.canvas.itemconfigure(
+                    edge, width=self.EDGE_WIDTH, fill=self.EDGE_COLOR)
+            colors = self.fadeNonLocalItems(localVars)
+            
+        if code:
+            self.highlightCode((), callEnviron, wait=wait)
+        self.cleanUp(callEnviron)
+    
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
-        for btn in [self.bidirectionalEdgesButton]: # Bidirectional edge status
-            self.widgetState(               # can only change without edges
+        for btn in (self.depthFirstTraverseButton, 
+                    self.breadthFirstTraverseButton):
+            self.widgetState( # can only traverse when start node selected
                 btn,
-                NORMAL if enable and self.nEdges() == 0 else DISABLED)
-    
-    # Button functions
-    def clickNewVertex(self):
-        val = self.validArgument()
-        if val in self.vertices:
-            self.setMessage('Cannot duplicate vertex {}'.format(val))
-            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
-            return
-        self.createVertex(val)
-    
-    def clickDeleteVertex(self):
-        val = self.validArgument()
-        if val not in self.vertices:
-            self.setMessage('No vertex labeled {}'.format(val))
-            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
-            return
-        self.deleteVertex(val)
-        self.clearArgument()
+                NORMAL if enable and self.selectedVertex else DISABLED)
 
-    def clickNewGraph(self):
-        self.newGraph()
-    
-    def clickBidirectionalEdges(self):
-        return
+    def makeButtons(self, *args, **kwargs):
+        '''Make buttons specific to unweighted graphs and aadd the
+        animation control buttons'''
+        vcmd = super().makeButtons(*args, **kwargs)
+        self.depthFirstTraverseButton = self.addOperation(
+            "Depth-first Traverse", self.clickDepthFirstTraverse,
+            helpText='Traverse graph in depth-first order', state=DISABLED)
+        self.breadthFirstTraverseButton = self.addOperation(
+            "Breadth-first Traverse", self.clickBreadthFirstTraverse,
+            helpText='Traverse graph in breadth-first order', state=DISABLED)
+        self.addAnimationButtons()
 
-    def randomFill(self, nVertices):
-        maxLabel = (self.DEFAULT_VERTEX_LABEL if len(self.vertices) == 0 else
-                    self.nextVertexLabel(max(v for v in self.vertices)))
-        for n in range(nVertices):
-            self.createVertex(maxLabel)
-            maxLabel = self.nextVertexLabel(maxLabel)
-        
-    def clickRandomFill(self):
-        val = self.validArgument()
-        if val and val.isdigit() and int(val) <= self.MAX_VERTICES:
-            self.randomFill(int(val))
+    def clickDepthFirstTraverse(self):
+        if self.selectedVertex:
+            self.traverseExample('depth', self.selectedVertex[0],
+                                 start=self.startMode())
         else:
-            self.setMessage('Number of vertices must be {} or less'.format(
-                self.MAX_VERTICES))
-            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
+            self.setMessage('Must select start vertex before traversal')
 
+    def clickBreadthFirstTraverse(self):
+        if self.selectedVertex:
+            self.traverseExample('breadth', self.selectedVertex[0],
+                                 start=self.startMode())
+        else:
+            self.setMessage('Must select start vertex before traversal')
+        
 if __name__ == '__main__':
-    graph = Graph()
+    graph = Graph(weighted=False)
+    edgePattern = re.compile(r'(\w+)-(\w+)')
 
+    edges = []
     for arg in sys.argv[1:]:
+        edgeMatch = edgePattern.match(arg)
         if len(arg) > 1 and arg[0] == '-':
             if arg == '-d':
                 graph.DEBUG = True
+            elif arg == '-b':
+                graph.bidirectionalEdges.set(1)
+            elif arg == '-B':
+                graph.bidirectionalEdges.set(0)
             elif arg[1:].isdigit():
                 graph.setArgument(arg[1:])
                 graph.randomFillButton.invoke()
                 graph.setArgument(
                     chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
+        elif edgeMatch and all(edgeMatch.group(i) in sys.argv[1:] 
+                               for i in (1, 2)):
+            edges.append((edgeMatch.group(1), edgeMatch.group(2)))
         else:
             graph.setArgument(arg)
             graph.newVertexButton.invoke()
+    for fromVert, toVert in edges:
+        graph.createEdge(fromVert, toVert, 1)
         
     graph.runVisualization()

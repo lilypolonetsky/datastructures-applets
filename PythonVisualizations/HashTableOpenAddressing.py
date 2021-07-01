@@ -3,10 +3,12 @@ import re, math
 try:
     from drawnValue import *
     from HashBase import *
+    from OutputBox import *
     from HashTable_OpenAddressing import *
 except ModuleNotFoundError:
     from .drawnValue import *
     from .HashBase import *
+    from .OutputBox import *
     from .HashTable_OpenAddressing import *
 
 # Regular expression for fraction
@@ -291,12 +293,11 @@ def __growTable(self):
 
     def randomFill(
             self, nItems, animate=None, alphabet=
-            'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ-_+.,&/:'):
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_+&:'):
         if animate is None: animate = self.showHashing.get()
         callEnviron = self.createCallEnvironment()
         count = 0
         for j in range(nItems):
-            #key = random.randrange(10 ** self.maxArgWidth)
             key = ''.join(random.choices(alphabet, k=self.maxArgWidth))
             if self.insert(key, code=self.insertCode if animate else ''):
                 count += 1
@@ -318,14 +319,15 @@ def search(self, key={key}):
             code=code.format(**locals()) if code else '',
             startAnimations=code and start)
 
-        pad = 5
-        outBox = self.outputBoxCoords(nLines=2, pad=pad)
         cellSize = BBoxSize(self.cellCoords(0))
-        outBox = (outBox[0], outBox[1], 
-                  outBox[0] + cellSize[0] + 2 * pad, outBox[3])
-        outBoxCenter = BBoxCenter(outBox)
-        outputBox = self.createOutputBox(coords=outBox)
-        callEnviron.add(outputBox)
+        visible = self.visibleCanvas()
+        x0, y0, x1, y1 = self.outputBoxCoords()
+        pad = 5
+        outputBox = OutputBox(
+            self, bbox=(x0, visible[3] - cellSize[1] - pad * 3,
+                        x0 + cellSize[0] + pad * 2, visible[3] - pad),
+            outputFont=self.outputFont)
+        callEnviron |= set(outputBox.items())
         
         if code:
             self.highlightCode('i = self.__find(key)', callEnviron)
@@ -354,15 +356,8 @@ def search(self, key={key}):
                 items = [self.copyCanvasItem(item)
                          for item in self.table[i].items]
                 callEnviron |= set(items)
-                self.canvas.tag_lower(items[0])
-                upperLeft = V(outBox) + V(pad, pad)
-                self.moveItemsTo(
-                    items,
-                    (upperLeft + (V(upperLeft) + V(cellSize)), outBoxCenter),
-                    sleepTime=wait / 10, startFont=self.getItemFont(items[1]),
-                    endFont=self.outputFont)
-                self.copyItemAttributes(items[0], outputBox, 'fill')
-                self.dispose(callEnviron, items[0])
+                outputBox.setToText(items, sleepTime=wait / 10, color=True)
+                callEnviron -= set(items)
             
         self.cleanUp(callEnviron)
         return self.table[i] if found else None
@@ -516,17 +511,31 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
         dValue.val = self.__Deleted
 
     traverseExampleCode = '''
+first = True
 for key, data in hashTable.traverse():
-   print(key)
+   print(key if first else ', ' + key, end='')
+   first = False
 '''
     def traverseExample(
-            self, code=traverseExampleCode, start=True, indexLabel='item'):
+            self, code=traverseExampleCode, start=True, indexLabel='key'):
         wait = 0.1
         callEnviron = self.createCallEnvironment(
             code=code, startAnimations=start)
         
-        outputBox = self.createOutputBox(coords=self.outputBoxCoords())
-        callEnviron.add(outputBox)
+        outputBox = OutputBox(
+            self, bbox=self.outputBoxCoords(), 
+            separators=r'[\s,.;]+', outputFont=self.outputFont)
+        callEnviron |= set(outputBox.items())
+        
+        self.highlightCode('first = True', callEnviron, wait=wait)
+        first = True
+        firstLabel = self.canvas.create_text(
+            outputBox.bbox[0] - self.textWidth(
+                self.VARIABLE_FONT, 'first = False '),
+            int(outputBox.bbox[1] + outputBox.bbox[3]) // 2, anchor=W,
+            text='first = True', font=self.VARIABLE_FONT,
+            fill=self.VARIABLE_COLOR)
+        callEnviron.add(firstLabel)
         
         self.highlightCode(
             'key, data in hashTable.traverse()', callEnviron, wait=wait)
@@ -543,13 +552,24 @@ for key, data in hashTable.traverse():
                 self.moveItemsTo(
                     arrayIndex, self.arrayIndexCoords(i), sleepTime=wait / 10)
 
-            self.highlightCode('print(key)', callEnviron, wait=wait)
-            self.appendTextToOutputBox(
-                item.items[1], callEnviron, sleepTime=wait / 10)
+            self.highlightCode(('first', 2), callEnviron, wait=wait)
+            self.highlightCode(
+                ('print(',
+                 ('key', 2) if first else "', ' + key",
+                 ", end='')"), callEnviron, wait=wait)
 
-            colors = self.fadeNonLocalItems(localVars)
+            copy = self.copyCanvasItem(item.items[1])
+            callEnviron.add(copy)
+            outputBox.appendText(copy, separator=', ', sleepTime=wait / 10)
+            callEnviron.discard(copy)
+
+            self.highlightCode('first = False', callEnviron, wait=wait)
+            first = False
+            self.canvas_itemConfig(firstLabel, text='first = False')
+            
             self.highlightCode(
                 'key, data in hashTable.traverse()', callEnviron, wait=wait)
+            colors = self.fadeNonLocalItems(localVars)
         
         self.highlightCode((), callEnviron)
         self.cleanUp(callEnviron)
@@ -891,23 +911,32 @@ def traverse(self):
 
 if __name__ == '__main__':
     hashTable = HashTableOpenAddressing()
-    animate = '-a' in sys.argv[1:]
-    for probe in (linearProbe, quadraticProbe, doubleHashProbe):
-        if ('-' + probe.__name__[0]) in sys.argv[1:]:
-            hashTable.probe = probe
-            hashTable.probeChoice.set(hashTable.probe.__name__)
-        
-    showHashing = hashTable.showHashing.get()
-    hashTable.showHashing.set(1 if animate else 0)
+    probes = (linearProbe, quadraticProbe, doubleHashProbe)
+
+    keys = []
     for arg in sys.argv[1:]:
-        if not(arg[0] == '-' and len(arg) == 2 and arg[1:].isalpha()):
-            if animate:
-                hashTable.setArgument(arg)
-                hashTable.insertButton.invoke()
-            else:
-                hashTable.insert(int(arg) if arg.isdigit() else arg, code='')
+        option = arg[0] == '-' and (len(arg) == 2 and arg[1:].isalpha() or
+                                    len(arg) > 1 and arg[1:].isdigit())
+        if option:
+            if arg == '-A':
+                hashTable.showHashing.set(0)
+            elif arg == '-a':
+                hashTable.showHashing.set(1)
+            elif any(p.__name__.startswith(arg[1:]) for p in probes):
+                for probe in probes:
+                    if probe.__name__.startswith(arg[1:]):
+                        hashTable.probe = probe
+                        hashTable.probeChoice.set(hashTable.probe.__name__)
+            elif arg[1:].isdigit():
+                hashTable.randomFill(int(arg[1:]))
+        else:
+            keys.append(arg)
+
+    for key in keys:
+        if hashTable.showHashing.get():
+            hashTable.setArgument(key)
+            hashTable.insertButton.invoke()
+        else:
+            hashTable.insert(int(key) if key.isdigit() else key, code='')
         
-    hashTable.showHashing.set(showHashing)
-    if not animate:
-        hashTable.stopAnimations()
     hashTable.runVisualization()
