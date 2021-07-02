@@ -17,7 +17,11 @@ class Graph(GraphBase):
     VISITED_COLORS = {False: 'light coral' , 0: 'light coral' , 
                       True: 'green3', 1: 'green3'}
     VISITED_HIGHLIGHT_COLOR = 'yellow'
-    EDGE_HIGHLIGHT_PAD = 5
+    ADJ_MAT_HIGHLIGHT_PAD = 5
+    HIGHLIGHTED_VERTEX_RADIUS = GraphBase.SELECTED_RADIUS + 2
+    HIGHLIGHTED_VERTEX_COLOR = 'chocolate2'
+    HIGHLIGHTED_EDGE_WIDTH = 3
+    HIGHLIGHTED_EDGE_COLOR = 'chocolate2'
 
     def vertexIndices(self):
       return range(self.nVertices()) # Same as range up to nVertices
@@ -66,8 +70,8 @@ def adjacentVertices(self, n={nVal}):
                 self.highlightCode('j != n', callEnviron, wait=wait)
                 if j != n:
                     edgeEntry = self.adjMat[nLabel, jLabel] # Highlight edge in
-                    edgeEntry.grid(padx=self.EDGE_HIGHLIGHT_PAD, # adj matrix
-                                   pady=self.EDGE_HIGHLIGHT_PAD)
+                    edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # adj matrix
+                                   pady=self.ADJ_MAT_HIGHLIGHT_PAD)
                     self.highlightCode('self.hasEdge(n, j)', callEnviron,
                                        wait=wait)
                     edgeEntry.grid(padx=0, pady=0)
@@ -680,11 +684,109 @@ for vertex{vars} in graph.{order}First(start={startVal}):
         if code:
             self.highlightCode((), callEnviron, wait=wait)
         self.cleanUp(callEnviron)
+
+    minimumSpanningTreeCode = '''
+def minimumSpanningTree(self, n={nVal}):
+   self.validIndex(n)
+   tree = Graph()
+   vMap = [None] * self.nVertices()
+   for vertex, path in self.depthFirst(n):
+      vMap[vertex] = tree.nVertices()
+      tree.addVertex(self.getVertex(vertex))
+      if len(path) > 1:
+         tree.addEdge(vMap[path[-2]], vMap[path[-1]])
+   return tree
+'''
+
+    def minimumSpanningTree(
+            self, n, code=minimumSpanningTreeCode, start=True, wait=0.1):
+        nLabel = (n if isinstance(n, str) else
+                  self.vertexTable[n].val if n < len(self.vertexTable) else
+                  None)
+        n = n if isinstance(n, int) else self.getVertexIndex(n)
+        nVal = "{} ('{}')".format(n, nLabel)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()))
+
+        nArrowConfig = {'level': 1, 'anchor': SE}
+        nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+        callEnviron |= set(nArrow)
+        localVars = nArrow
+        
+        self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
+        self.highlightCode('tree = Graph()', callEnviron, wait=wait)
+        treeLabelAnchor = (50, self.graphRegion[3] + 60)
+        treeLabel = self.canvas.create_text(
+            *treeLabelAnchor, text='tree', anchor=E,
+            fill=self.VARIABLE_COLOR, font=self.VARIABLE_FONT)
+        callEnviron.add(treeLabel)
+        localVars = (*localVars, treeLabel)
+        treeVerts = []
+        
+        self.highlightCode('vMap = [None] * self.nVertices()', callEnviron,
+                           wait=wait)
+        vMap = Table(
+            self, (self.vertexTable.x0 + self.vertexTable.cellWidth + 5,
+                   self.vertexTable.y0),
+            *[drawnValue(None) for k in range(self.nVertices())],
+            label='vMap', labelAnchor=SW, vertical=True, 
+            labelFont=self.vertexTable.labelFont, 
+            cellWidth=self.vertexTable.cellWidth,
+            cellHeight=self.vertexTable.cellHeight,
+            cellBorderWidth=self.vertexTable.cellBorderWidth)
+        callEnviron |= set(vMap.items())
+        localVars += vMap.items()
+        
+        vertexArrow, vertexArrowConfig = None, {}
+        vertexVertArrow = None
+        vertexVertConfig = {'orientation': 30, 'anchor': SW}
+        self.highlightCode('vertex, path in self.depthFirst(n)', callEnviron,
+                           wait=wait)
+        colors = self.fadeNonLocalItems(localVars)
+        for vertex, path in self.depthFirst(n):
+            self.restoreLocalItems(localVars, colors)
+            vertexLabel = self.vertexTable[vertex].val
+            edgesInPath = [
+                self.edges[path[v].val, path[v + 1].val].items[0]
+                for v in range(len(path) - 1)]
+            if vertexArrow is None:
+                vertexArrow = self.vertexTable.createLabeledArrow(
+                    vertex, 'vertex', **vertexArrowConfig)
+                vertexVertArrow = self.createLabeledArrow(
+                    vertexLabel, 'vertex', **vertexVertConfig)
+                callEnviron |= set(vertexArrow + vertexVertArrow)
+                localVars += vertexArrow + vertexVertArrow
+            else:
+                self.moveItemsTo(
+                    vertexArrow + vertexVertArrow, 
+                    self.vertexTable.labeledArrowCoords(
+                        vertex, **vertexArrowConfig) +
+                    self.labeledArrowCoords(vertexLabel, **vertexVertConfig),
+                    sleepTime=wait / 10)
+            for edge in edgesInPath:
+                self.canvas.itemconfigure(
+                    edge, width=self.ACTIVE_EDGE_WIDTH,
+                    fill=self.ACTIVE_EDGE_COLOR)
+
+            self.highlightCode('vMap[vertex] = tree.nVertices()', callEnviron,
+                               wait=wait)
+            
+            self.highlightCode(
+                'vertex, path in self.depthFirst(n)', callEnviron, wait=wait)
+            for edge in edgesInPath:
+                self.canvas.itemconfigure(
+                    edge, width=self.EDGE_WIDTH, fill=self.EDGE_COLOR)
+            colors = self.fadeNonLocalItems(localVars)
+            
+        self.restoreLocalItems(localVars, colors)
+            
+        self.highlightCode('return tree', callEnviron, wait=wait)
+        self.cleanUp(callEnviron)
     
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
         for btn in (self.depthFirstTraverseButton, 
-                    self.breadthFirstTraverseButton):
+                    self.breadthFirstTraverseButton, self.MSTButton):
             self.widgetState( # can only traverse when start node selected
                 btn,
                 NORMAL if enable and self.selectedVertex else DISABLED)
@@ -694,27 +796,30 @@ for vertex{vars} in graph.{order}First(start={startVal}):
         animation control buttons'''
         vcmd = super().makeButtons(*args, **kwargs)
         self.depthFirstTraverseButton = self.addOperation(
-            "Depth-first Traverse", self.clickDepthFirstTraverse,
+            "Depth-first Traverse", lambda: self.clickTraverse('depth'),
             helpText='Traverse graph in depth-first order', state=DISABLED)
         self.breadthFirstTraverseButton = self.addOperation(
-            "Breadth-first Traverse", self.clickBreadthFirstTraverse,
+            "Breadth-first Traverse", lambda: self.clickTraverse('breadth'),
             helpText='Traverse graph in breadth-first order', state=DISABLED)
+        self.MSTButton = self.addOperation(
+            "Minimum Spanning Tree", self.clickMinimumSpanningTree,
+            helpText='Compute a minimum spanning tree', state=DISABLED)
         self.addAnimationButtons()
 
-    def clickDepthFirstTraverse(self):
+    def clickTraverse(self, kind):
         if self.selectedVertex:
-            self.traverseExample('depth', self.selectedVertex[0],
+            self.traverseExample(kind, self.selectedVertex[0],
                                  start=self.startMode())
         else:
             self.setMessage('Must select start vertex before traversal')
 
-    def clickBreadthFirstTraverse(self):
+    def clickMinimumSpanningTree(self):
         if self.selectedVertex:
-            self.traverseExample('breadth', self.selectedVertex[0],
-                                 start=self.startMode())
+            self.minimumSpanningTree(self.selectedVertex[0],
+                                     start=self.startMode())
         else:
             self.setMessage('Must select start vertex before traversal')
-        
+            
 if __name__ == '__main__':
     graph = Graph(weighted=False)
     edgePattern = re.compile(r'(\w+)-(\w+)')
