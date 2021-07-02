@@ -10,7 +10,6 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-from ToolTip import ToolTip
 import time, re, pdb, sys, os.path
 from collections import *
 from tkinter import *
