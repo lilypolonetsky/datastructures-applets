@@ -10,6 +10,7 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
+from ToolTip import ToolTip
 import time, re, pdb, sys, os.path
 from collections import *
 from tkinter import *
@@ -78,7 +79,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def __init__(  # Constructor
             self,
             maxArgWidth=3,    # Maximum length/width of text arguments
-            hoverDelay=3000,  # Milliseconds to wait before showing hints
+            hoverDelay=1000,  # Milliseconds to wait before showing hints
             **kwargs):
         super().__init__(**kwargs)
 
@@ -92,6 +93,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
         self.debugRequested = False
+        self.tw = None
         self.createPlayControlImages()
         self.setUpControlPanel()
  
@@ -220,6 +222,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         button.bind('<KeyPress>', self.recordModifierKeyState)
         setattr(button, 'required_args', numArguments)
 
+
         # Placement
         withArgs, withoutArgs = self.getOperations()
         if numArguments:
@@ -269,8 +272,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
         self.configureOperationsSeparator(withArgs, withoutArgs)
         if helpText:
-            button.bind('<Enter>', self.makeArmHintHandler(button, helpText))
-            button.bind('<Leave>', self.makeDisarmHandler(button))
+            button.bind('<Enter>', self.makeArmHintHandler(button, helpText)) #equivalent of ttp 'enter'
+            button.bind('<Leave>', self.makeDisarmHandler(button)) #equivalent of ttp 'close'
             button.bind('<Button>', self.makeDisarmHandler(button), '+')
         self.opButtons.append(button)
         return button
@@ -303,6 +306,14 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         return entry
 
     def setHint(self, hintText=None):
+        
+        # creates a toplevel window
+        self.tw = Toplevel()
+        # Leaves only the label and removes the app window
+        self.tw.overrideredirect(True)
+        x = y = 25
+        self.tw.geometry("+%d+%d" % (x, y))
+        
         if hintText is None:    # Default hint is description of all arguments
             hintText = 'Click to enter {}'.format(
                 ',\n'.join([
@@ -311,24 +322,27 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                     for entry in self.textEntries]))
         if self.entryHint is None: # Create hint if not present
             self.entryHint = Label(
-                self.operations, text=hintText,
+                self.tw, text=hintText,
                 font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
-            self.entryHint.bind(
+            '''self.entryHint.bind(
                 '<Button>', # Clear the hint when label clicked
-                clearHintHandler(self.entryHint, self.textEntries[0]))
-            self.entryHint.bind(
+                clearHintHandler(self.entryHint, self.textEntries[0]))'''
+            '''self.entryHint.bind(
                 '<Shift-Button>', # Extend hint activation delay
-                self.extendHintActivationHandler())
+                self.extendHintActivationHandler())'''
         else:                      # Update hint text if already present
             self.entryHint['text'] = hintText
             if hintText == '':
+                if self.tw:
+                    self.tw.destroy()
+                    self.tw = None
                 self.entryHint.grid_remove()
             else:
                 self.entryHint.grid()
         for entry in self.textEntries:      # Clear hint when entries get focus
             if not entry.bind('<FocusIn>'): # if handler not already set up 
                 entry.bind('<FocusIn>', 
-                           clearHintHandler(self.entryHint, entry))
+                           self.clearHintHandler(self.entryHint, entry))
         
     def makeArmHintHandler(self, widget, helpText=None):
         def handler(event):
@@ -337,8 +351,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             setattr(widget, 'timeout_ID',
                     widget.after(
                         self.HOVER_DELAY, 
-                        lambda: self.setHint(hint) or
-                        setattr(widget, 'timeout_ID', None)))
+                        lambda: print(self.setHint(hint), setattr(widget, 'timeout_ID', None), hint)))
+            print(event.widget, "armed")
         return handler
 
     def makeDisarmHandler(self, widget):
@@ -346,6 +360,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if event.widget == widget and getattr(widget, 'timeout_ID', None):
                 widget.after_cancel(getattr(widget, 'timeout_ID'))
             setattr(widget, 'timeout_ID', None)
+            print(event.widget, "disarmed")
+            if self.tw:
+                self.tw.destroy()
+                self.tw = None
+            print("destroyed")
         return Dhandler
 
     def makeTimer(self, widget, delay=300, attrName='timeout_ID'):
@@ -360,6 +379,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             msg = 'Show hints after {} seconds'.format(self.HOVER_DELAY / 1000)
             self.setHint(msg)
         return Ehandler
+
+    def clearHintHandler(self, hintLabel, textEntry=None):
+        'Clear the hint text and set focus to textEntry, if provided'
+        def Chandler(event):
+            if (event.widget == hintLabel and textEntry): textEntry.focus_set()
+            if self.tw:
+                self.tw.destroy()
+                self.tw = None
+        return Chandler
     
     def recordModifierKeyState(self, event=None):
         if event and event.type in (EventType.ButtonPress, EventType.KeyPress):
@@ -1017,9 +1045,3 @@ def buttonImage(btn, image=None):
         btn['image'] = image # This triggers an update to the button appearance
         btn.image = image  # and this puts the aclual image in the attribut
         return image
-
-def clearHintHandler(hintLabel, textEntry=None):
-    'Clear the hint text and set focus to textEntry, if provided'
-    return lambda event: (
-        textEntry.focus_set() if event.widget == hintLabel and textEntry
-        else 0) or hintLabel.config(text='') or hintLabel.grid_remove()
