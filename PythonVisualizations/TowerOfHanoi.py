@@ -42,7 +42,6 @@ class TowerOfHanoi(VisualizationApp):
         self.spindles = [[]] * 3      # lists of disk indices
         self.spindleBBoxes = [[]] * 3 # 4 coordinates of spindle's bounding box
         self.disks = []
-        self.picked = None
         self.moves = 0
         self.spindleWidth = max(4, self.width // 90)
         self.diskThickness = max(self.spindleWidth, 18)
@@ -177,6 +176,7 @@ def reset(self):
                     spindleLabel, self.spindleLabelCenter(spindle + 1),
                     sleepTime=wait / 5)
 
+        self.picked, self.pickedFrom = None, None
         if callEnviron:
             self.cleanUp(callEnviron2, sleepTime=wait / 5)
             self.highlightCode([], callEnviron, wait)
@@ -326,9 +326,8 @@ def reset(self):
                       self.spindles[spindle][-1], 'on top of it')
                 return
             if spindle is not None:
-                self.pickedFrom = spindle
                 self.spindles[spindle].pop()
-            self.picked = ID
+            self.picked, self.pickedFrom = ID, spindle
             self.lastPos = (event.x, event.y)
             self.canvas.tag_raise(tag, 'spindle')
             if spindle is not None:
@@ -352,7 +351,7 @@ def reset(self):
 
     def releaseHandler(self, ID, tag, normal, highlight):
         def relHandler(event):
-            if not self.operationMutex.locked():
+            if self.picked is None or not self.operationMutex.locked():
                 return
             diskBBox = self.canvas.bbox(tag)
             dropAt = None
@@ -380,6 +379,7 @@ def reset(self):
             if self.isDone():
                 self.showCompletion()
             self.operationMutex.release()
+            self.enableButtons()
         return relHandler
 
     def updateSpindles(self, *spindleIDs):
