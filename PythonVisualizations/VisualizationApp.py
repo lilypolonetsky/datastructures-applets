@@ -465,20 +465,20 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 b for b in (self.pauseButton, self.stepButton, self.stopButton)
                 if b]
             withArgs, withoutArgs = self.getOperations()
-            if mutex:
-                if not self.operationMutex.acquire(blocking=False):
-                    self.setMessage('Cannot run more than one operation')
-                    return
             try:
                 if cleanUpBefore:
                     self.cleanUp()
                 if button and button in animationControls:
                     button.focus_set()
+                if mutex:
+                    if not self.operationMutex.acquire(blocking=False):
+                        self.setMessage('Cannot run more than one operation')
+                        return
                 command()
             except UserStop as e:
                 self.cleanUp(self.callStack[0] if self.callStack else None,
                              ignoreStops=True)
-            if mutex:
+            if mutex and self.operationMutex.locked():
                 self.operationMutex.release()
             self.enableButtons()
             focus = self.window.focus_get()
