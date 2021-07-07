@@ -1,10 +1,14 @@
 from tkinter import *
 try:
+    from coordinates import *
     from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
+
+V = vector
 
 class Queue(VisualizationApp):
     WIDTH = 800
@@ -50,7 +54,7 @@ class Queue(VisualizationApp):
         self.numericIndexColor = numericIndexColor
         self.numericIndexFont = numericIndexFont
         if center is None:
-            center = divide_vector(self.widgetDimensions(self.canvas), 2)
+            center = V(widgetDimensions(self.canvas)) / 2
         self.center = tuple(map(int, center))
         minDimension = min(*self.center)
         self.innerRadius = (innerRadius * minDimension if innerRadius <= 1 else
@@ -91,11 +95,10 @@ class Queue(VisualizationApp):
     # numeric indices
     def arrowCoords(self, cellIndex, level=1):
         angle = (cellIndex + 0.5) * -self.sliceAngle
-        tip = rotate_vector((self.innerRadius * 0.95, 0), angle)
-        back = rotate_vector(
-            (self.innerRadius - self.variableFont[1] * level * 2.8, 0),
-            angle)
-        return add_vector(self.center, back) + add_vector(self.center, tip)
+        tip = V(self.innerRadius * 0.95, 0).rotate(angle)
+        back = V(self.innerRadius - self.variableFont[1] * level * 2.8,
+                 0).rotate(angle)
+        return (V(self.center) + V(back)) + (V(self.center) + V(tip))
 
     # Anchor for index label indexed on horizontal-vertical (0 or 1), then
     # (xSign, ySign, level % 2)
@@ -127,6 +130,14 @@ class Queue(VisualizationApp):
         index %= self.size
         return (self.sliceAngle * index, self.sliceAngle)
 
+    def outerCoords(self):
+        outer = (self.outerRadius, ) * 2
+        return (V(self.center) - V(outer)) + (V(self.center) + V(outer))
+
+    def innerCoords(self):
+        inner = (self.innerRadius, ) * 2
+        return (V(self.center) - V(inner)) + (V(self.center) + V(inner))
+
     def outputBoxFontAndPadding(self, font=None):
         if font is None:
             font = (self.VALUE_FONT[0], -self.VALUE_FONT[1] * 3 // 4)
@@ -134,10 +145,10 @@ class Queue(VisualizationApp):
         return font, pad
         
     def outputBoxCoords(self, nItems=1, font=None):
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         font, pad = self.outputBoxFontAndPadding(font)
-        lineHeight = self.textHeight(font)
-        lineWidth = self.textWidth(font, '▢' * self.maxArgWidth) + pad * 2
+        lineHeight = textHeight(font)
+        lineWidth = textWidth(font, '▢' * self.maxArgWidth) + pad * 2
         y1 = self.center[1] + self.outerRadius
         y0 = y1 - lineHeight * nItems - pad * 2
         x0 = canvasDims[0] - lineHeight - lineWidth
@@ -157,7 +168,7 @@ class Queue(VisualizationApp):
     def outputBoxLineCoords(self, line=0, font=None):
         font, pad = self.outputBoxFontAndPadding(font)
         boxCoords = self.outputBoxCoords(line + 1, font)
-        lineHeight = self.textHeight(font)
+        lineHeight = textHeight(font)
         return ((boxCoords[0] + boxCoords[2]) // 2, 
                 boxCoords[3] - pad - lineHeight // 2)
         
@@ -168,27 +179,20 @@ class Queue(VisualizationApp):
             self.nextColor = (self.nextColor + 1) % len(drawnValue.palette)
 
         sliceRange = self.sliceRange(index)
-        outerDelta = (self.outerRadius, ) * 2
-        innerDelta = (self.innerRadius, ) * 2
         arc = self.canvas.create_arc(
-            *subtract_vector(self.center, outerDelta),
-            *add_vector(self.center, outerDelta),
-            start=sliceRange[0], extent = sliceRange[1],
-            fill=color, width=0, outline='',
-            style=PIESLICE, tags='value background')
+            *self.outerCoords(), start=sliceRange[0], extent = sliceRange[1],
+            fill=color, width=0, outline='', style=PIESLICE,
+            tags='value background')
         self.canvas.tag_lower(arc, 'cell')
         cover = self.canvas.create_arc(
-            *subtract_vector(self.center, innerDelta),
-            *add_vector(self.center, innerDelta),
-            start=sliceRange[0], extent = sliceRange[1],
-            fill=self.canvas.itemconfigure(self.sliceCover, 'fill')[-1],
+            *self.innerCoords(), start=sliceRange[0], extent = sliceRange[1],
+            fill=self.canvas.itemConfig(self.sliceCover, 'fill'),
             width=0, outline='', style=PIESLICE, tags='value background')
         self.canvas.tag_lower(cover, 'cell')
-        textDelta = rotate_vector(
-            ((self.innerRadius + self.outerRadius) / 2, 0),
+        textDelta = V((self.innerRadius + self.outerRadius) / 2, 0).rotate(
             (index + 0.5) * -self.sliceAngle)
         text = self.canvas.create_text(
-            *add_vector(self.center, textDelta), text=value,
+            *(V(self.center) + V(textDelta)), text=value,
             font=self.valueFont, fill=self.valueColor)
         return (arc, text, cover)
 
@@ -308,7 +312,7 @@ def remove(self):
             
         #get the value at front
         n = self.list[self.front]
-        val = self.copyCanvasItem(n.items[1])
+        val = self.canvas.copyItem(n.items[1])
         callEnviron.add(val)
         self.moveItemsTo(val, self.outputBoxLineCoords(), sleepTime=0.01)
         self.canvas.itemconfigure(val, font=outFont)
@@ -368,7 +372,7 @@ def peek(self):
         peekValCoords = self.outputBoxLineCoords()
 
         # create the value to move to output box
-        valueOutput = self.copyCanvasItem(self.list[self.front].items[1])
+        valueOutput = self.canvas.copyItem(self.list[self.front].items[1])
         callEnviron.add(valueOutput)
 
         # move value to output box and use its font
@@ -397,7 +401,7 @@ def __init__(self, size={newSize}):
             wait = 0.1
             try:
                 sizeRequest = self.canvas.create_text(
-                    *divide_vector(self.widgetDimensions(self.canvas), 2),
+                    *(V(widgetDimensions(self.canvas)) / 2),
                     text=str(newSize), 
                     font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
                 callEnviron.add(sizeRequest)
@@ -508,19 +512,14 @@ def __init__(self, size={newSize}):
     def createCells(self, nCells, wait=0): # Create array cells in a circle
         self.sliceAngle = 360 / nCells
                     
-        innerDelta = (self.innerRadius, self.innerRadius)
         self.sliceCover = self.canvas.create_oval(
-            *subtract_vector(self.center, innerDelta),
-            *add_vector(self.center, innerDelta), fill=self.DEFAULT_BG, 
-            width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR,
-            tags='cover')
+            *self.innerCoords(), fill=self.DEFAULT_BG, width=self.CELL_BORDER,
+            outline=self.CELL_BORDER_COLOR, tags='cover')
 
-        outerDelta = (self.outerRadius, self.outerRadius)
         self.slices, self.numericIndices = [], []
         for sliceI in range(nCells):
             self.slices.append(self.canvas.create_arc(
-                *subtract_vector(self.center, outerDelta),
-                *add_vector(self.center, outerDelta),
+                *self.outerCoords(),
                 start=self.sliceAngle * sliceI, extent = self.sliceAngle,
                 fill='', width=self.CELL_BORDER, outline=self.CELL_BORDER_COLOR,
                 style=PIESLICE, tags='cell'))
