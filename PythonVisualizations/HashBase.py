@@ -2,11 +2,17 @@ from tkinter import *
 from math import *
 
 try:
+    from coordinates import *
+    from tkUtilities import *
     from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .coordinates import *
+    from .tkUtilities import *
     from .drawnValue import *
     from .VisualizationApp import *
+
+V = vector
 
 class HashBase(VisualizationApp):
     CELL_BORDER = 2
@@ -93,7 +99,7 @@ class HashBase(VisualizationApp):
         inputCoords = self.hashInputCoords()
         seedCoords = self.hashSeedCoords()
         outputCoords = self.hashOutputCoords()
-        charWidth = self.textWidth(font, 'W')
+        charWidth = textWidth(font, 'W')
         characters = set([
             self.canvas.create_text(
                 inputCoords[0] - ((len(text) - i) * charWidth),
@@ -165,7 +171,7 @@ class HashBase(VisualizationApp):
                            max(self.VALUE_FONT[1], - self.cellHeight * 7 // 10))
         self.cellIndexFont = (self.VARIABLE_FONT[0],
                               max(self.VALUE_FONT[1], -10))
-        self.cellWidth = self.textWidth(self.VALUE_FONT,
+        self.cellWidth = textWidth(self.VALUE_FONT,
                                         'W' * (self.maxArgWidth + 2))
 
     def cellColumn(self, index):
@@ -200,7 +206,7 @@ class HashBase(VisualizationApp):
     
     def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
-        return add_vector(cell_coords, self.arrayCellDelta())
+        return V(cell_coords) + V(self.arrayCellDelta())
     
     def arrayIndexCoords(self, indexOrCoords, level=1):
         'Coordinates of an index arrow and anchor of its text label'
@@ -216,7 +222,7 @@ class HashBase(VisualizationApp):
         space to hold several lines of text'''
         if font is None:
             font = getattr(self, 'outputFont', self.VALUE_FONT)
-        lineHeight = self.textHeight(font, ' ')
+        lineHeight = textHeight(font, ' ')
         left = self.targetCanvasWidth * 4 // 10
         top = self.targetCanvasHeight - pad * 3 - lineHeight * nLines
         return (left, top,
