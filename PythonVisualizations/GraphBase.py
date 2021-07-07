@@ -2,15 +2,15 @@ from tkinter import *
 import random
 
 try:
-    from VisualizationApp import *
     from coordinates import *
     from drawnValue import *
     from TableDisplay import *
+    from VisualizationApp import *
 except ModuleNotFoundError:
-    from .VisualizationApp import *
     from .coordinates import *
     from .drawnValue import *
     from .TableDisplay import *
+    from .VisualizationApp import *
 
 V = vector
 
@@ -133,8 +133,8 @@ class GraphBase(VisualizationApp):
             if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves()
             else self.adjMatControlBar)
         w, h = max(80, shown.winfo_reqwidth()), max(10, shown.winfo_reqheight())
-        winW, winH, x0, y0  = self.widgetGeometry(self.window.winfo_toplevel())
-        canW, canH = self.widgetDimensions(self.canvas)
+        winW, winH, x0, y0 = widgetGeometry(self.window.winfo_toplevel())
+        canW, canH = widgetDimensions(self.canvas)
         x = x0 + (0 if W in anchor else canW - w if E in anchor else
                   int(canW - w) // 2)
         y = y0 + (0 if N in anchor else canH - h if S in anchor else
@@ -306,7 +306,7 @@ class GraphBase(VisualizationApp):
             self.setMessage('')
             moveVertex = event.state & SHIFT
             if moveVertex:
-                copies = tuple(self.copyCanvasItem(i, includeBindings=False)
+                copies = tuple(self.canvas.copyItem(i, includeBindings=False)
                                for i in vert.items)
                 self.dragItems = copies
             else:
@@ -912,7 +912,7 @@ class GraphBase(VisualizationApp):
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
         for btn in [self.bidirectionalEdgesButton]: # Bidirectional edge status
-            self.widgetState(               # can only change without edges
+            widgetState(               # can only change without edges
                 btn,
                 NORMAL if enable and self.nEdges() == 0 else DISABLED)
     
