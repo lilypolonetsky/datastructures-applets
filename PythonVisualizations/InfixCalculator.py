@@ -1,11 +1,17 @@
 from tkinter import *
 
 try:
+    from coordinates import *
+    from tkUtilities import *
     from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .coordinates import *
+    from .tkUtilities import *
     from .drawnValue import *
     from .VisualizationApp import *
+
+V = vector
 
 class InfixCalculator(VisualizationApp):
     nextColor = 0
@@ -68,7 +74,7 @@ class InfixCalculator(VisualizationApp):
 
     def cellCenter(self, index, arrayID=0):
         box = self.cellCoords(index, arrayID)
-        return divide_vector(add_vector(box[:2], box[2:]), 2)
+        return BBoxCenter(box)
 
     # Get the coordinates of an index arrow pointing at a cell in an array
     def indexCoords(self, index, arrayID=0, level=0):
@@ -120,8 +126,8 @@ class InfixCalculator(VisualizationApp):
         cell_coords = self.cellCoords(index, arrayID)
         half_border = self.CELL_BORDER // 2
         other_half = self.CELL_BORDER - half_border
-        cell = add_vector(cell_coords,
-                          (-half_border, -half_border, other_half, other_half))
+        cell = V(cell_coords) + V(-half_border, -half_border,
+                                  other_half, other_half)
         rect = self.canvas.create_rectangle(
             cell, fill=None, outline=self.CELL_BORDER_COLOR,
             width=self.CELL_BORDER, tags=tags)
@@ -143,7 +149,7 @@ class InfixCalculator(VisualizationApp):
             valPos = self.cellCenter(indexOrCoords, arrayID)
         else:
             rectPos = indexOrCoords
-            valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
+            valPos = BBoxCenter(rectPos)
 
         if color is None:
             # Take the next color from the palette
@@ -182,7 +188,7 @@ class InfixCalculator(VisualizationApp):
         nLevels = len(self.operators)
         x0, y0 = self.PRECEDENCE_X0, self.PRECEDENCE_Y0 
         dY = self.PRECEDENCE_SPACING
-        width = self.textWidth(self.VARIABLE_FONT, tableTitle)
+        width = textWidth(self.VARIABLE_FONT, tableTitle)
         for j, operatorString in enumerate(self.operators):
             self.canvas.create_rectangle(
                 x0,         y0 + int((nLevels - j - 0.5) * dY),
@@ -230,7 +236,7 @@ class InfixCalculator(VisualizationApp):
                     callEnviron |= set(value.items)
             tag = 'index-{}'.format(arrayID)
             callEnviron.add(self.canvas.create_text(
-                *add_vector(aboveArray, (0, -abs(self.VARIABLE_FONT[1]))),
+                *(V(aboveArray) + V(0, -abs(self.VARIABLE_FONT[1]))),
                 text='Translate stack' if arrayID == self.TRstackID
                 else 'Translate queue', anchor=SW,
                 font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, tags=tag))
@@ -280,7 +286,7 @@ class InfixCalculator(VisualizationApp):
         tag = 'index-{}'.format(self.EVstackID)
         EVstackLabel = (
             self.canvas.create_text(
-                *add_vector(aboveArray, (0, -abs(self.VARIABLE_FONT[1]))),
+                *(V(aboveArray) + V(0, -abs(self.VARIABLE_FONT[1]))),
                 text='Evaluate stack', anchor=SW,
                 font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, tags=tag),
             self.canvas.create_text(
@@ -419,8 +425,8 @@ def PostfixEvaluate(formula={infixExpression!r}):
         self.highlightCode(('token, postfix = nextToken(postfix)', 1),
                            callEnviron, color=hlColor)
         tokenLabel = self.canvas.create_text(
-            *add_vector(self.canvas.coords(self.postfixLabel),
-                        self.extractDelta(self.postfixLabel)), text='token',
+            *(V(self.canvas.coords(self.postfixLabel)) +
+              V(self.extractDelta(self.postfixLabel))), text='token',
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, anchor=E)
         callEnviron.add(tokenLabel)
         token, postfixExpression = self.nextToken(self.postfixInputString)
@@ -544,9 +550,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
         outputBox = self.outputBoxCoords()
         self.canvas.itemconfigure(precValue, text='')
         self.canvas.itemconfigure(operator, text='')
-        self.canvas.coords(
-            operator, 
-            *divide_vector(add_vector(outputBox[:2], outputBox[2:]), 2))
+        self.canvas.coords(operator, *BBoxCenter(outputBox))
         self.highlightCode('return s.pop()', callEnviron, color=hlColor)
         try:
             dValue = self.popToken(callEnviron, arrayID=self.EVstackID,
@@ -791,8 +795,8 @@ def PostfixTranslate(formula={infixExpression!r}):
 
     def extractDelta(self, fromString, toString=None):
         return ((0, self.INPUT_BOX_HEIGHT) if toString is None else
-                subtract_vector(self.canvas.coords(toString), 
-                                self.canvas.coords(fromString)))
+                V(self.canvas.coords(toString)) -
+                V(self.canvas.coords(fromString)))
     
     def extractToken(self, token, fromString, callEnviron, anchor=None,
                      font=None, color=None, toString=None):
@@ -831,8 +835,7 @@ def PostfixTranslate(formula={infixExpression!r}):
             self.canvas.delete(token)
             callEnviron.discard(token)
         else:
-            if vector_length2(subtract_vector(
-                    toCoords, self.canvas.coords(token.items[0]))) > 0.1:
+            if V(V(toCoords) - V(self.canvas.coords(token.items[0]))).len2() > 0.1:
                 self.moveItemsTo(token.items, (toCoords, toCenter),
                                  sleepTime=0.01)
             dValue = token
@@ -852,14 +855,13 @@ def PostfixTranslate(formula={infixExpression!r}):
             text = self.canvas.itemconfigure(toString, 'text')[-1]
             if len(text) > 0 and not text.endswith(' '):
                 text += ' '
-            copyItem = self.copyCanvasItem(top.items[1])
+            copyItem = self.canvas.copyItem(top.items[1])
             callEnviron.add(copyItem)
             for item in top.items:
                 self.canvas.delete(item)
                 callEnviron.discard(item)
-            toCoords = add_vector(
-                self.canvas.coords(toString),
-                (self.textWidth(self.VALUE_FONT, text + top.val) // 2, 0))
+            toCoords = V(self.canvas.coords(toString)) + V(
+                textWidth(self.VALUE_FONT, text + top.val) // 2, 0)
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
             self.canvas.itemconfigure(toString, text=text + top.val)
             self.canvas.delete(copyItem)
@@ -914,14 +916,13 @@ def PostfixTranslate(formula={infixExpression!r}):
             text = self.canvas.itemconfigure(toString, 'text')[-1]
             if len(text) > 0 and not text.endswith(' '):
                 text += ' '
-            copyItem = self.copyCanvasItem(dValue.items[1])
+            copyItem = self.canvas.copyItem(dValue.items[1])
             callEnviron.add(copyItem)
             bbox = self.canvas.bbox(copyItem)
             self.canvas.move(copyItem, (bbox[0] - bbox[2]) // 2, 0)
             self.canvas.itemconfigure(copyItem, anchor=W)
-            toCoords = add_vector(
-                self.canvas.coords(toString),
-                (self.textWidth(self.VALUE_FONT, text), 0))
+            toCoords = V(self.canvas.coords(toString)) + V(
+                textWidth(self.VALUE_FONT, text), 0)
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
             self.canvas.itemconfigure(toString, text=text + removed)
             self.canvas.delete(copyItem)
