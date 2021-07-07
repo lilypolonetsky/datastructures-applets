@@ -19,8 +19,9 @@ class Graph(GraphBase):
     VISITED_HIGHLIGHT_COLOR = 'yellow'
     ADJ_MAT_HIGHLIGHT_PAD = 5
     HIGHLIGHTED_VERTEX_RADIUS = GraphBase.SELECTED_RADIUS + 2
+    HIGHLIGHTED_VERTEX_WIDTH = 3
     HIGHLIGHTED_VERTEX_COLOR = 'chocolate2'
-    HIGHLIGHTED_EDGE_WIDTH = 3
+    HIGHLIGHTED_EDGE_WIDTH = 5
     HIGHLIGHTED_EDGE_COLOR = 'chocolate2'
 
     def vertexIndices(self):
@@ -268,7 +269,7 @@ def depthFirst(self, n={nVal}):
             self.highlightCode('not stack.isEmpty()', callEnviron)
 
         visitArrow = None
-        visitArrowConfig = {'level': 1, 'orientation': -30, 'anchor': SE}
+        visitArrowConfig = {'level': 1, 'orientation': -50, 'anchor': SE}
         jArrowConfig = {'level': 2, 'anchor': SE}
         jVertConfig = {'level': 1, 'orientation': 40, 'anchor': SW}
         vertArrow, adjArrow, jArrow, jVertArrow = None, None, None, None
@@ -500,7 +501,7 @@ def breadthFirst(self, n={nVal}):
             self.updateVisitedCells(visited, n)
             self.highlightCode('not queue.isEmpty()', callEnviron)
 
-        visitArrow, visitArrowConfig = None, {'orientation': -30, 'anchor': SE}
+        visitArrow, visitArrowConfig = None, {'orientation': -50, 'anchor': SE}
         jArrowConfig = {'level': 2, 'anchor': SE}
         jVertConfig = {'orientation': 40, 'anchor': SW}
         jArrow, jVertArrow = None, None
@@ -699,6 +700,7 @@ def minimumSpanningTree(self, n={nVal}):
 
     def minimumSpanningTree(
             self, n, code=minimumSpanningTreeCode, start=True, wait=0.1):
+        MSTtags = 'MST'
         nLabel = (n if isinstance(n, str) else
                   self.vertexTable[n].val if n < len(self.vertexTable) else
                   None)
@@ -710,17 +712,25 @@ def minimumSpanningTree(self, n={nVal}):
         nArrowConfig = {'level': 1, 'anchor': SE}
         nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
         callEnviron |= set(nArrow)
-        localVars = nArrow
+        localVars, faded = nArrow, (Scrim.FADED_FILL,) * len(nArrow)
         
         self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
         self.highlightCode('tree = Graph()', callEnviron, wait=wait)
-        treeLabelAnchor = (50, self.graphRegion[3] + 60)
+        treeLabelAnchor = (70, self.graphRegion[3] + 60)
         treeLabel = self.canvas.create_text(
             *treeLabelAnchor, text='tree', anchor=E,
             fill=self.VARIABLE_COLOR, font=self.VARIABLE_FONT)
         callEnviron.add(treeLabel)
-        localVars = (*localVars, treeLabel)
-        treeVerts = []
+        localVars, faded = (*localVars, treeLabel), (*faded, Scrim.FADED_FILL)
+        treeVerts = Table(
+            self, V(treeLabelAnchor) + V(5, 15), vertical=False,
+            label='vertices', cellHeight=self.VERTEX_RADIUS,
+            labelFont=(self.VARIABLE_FONT[0], -12),
+            cellWidth=self.VERTEX_RADIUS * 3 // 2, cellBorderWidth=1)
+        localVars += treeVerts.items()
+        callEnviron |= set(treeVerts.items())
+        faded += (Scrim.FADED_FILL,) * len(treeVerts.items())
+        treeEdges = []
         
         self.highlightCode('vMap = [None] * self.nVertices()', callEnviron,
                            wait=wait)
@@ -735,15 +745,17 @@ def minimumSpanningTree(self, n={nVal}):
             cellBorderWidth=self.vertexTable.cellBorderWidth)
         callEnviron |= set(vMap.items())
         localVars += vMap.items()
+        faded += (Scrim.FADED_FILL,
+                 *((Scrim.FADED_OUTLINE,) * (len(vMap.items()) - 1)))
         
         vertexArrow, vertexArrowConfig = None, {}
         vertexVertArrow = None
         vertexVertConfig = {'orientation': 30, 'anchor': SW}
         self.highlightCode('vertex, path in self.depthFirst(n)', callEnviron,
                            wait=wait)
-        colors = self.canvas.fadeItems(localVars)
+        colors = self.canvas.fadeItems(localVars, faded)
         for vertex, path in self.depthFirst(n):
-            self.canvas.restoreItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors, top=False)
             vertexLabel = self.vertexTable[vertex].val
             edgesInPath = [
                 self.edges[path[v].val, path[v + 1].val].items[0]
@@ -753,8 +765,10 @@ def minimumSpanningTree(self, n={nVal}):
                     vertex, 'vertex', **vertexArrowConfig)
                 vertexVertArrow = self.createLabeledArrow(
                     vertexLabel, 'vertex', **vertexVertConfig)
-                callEnviron |= set(vertexArrow + vertexVertArrow)
-                localVars += vertexArrow + vertexVertArrow
+                arrows = vertexArrow + vertexVertArrow
+                callEnviron |= set(arrows)
+                localVars += arrows
+                faded += (Scrim.FADED_FILL,) * len(arrows)
             else:
                 self.moveItemsTo(
                     vertexArrow + vertexVertArrow, 
@@ -769,9 +783,16 @@ def minimumSpanningTree(self, n={nVal}):
 
             self.highlightCode('vMap[vertex] = tree.nVertices()', callEnviron,
                                wait=wait)
+            vMapArrow = self.createVMapArrow(vMap, len(treeVerts), vertex)
+            vMap[len(treeVerts)] = drawnValue(vertexLabel, *vMapArrow)
+            callEnviron |= set(vMapArrow)
+            localVars += vMapArrow
+            faded += (Scrim.FADED_FILL,) * len(vMapArrow)
+
+            self.highlightCode('tree.addVertex(self.getVertex(vertex))',
+                               callEnviron, wait=wait)
+            vertCoords = self.canvas.coords(self.vertices[vertexLabel].items[1])
             if len(treeVerts) == 0:
-                vertCoords = self.canvas.coords(
-                    self.vertices[vertexLabel].items[1])
                 inflection = V(treeLabelAnchor) + V(300, 0)
                 tipCoords = self.labeledArrowCoords(
                     vertexLabel,
@@ -782,21 +803,59 @@ def minimumSpanningTree(self, n={nVal}):
                     arrow=LAST, fill=self.HIGHLIGHTED_EDGE_COLOR, smooth=True,
                     splinesteps=abs(int(tipCoords[1] - treeLabelAnchor[1])))
                 callEnviron.add(treeArrow)
-                localVArs = (*localVars, treeArrow)
-            vMapArrow = self.createVMapArrow(vMap, len(treeVerts), vertex)
-            vMap[len(treeVerts)] = drawnValue(vertexLabel, *vMapArrow)
-            callEnviron |= set(vMapArrow)
-            localVars += vMapArrow
-            treeVerts.append(vertexLabel)
+                localVars, faded = (*localVars, treeArrow), (
+                    *faded, Scrim.FADED_FILL)
+
+            vRad = V((self.HIGHLIGHTED_VERTEX_RADIUS, ) * 2)
+            treeVertHighlight = self.canvas.create_oval(
+                *(V(vertCoords) - vRad), *(V(vertCoords) + vRad),
+                fill='', outline=self.HIGHLIGHTED_VERTEX_COLOR,
+                width=self.HIGHLIGHTED_VERTEX_WIDTH, tags=MSTtags)
+            self.canvas.tag_lower(treeVertHighlight,
+                                  self.vertices[vertexLabel].items[0])
+            copies = tuple(self.canvas.copyItem(item) 
+                           for item in self.vertexTable[vertex].items)
+            newItems = (treeVertHighlight, *copies)
+            callEnviron |= set(newItems)
+            localVars, faded = localVars + newItems, faded + (
+                Scrim.FADED_FILL,) * len(newItems)
+            self.moveItemsLinearly(
+                copies, (treeVerts.cellCoords(len(treeVerts)),
+                         treeVerts.cellCenter(len(treeVerts))),
+                startFont=self.canvas.getItemFont(copies[1]),
+                endFont=self.ADJACENCY_MATRIX_FONT, sleepTime=wait / 10)
             
+            treeVerts.append(drawnValue(vertexLabel, newItems))
+            callEnviron.add(treeVerts.items()[-1])
+            localVars, faded = (*localVars, treeVerts.items()[-1]), (
+                *faded, Scrim.FADED_OUTLINE)
+            
+            self.highlightCode('len(path) > 1', callEnviron, wait=wait)
+            if len(path) > 1:
+                self.highlightCode(
+                    'tree.addEdge(vMap[path[-2]], vMap[path[-1]])', callEnviron,
+                    wait=wait)
+                coords = self.canvas.coords(edgesInPath[-1])
+                delta = V(coords[:2]) - V(coords[-2:])
+                treeEdgeHighlight = self.canvas.create_line(
+                    *coords, smooth=True, tags=MSTtags,
+                    splinesteps=int(max(abs(delta[0]), abs(delta[1]), 5)),
+                    fill=self.HIGHLIGHTED_EDGE_COLOR,
+                    width=self.HIGHLIGHTED_EDGE_WIDTH)
+                self.canvas.lower(treeEdgeHighlight, edgesInPath[-1])
+                callEnviron.add(treeEdgeHighlight)
+                localVars, faded = (*localVars, treeEdgeHighlight), (
+                    *faded, Scrim.FADED_FILL)
+                treeEdges.append(drawnValue(edgesInPath[-1], treeEdgeHighlight))
+                
             self.highlightCode(
                 'vertex, path in self.depthFirst(n)', callEnviron, wait=wait)
             for edge in edgesInPath:
-                self.canvas.itemconfigure(
+                self.canvas.itemConfig(
                     edge, width=self.EDGE_WIDTH, fill=self.EDGE_COLOR)
-            colors = self.canvas.fadeItems(localVars)
+            colors = self.canvas.fadeItems(localVars, faded)
             
-        self.canvas.restoreItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors, top=False)
             
         self.highlightCode('return tree', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
