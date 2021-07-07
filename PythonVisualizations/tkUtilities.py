@@ -83,6 +83,11 @@ def BBoxSize(bbox):
     half = len(bbox) // 2
     return V(bbox[half:]) - V(bbox[:half])
 
+def filterDict(d, filter=lambda key: True):
+    '''Return a new copy of dictionary containing only those keys that satisfy
+    a filter test'''
+    return dict((k, v) for k, v in d.items() if filter(k))
+
 # Tk definitions
 # Modifier key constants
 SHIFT, CAPS_LOCK, CTRL, ALT = 0x01, 0x02, 0x04, 0x08
@@ -239,6 +244,9 @@ class Scrim(Canvas):
         'disabledfill': 'gray90', 'disabledoutline': 'gray90',
         }
 
+    FADED_FILL = filterDict(FADED_COLORS, lambda k: k.endswith('fill'))
+    FADED_OUTLINE = filterDict(FADED_COLORS, lambda k: k.endswith('outline'))
+
     TYPE_COLORS = {
         'arc': set(('fill', 'outline', 'activefill', 'activeoutline',
                     'disabledfill', 'disabledoutline',)),
@@ -257,7 +265,7 @@ class Scrim(Canvas):
         'window': set(),
     }
     
-    def fadeItems(self, items, colors=(FADED_COLORS,)):
+    def fadeItems(self, items, colors=(FADED_FILL,)):
         '''Set colors of canvas items to faded colors while creating a list of
         dictionaries holding the current color settings of the items.
         The colors argument is a list of color dictionaries or a
