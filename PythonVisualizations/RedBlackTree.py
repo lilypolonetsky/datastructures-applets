@@ -3,10 +3,12 @@ import random
 
 try:
     from coordinates import *
+    from tkUtilities import *
     from drawnValue import *
     from VisualizationApp import *
     from BinaryTreeBase import *
 except ModuleNotFoundError:
+    from .tkUtilities import *
     from .coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
@@ -332,7 +334,7 @@ class RedBlackTree(BinaryTreeBase):
         sharedParent = fromParent == toParent
         child = fromChild if fromChild else toParent
         lineToMove = child.getLine()
-        newLine = self.copyCanvasItem(lineToMove)
+        newLine = self.canvas.copyItem(lineToMove)
         self.canvas.tag_lower(newLine)
         callEnviron.add(newLine)
         lineToMoveCoords = self.canvas.coords(lineToMove)
@@ -358,7 +360,7 @@ class RedBlackTree(BinaryTreeBase):
                      self.nodeColor(self.getRoot()) == self.BLACK_COLOR)
         redRedLinks = self.getRedRedLinks()
         blackHeights = self.blackHeights()
-        dy = self.textHeight(self.VALUE_FONT)
+        dy = textHeight(self.VALUE_FONT)
         for m in range(len(self.measures)):
             if self.canvas.type(self.measures[m]) != 'text':
                 self.measures[m] = self.canvas.create_text(
@@ -469,10 +471,10 @@ class RedBlackTree(BinaryTreeBase):
             callEnviron.add(label)
             self.wait(sleepTime * 10)
             pShape = parent.drawnValue.items[1]
-            pRings = tuple(self.copyCanvasItem(pRing) for child in children)
+            pRings = tuple(self.canvas.copyItem(pRing) for child in children)
             cShapes = tuple(child.drawnValue.items[1] for child in children)
             ringsToMove = pRings + (
-                tuple(self.copyCanvasItem(ring) for ring in cRings)
+                tuple(self.canvas.copyItem(ring) for ring in cRings)
                 if parentColor is None else ())
             callEnviron |= set(ringsToMove)
             for ring in ringsToMove:
@@ -546,7 +548,7 @@ class RedBlackTree(BinaryTreeBase):
                     newData, self.canvas.coords(oldData), sleepTime=wait / 10)
         if not inserted:
             callEnviron |= set(newNode.drawnValue.items)
-            self.copyItemAttributes(newData, oldData, 'fill')
+            self.canvas.copyItemAttributes(newData, oldData, 'fill')
 
         self.cleanUp(callEnviron)
         return inserted
@@ -563,10 +565,10 @@ class RedBlackTree(BinaryTreeBase):
 
         if self.getNode(node):
             localVars = parentIndex + nodeIndex
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             deletedKeyAndData = self.__delete(parent, node)
             callEnviron |= set(deletedKeyAndData)
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
 
             outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
             outBox = self.createOutputBox(coords=outBoxCoords)
@@ -579,7 +581,7 @@ class RedBlackTree(BinaryTreeBase):
             self.moveItemsTo(
                 deletedKeyAndData, self.nodeItemCoords(outBoxCenter)[1:],
                 sleepTime=wait / 10)
-            self.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
+            self.canvas.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
             self.dispose(callEnviron, deletedKeyAndData[0], deletedKeyAndData[2])
 
             if self.getNode(node):
@@ -612,7 +614,7 @@ class RedBlackTree(BinaryTreeBase):
         callEnviron.add(deletedLabel)
         nodeItems = self.getNode(node).drawnValue.items
         ring, shape, text = tuple(   # Copy items in stacking order
-            self.copyCanvasItem(nodeItems[j]) for j in (3, 1, 2))
+            self.canvas.copyItem(nodeItems[j]) for j in (3, 1, 2))
         deletedKeyAndData = (shape, text, ring)
         self.moveItemsTo(
             deletedKeyAndData, self.nodeItemCoords(upperRightNodeCoords)[1:],
@@ -624,9 +626,9 @@ class RedBlackTree(BinaryTreeBase):
                 
                 localVars = (
                     deletedLabel, *deletedKeyAndData, *parentIndex, *nodeIndex)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
                 self.__promote_successor(node)
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
                 
             else:
                 if parent == -1:
@@ -684,25 +686,25 @@ class RedBlackTree(BinaryTreeBase):
         successorNode = self.getNode(successor)
         successorKey = successorNode.getKey()
         successorDataItem, successorKeyItem = tuple(
-            self.copyCanvasItem(item) 
+            self.canvas.copyItem(item) 
             for item in successorNode.drawnValue.items[1:3])
         callEnviron |= set((successorDataItem, successorKeyItem))
         self.moveItemsTo(
             successorKeyItem, self.nodeCenter(nodeIndex), sleepTime=wait / 10)
-        self.copyItemAttributes(successorKeyItem, node.drawnValue.items[2],
-                                'text')
+        self.canvas.copyItemAttributes(
+            successorKeyItem, node.drawnValue.items[2], 'text')
 
         self.moveItemsTo(
             successorDataItem, self.canvas.coords(node.drawnValue.items[1]),
             sleepTime=wait / 10)
-        self.copyItemAttributes(successorDataItem, node.drawnValue.items[1],
-                                'fill')
+        self.canvas.copyItemAttributes(
+            successorDataItem, node.drawnValue.items[1], 'fill')
         
         localVars = nodeArrow + parentIndex + successorIndex
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for item in self.__delete(parent, successor, level=2):
             self.canvas.delete(item)
-        self.restoreLocalItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors)
         
         self.cleanUp(callEnviron)
 
