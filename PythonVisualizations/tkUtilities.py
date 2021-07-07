@@ -158,6 +158,20 @@ def lookFor(keys, spec, default):  # Find keyword in font spec
             return key
     return default
 
+def parseTkFont(fontspec):
+    if isinstance(fontspec, tkfont.Font):
+        actual = fontspec.actual()
+        return (actual['family'], actual['size'],
+                *(() if actual['weight'] == 'normal' else (actual['weight'],)),
+                *(() if actual['slant'] == 'roman' else (actual['slant'],)),
+                *(() if actual['underline'] == 0 else ('underline',)),
+                *(() if actual['overstrike'] == 0 else ('overstrike',)))
+    elif isinstance(fontspec, str):
+        font = fontspec.split()
+        if len(font) > 1:
+            return (font[0], int(font[1]), *font[2:])
+        return parseTkFont(tkfont.nametofont(fontspec))
+
 class Scrim(Canvas):
     '''Enhanced Tk Canvas widget with more convenience methods.
     '''
@@ -175,8 +189,8 @@ class Scrim(Canvas):
             config = config[-1]
         return config
 
-    def copyCanvasItem(      # Make a copy of an item in the canvas
-            canvasitem, includeBindings=True):
+    def copyItem(           # Make a copy of an item in the canvas
+            self, canvasitem, includeBindings=True):
         creator = getattr(self,  # Get canvas creation function for type
                           'create_{}'.format(self.type(canvasitem)))
         newItem = creator(*self.coords(canvasitem),
@@ -193,7 +207,7 @@ class Scrim(Canvas):
         W: (-1, 0), CENTER: (0, 0), E: (1, 0),
         SW: (-1, 1),  S: (0, 1),  SE: (1, 1)}
 
-    def changeAnchor(newAnchor, *items):
+    def changeAnchor(self, newAnchor, *items):
         'Change the anchor but not the position of a text item'
         for item in items:
             if self.type(item) == 'text':
@@ -207,8 +221,11 @@ class Scrim(Canvas):
                     self.coords(item, V(coords) + V(V(delta) * V(size)))
                     self.itemConfig(item, anchor=newAnchor)
 
-    def coords(self, tagOrID):
-        return tuple(super().coords(tagOrID))
+    def coords(self, tagOrID, *args):
+        result = super().coords(tagOrID, *args)
+        if len(args) == 0 and result:
+            return tuple(result)
+        return result
     
     def copyItemAttributes(   # Copy attributes from one canvas item to another
             fromItem, toItem, *attributes):
@@ -297,8 +314,7 @@ class Scrim(Canvas):
                      for key in self.TYPE_COLORS[self.type(item)]])
 
     def getItemFont(self, item):
-        font = self.canvas.itemconfigure(item, 'font')[-1].split()
-        return (font[0], int(font[1]), *font[2:])
+        return parseTkFont(self.itemConfig(item, 'font'))
     
 if __name__ == '__main__':
     import random
@@ -352,6 +368,8 @@ if __name__ == '__main__':
     tkButton.pack(side=LEFT, expand=TRUE)
     ttkButton.pack(side=LEFT, expand=TRUE)
     buttonState = scrim.create_text(400, 390, text='')
+    print('The default font for canvas text items is:',
+          scrim.getItemFont(buttonState))
     updateButtonState = lambda : (
         scrim.itemConfig(buttonState, 
                          text='Tk button: {}    Ttk button: {}'.format(
@@ -381,6 +399,8 @@ if __name__ == '__main__':
     message = scrim.create_text(
         575, 10, anchor=NW, text='', fill='gray30', activefill='',
         font=('Courier', -14), width=300)
+    print('The font for message text item is:',
+          scrim.getItemFont(message))
     def groupButtonHandler(btn, tag):
         def groupButtonPress():
             parts = btn['text'].split()

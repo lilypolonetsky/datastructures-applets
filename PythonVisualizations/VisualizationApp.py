@@ -26,9 +26,11 @@ except ModuleNotFoundError as e:
 
 try:
     from TextHighlight import *
+    from tkUtilities import *
     from Visualization import *
 except ModuleNotFoundError:
     from .TextHighlight import *
+    from .tkUtilities import *
     from .Visualization import *
     
 def gridDict(frame):    # Get all widget's within a frame's grid indexed by
@@ -160,8 +162,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         visibleCanvas = self.visibleCanvas()
         maxY = (self.canvasBounds[3] if self.canvasBounds and offCanvas else
                 visibleCanvas[3])
-        upperDims = self.widgetDimensions(self.operationsUpper)
-        lowerDims = self.widgetDimensions(self.operationsLower)
+        upperDims = widgetDimensions(self.operationsUpper)
+        lowerDims = widgetDimensions(self.operationsLower)
         midControlPanel = max(upperDims[0], lowerDims[0]) // 2
         return visibleCanvas[0] + midControlPanel, maxY + buffer
 
@@ -251,7 +253,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             button.grid(
                 column=buttonColumn, row=buttonRow, padx=8, sticky=(E, W))
             withArgs.append(button)
-            self.widgetState(button, DISABLED)
+            widgetState(button, DISABLED)
             nEntries = len(self.textEntries)
             rowSpan = max(1, (min(maxRows, len(withArgs)) - 1) // nEntries)
             
@@ -390,12 +392,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.pressButton(button)
 
     def pressButton(self, button):  # Simulate button press, if enabled
-        if self.widgetState(button) == NORMAL:
-            self.widgetState(    # Simulate button press
+        if widgetState(button) == NORMAL:
+            widgetState(    # Simulate button press
                 button, PRESSED if isinstance(button, ttk.Button) else ACTIVE)
             self.window.update()
             time.sleep(0.05)
-            self.widgetState(
+            widgetState(
                 button, 
                 '!' + PRESSED if isinstance(button, ttk.Button) else NORMAL)
             button.invoke()
@@ -533,7 +535,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         withArgs, withoutArgs = self.getOperations()
         for button in withArgs:
             nArgs = getattr(button, 'required_args')
-            self.widgetState(
+            widgetState(
                 button,
                 DISABLED if not self.animationsStopped() or any(
                     arg == '' for arg in args[:nArgs]) else NORMAL)
@@ -560,7 +562,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             return          # then nothing to show
         if self.codeText is None:
             padX, padY = 10, 10
-            self.codeTextCharWidth = self.textWidth( 
+            self.codeTextCharWidth = textWidth( 
                 self.CODE_FONT, '0123456789') // 10
             self.codeVScroll = Scrollbar(self.codeFrame, orient=VERTICAL)
             self.vScrollWidth = max(
@@ -610,7 +612,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.codeText.configure(state=DISABLED)
 
             # Doing a window update here can cause multiple resize events
-            self.window.update()
+            self.window.update_idletasks()
             
     def removeCode(self,     # Remove algorithm code from the codeText box
                    code,     # Code to remove
@@ -843,7 +845,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         itemCoords = {}
         canvasDims = (V(self.canvasBounds[2:]) - self.canvasBounds[:2]
                       if self.canvasBounds else 
-                      self.widgetDimensions(self.canvas))
+                      widgetDimensions(self.canvas))
         away = V(canvasDims) * 10
         itemOrder = self.canvas.find_all()
         for item in callEnviron:
@@ -923,7 +925,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if self.destroyed:
                 sys.exit()
         while self.animationsPaused():
-            self.window.update()
+            self.window.update_idletasks()
             if self.destroyed:
                 sys.exit()
             time.sleep(0.02)
@@ -965,14 +967,14 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if isinstance(btn, self.buttonTypes):
                 nArgs = getattr(btn, 'required_args', 0)
                 mutex = getattr(btn, 'mutex', False)
-                self.widgetState(
+                widgetState(
                     btn, NORMAL if enable and all(args[:nArgs]) and not (
                         mutex and self.operationMutex.locked()) else DISABLED)
             
             elif btn is getattr(self, 'playControlsFrame', False):
                 for b in (self.pauseButton, self.stepButton, self.stopButton):
                     if b:
-                        self.widgetState(
+                        widgetState(
                             b,
                             NORMAL if (
                                 enable and not self.animationsStopped() and
@@ -1010,10 +1012,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             buttonImage(self.pauseButton, self.playControlImages['pause'])
         for btn in (self.pauseButton, self.stopButton):
             if btn and enableStops:
-                self.widgetState(btn, NORMAL)
+                widgetState(btn, NORMAL)
         if self.stepButton and enableStops and (
                 self.codeText or state == Animation.STEP):
-            self.widgetState(self.stepButton, NORMAL)
+            widgetState(self.stepButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
         # Calls from stack level 2+ only stop animation for their level
@@ -1023,7 +1025,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.enableButtons(enable=True)
             for btn in (self.pauseButton, self.stopButton, self.stepButton):
                 if btn:
-                    self.widgetState(btn, DISABLED)
+                    widgetState(btn, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
