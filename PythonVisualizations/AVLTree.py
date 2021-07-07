@@ -136,7 +136,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
                 self.highlightCode('node.data = data', callEnviron, wait=wait)
                 self.moveItemsTo(dataItem, self.canvas.coords(nodeItems[1]),
                                  sleepTime=wait / 10)
-            self.copyItemAttributes(dataItem, nodeItems[1], 'fill')
+            self.canvas.copyItemAttributes(dataItem, nodeItems[1], 'fill')
 
             if animation:
                 self.highlightCode('return node, False', callEnviron)
@@ -160,7 +160,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
                 self.highlightCode(
                     'node.left, flag = self.__insert(node.left, key, data)',
                     callEnviron, wait=wait)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
                 
             # insert on left and update the left link
             newLeft, flag = self.__insert(
@@ -168,7 +168,7 @@ def __insert(self, node={nodeKey}, key={key}, data):
             self.setLeftChild(node, newLeft)
             link = newLeft.getLine()
             if animation:
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
                 linkCoords = self.canvas.coords(link)
                 if distance2(linkCoords[:2], linkCoords[2:]) < 1:
                     self.canvas.coords(link, node.center + node.center)
@@ -196,20 +196,20 @@ def __insert(self, node={nodeKey}, key={key}, data):
                         self.highlightCode(
                             'node.left = self.rotateLeft(node.left)', 
                             callEnviron)
-                        colors = self.fadeNonLocalItems(localVars)
+                        colors = self.canvas.fadeItems(localVars)
                     self.setLeftChild(
                         node, self.rotateLeft(leftChild, animation=animation),
                         updateLink=True)
                     if animation:
-                        self.restoreLocalItems(localVars, colors)
+                        self.canvas.restoreItems(localVars, colors)
 
                 if animation:
                     self.highlightCode('node = self.rotateRight(node)',
                                        callEnviron)
-                    colors = self.fadeNonLocalItems(localVars)
+                    colors = self.canvas.fadeItems(localVars)
                 node = self.rotateRight(node, animation=animation)
                 if animation:
-                    self.restoreLocalItems(localVars, colors)
+                    self.canvas.restoreItems(localVars, colors)
           
         # Otherwise key belongs in right subtree
         else:
@@ -217,14 +217,14 @@ def __insert(self, node={nodeKey}, key={key}, data):
                 self.highlightCode(
                     'node.right, flag = self.__insert(node.right, key, data)',
                     callEnviron, wait=wait)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
             # Insert it on right and update the right link 
             newRight, flag = self.__insert(
                 self.getRightChildIndex(nodeIndex), key, animation=animation)
             self.setRightChild(node, newRight)
             link = newRight.getLine()
             if animation:
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
                 linkCoords = self.canvas.coords(link)
                 if distance2(linkCoords[:2], linkCoords[2:]) < 1:
                     self.canvas.coords(link, node.center + node.center)
@@ -252,19 +252,19 @@ def __insert(self, node={nodeKey}, key={key}, data):
                         self.highlightCode(
                             'node.right = self.rotateRight(node.right)', 
                             callEnviron)
-                        colors = self.fadeNonLocalItems(localVars)
+                        colors = self.canvas.fadeItems(localVars)
                     self.setRightChild(
                         node, self.rotateRight(rightChild, animation=animation),
                         updateLink=True)
                     if animation:
-                        self.restoreLocalItems(localVars)
+                        self.canvas.restoreItems(localVars, colors)
                 if animation:
                     self.highlightCode('node = self.rotateLeft(node)',
                                        callEnviron)
-                    colors = self.fadeNonLocalItems(localVars)
+                    colors = self.canvas.fadeItems(localVars)
                 node = self.rotateLeft(node, animation=animation)
                 if animation:
-                    self.restoreLocalItems(localVars)
+                    self.canvas.restoreItems(localVars, colors)
 
         if animation:
             self.highlightCode('node.updateHeight()', callEnviron)
@@ -559,9 +559,9 @@ def __delete(self, node={nodeKey}, goal={goal}):
                 'node.left, flag = self.__delete(node.left, goal)', callEnviron)
             leftChildIndex = self.getLeftChildIndex(nodeIndex)
             leftChild = self.getNode(leftChildIndex)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             newLeft, flag = self.__delete(leftChild, goal)
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if self.getIndex(newLeft) != leftChildIndex:
                 self.moveSubtree(leftChildIndex, self.getIndex(newLeft))
                 if leftChild and leftChild.getKey() == goal:
@@ -591,9 +591,9 @@ def __delete(self, node={nodeKey}, goal={goal}):
             localVars += (flagText,)
 
             self.highlightCode('node = self.__balanceLeft(node)', callEnviron)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             newNode = self.__balanceLeft(nodeIndex)
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if newNode != node:
                 self.moveItemsTo(nodeArrow, self.indexCoords(newNode, 1),
                                  sleepTime=wait / 10)
@@ -604,11 +604,11 @@ def __delete(self, node={nodeKey}, goal={goal}):
             self.highlightCode(
                 'node.right, flag = self.__delete(node.right, goal)',
                 callEnviron)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             rightChildIndex = self.getRightChildIndex(nodeIndex)
             rightChild = self.getNode(rightChildIndex)
             newRight, flag = self.__delete(rightChild, goal)
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if self.getIndex(newRight) != rightChildIndex:
                 self.moveSubtree(rightChildIndex, self.getIndex(newRight))
                 if rightChild and rightChild.getKey() == goal:
@@ -639,9 +639,9 @@ def __delete(self, node={nodeKey}, goal={goal}):
             localVars += (flagText,)
 
             self.highlightCode('node = self.__balanceRight(node)', callEnviron)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             newNode = self.__balanceRight(nodeIndex)
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if newNode != node:
                 self.moveItemsTo(nodeArrow, self.indexCoords(newNode, 1),
                                  sleepTime=wait / 10)
@@ -665,10 +665,10 @@ def __delete(self, node={nodeKey}, goal={goal}):
             self.highlightCode(
                 'node.key, node.data, node.right= self.__deleteMin(node.right)',
                 callEnviron)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             successor, newRight = self.__deleteMin(
                 self.getRightChildIndex(nodeIndex))
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if successor != node:
                 for item in successor.drawnValue.items[1:3]:
                     self.canvas.tag_raise(item)
@@ -692,9 +692,9 @@ def __delete(self, node={nodeKey}, goal={goal}):
                                 callEnviron, wait=wait)
 
             self.highlightCode('node = self.__balanceRight(node)', callEnviron)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             newNode = self.__balanceRight(node)
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if newNode != node:
                 self.moveItemsTo(nodeArrow, self.indexCoords(newNode, 1),
                                  sleepTime=wait / 10)
@@ -749,9 +749,9 @@ def __deleteMin(self, node={nodeKey}):
 
         self.highlightCode('key, data, node.left = self.__deleteMin(node.left)',
                            callEnviron)
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         keyData, newLeft = self.__deleteMin(self.getLeftChildIndex(nodeIndex))
-        self.restoreLocalItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors)
         keyDataArrow = self.createArrow(keyData, 'key, data', anchor=SE)
         callEnviron |= set(keyDataArrow)
         localVars += keyDataArrow
@@ -760,9 +760,9 @@ def __deleteMin(self, node={nodeKey}):
                                 callEnviron, wait=wait)
         
         self.highlightCode('node = self.__balanceLeft(node)', callEnviron)
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         newNode = self.__balanceLeft(nodeIndex)
-        self.restoreLocalItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors)
         if newNode != node:
             self.restoreNodePositions(self.getAllDescendants(newNode),
                                       sleepTime=wait /10)
@@ -897,7 +897,7 @@ def __balanceRight(self, node={nodeKey}):
         sharedParent = fromParent == toParent
         child = fromChild if fromChild else toParent
         lineToMove = child.getLine()
-        newLine = self.copyCanvasItem(lineToMove)
+        newLine = self.canvas.copyItem(lineToMove)
         self.canvas.tag_lower(newLine)
         callEnviron.add(newLine)
         lineToMoveCoords = self.canvas.coords(lineToMove)
@@ -983,7 +983,7 @@ def __balanceRight(self, node={nodeKey}):
         if callEnviron:
             font = self.VALUE_FONT
             leftText = (
-                self.copyCanvasItem(leftChild.drawnValue.items[-1])
+                self.canvas.copyItem(leftChild.drawnValue.items[-1])
                 if leftChild else
                 self.canvas.create_text(
                     *self.nodeHeightCoords(
@@ -991,7 +991,7 @@ def __balanceRight(self, node={nodeKey}):
                     font=font, anchor=W, text=str(left), fill=fill,
                     tags="height"))
             rightText = (
-                self.copyCanvasItem(rightChild.drawnValue.items[-1])
+                self.canvas.copyItem(rightChild.drawnValue.items[-1])
                 if rightChild else
                 self.canvas.create_text(
                     *self.nodeHeightCoords(
@@ -1003,7 +1003,7 @@ def __balanceRight(self, node={nodeKey}):
             middleText = self.canvas.create_text(
                 *middle, anchor=W, text=' - ', font=font, fill=fill)
             callEnviron |= set((leftText, middleText, rightText))
-            middleWidth = self.textWidth(font, ' - ')
+            middleWidth = textWidth(font, ' - ')
             delta = (middleWidth // 2, 0)
             self.moveItemsTo(
                 (leftText, rightText), 

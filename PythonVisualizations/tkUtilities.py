@@ -228,7 +228,7 @@ class Scrim(Canvas):
         return result
     
     def copyItemAttributes(   # Copy attributes from one canvas item to another
-            fromItem, toItem, *attributes):
+            self, fromItem, toItem, *attributes):
         kwargs = dict((attrib, self.itemConfig(fromItem, attrib))
                       for attrib in attributes)
         self.itemConfig(toItem, **kwargs)

@@ -54,10 +54,10 @@ def delete(self, goal={goal}):
             self.highlightCode('return self.__delete(parent, node)',
                                callEnviron)
             localVars = parentIndex + nodeIndex
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             deletedKeyAndData = self.__delete(parent, node)
             callEnviron |= set(deletedKeyAndData)
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
 
             outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
             outBox = self.createOutputBox(coords=outBoxCoords)
@@ -69,7 +69,7 @@ def delete(self, goal={goal}):
             self.moveItemsTo(
                 deletedKeyAndData, self.nodeItemCoords(outBoxCenter)[1:],
                 sleepTime=wait / 10)
-            self.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
+            self.canvas.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
 
             if self.getNode(node):
                 if node % 2 == 1:
@@ -126,7 +126,7 @@ def __delete(self, parent={parentStr}, node={nodeStr}):
             text='deleted', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(deletedLabel)
         deletedKeyAndData = tuple(
-            self.copyCanvasItem(item) 
+            self.canvas.copyItem(item) 
             for item in self.getNode(node).drawnValue.items[1:])
         self.moveItemsTo(
             deletedKeyAndData, self.nodeItemCoords(upperRightNodeCoords)[1:],
@@ -142,9 +142,9 @@ def __delete(self, parent={parentStr}, node={nodeStr}):
                                    callEnviron, wait=wait)
                 localVars = (
                     deletedLabel, *deletedKeyAndData, *parentIndex, *nodeIndex)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
                 self.__promote_successor(node)
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
                 
             else:
                 self.highlightCode('parent is self', callEnviron, wait=wait)
@@ -245,27 +245,27 @@ def __promote_successor(self, node={nodeStr}):
         successorNode = self.getNode(successor)
         successorKey = successorNode.getKey()
         successorDataItem, successorKeyItem = tuple(
-            self.copyCanvasItem(item) 
+            self.canvas.copyItem(item) 
             for item in successorNode.drawnValue.items[1:])
         callEnviron |= set((successorDataItem, successorKeyItem))
         self.moveItemsTo(
             successorKeyItem, self.nodeCenter(nodeIndex), sleepTime=wait / 10)
-        self.copyItemAttributes(successorKeyItem, node.drawnValue.items[2],
-                                'text')
+        self.canvas.copyItemAttributes(
+            successorKeyItem, node.drawnValue.items[2], 'text')
 
         self.highlightCode('node.data = successor.data', callEnviron, wait=wait)
         self.moveItemsTo(
             successorDataItem, self.canvas.coords(node.drawnValue.items[1]),
             sleepTime=wait / 10)
-        self.copyItemAttributes(successorDataItem, node.drawnValue.items[1],
-                                'fill')
+        self.canvas.copyItemAttributes(
+            successorDataItem, node.drawnValue.items[1], 'fill')
         
         self.highlightCode('self.__delete(parent, successor)', callEnviron)
         localVars = nodeArrow + parentIndex + successorIndex
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for item in self.__delete(parent, successor, level=2):
             self.canvas.delete(item)
-        self.restoreLocalItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors)
         
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
