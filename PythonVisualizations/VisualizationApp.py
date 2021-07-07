@@ -925,7 +925,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if self.destroyed:
                 sys.exit()
         while self.animationsPaused():
-            self.window.update_idletasks()
+            self.window.update()
             if self.destroyed:
                 sys.exit()
             time.sleep(0.02)
