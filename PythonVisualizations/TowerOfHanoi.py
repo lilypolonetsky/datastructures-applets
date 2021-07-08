@@ -1,11 +1,12 @@
 from tkinter import *
 
 try:
-    from VisualizationApp import *
     from coordinates import *
+    from VisualizationApp import *
 except ModuleNotFoundError:
-    from .VisualizationApp import *
     from .coordinates import *
+    from .tkUtilities import *
+    from .VisualizationApp import *
 
 V = vector
 
@@ -406,7 +407,7 @@ def reset(self):
         msg = 'Puzzle completed!'
         if self.getMessage() == msg:
             return
-        canvasDimensions = self.widgetDimensions(self.canvas)
+        canvasDimensions = widgetDimensions(self.canvas)
         starCenter = V(canvasDimensions) * V(1/3, 1)
         size, ratio, points, angle = 5, 0.38, 5, 270
         rate = 0.92

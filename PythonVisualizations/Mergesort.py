@@ -1,14 +1,17 @@
 import random
 from tkinter import *
 try:
+    from coordinates import *
     from drawnValue import *
     from VisualizationApp import *
     from SortingBase import *    
 except ModuleNotFoundError:
+    from coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
     from .SortingBase import *    
       
+V = vector
 
 class Mergesort(SortingBase):
 
@@ -55,7 +58,7 @@ def __init__(self, unordered, key=identity):
             cell0coords = self.canvas.coords(self.arrayCells[0])
         else:
             cell0Coords = [0] * 4
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         delta = (0, canvasDims[1] - self.CELL_BORDER * 2 - cell0coords[3])
         callEnviron.add(self.canvas.create_text(
             cell0coords[0] - self.CELL_GAP,
@@ -128,13 +131,13 @@ def mergesort(self, lo={lo}, hi={hi}):
             flat(*([self.arrayCells[j]] + [item for item in self.list[j].items]
                    for j in range(lo, mid))),
             delta, sleepTime=wait / 10)
-        self.fadeNonLocalItems(local)
+        colors = self.canvas.fadeItems(local)
         self.mergesort(lo, mid, level=level + 1)
-        self.restoreLocalItems(local)
+        self.canvas.restoreItems(local, colors)
         self.moveItemsBy(
             flat(*([self.arrayCells[j]] + [item for item in self.list[j].items]
                    for j in range(lo, mid))),
-            multiply_vector(delta, -1), sleepTime=wait / 10)
+            V(delta) * -1, sleepTime=wait / 10)
         self.moveIndex(self.loIndex, self.arrayCells[lo])
         self.moveIndex(self.hiIndex, self.arrayCells[hi])
 
@@ -144,13 +147,13 @@ def mergesort(self, lo={lo}, hi={hi}):
             flat(*([self.arrayCells[j]] + [item for item in self.list[j].items]
                    for j in range(mid, hi))),
             delta, sleepTime=wait / 10)
-        self.fadeNonLocalItems(local)
+        colors = self.canvas.fadeItems(local)
         self.mergesort(mid, hi, level=level + 1)
-        self.restoreLocalItems(local)
+        self.canvas.restoreItems(local, colors)
         self.moveItemsBy(
             flat(*([self.arrayCells[j]] + [item for item in self.list[j].items]
                    for j in range(mid, hi))),
-            multiply_vector(delta, -1), sleepTime=wait / 10)
+            V(delta) * -1, sleepTime=wait / 10)
         self.moveIndex(self.loIndex, self.arrayCells[lo])
         self.moveIndex(self.hiIndex, self.arrayCells[hi])
             
@@ -269,7 +272,7 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
             self.moveItemsBy(nIndex, idxDelta, sleepTime=wait / 10)
             self.highlightCode(('idxLo < mid', 2), callEnviron, wait=wait)
 
-        idxDelta = multiply_vector(idxDelta, -1)
+        idxDelta = V(idxDelta) * -1
         self.highlightCode('n > 0', callEnviron, wait=wait)
         while n > 0:
             self.highlightCode('n -= 1', callEnviron)
@@ -302,11 +305,10 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
             raise Exception('Cannot get drawn value to copy')
         copiedVal = drawnValue(
             fromArray[fromIndex].val,
-            *(self.copyCanvasItem(i) for i in fromArray[fromIndex].items))
+            *(self.canvas.copyItem(i) for i in fromArray[fromIndex].items))
         if callEnviron:
             callEnviron |= set(copiedVal.items)
-        delta = subtract_vector(
-            self.canvas.coords(toCells[toIndex]),
+        delta = V(self.canvas.coords(toCells[toIndex])) - V(
             self.canvas.coords(fromCells[fromIndex]))
         self.moveItemsBy(copiedVal.items, delta[:2], sleepTime=0.01)
         return copiedVal
@@ -374,7 +376,7 @@ def merge(self, lo={lo}, mid={mid}, hi={hi}):
         return buttons  # Buttons managed by play/pause/stop controls
 
     def new(self, val, start=None):
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         maxCells = min(
             self.maxCells, 
             (canvasDims[0] - self.ARRAY_X0) // self.CELL_MIN_WIDTH - 1)

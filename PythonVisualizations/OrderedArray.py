@@ -44,7 +44,7 @@ def insert(self, item={val}):
 '''
 
     def insert(self, val, code=insertCode, start=True):
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)

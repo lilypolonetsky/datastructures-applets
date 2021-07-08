@@ -122,6 +122,11 @@ def getCodeHighlightBlock(seq):
 
 if __name__ == '__main__':
 
+    try:
+        from tkUtilities import *
+    except ModuleNotFoundError:
+        from .tkUtilities import *
+
     testCode='''
 def factorial(n):
    if n < 1: return 1
@@ -141,7 +146,7 @@ def factorial(n):
             app.canvas.create_text(
                 x, y, anchor=NW, text=line, font=app.VARIABLE_FONT,
                 fill=app.VARIABLE_COLOR)
-            y += app.textHeight(app.VARIABLE_FONT)
+            y += textHeight(app.VARIABLE_FONT)
 
     fragments = ['factorial(n)', 'n < 1', 'return', 'return', 'return', 
                  'return (n *\n           factorial(n - 1)',
@@ -184,7 +189,7 @@ def factorial(n):
         canvasPrint('\nHighligting fragments in endless loop...')
         while True:
             for tag in tags:
-                app.widgetState(useHighlightCodeButton, NORMAL)
+                widgetState(useHighlightCodeButton, NORMAL)
                 app.setMessage('Fragment "{}" copy {}\nhas tag {}'.format(
                     tag[0], tag[1], repr(codeHighlightBlock[tag[0], tag[1]])))
                 if useHighlightCode.get():

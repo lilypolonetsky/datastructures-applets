@@ -3,10 +3,12 @@ from tkinter import *
 try:
     from drawnValue import *
     from coordinates import *
+    from tkUtilities import *
     from VisualizationApp import *
 except ModuleNotFoundError:
     from .drawnValue import *
     from .coordinates import *
+    from .tkUtilities import *
     from .VisualizationApp import *
 
 V = vector
@@ -120,7 +122,7 @@ class LinkedList(VisualizationApp):
     def resizeCanvas(self, event=None):   # Handle canvas resize events
         if (self.canvas and self.canvas.winfo_ismapped() and
             self.animationsStopped()):
-            width, height = self.widgetDimensions(self.canvas)
+            width, height = widgetDimensions(self.canvas)
             new_row_length = max(2, (width - self.LL_X0 + self.CELL_GAP) // (
                 self.CELL_WIDTH + self.CELL_GAP))
             change = self.LEN_ROW != new_row_length
@@ -401,8 +403,8 @@ def traverse(self, func=print):
         outputFont = ('Courier', -18)
         outX = outputBoxCoords[0] + abs(outputFont[1])
         outY = outputBoxCoords[1] + abs(outputFont[1])
-        sepX = self.textWidth(outputFont, ' ')
-        sepY = self.textHeight(outputFont, ' ')
+        sepX = textWidth(outputFont, ' ')
+        sepY = textHeight(outputFont, ' ')
 
         self.highlightCode('link = self.getFirst()', callEnviron)
         link = 1
@@ -414,7 +416,7 @@ def traverse(self, func=print):
         while link <= len(self.list):
             self.highlightCode('func(link.getData())', callEnviron)
             linkText = text=self.list[link - 1].key
-            tx = self.textWidth(outputFont, linkText)
+            tx = textWidth(outputFont, linkText)
             textItem = self.canvas.create_text(
                 *(V(self.cellText(link)) - V((tx / 2, sepY / 2))),
                 text=linkText, font=outputFont, anchor=W)

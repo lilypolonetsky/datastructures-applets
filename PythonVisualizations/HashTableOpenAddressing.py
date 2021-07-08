@@ -2,11 +2,13 @@ from tkinter import *
 import re, math
 try:
     from drawnValue import *
+    from tkUtilities import *
     from HashBase import *
     from OutputBox import *
     from HashTable_OpenAddressing import *
 except ModuleNotFoundError:
     from .drawnValue import *
+    from .tkUtilities import *
     from .HashBase import *
     from .OutputBox import *
     from .HashTable_OpenAddressing import *
@@ -133,12 +135,12 @@ def insert(self, key={key}, value):
                                    callEnviron, wait=wait)
                 if self.loadFactor() > self.maxLoadFactor:
                     self.highlightCode('self.__growTable()', callEnviron)
-                    colors = self.fadeNonLocalItems(iArrow)
+                    colors = self.canvas.fadeItems(iArrow)
 
             if self.loadFactor() > self.maxLoadFactor:
                 self.__growTable(code=self._growTableCode if code else '')
                 if code:
-                    self.restoreLocalItems(iArrow, colors)
+                    self.canvas.restoreItems(iArrow, colors)
 
             if code:
                 self.highlightCode('return True', callEnviron)
@@ -276,15 +278,15 @@ def __growTable(self):
                         self.highlightCode('self.insert(*oldTable[i])',
                                            callEnviron)
                         if self.showHashing.get():
-                            keyCopy = self.copyCanvasItem(oldTable[i].items[1])
+                            keyCopy = self.canvas.copyItem(oldTable[i].items[1])
                             callEnviron.add(keyCopy)
-                        colors = self.fadeNonLocalItems(iArrow)
+                        colors = self.canvas.fadeItems(iArrow)
                     self.insert(
                         oldTable[i].val, keyAndDataItems=oldTable[i].items,
                         inputText=keyCopy, code=self.insertCode if code else '')
                     callEnviron -= set(oldTable[i].items)
                     if code:
-                        self.restoreLocalItems(iArrow, colors)
+                        self.canvas.restoreItems(iArrow, colors)
                     
             if code:
                 self.highlightCode('i in range(len(oldTable))', callEnviron)
@@ -353,7 +355,7 @@ def search(self, key={key}):
                                callEnviron)
 
             if found:
-                items = [self.copyCanvasItem(item)
+                items = [self.canvas.copyItem(item)
                          for item in self.table[i].items]
                 callEnviron |= set(items)
                 outputBox.setToText(items, sleepTime=wait / 10, color=True)
@@ -530,8 +532,7 @@ for key, data in hashTable.traverse():
         self.highlightCode('first = True', callEnviron, wait=wait)
         first = True
         firstLabel = self.canvas.create_text(
-            outputBox.bbox[0] - self.textWidth(
-                self.VARIABLE_FONT, 'first = False '),
+            outputBox.bbox[0] - textWidth(self.VARIABLE_FONT, 'first = False '),
             int(outputBox.bbox[1] + outputBox.bbox[3]) // 2, anchor=W,
             text='first = True', font=self.VARIABLE_FONT,
             fill=self.VARIABLE_COLOR)
@@ -541,9 +542,9 @@ for key, data in hashTable.traverse():
             'key, data in hashTable.traverse()', callEnviron, wait=wait)
         arrayIndex = None
         localVars = ()
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for i, item in self.traverse():
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if arrayIndex is None:
                 arrayIndex = self.createArrayIndex(i, indexLabel)
                 callEnviron |= set(arrayIndex)
@@ -558,7 +559,7 @@ for key, data in hashTable.traverse():
                  ('key', 2) if first else "', ' + key",
                  ", end='')"), callEnviron, wait=wait)
 
-            copy = self.copyCanvasItem(item.items[1])
+            copy = self.canvas.copyItem(item.items[1])
             callEnviron.add(copy)
             outputBox.appendText(copy, separator=', ', sleepTime=wait / 10)
             callEnviron.discard(copy)
@@ -569,7 +570,7 @@ for key, data in hashTable.traverse():
             
             self.highlightCode(
                 'key, data in hashTable.traverse()', callEnviron, wait=wait)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
         
         self.highlightCode((), callEnviron)
         self.cleanUp(callEnviron)
@@ -617,7 +618,7 @@ def traverse(self):
     def display(self):
         '''Erase canvas and redisplay contents.  Call setupDisplay() before
         this to set the display parameters.'''
-        canvasDimensions = self.widgetDimensions(self.canvas)
+        canvasDimensions = widgetDimensions(self.canvas)
         self.canvas.delete("all")
         self.createHasher(
             y0=canvasDimensions[1] - self.hasherHeight,
@@ -685,19 +686,19 @@ def traverse(self):
         h = self.hasher
 
         if textItem and self.canvas.type(textItem) == 'text':
-            self.changeAnchor(E, textItem)
+            self.canvas.changeAnchor(E, textItem)
             bbox = self.canvas.bbox(textItem)
             self.moveItemsTo(
                 textItem, self.hashInputCoords(nInputs=1),
-                sleepTime=sleepTime, startFont=self.getItemFont(textItem),
-                endFont=self.VARIABLE_FONT)
+                sleepTime=sleepTime, endFont=self.VARIABLE_FONT,
+                startFont=self.canvas.getItemFont(textItem))
             self.canvas.itemconfigure(textItem, fill=color)
             
         # Create individual character text items to feed into hasher
         text, hashed = str(text), str(hashed)
         inputCoords = self.hashInputCoords(nInputs=1)
         outputCoords = self.hashOutputCoords()
-        charWidth = self.textWidth(font, 'W')
+        charWidth = textWidth(font, 'W')
         characters = set([
             self.canvas.create_text(
                 inputCoords[0] - ((len(text) - i) * charWidth),
@@ -905,7 +906,7 @@ def traverse(self):
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
         for btn in self.probeChoiceButtons: # Probe function can only be
-            self.widgetState(               # selected while hash table has no
+            widgetState(                    # selected while hash table has no
                 btn,                        # items
                 NORMAL if enable and self.nItems == 0 else DISABLED)
 

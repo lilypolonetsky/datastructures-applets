@@ -7,9 +7,11 @@ from tkinter import *
 import re
 
 try:
+    from tkUtilities import *
     from Visualization import *
     from coordinates import *
 except ModuleNotFoundError:
+    from .tkUtilities import *
     from .Visualization import *
     from .coordinates import *
 
@@ -51,11 +53,11 @@ class OutputBox(object):
         if outputFont is None: outputFont = app.VALUE_FONT
         if outputColor is None: outputColor = app.VALUE_COLOR
         self.outputFont, self.outputColor = outputFont, outputColor
-        if lineHeight is None: lineHeight = app.textHeight(outputFont, ' ')
+        if lineHeight is None: lineHeight = textHeight(outputFont, ' ')
         self.lineHeight = lineHeight
         if bbox is None:
             canvasBBox = app.visibleCanvas()
-            width = (nCharacters * app.textWidth(outputFont, 'W') +
+            width = (nCharacters * textWidth(outputFont, 'W') +
                          outputOffset[0] * 2)
             height = self.lineHeight * nLines + outputOffset[1] * 2
             bbox = (max(borderWidth,
@@ -132,7 +134,7 @@ class OutputBox(object):
         lines = self.text().split('\n')
         upperLeft = self.app.canvas_coords(self.outputText)
         return V(upperLeft) + V(
-            self.app.textWidth(self.outputFont, lines[-1]) if lines else 0,
+            textWidth(self.outputFont, lines[-1]) if lines else 0,
             (len(lines) - 1) * self.lineHeight)
 
     def appendText(
@@ -151,13 +153,12 @@ class OutputBox(object):
         newText = current + (separator if current else '') + text
         lines = newText.split('\n')
         maxWidth = (self.bbox[2] - self.bbox[0] - self.outputOffset[0] * 2)
-        while lines and self.app.textWidth(
-                self.outputFont, lines[-1]) > maxWidth:
+        while lines and textWidth(self.outputFont, lines[-1]) > maxWidth:
             separators = [(mg.group(0), mg.start(), mg.end()) 
                           for mg in self.separators.finditer(lines[-1])]
             if len(separators) == 0: separators = [('', 0, len(lines[-1]) // 2)]
             j = len(separators) - 1
-            while j > 0 and self.app.textWidth(
+            while j > 0 and textWidth(
                     self.outputFont,
                     lines[-1][:separators[j][1]] + separators[j][0]) > maxWidth:
                 j -= 1
@@ -166,10 +167,10 @@ class OutputBox(object):
         animate = isinstance(textOrItem, int) and sleepTime
         if animate:
             self.app.canvas.tag_raise(textOrItem, self.outputBox)
-            self.app.changeAnchor(W, textOrItem)
+            self.app.canvas.changeAnchor(W, textOrItem)
             self.app.moveItemsTo(
                 textOrItem, self.endCoords(), sleepTime=sleepTime, 
-                startFont=self.app.getItemFont(textOrItem),
+                startFont=self.app.canvas.getItemFont(textOrItem),
                 endFont=self.outputFont)
         self.app.canvas_itemConfig(self.outputText, text='\n'.join(lines))
         if animate and deleteItem:
@@ -210,25 +211,25 @@ class OutputBox(object):
         self.app.canvas_itemConfig(self.outputText, anchor=CENTER, text='')
         self.app.canvas.coords(self.outputText, *center)
         if coords is None:
-            self.app.changeAnchor(CENTER, text1)
+            self.app.canvas.changeAnchor(CENTER, text1)
             delta = V(center) - V(self.app.canvas_coords(text1))
             if sleepTime:
-                self.app.moveItemsBy(items, delta, sleepTime=sleepTime,
-                                     startFont=self.app.getItemFont(text1),
-                                     endFont=self.outputFont)
+                self.app.moveItemsBy(
+                    items, delta, sleepTime=sleepTime, endFont=self.outputFont,
+                    startFont=self.app.canvas.getItemFont(text1))
             else:
                 for item in items:
                     self.app.canvas.move(item, *delta)
         else:
             if sleepTime:
-                self.app.changeAnchor(CENTER, text1)
+                self.app.canvas.changeAnchor(CENTER, text1)
                 self.app.moveItemsLinearly(
                     items, coords, sleepTime=sleepTime, endFont=self.outputFont,
-                    startFont=self.app.getItemFont(text1))
+                    startFont=self.app.canvas.getItemFont(text1))
             else:
                 for item, coord in zip(items, coords):
                     self.app.canvas.coords(item, coord)
-        self.app.copyItemAttributes(text1, self.outputText, 'text')
+        self.app.canvas.copyItemAttributes(text1, self.outputText, 'text')
         if color:
             self.background = (
                 color if isinstance(color, str) else
@@ -274,7 +275,7 @@ if __name__ == '__main__':
             x + width // 2, y0 + dy * j + height // 2, 
             text=drawnValue.palette[j], font=app.VALUE_FONT)
         if j % 3 == 0:
-            app.changeAnchor(SW, text)
+            app.canvas.changeAnchor(SW, text)
         dataItems.append((shape, text))
 
     app.wait(0.5)
