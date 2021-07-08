@@ -73,7 +73,7 @@ def delete(self, goal={goal}):
 
             if self.getNode(node):
                 if node % 2 == 1:
-                    self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
+                    self.canvas.itemConfig(nodeIndex[1], anchor=SE)
                 self.moveItemsBy(
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait / 10)
         else:
@@ -81,7 +81,7 @@ def delete(self, goal={goal}):
             deletedKeyAndData = None
 
         self.cleanUp(callEnviron)
-        return (self.canvas.itemconfigure(deletedKeyAndData[1], 'text')[-1]
+        return (self.canvas.itemConfig(deletedKeyAndData[1], 'text')
                 if deletedKeyAndData else None)
     
     __deleteCode = '''

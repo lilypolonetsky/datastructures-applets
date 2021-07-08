@@ -122,7 +122,7 @@ def insert(self, item={val}):
         node = self.createNode(
             val, parent=self.getNode((self.nItems - 1) // 2),
             direction=Child.LEFT if self.nItems % 2 == 1 else Child.RIGHT,
-            color=self.canvas.itemconfigure(cellPair[0], 'fill')[-1])
+            color=self.canvas.itemConfig(cellPair[0], 'fill'))
         self.canvas.delete(nodeKey)
         callEnviron.discard(nodeKey)
         
@@ -750,7 +750,7 @@ def siftDown(array, j={j}, N={N}, key=identity):
         '''
         item = self.list[index]
         if color is None: 
-            color = self.canvas.itemconfigure(item.items[0], 'fill')[-1]
+            color = self.canvas.itemConfig(item.items[0], 'fill')
         if center is None:
             center = self.nodeCenter(index)
 
@@ -1082,7 +1082,7 @@ for item in heap.traverse():
                                   self.list[i].items[1]))
             callEnviron |= set(outputValues)
 
-            currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
+            currentText = self.canvas.itemConfig(outputText, 'text')
             newText = (' ' if len(currentText) > 0 else '') + str(item.getKey())
             textBBox = self.canvas.bbox(outputText)
             newTextWidth = textWidth(self.outputFont, newText)
@@ -1090,7 +1090,7 @@ for item in heap.traverse():
             self.moveItemsTo(
                 outputValues, (textCenter, textCenter), sleepTime=wait / 10, 
                 startFont=self.VALUE_FONT, endFont=self.outputFont)
-            self.canvas.itemconfigure(outputText, text=currentText + newText)
+            self.canvas.itemConfig(outputText, text=currentText + newText)
             self.dispose(callEnviron, *outputValues)
 
             self.highlightCode('item in heap.traverse()', callEnviron, wait=wait)
@@ -1223,7 +1223,7 @@ def traverse(self):
                 self.createNode(
                     n.val, parent=self.getNode((i - 1) // 2),
                     direction=Child.LEFT if i % 2 == 1 else Child.RIGHT,
-                    color=self.canvas.itemconfigure(n.items[0], 'fill')[-1])
+                    color=self.canvas.itemConfig(n.items[0], 'fill'))
 
     def fixPositions(self):  # Move canvas display items to exact cell coords
         for i, dValue in enumerate(self.list):

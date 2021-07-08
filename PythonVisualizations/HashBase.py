@@ -284,7 +284,7 @@ class HashBase(VisualizationApp):
                     *valPos, text=str(key), font=self.VALUE_FONT,
                     fill=self.VALUE_COLOR, tags="cellVal"))
         handler = lambda e: self.setArgument(
-            self.canvas.itemconfigure(cell[1], 'text')[-1] if
+            self.canvas.itemConfig(cell[1], 'text') if
             self.canvas.type(cell[1]) == 'text' else '')
         for item in cell:
             self.canvas.tag_bind(item, '<Button>', handler)

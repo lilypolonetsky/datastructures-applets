@@ -65,7 +65,7 @@ class RedBlackTree(BinaryTreeBase):
         items = super().createNodeShape(
             x, y, key, tag, color=color, parent=parent, radius=radius,
             **kwargs)
-        self.canvas.itemconfigure(items[1], tags=(tag, 'shape'))
+        self.canvas.itemConfig(items[1], tags=(tag, 'shape'))
         for item in (redBlackLabel, *items[1:]):
             self.canvas.tag_bind(item, '<Button-1>', self.flipColor(key))
             self.canvas.tag_bind(item, '<Double-Button-1>', self.rotateNode(key))
@@ -82,10 +82,10 @@ class RedBlackTree(BinaryTreeBase):
         node = node if isinstance(node, Node) else self.getNode(node)
         if node:
             if color:
-                self.canvas.itemconfigure(node.drawnValue.items[3], fill=color)
+                self.canvas.itemConfig(node.drawnValue.items[3], fill=color)
             else:
-                return self.canvas.itemconfigure(
-                    node.drawnValue.items[3], 'fill')[-1]
+                return self.canvas.itemConfig(
+                    node.drawnValue.items[3], 'fill')
     
     def nodeRing(self, node, ring=None):
         'Get or set the canvas oval representing the color ring around a node'
@@ -374,7 +374,7 @@ class RedBlackTree(BinaryTreeBase):
                 (2, 'Black heights: {}'.format(blackHeights),
                  len(blackHeights) <= 1),
                 (3, ' RED-BLACK CORRECT!' if allMet else '', allMet)):
-            self.canvas.itemconfigure(
+            self.canvas.itemConfig(
                 self.measures[m], text=text,
                 fill=self.MEASURE_MET if met else self.MEASURE_UNMET,
                 font=self.VALUE_FONT + (() if met else ('underline',)))
@@ -382,7 +382,7 @@ class RedBlackTree(BinaryTreeBase):
     def clearMeasures(self):
         for measure in self.measures:
             if measure and self.canvas.type(measure) == 'text':
-                self.canvas.itemconfigure(measure, text='')
+                self.canvas.itemConfig(measure, text='')
         self.canvas.delete(self.measureTag)
 
     def getRedRedLinks(self):
@@ -586,14 +586,14 @@ class RedBlackTree(BinaryTreeBase):
 
             if self.getNode(node):
                 if node % 2 == 1:
-                    self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
+                    self.canvas.itemConfig(nodeIndex[1], anchor=SE)
                 self.moveItemsBy(
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait / 10)
         else:
             deletedKeyAndData = None
 
         self.cleanUp(callEnviron)
-        return (self.canvas.itemconfigure(deletedKeyAndData[1], 'text')[-1]
+        return (self.canvas.itemConfig(deletedKeyAndData[1], 'text')
                 if deletedKeyAndData else None)
     
     def __delete(self, parent, node, level=1):

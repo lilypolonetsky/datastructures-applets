@@ -675,10 +675,10 @@ def __delete(self, node={nodeKey}, goal={goal}):
                 self.moveItemsTo(
                     successor.drawnValue.items[1:3], 
                     self.nodeItemCoords(nodeIndex)[1:3], sleepTime=wait / 10)
-                self.canvas.itemconfigure(
+                self.canvas.itemConfig(
                     successor.drawnValue.items[1], 
-                    fill=self.canvas.itemconfigure(node.drawnValue.items[1],
-                                                   'fill')[-1])
+                    fill=self.canvas.itemConfig(node.drawnValue.items[1],
+                                                'fill'))
                 for item in node.drawnValue.items[1:3]:
                     self.canvas.delete(item)
                 node.drawnValue.items = (
@@ -777,8 +777,8 @@ def __deleteMin(self, node={nodeKey}):
 
     def moveSuccessor(self, successor, sleepTime=0.01, color='LemonChiffon2'):
         newCenter = V(successor.center) - V(V(0.7, 2.2) * self.CIRCLE_SIZE)
-        self.canvas.itemconfigure(successor.drawnValue.items[1], fill=color)
-        self.canvas.itemconfigure(successor.drawnValue.items[-1], text='')
+        self.canvas.itemConfig(successor.drawnValue.items[1], fill=color)
+        self.canvas.itemConfig(successor.drawnValue.items[-1], text='')
         self.moveItemsLinearly(successor.drawnValue.items, 
                                self.nodeItemCoords(newCenter, parent=None),
                                sleepTime=sleepTime)
@@ -1015,7 +1015,7 @@ def __balanceRight(self, node={nodeKey}):
             self.canvas.delete(leftText)
             self.canvas.delete(rightText)
             callEnviron -= set((leftText, rightText))
-            self.canvas.itemconfigure(middleText, text=str(left - right))
+            self.canvas.itemConfig(middleText, text=str(left - right))
             self.wait(sleepTime * 20)
             self.canvas.delete(middleText)
             callEnviron.discard(middleText)

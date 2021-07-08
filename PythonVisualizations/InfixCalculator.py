@@ -310,7 +310,7 @@ class InfixCalculator(VisualizationApp):
         if callEnviron:
             callEnviron |= set(self.EVstackTopIndex)
 
-        self.canvas.itemconfigure(self.postfixInputString, text=postfix)
+        self.canvas.itemConfig(self.postfixInputString, text=postfix)
         
     def makeButtons(self):
         vcmd = (self.window.register(lambda P: self.updateInput(P)), '%P')
@@ -334,7 +334,7 @@ class InfixCalculator(VisualizationApp):
             if self.postfixInputString:
                 self.display(newText)
             else:
-                self.canvas.itemconfigure(self.infixInputString, text=newText)
+                self.canvas.itemConfig(self.infixInputString, text=newText)
         return valid
 
     # Button functions
@@ -397,10 +397,10 @@ def PostfixEvaluate(formula={infixExpression!r}):
         wait=0.1
         errorValue = 'Error!'
         hlColor = self.CODE_HIGHLIGHT
-        self.canvas.itemconfigure(self.infixInputString, text=infixExpression)
+        self.canvas.itemConfig(self.infixInputString, text=infixExpression)
         for item in (self.postfixLabel, self.postfixInputString):
             if item:
-                self.canvas.itemconfigure(item, text='')
+                self.canvas.itemConfig(item, text='')
         del self.EVstack[:]
         
         self.highlightCode('postfix = PostfixTranslate(formula)', callEnviron,
@@ -408,8 +408,8 @@ def PostfixEvaluate(formula={infixExpression!r}):
         postfixExpression = self.PostfixTranslate(infixExpression)
 
         # Restore infix expression that was parsed
-        self.canvas.itemconfigure(self.infixInputString, text=infixExpression)
-        self.canvas.itemconfigure(self.postfixLabel, text='postfix')
+        self.canvas.itemConfig(self.infixInputString, text=infixExpression)
+        self.canvas.itemConfig(self.postfixLabel, text='postfix')
         
         self.highlightCode('s = Stack({ARRAY_SIZE})'.format(**env), callEnviron,
                            color=hlColor)
@@ -444,14 +444,14 @@ def PostfixEvaluate(formula={infixExpression!r}):
             self.highlightCode('prec = precedence(token)', callEnviron,
                                wait=wait, color=hlColor)
             prec = self.precedence(token)
-            self.canvas.itemconfigure(precValue, text='prec = {}'.format(prec))
+            self.canvas.itemConfig(precValue, text='prec = {}'.format(prec))
             
             self.highlightCode(('prec', 3), callEnviron, wait=wait,
                                color=hlColor)
             if prec:
                 
                 self.moveItemsTo(tokenItem, operatorCoords, sleepTime=0.01)
-                self.canvas.itemconfigure(operator, text=token)
+                self.canvas.itemConfig(operator, text=token)
                 self.canvas.delete(tokenItem)
                 callEnviron.discard(tokenItem)
                 
@@ -515,9 +515,9 @@ def PostfixEvaluate(formula={infixExpression!r}):
                             result = errorValue
                             break
                         L = int(L)
-                        self.canvas.itemconfigure(left, text=str(L))
+                        self.canvas.itemConfig(left, text=str(L))
                         R = int(R)
-                        self.canvas.itemconfigure(right, text=str(R))
+                        self.canvas.itemConfig(right, text=str(R))
                         self.setMessage('Convert values to integer')
                         hlColor = self.CODE_HIGHLIGHT
                         self.wait(1)
@@ -531,7 +531,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
                 for displayString, coords in zip(
                         (left, operator, right),
                         self.operandAndOperatorCoords()):
-                    self.canvas.itemconfigure(displayString, text='')
+                    self.canvas.itemConfig(displayString, text='')
                     self.canvas.coords(displayString, *coords)
                     
             else:
@@ -548,8 +548,8 @@ def PostfixEvaluate(formula={infixExpression!r}):
                                color=hlColor)
 
         outputBox = self.outputBoxCoords()
-        self.canvas.itemconfigure(precValue, text='')
-        self.canvas.itemconfigure(operator, text='')
+        self.canvas.itemConfig(precValue, text='')
+        self.canvas.itemConfig(operator, text='')
         self.canvas.coords(operator, *BBoxCenter(outputBox))
         self.highlightCode('return s.pop()', callEnviron, color=hlColor)
         try:
@@ -657,11 +657,11 @@ def PostfixTranslate(formula={infixExpression!r}):
             self.highlightCode('prec = precedence(token)', callEnviron,
                                wait=wait)
             prec = self.precedence(token)
-            self.canvas.itemconfigure(precValue, text='prec = {}'.format(prec))
+            self.canvas.itemConfig(precValue, text='prec = {}'.format(prec))
             self.highlightCode('delim = delimiter(token)', callEnviron,
                                wait=wait)
             delim = self.delimiter(token)
-            self.canvas.itemconfigure(
+            self.canvas.itemConfig(
                 delimValue, text='delim = {}'.format(delim))
 
             self.highlightCode(('delim', 3), callEnviron, wait=wait)
@@ -753,9 +753,9 @@ def PostfixTranslate(formula={infixExpression!r}):
             self.insertToken(self.popToken(callEnviron, arrayID=self.TRstackID), callEnviron)
             self.highlightCode(('not s.isEmpty()', 3), callEnviron, wait=wait)
 
-        self.canvas.itemconfigure(self.postfixLabel, text='ans')
-        self.canvas.itemconfigure(precValue, text='')
-        self.canvas.itemconfigure(delimValue, text='')
+        self.canvas.itemConfig(self.postfixLabel, text='ans')
+        self.canvas.itemConfig(precValue, text='')
+        self.canvas.itemConfig(delimValue, text='')
         ans = ""
         self.highlightCode('ans = ""', callEnviron, wait=wait)
         self.highlightCode('not postfix.isEmpty()', callEnviron, wait=wait)
@@ -774,11 +774,11 @@ def PostfixTranslate(formula={infixExpression!r}):
         return ans
     
     def nextToken(self, fromString, waitForStrip=0.1):
-        text = self.canvas.itemconfigure(fromString, 'text')[-1]
+        text = self.canvas.itemConfig(fromString, 'text')
         token = ''
         stripped = text.strip()
         if stripped != text:
-            self.canvas.itemconfigure(fromString, text=stripped)
+            self.canvas.itemConfig(fromString, text=stripped)
             text = stripped
             if waitForStrip:
                 self.wait(waitForStrip)
@@ -802,7 +802,7 @@ def PostfixTranslate(formula={infixExpression!r}):
                      font=None, color=None, toString=None):
         '''Get a canvas text item to repesent a token extracted from the
         beginning of a displayed string'''
-        text = self.canvas.itemconfigure(fromString, 'text')[-1]
+        text = self.canvas.itemConfig(fromString, 'text')
         if not text.startswith(token):
             raise ValueError('Token does not match beginning of string')
         coords = self.canvas.coords(fromString)
@@ -815,8 +815,8 @@ def PostfixTranslate(formula={infixExpression!r}):
         callEnviron.add(tokenItem)
         self.moveItemsBy(tokenItem, self.extractDelta(fromString, toString),
                          sleepTime=0.01)
-        self.canvas.itemconfigure(tokenItem, anchor=anchor)
-        self.canvas.itemconfigure(fromString, text=text[len(token):])
+        self.canvas.itemConfig(tokenItem, anchor=anchor)
+        self.canvas.itemConfig(fromString, text=text[len(token):])
         return tokenItem
         
     def pushToken(self, token, callEnviron, arrayID=0, color=None):
@@ -829,7 +829,7 @@ def PostfixTranslate(formula={infixExpression!r}):
         toCenter = self.cellCenter(index, arrayID)
         if isinstance(token, int):
             self.moveItemsTo(token, toCenter, sleepTime=0.01)
-            text = self.canvas.itemconfigure(token, 'text')[-1]
+            text = self.canvas.itemConfig(token, 'text')
             dValue = drawnValue(
                 text, *self.createCellValue(index, text, arrayID, color=color))
             self.canvas.delete(token)
@@ -852,7 +852,7 @@ def PostfixTranslate(formula={infixExpression!r}):
             raise IndexError('Stack underflow')
         top = self.structures[arrayID].pop()
         if toString:
-            text = self.canvas.itemconfigure(toString, 'text')[-1]
+            text = self.canvas.itemConfig(toString, 'text')
             if len(text) > 0 and not text.endswith(' '):
                 text += ' '
             copyItem = self.canvas.copyItem(top.items[1])
@@ -863,7 +863,7 @@ def PostfixTranslate(formula={infixExpression!r}):
             toCoords = V(self.canvas.coords(toString)) + V(
                 textWidth(self.VALUE_FONT, text + top.val) // 2, 0)
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
-            self.canvas.itemconfigure(toString, text=text + top.val)
+            self.canvas.itemConfig(toString, text=text + top.val)
             self.canvas.delete(copyItem)
             callEnviron.discard(copyItem)
         self.moveItemsBy(
@@ -891,7 +891,7 @@ def PostfixTranslate(formula={infixExpression!r}):
             items, (toCoords, toCenter) if len(items) == 2 else (toCenter,),
             sleepTime=0.01)
         if dValue is None:
-            text = self.canvas.itemconfigure(token, 'text')[-1]
+            text = self.canvas.itemConfig(token, 'text')
             dValue = drawnValue(
                 text, 
                 *self.createCellValue(index, text, arrayID=self.TRqueueID,
@@ -913,18 +913,18 @@ def PostfixTranslate(formula={infixExpression!r}):
         removed = dValue.val
         index = (self.TRqueueFront + 1) % len(self.TRqueue)
         if toString:
-            text = self.canvas.itemconfigure(toString, 'text')[-1]
+            text = self.canvas.itemConfig(toString, 'text')
             if len(text) > 0 and not text.endswith(' '):
                 text += ' '
             copyItem = self.canvas.copyItem(dValue.items[1])
             callEnviron.add(copyItem)
             bbox = self.canvas.bbox(copyItem)
             self.canvas.move(copyItem, (bbox[0] - bbox[2]) // 2, 0)
-            self.canvas.itemconfigure(copyItem, anchor=W)
+            self.canvas.itemConfig(copyItem, anchor=W)
             toCoords = V(self.canvas.coords(toString)) + V(
                 textWidth(self.VALUE_FONT, text), 0)
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
-            self.canvas.itemconfigure(toString, text=text + removed)
+            self.canvas.itemConfig(toString, text=text + removed)
             self.canvas.delete(copyItem)
             callEnviron.discard(copyItem)
         self.TRqueueFront = index

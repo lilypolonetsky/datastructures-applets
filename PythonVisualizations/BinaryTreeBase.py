@@ -551,7 +551,7 @@ class BinaryTreeBase(VisualizationApp):
         for node in nodes: # Restore text label above shape background
             shape, text = node.drawnValue.items[1:3]
             if self.canvas.type(text):
-                self.canvas.itemconfigure(text, text=str(node.getKey()))
+                self.canvas.itemConfig(text, text=str(node.getKey()))
                 if self.canvas.type(shape):
                     self.canvas.tag_raise(text, shape)
         
@@ -928,13 +928,13 @@ def updateHeight(self):
                 self.highlightCode('self.height = self.left.height',
                                    callEnviron, wait=wait)
             height = self.getHeight(left)
-            self.canvas.itemconfigure(heightText, text=str(height))
+            self.canvas.itemConfig(heightText, text=str(height))
         else:
             if animation:
                 self.highlightCode(
                     ['self.height =', '0'], callEnviron, wait=wait)
             height = 0
-            self.canvas.itemconfigure(heightText, text='0')
+            self.canvas.itemConfig(heightText, text='0')
             
         right = self.getRightChildIndex(node)
         if animation:
@@ -952,12 +952,12 @@ def updateHeight(self):
                     self.highlightCode('self.height = self.right.height',
                                        callEnviron, wait=wait)
                 height = rightHeight
-                self.canvas.itemconfigure(heightText, text=str(height))
+                self.canvas.itemConfig(heightText, text=str(height))
 
         if animation:
             self.highlightCode('self.height += 1', callEnviron, wait=wait)
         height += 1
-        self.canvas.itemconfigure(heightText, text=str(height))
+        self.canvas.itemConfig(heightText, text=str(height))
         
         if animation:
             self.highlightCode([], callEnviron)
@@ -1058,7 +1058,7 @@ def insert(self, key={key}, data):
                     newNode.drawnValue.items,
                     self.nodeItemCoords(node, parent), sleepTime=wait / 10)
                 if dir == 'left':
-                    self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
+                    self.canvas.itemConfig(nodeIndex[1], anchor=SE)
                 self.moveItemsBy(
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait/10)
             newNode.center = self.nodeCenter(node)
@@ -1123,13 +1123,13 @@ for key, data in tree.traverse("{traverseType}"):
             self.highlightCode('print(key)', callEnviron, wait=wait)
             keyItem = self.canvas.copyItem(items[2])
             callEnviron.add(keyItem)
-            currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
+            currentText = self.canvas.itemConfig(outputText, 'text')
             textBBox = self.canvas.bbox(outputText)
             newTextWidth = textWidth(self.outputFont, ' ' + str(key))
             self.moveItemsTo(
                 keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
                 sleepTime=wait / 10)
-            self.canvas.itemconfigure(
+            self.canvas.itemConfig(
                 outputText,
                 text=currentText + (' ' if len(currentText) > 0 else '') +
                 str(key))

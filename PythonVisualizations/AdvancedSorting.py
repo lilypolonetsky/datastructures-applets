@@ -614,7 +614,7 @@ def shellSort(self):
 
                     self.highlightCode('nShifts += 1', callEnviron, wait=wait)
                     nShifts += 1
-                    self.canvas.itemconfigure(
+                    self.canvas.itemConfig(
                         nShiftsLabel, text=nShiftsValue.format(nShifts))
                     
                     self.highlightCode('inner >= h', callEnviron, wait=wait)
@@ -634,7 +634,7 @@ def shellSort(self):
                     self.highlightCode(('nShifts += 1', 2), callEnviron,
                                        wait=wait)
                     nShifts += 1
-                    self.canvas.itemconfigure(
+                    self.canvas.itemConfig(
                         nShiftsLabel, text=nShiftsValue.format(nShifts))
                     
                 else:
@@ -672,7 +672,7 @@ def shellSort(self):
         self.wait(0)
         if hLabel:  # Adjust existing hLabel: (span, box, text)
             currentCoords = self.canvas.coords(hLabel[0])
-            currentText = self.canvas.itemconfigure(hLabel[2], 'text')[-1]
+            currentText = self.canvas.itemConfig(hLabel[2], 'text')
             startH = int(currentText[3:]) if currentText != hText else h
             if currentCoords != spanCoords or currentText != hText:
                 for step in range(steps):
@@ -689,13 +689,13 @@ def shellSort(self):
                     for i, coords in zip(hLabel, (sCoords, bCoords, sCenter)):
                         self.canvas.coords(i, *coords)
                     if startH != h:
-                        self.canvas.itemconfigure(hLabel[2], text=text)
+                        self.canvas.itemConfig(hLabel[2], text=text)
                     self.wait(sleepTime)
                     
                 for i, coords in zip(hLabel, 
                                      (spanCoords, boxCoords, spanCenter)):
                     self.canvas.coords(i, *coords)
-                self.canvas.itemconfigure(hLabel[2], text=hText)
+                self.canvas.itemConfig(hLabel[2], text=hText)
                         
         else: # Create new hLabel
             if color is None:
