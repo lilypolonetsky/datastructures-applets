@@ -870,7 +870,14 @@ def minimumSpanningTree(self, n={nVal}):
             *(V(base) - VdotRadius), *(V(base) + VdotRadius),
             fill='red', width=0)
         return (arrow, dot)
-    
+
+    topologicalSortCode = '''
+TBD
+'''
+
+    def topologicalSort(self, code=topologicalSortCode, start=True):
+        self.setMessage('TBD')
+        
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
         for btn in (self.depthFirstTraverseButton, 
@@ -878,6 +885,10 @@ def minimumSpanningTree(self, n={nVal}):
             widgetState( # can only traverse when start node selected
                 btn,
                 NORMAL if enable and self.selectedVertex else DISABLED)
+        widgetState(
+            self.sortButton,
+            NORMAL if enable and self.nEdges() > 0 and
+            not self.bidirectionalEdges.get() else DISABLED)
 
     def makeButtons(self, *args, **kwargs):
         '''Make buttons specific to unweighted graphs and aadd the
@@ -892,6 +903,10 @@ def minimumSpanningTree(self, n={nVal}):
         self.MSTButton = self.addOperation(
             "Minimum Spanning Tree", self.clickMinimumSpanningTree,
             helpText='Compute a minimum spanning tree', state=DISABLED)
+        self.sortButton = self.addOperation(
+            "Topological Sort", self.clickTopologicalSort,
+            helpText='Compute a toplogical sort of the vertices',
+            state=DISABLED)
         self.addAnimationButtons()
 
     def clickTraverse(self, kind):
@@ -907,6 +922,14 @@ def minimumSpanningTree(self, n={nVal}):
                                      start=self.startMode())
         else:
             self.setMessage('Must select start vertex before traversal')
+
+    def clickTopologicalSort(self):
+        if self.bidirectionalEdges.get():
+            self.setMessage('Edges must be directional to sort vertices')
+        elif self.nEdges() == 0:
+            self.setMessage('Must have at least 1 edge to sort vertices')
+        else:
+            self.topologicalSort(start=self.startMode())
             
 if __name__ == '__main__':
     graph = Graph(weighted=False)
