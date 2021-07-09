@@ -235,7 +235,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 helpTexts.add(help)
                 setattr(textEntry, 'helpTexts', helpTexts)
             if argHelpText: # Make a label if there are hints on what to enter
-                self.setHint()
+                self.setHint(button)
 
             # Place button in grid of buttons
             buttonColumn = self.withArgsColumn + len(withArgs) // maxRows
@@ -304,13 +304,16 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         entry.bind('<KeyRelease>', self.makeDisarmHandler(entry), '+')
         return entry
 
-    def setHint(self, hintText=None):
+    def setHint(self, widget, hintText=None):
         
         # creates a toplevel window
-        self.tw = Toplevel()
+        if not self.tw:
+            self.tw = Toplevel()
+            self.entryHint = None
         # Leaves only the label and removes the app window
         self.tw.overrideredirect(True)
-        x = y = 25
+        x = widget.winfo_pointerx() + 10
+        y = widget.winfo_pointery() + 5
         self.tw.geometry("+%d+%d" % (x, y))
         
         if hintText is None:    # Default hint is description of all arguments
@@ -323,25 +326,22 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.entryHint = Label(
                 self.tw, text=hintText,
                 font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
-            '''self.entryHint.bind(
-                '<Button>', # Clear the hint when label clicked
-                clearHintHandler(self.entryHint, self.textEntries[0]))'''
-            '''self.entryHint.bind(
-                '<Shift-Button>', # Extend hint activation delay
-                self.extendHintActivationHandler())'''
+            self.entryHint.pack()
         else:                      # Update hint text if already present
+            print("entryHint: ", self.entryHint, "tw: ", self.tw)
             self.entryHint['text'] = hintText
             if hintText == '':
                 if self.tw:
                     self.tw.destroy()
                     self.tw = None
-                self.entryHint.grid_remove()
+                self.entryHint = None
             else:
-                self.entryHint.grid()
-        for entry in self.textEntries:      # Clear hint when entries get focus
-            if not entry.bind('<FocusIn>'): # if handler not already set up 
-                entry.bind('<FocusIn>', 
-                           self.clearHintHandler(self.entryHint, entry))
+                self.entryHint.pack()
+        if self.entryHint:
+            for entry in self.textEntries:      # Clear hint when entries get focus
+                if not entry.bind('<FocusIn>'): # if handler not already set up 
+                    entry.bind('<FocusIn>', 
+                            self.clearHintHandler(self.entryHint, entry))
         
     def makeArmHintHandler(self, widget, helpText=None):
         def handler(event):
@@ -350,7 +350,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             setattr(widget, 'timeout_ID',
                     widget.after(
                         self.HOVER_DELAY, 
-                        lambda: print(self.setHint(hint), setattr(widget, 'timeout_ID', None), hint)))
+                        lambda: print(self.setHint(widget, hint), setattr(widget, 'timeout_ID', None), hint)))
             print(event.widget, "armed")
         return handler
 
@@ -371,13 +371,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         return lambda event: setattr(
             widget, attrName,
             widget.after(delay, lambda: setattr(widget, attrName, None)))
-
-    def extendHintActivationHandler(self):
-        def Ehandler(event):
-            self.HOVER_DELAY += self.HOVER_DELAY
-            msg = 'Show hints after {} seconds'.format(self.HOVER_DELAY / 1000)
-            self.setHint(msg)
-        return Ehandler
 
     def clearHintHandler(self, hintLabel, textEntry=None):
         'Clear the hint text and set focus to textEntry, if provided'
