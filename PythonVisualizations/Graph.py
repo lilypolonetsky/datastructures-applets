@@ -872,12 +872,251 @@ def minimumSpanningTree(self, n={nVal}):
         return (arrow, dot)
 
     topologicalSortCode = '''
-TBD
+def sortVertsTopologically(
+      self):
+   vertsByDegree = [
+      {} for j in range(
+         min(self.nVertices(), self.nEdges() + 1))]
+   inDegree = [0] * self.nVertices()
+   for vertex in self.vertices():
+      inDegree[vertex] = self.degree(vertex)[0]
+      vertsByDegree[inDegree[vertex]][vertex] = 1
+   result = []
+   while len(vertsByDegree[0]) > 0:
+      vertex, _ = vertsByDegree[0].popitem()
+      result.append(vertex)
+      for s in self.adjacentVertices(
+            vertex):
+         vertsByDegree[
+            inDegree[s]].pop(s)
+         inDegree[s] -= 1
+         vertsByDegree[
+            inDegree[s]][s] = 1
+   if len(result) == self.nVertices():
+      return result
+   raise Exception('Cycle in graph, cannot sort') 
 '''
+    vertsByDegreeConstructor = re.compile(
+        r'vertsByDegree = .*\n.*\n.*1\)\)\]')
 
-    def topologicalSort(self, code=topologicalSortCode, start=True):
-        self.setMessage('TBD')
+    def topologicalSort(self, code=topologicalSortCode, start=True, wait=0.1):
+        sortTags = 'TSort'
+        callEnviron = self.createCallEnvironment(code=code,
+                                                 startAnimations=start)
+        localVars, faded = (), ()
+
+        vertsByDegreeCoords = (
+            textWidth(self.vertexTable.labelFont, '   vertsByDegree'),
+            self.graphRegion[3] + 30)
+        self.highlightCode('self.nVertices()', callEnviron, wait=wait)
+        edgeCountLabel = self.canvas.create_text(
+            *vertsByDegreeCoords, anchor=NW, text=str(self.nVertices()),
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, tags=sortTags)
+        callEnviron.add(edgeCountLabel)
+        self.highlightCode('self.nEdges() + 1', callEnviron, wait=wait)
+        self.canvas.itemConfig(
+            edgeCountLabel,
+            text='min({}, {})'.format(self.nVertices(), self.nEdges() + 1))
+        self.highlightCode(
+            'min(self.nVertices(), self.nEdges() + 1)', callEnviron, wait=wait)
+        maxEdges = min(self.nVertices(), self.nEdges() + 1)
+        self.canvas.itemConfig(edgeCountLabel, text=str(maxEdges))
+
+        self.highlightCode(self.vertsByDegreeConstructor, callEnviron,
+                           wait=wait)
+        self.dispose(callEnviron, edgeCountLabel)
+        vertsByDegreeLabel = self.canvas.create_text(
+            *(V(vertsByDegreeCoords) + V(-15, 15)), anchor=E,
+            text='vertsByDegree', font=self.vertexTable.labelFont,
+            fill=self.VARIABLE_COLOR, tags=sortTags)
+        callEnviron.add(edgeCountLabel)
+        vertsByDegree = [
+            Table(self,
+                  (vertsByDegreeCoords[0] + j * self.vertexTable.cellWidth * 2,
+                   vertsByDegreeCoords[1]),
+                  label=str(j), labelAnchor=S, vertical=True, 
+                  labelFont=self.vertexTable.labelFont, 
+                  cellWidth=self.vertexTable.cellWidth,
+                  cellHeight=self.vertexTable.cellHeight,
+                  cellBorderWidth=self.vertexTable.cellBorderWidth)
+            for j in range(maxEdges)]
+        callEnviron |= set((vertsByDegreeLabel,
+                            *flat(*(tbl.items() for tbl in vertsByDegree))))
         
+        self.highlightCode('inDegree = [0] * self.nVertices()', callEnviron,
+                           wait=wait)
+        gap = 5
+        inDegree = Table(
+            self, (self.vertexTable.x0 + self.vertexTable.cellWidth + gap,
+                   self.vertexTable.y0),
+            *[drawnValue(0) for k in range(self.nVertices())],
+            label='inDegree', labelAnchor=SW, vertical=True, 
+            labelFont=self.vertexTable.labelFont, 
+            cellWidth=self.vertexTable.cellHeight,
+            cellHeight=self.vertexTable.cellHeight, cellBorderWidth=1)
+        callEnviron |= set(inDegree.items())
+        localVars += inDegree.items()
+        faded = (Scrim.FADED_FILL, *((Scrim.FADED_OUTLINE,) * self.nVertices()))
+        for j, dValue in enumerate(inDegree):
+            dValue.items = (self.canvas.create_text(
+                *inDegree.cellCenter(j), text='0', 
+                font=self.ADJACENCY_MATRIX_FONT, tags=sortTags),)
+            callEnviron |= set(dValue.items)
+            localVars += dValue.items
+            faded += (Scrim.FADED_FILL,)
+            
+        self.highlightCode('vertex in self.vertices()', callEnviron, wait=wait)
+        vertexArrow, vertexArrowConfig = None, {}
+        vertexVertArrow = None
+        vertexVertConfig = {'orientation': 30, 'anchor': SW}
+        visible = self.visibleCanvas()
+        for vertex in self.vertexIndices():
+            vertexLabel = self.vertexTable[vertex].val
+            if vertexArrow is None:
+                vertexArrow = self.vertexTable.createLabeledArrow(
+                    vertex, 'vertex', **vertexArrowConfig)
+                vertexVertArrow = self.createLabeledArrow(
+                    vertexLabel, 'vertex', **vertexVertConfig)
+                arrows = vertexArrow + vertexVertArrow
+                callEnviron |= set(arrows)
+                localVars += arrows
+                faded += (Scrim.FADED_FILL,) * len(arrows)
+            else:
+                self.moveItemsTo(
+                    vertexArrow + vertexVertArrow, 
+                    self.vertexTable.labeledArrowCoords(
+                        vertex, **vertexArrowConfig) +
+                    self.labeledArrowCoords(vertexLabel, **vertexVertConfig),
+                    sleepTime=wait / 10)
+                
+            self.highlightCode('inDegree[vertex] = self.degree(vertex)[0]',
+                               callEnviron, wait=wait)
+            colors = self.canvas.fadeItems(localVars, faded)
+            inb, outb = self.degree(vertex)
+            self.canvas.restoreItems(localVars, colors)
+            self.moveItemsTo(
+                (inb, outb),
+                (inDegree.cellCenter(vertex), V(visible) - V(100, 100)),
+                sleepTime=wait / 10, startFont=self.canvas.getItemFont(inb),
+                endFont=self.ADJACENCY_MATRIX_FONT)
+            nInb = self.canvas.itemConfig(inb, 'text')
+            inDegree[vertex].val = int(nInb)
+            self.canvas.itemConfig(inDegree[vertex].items[0], text=nInb)
+            self.dispose(callEnviron, inb, outb)
+
+            self.highlightCode('vertsByDegree[inDegree[vertex]][vertex] = 1',
+                               callEnviron, wait=wait)
+            copies = [self.canvas.copyItem(item)
+                      for item in self.vertexTable[vertex].items]
+            callEnviron |= set(copies)
+            vertHashTable = vertsByDegree[inDegree[vertex].val]
+            nVerts = len(vertHashTable)
+            self.moveItemsTo(copies, (vertHashTable.cellCoords(nVerts),
+                                      vertHashTable.cellCenter(nVerts)),
+                             sleepTime=wait / 10)
+            vertHashTable.append(drawnValue(vertexLabel, *copies))
+            callEnviron |= set(vertHashTable.items())
+            
+            self.highlightCode('vertex in self.vertices()', callEnviron,
+                               wait=wait)
+            
+        self.highlightCode('result = []', callEnviron, wait=wait)
+        outputBox = OutputBox(
+            self, bbox=(self.graphRegion[2] - 250, visible[3] - 40,
+                        visible[2] - 10, visible[3] - 10),
+            outputFont=(self.VALUE_FONT[0], -16))
+        callEnviron |= set(outputBox.items())
+
+        self.setMessage('TBD')
+
+        self.cleanUp(callEnviron)
+
+    degreeCode = '''
+def degree(self, n={nVal}):
+   self.validIndex(n)
+   inb, outb = 0, 0
+   for j in self.vertices():
+      if j != n:
+         if self.hasEdge(j, n):
+            inb += 1
+         if self.hasEdge(n, j):
+            outb += 1
+   return (inb, outb)
+'''
+    
+    def degree(self, n, code=degreeCode, wait=0.1):
+        nLabel = self.vertexTable[n].val if n < len(self.vertexTable) else None
+        nVal = "{} ('{}')".format(n, nLabel)
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+
+        nArrowConfig = {'level': 1, 'anchor': SE}
+        nVertConfig = {'level': 1, 'orientation': 10, 'anchor': SW}
+        nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+        nVertArrow = self.createLabeledArrow(nLabel, 'n', **nVertConfig)
+        callEnviron |= set(nArrow + nVertArrow)
+        self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
+        self.highlightCode('inb, outb = 0, 0', callEnviron, wait=wait)
+        inb, outb = 0, 0
+        inbCoords = self.vertexTable.cellCenter(self.nVertices() + 1)
+        outbCoords = self.vertexTable.cellCenter(self.nVertices() + 3)
+        outVars = [
+            (self.canvas.create_text(
+                *(V(coords) - V(self.vertexTable.cellWidth // 2, 0)), anchor=E,
+                text=name, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR),
+             self.canvas.create_text(
+                 *coords, anchor=W, text='0', font=self.VARIABLE_FONT,
+                 fill=self.VARIABLE_COLOR))
+            for name, coords in zip(('inb', 'outb'), (inbCoords, outbCoords))]
+        callEnviron |= set([var[0] for var in outVars])
+            
+        self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
+        jArrowConfig = {'level': 2, 'anchor': SE}
+        jVertConfig = {'level': 1, 'orientation': 40, 'anchor': SW}
+        jArrow, jVertArrow = None, None
+        for j in self.vertexIndices():
+            jLabel = self.vertexTable[j].val
+            if jArrow is None:
+                jArrow = self.vertexTable.createLabeledArrow(
+                    j, 'j', **jArrowConfig)
+                jVertArrow = self.createLabeledArrow(
+                    jLabel, 'j', **jVertConfig)
+                callEnviron |= set(jArrow + jVertArrow)
+            else:
+                self.moveItemsTo(
+                    jArrow + jVertArrow,
+                    self.vertexTable.labeledArrowCoords(j, **jArrowConfig) +
+                    self.labeledArrowCoords(jLabel, **jVertConfig),
+                    sleepTime=wait / 10)
+            self.highlightCode('j != n', callEnviron, wait=wait)
+            if j != n:
+                edge = (jLabel, nLabel)
+                edgeEntry = self.adjMat[edge] # Highlight edge in
+                edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # adj matrix
+                               pady=self.ADJ_MAT_HIGHLIGHT_PAD)
+                self.highlightCode('self.hasEdge(j, n)', callEnviron, wait=wait)
+                if self.edgeWeight(*edge):
+                    self.highlightCode('inb += 1', callEnviron, wait=wait)
+                    inb += 1
+                    self.canvas.itemConfig(outVars[0][1], text=str(inb))
+                edgeEntry.grid(padx=0, pady=0)
+
+                edge = (nLabel, jLabel)
+                edgeEntry = self.adjMat[edge] # Highlight edge in
+                edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # adj matrix
+                               pady=self.ADJ_MAT_HIGHLIGHT_PAD)
+                self.highlightCode('self.hasEdge(n, j)', callEnviron, wait=wait)
+                if self.edgeWeight(*edge):
+                    self.highlightCode('outb += 1', callEnviron, wait=wait)
+                    outb += 1
+                    self.canvas.itemConfig(outVars[1][1], text=str(outb))
+                edgeEntry.grid(padx=0, pady=0)
+                
+            self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
+
+        self.highlightCode('return (inb, outb)', callEnviron)
+        self.cleanUp(callEnviron)
+        return tuple(var[1] for var in outVars)
+    
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
         for btn in (self.depthFirstTraverseButton, 
@@ -885,7 +1124,7 @@ TBD
             widgetState( # can only traverse when start node selected
                 btn,
                 NORMAL if enable and self.selectedVertex else DISABLED)
-        widgetState(
+        widgetState(  # Can only sort directional graphs with 1+ edges
             self.sortButton,
             NORMAL if enable and self.nEdges() > 0 and
             not self.bidirectionalEdges.get() else DISABLED)
