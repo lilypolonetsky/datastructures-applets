@@ -885,13 +885,10 @@ def sortVertsTopologically(
    while len(vertsByDegree[0]) > 0:
       vertex, _ = vertsByDegree[0].popitem()
       result.append(vertex)
-      for s in self.adjacentVertices(
-            vertex):
-         vertsByDegree[
-            inDegree[s]].pop(s)
+      for s in self.adjacentVertices(vertex):
+         vertsByDegree[inDegree[s]].pop(s)
          inDegree[s] -= 1
-         vertsByDegree[
-            inDegree[s]][s] = 1
+         vertsByDegree[inDegree[s]][s] = 1
    if len(result) == self.nVertices():
       return result
    raise Exception('Cycle in graph, cannot sort') 
@@ -969,6 +966,8 @@ def sortVertsTopologically(
         vertexArrow, vertexArrowConfig = None, {}
         vertexVertArrow = None
         vertexVertConfig = {'orientation': 30, 'anchor': SW}
+        sArrow, sArrowConfig = None, {}
+        indegreeArrow, indegreeArrowConfig = None, {'orientation': 45}
         visible = self.visibleCanvas()
         for vertex in self.vertexIndices():
             vertexLabel = self.vertexTable[vertex].val
@@ -1021,15 +1020,119 @@ def sortVertsTopologically(
                                wait=wait)
             
         self.highlightCode('result = []', callEnviron, wait=wait)
+        result = []
         outputBox = OutputBox(
             self, bbox=(self.graphRegion[2] - 250, visible[3] - 40,
-                        visible[2] - 10, visible[3] - 10),
+                        visible[2] - 10, visible[3] - 10), label='result',
             outputFont=(self.VALUE_FONT[0], -16))
         callEnviron |= set(outputBox.items())
 
-        self.setMessage('TBD')
+        self.highlightCode('len(vertsByDegree[0]) > 0', callEnviron, wait=wait)
+        while len(vertsByDegree[0]) > 0:
+            self.highlightCode('vertex, _ = vertsByDegree[0].popitem()',
+                               callEnviron, wait=wait)
+            dValue = vertsByDegree[0].pop()
+            vertexLabel = dValue.val
+            self.dispose(callEnviron, *vertexArrow, dValue.items[0])
+            self.canvas.tag_lower(dValue.items[1], 
+                                  self.vertices[vertexLabel].items[0])
+            self.moveItemsTo(
+                dValue.items[1:] + vertexVertArrow,
+                (self.canvas.coords(self.vertices[vertexLabel].items[1]),
+                 *self.labeledArrowCoords(vertexLabel, **vertexVertConfig)),
+                sleepTime=wait / 10)
+
+            self.highlightCode('result.append(vertex)', callEnviron, wait=wait)
+            outputBox.appendText(dValue.items[1], sleepTime=wait / 10)
+            result.append(vertexLabel)
+
+            self.highlightCode('s in self.adjacentVertices(vertex)',
+                               callEnviron, wait=wait)
+            colors = self.canvas.fadeItems(localVars, faded)
+            for s in self.adjacentVertices(self.getVertexIndex(vertexLabel)):
+                self.canvas.restoreItems(localVars, colors)
+                sVertexLabel = self.vertexTable[s].val
+                if sArrow is None:
+                    sArrow = self.vertexTable.createLabeledArrow(
+                        s, 's', **sArrowConfig)
+                    callEnviron |= set(sArrow)
+                    localVars += sArrow
+                    faded += (Scrim.FADED_FILL,) * len(sArrow)
+                else:
+                    self.moveItemsTo(
+                        sArrow,
+                        self.vertexTable.labeledArrowCoords(s, **sArrowConfig),
+                        sleepTime=wait / 10)
+                    
+                self.highlightCode('vertsByDegree[inDegree[s]]',
+                                   callEnviron, wait=wait / 10)
+                VbyDtable = vertsByDegree[inDegree[s].val]
+                if indegreeArrow is None:
+                    indegreeArrow = VbyDtable.createLabeledArrow(
+                            -0.5, '', **indegreeArrowConfig)
+                    callEnviron |= set(indegreeArrow)
+                else:
+                    self.moveItemsTo(
+                        indegreeArrow,
+                        VbyDtable.labeledArrowCoords(
+                            -0.5, **indegreeArrowConfig),
+                        sleepTime=wait / 10)
+                
+                self.highlightCode('vertsByDegree[inDegree[s]].pop(s)',
+                                   callEnviron, wait=wait)
+                itemIndex = [v.val for v in VbyDtable].index(
+                    sVertexLabel)
+                popValue = VbyDtable.pop(itemIndex)
+                popLocation = len(VbyDtable) + 1
+                popOffset = V(V(-1, 0, -1, 0) * (VbyDtable.cellWidth // 2))
+                self.moveItemsOnCurve(
+                    popValue.items +
+                    flat(*(VbyDtable[j].items
+                           for j in range(itemIndex, len(VbyDtable)))),
+                    (V(VbyDtable.cellCoords(popLocation)) + popOffset,
+                     V(VbyDtable.cellCenter(popLocation)) + popOffset) +
+                    flat(*((VbyDtable.cellCoords(j), VbyDtable.cellCenter(j))
+                           for j in range(itemIndex, len(VbyDtable)))),
+                    sleepTime=wait / 10)
+                
+                self.highlightCode('inDegree[s] -= 1', callEnviron, wait=wait)
+                inDegree[s].val -= 1
+                self.canvas.itemConfig(inDegree[s].items[0], 
+                                       text=str(inDegree[s].val))
+                VbyDtable = vertsByDegree[inDegree[s].val]
+                self.moveItemsTo(indegreeArrow,
+                                 VbyDtable.labeledArrowCoords(
+                                     -0.5, **indegreeArrowConfig),
+                                 sleepTime=wait / 10)
+
+                self.highlightCode('vertsByDegree[inDegree[s]][s] = 1',
+                                   callEnviron, wait=wait)
+                self.moveItemsTo(
+                    popValue.items,
+                    (VbyDtable.cellCoords(len(VbyDtable)),
+                     VbyDtable.cellCenter(len(VbyDtable))),
+                    sleepTime=wait / 10)
+                VbyDtable.append(popValue)
+                callEnviron |= set(VbyDtable.items())
+            
+                self.highlightCode('s in self.adjacentVertices(vertex)',
+                                   callEnviron, wait=wait)
+                colors = self.canvas.fadeItems(localVars, faded)
+                
+            self.canvas.restoreItems(localVars, colors)
+            self.highlightCode('len(vertsByDegree[0]) > 0', callEnviron,
+                               wait=wait)
+            
+        self.highlightCode('len(result) == self.nVertices()', callEnviron,
+                           wait=wait)
+        if len(result) == self.nVertices():
+            self.highlightCode('return result', callEnviron)
+        else:
+            self.highlightCode("raise Exception('Cycle in graph, cannot sort')",
+                               callEnviron, color=self.EXCEPTION_HIGHLIGHT)
 
         self.cleanUp(callEnviron)
+        return result if len(result) == self.nVertices() else None
 
     degreeCode = '''
 def degree(self, n={nVal}):
@@ -1168,7 +1271,10 @@ def degree(self, n={nVal}):
         elif self.nEdges() == 0:
             self.setMessage('Must have at least 1 edge to sort vertices')
         else:
-            self.topologicalSort(start=self.startMode())
+            result = self.topologicalSort(start=self.startMode())
+            self.setMessage(
+                'Sorted vertices: {}'.format(' '.join(result)) if result else
+                'Cycle in graph.  Sorting impossble.')
             
 if __name__ == '__main__':
     graph = Graph(weighted=False)
