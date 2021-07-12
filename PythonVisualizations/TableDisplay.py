@@ -32,7 +32,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
             cellWidth=50, cellHeight=50, # Cell dimensions
             vertical=False,              # Orientation
             direction=1,                 # +1 means higher indices to right/down
-            segmentLength=1000000,       # Max number of consecutive cells in
+            segmentLength=None,          # Max number of consecutive cells in
             segmentGap=100,              # one row/column separated by gap
             label='',                    # Label (title) of table
             labelOffset=10,              # Spacing of label from cell 0
@@ -61,6 +61,8 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.cellWidth, self.cellHeight = cellWidth, cellHeight
         self.VBox = V(cellWidth, cellHeight)
         self.vertical = vertical
+        if direction not in (-1, 1):
+            raise ValueError('Table direction must be -1 or +1')
         self.direction = direction
         self.segmentLength = segmentLength
         self.segmentGap = segmentGap
@@ -131,12 +133,15 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return self.labelItem, *self.cells, *self.indices
     
     def cellCoords(self, indexOrCoords):
-        if isinstance(indexOrCoords, int):
-            row = (indexOrCoords // self.segmentLength) * self.direction
-            col = (indexOrCoords % self.segmentLength) * self.direction
+        coordsGiven = isinstance(indexOrCoords, (list, tuple))
+        if not coordsGiven:
+            if self.segmentLength:
+                row = (indexOrCoords // self.segmentLength) * self.direction
+                col = (indexOrCoords % self.segmentLength) * self.direction
+            else:
+                row, col = 0, indexOrCoords * self.direction
         upperLeft = (
-            tuple(indexOrCoords) 
-            if isinstance(indexOrCoords, (list, tuple)) else
+            tuple(indexOrCoords) if coordsGiven else
             V(self.VOrigin + V(V((1, 0) if self.vertical else (0, 1)) * 
                                (row * self.segmentGap))) +
             V( self.VBox * V(0 if self.vertical else col,
@@ -205,7 +210,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         if color is None: color = self.labeledArrowColor
         if font is None: font = self.labeledArrowFont
         coords = (self.labeledArrowCoords(labeledArrowIndexOrCoords, **kwargs)
-                  if isinstance(labeledArrowIndexOrCoords, int) else
+                  if isinstance(labeledArrowIndexOrCoords, (int, float)) else
                   labeledArrowIndexOrCoords)
         if anchor is None: 
             anchor = self.labeledArrowAnchor(coords[0])
@@ -280,6 +285,19 @@ if __name__ == '__main__':
     print('Filled in', count, 'table cells')
     app.wait(1)
 
+    interval = (-2, len(table2))
+    print('Walking labeled arrow from', interval[0], 'to', interval[1],
+          'of', table2.label)
+    j = interval[0]
+    jArrowConfig = {'level': 1, 'orientation': -40}
+    jArrow = table2.createLabeledArrow(j, str(j), **jArrowConfig)
+    for j in range(j + 1, interval[1] + 1):
+        app.wait(0.1)
+        app.moveItemsTo(
+            jArrow, table2.labeledArrowCoords(j, **jArrowConfig),
+            sleepTime=0.02)
+        app.canvas.itemConfig(jArrow[1], text=str(j))
+
     while table3[0].val > 15:
         print('Popping first item,', table3[0].val, ', off', table3.label)
         app.moveItemsBy(table3[0].items, (-3 * len(table3), -table3.y0),
@@ -292,11 +310,10 @@ if __name__ == '__main__':
     
     j = 0
     movedItems = []
-    jArrowConfig = {'level': 1, 'orientation': -40}
-    jArrow = table3.createLabeledArrow(0, 'j', **jArrowConfig)
+    jArrow = table3.createLabeledArrow(j, 'j', **jArrowConfig)
     
     while j < len(table3):
-        if isinstance(table3[j].val, bool):
+        if 0 <= j and isinstance(table3[j].val, bool):
             print('Deleting cell', j, 'of table', table3.label, 'item',
                   table3[j].val)
             movedItems.extend(table3[j].items)
