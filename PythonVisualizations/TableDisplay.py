@@ -49,7 +49,8 @@ class Table(list):     # Display a table (array/list) in a visualization app
             eventHandlerPairs=(),        # (event, handler) pairs for indices
             labeledArrowFont=None,       # Labeled arrow font and color default
             labeledArrowColor=None,      # to variable font & color in app
-            labeledArrowOffset=4):       # Offset of arrow tip from cell
+            labeledArrowOffset=4,        # Offset of arrow tip from cell
+            see=()):                     # Scroll to see table + any see items
 
         if not isinstance(visualizationApp, Visualization):
             raise ValueError('Table only works with Visualization objects')
@@ -92,9 +93,9 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.cells, self.indices = [], []
         
         self.drawLabel()
-        self.drawCells()
+        self.drawCells(see)
 
-    def drawCells(self):
+    def drawCells(self, see=()):
         while len(self.cells) > len(self):  # Remove any excess cells/indices
             self.app.canvas.delete(self.cells.pop())
             if len(self.indices) > len(self.cells):
@@ -123,6 +124,10 @@ class Table(list):     # Display a table (array/list) in a visualization app
                     callable(getattr(self, handler.__name__)())):
                     handler = getattr(self, handler.__name__)()
                 self.app.canvas.tag_bind(textItem, event, handler)
+        if see:
+            self.app.scrollToSee(
+                self.items() +
+                (tuple(see) if isinstance(see, (list, tuple, set)) else ()))
 
     def drawLabel(self):
         self.labelItem = self.app.canvas.create_text(
@@ -206,7 +211,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
     def createLabeledArrow(
             self, labeledArrowIndexOrCoords, label, color=None, font=None,
-            width=1, anchor=None, tags=('arrow',), **kwargs):
+            width=1, anchor=None, tags=('arrow',), see=(), **kwargs):
         if color is None: color = self.labeledArrowColor
         if font is None: font = self.labeledArrowFont
         coords = (self.labeledArrowCoords(labeledArrowIndexOrCoords, **kwargs)
@@ -218,6 +223,10 @@ class Table(list):     # Display a table (array/list) in a visualization app
             *coords[0], arrow=LAST, fill=color, width=width, tags=tags)
         text = self.app.canvas.create_text(
             *coords[1], anchor=anchor, text=label, fill=color, tags=tags)
+        if see:
+            self.app.scrollToSee(
+                (arrow, text) +
+                (tuple(see) if isinstance(see, (tuple, list, set)) else ()))
         return arrow, text
 
     def labeledArrowAnchor(self, arrowCoords):
@@ -238,32 +247,32 @@ class Table(list):     # Display a table (array/list) in a visualization app
         
 if __name__ == '__main__':
     from drawnValue import *
-    app = Visualization(title='Table test')
+    app = Visualization(title='Table test', canvasBounds=(0, 0, 800, 400))
 
     app.setArgument = lambda arg, argIndex: print(
         'Set argument', argIndex, 'to {!r}'.format(arg))
 
     app.startAnimations()
     table1 = Table(app, (100, 50), 'foo', 'bar', label='Foo bar',
-                   vertical=True, indicesFont=('Courier', -14),
+                   vertical=True, indicesFont=('Courier', -14), see=True,
                    cellHeight=30, cellBorderWidth=4,
                    eventHandlerPairs=(('<Button-1>', 
                                        Table.populateArgWithCellIndexHandler),))
     print('table1 contains:', table1)
 
     table2 = Table(app, (100, 300), 'lime', 'apple', 'fig', 'pear',
-                   label='Stack', vertical=True, direction=-1,
+                   label='Stack', vertical=True, direction=-1, see=True,
                    indicesFont=('Courier', -14), cellWidth=60, cellHeight=30,
                    eventHandlerPairs=(('<Button-1>', 
                                        Table.populateArgWithCellIndexHandler),))
     print('table2 contains:', table2)
-    l1arrow = table2.createLabeledArrow(1, 'level -1', level=-1)
+    l1arrow = table2.createLabeledArrow(1, 'level -1', level=-1, see=True)
     l2arrow = table2.createLabeledArrow(
-        table2.labeledArrowCoords(2, level=2), 'level 2')
+        table2.labeledArrowCoords(2, level=2), 'level 2', see=True)
 
 
-    table3 = Table(app, (300, 50), *tuple(range(17, -1, -1)), label='Numbers+',
-                   vertical=False, segmentLength=7, cellHeight=40, 
+    table3 = Table(app, (300, 70), *tuple(range(17, -1, -1)), label='Numbers+',
+                   vertical=False, segmentLength=7, cellHeight=40, see=True,
                    segmentGap=90, cellBorderWidth=1)
     print('table3 contains:', table3)
     extras = (True, False, True)
@@ -295,7 +304,7 @@ if __name__ == '__main__':
         app.wait(0.1)
         app.moveItemsTo(
             jArrow, table2.labeledArrowCoords(j, **jArrowConfig),
-            sleepTime=0.02)
+            sleepTime=0.02, see=True, expand=True)
         app.canvas.itemConfig(jArrow[1], text=str(j))
 
     while table3[0].val > 15:
@@ -305,10 +314,11 @@ if __name__ == '__main__':
         app.moveItemsTo(
             flat(*(dv.items for dv in table3[1:])),
             flat(*((table3.cellCoords(j), table3.cellCenter(j))
-                   for j in range(len(table3) - 1))), sleepTime=0.02)
+                   for j in range(len(table3) - 1))), sleepTime=0.02,
+            see=True, expand=True)
         table3.pop(0)
     
-    j = 0
+    j = -2
     movedItems = []
     jArrow = table3.createLabeledArrow(j, 'j', **jArrowConfig)
     
@@ -318,13 +328,13 @@ if __name__ == '__main__':
                   table3[j].val)
             movedItems.extend(table3[j].items)
             app.moveItemsBy(movedItems, (table3.cellWidth, table3.cellHeight),
-                            sleepTime=0.02)
+                            sleepTime=0.02, see=True, expand=True)
             del table3[j]
         else:
             j += 1
             app.moveItemsTo(
                 jArrow, table3.labeledArrowCoords(j, **jArrowConfig),
-                sleepTime=0.02)
+                sleepTime=0.02, see=True, expand=True)
 
     print('Contents of table3, ', table3.label, ':')
     for j in range(len(table3)):
