@@ -103,6 +103,8 @@ class GraphBase(VisualizationApp):
             self.adjMatControlBar, text='X', font=self.ADJACENCY_MATRIX_FONT, 
             command=self.toggleAdjacencyMatrixDisplay)
         self.matrixExpose.pack(side=LEFT, expand=False, fill=Y)
+        self.buttonPadX = int(self.window.winfo_fpixels(
+            self.matrixExpose['padx']))
         self.adjMatrixFrame = Frame(
             self.adjacencyMatrixPanel, bg=self.ADJACENCY_MATRIX_BG)
         self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
@@ -663,6 +665,8 @@ class GraphBase(VisualizationApp):
             self.adjMatrixFrame, text=label, bg=vertColor,
             font=self.ADJACENCY_MATRIX_FONT)
         rowLabel.grid(row=self.nextID, column=0, sticky=(N, E, S, W))
+        maxWidth = textWidth(self.ADJACENCY_MATRIX_FONT, label)
+        columnIDs = [vert.val[1]]
         for otherVert in self.vertices.values():
             if vert == otherVert:
                 frame = Frame(self.adjMatrixFrame, bg=vertColor)
@@ -679,8 +683,14 @@ class GraphBase(VisualizationApp):
                     otherVertColor, (otherVert.val[0], vert.val[0]))
                 entry.grid(row=otherVert.val[1], column=self.nextID,
                            sticky=(N, E, S, W))
+                maxWidth = max(maxWidth, textWidth(self.ADJACENCY_MATRIX_FONT,
+                                                   otherVert.val[0]))
+                columnIDs.append(otherVert.val[1])
         self.nextID += 1
         self.setArgument(self.nextVertexLabel())
+        for ID in columnIDs:
+            self.adjMatrixFrame.columnconfigure(
+                ID, minsize=maxWidth + self.buttonPadX)
         self.positionAdjacencyMatrix()
         self.operationMutex.release()
         return True
@@ -699,6 +709,7 @@ class GraphBase(VisualizationApp):
             self.edgeWeight(*edge, 0)
         vertex = self.vertices[vertexLabel]
         ID = vertex.val[1]
+        self.adjMatrixFrame.columnconfigure(ID, minsize=0)
         adjMatrixWidgets = gridDict(self.adjMatrixFrame)
         for row, column in adjMatrixWidgets:
             if row == ID or (column == ID and row != ID):
