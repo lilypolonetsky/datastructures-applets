@@ -135,7 +135,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
             fill=self.labelColor, font=self.labelFont)
 
     def items(self):       # Tuple of all canvas items being used
-        return self.labelItem, *self.cells, *self.indices
+        return (self.labelItem, *self.cells, *self.indices)
     
     def cellCoords(self, indexOrCoords):
         coordsGiven = isinstance(indexOrCoords, (list, tuple))
