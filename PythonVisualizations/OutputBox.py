@@ -235,7 +235,7 @@ class OutputBox(object):
                     self.app.scrollToSee(
                         items +
                         (tuple(see) if isinstance(see, (tuple, list, set))
-                         else ()), sleepTime=sleepTime)
+                         else ()), sleepTime=sleepTime, expand=expand)
 
         else:
             if sleepTime:
@@ -251,7 +251,7 @@ class OutputBox(object):
                     self.app.scrollToSee(
                         items +
                         (tuple(see) if isinstance(see, (tuple, list, set))
-                         else ()), sleepTime=sleepTime)
+                         else ()), sleepTime=sleepTime, expand=expand)
                     
         self.app.canvas.copyItemAttributes(text1, self.outputText, 'text')
         if color:
