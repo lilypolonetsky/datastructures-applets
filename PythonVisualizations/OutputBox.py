@@ -43,8 +43,8 @@ class OutputBox(object):
             outputFont=None,             # Font and color of outut text
             outputColor=None,            # default to the app VALUE font * color
             outputOffset=(5, 5),         # Offset of top left corner of top line
-            eventHandlerPairs=()         # (event, handler) pairs for items
-            ):
+            eventHandlerPairs=(),        # (event, handler) pairs for items
+            see=()):                     # Scroll to see box plus items to see
 
         if not isinstance(visualizationApp, Visualization):
             raise ValueError('OutputBox only works with Visualization objects')
@@ -84,10 +84,10 @@ class OutputBox(object):
         self.outputOffset = outputOffset
         self.eventHandlers = eventHandlerPairs
 
-        self.drawOutputBoxAndText()
-        self.drawLabel()
+        self.drawOutputBoxAndText(see=see)
+        self.drawLabel(see=see)
 
-    def drawOutputBoxAndText(self):
+    def drawOutputBoxAndText(self, see=()):
         self.outputBox = self.app.canvas.create_rectangle(
             *self.bbox, fill=self.background, width=self.borderWidth,
             outline=self.borderColor, tags=self.tags)
@@ -100,13 +100,22 @@ class OutputBox(object):
                 handler = getattr(self, handler.__name__)()
             for item in (self.outputBox, self.outputText):
                 self.app.canvas.tag_bind(item, event, handler)
+        if see:
+            self.app.scrollToSee(
+                (self.outputBox, self.outputText) +
+                (tuple(see) if isinstance(see, (tuple, list, set)) else ()))
         return self.outputBox, self.outputText
 
-    def drawLabel(self):
+    def drawLabel(self, see=()):
         self.labelItem = self.app.canvas.create_text(
             *self.labelCoords(), anchor=self.labelAnchor, text=self.label,
             fill=self.labelColor, font=self.labelFont)
-
+        if see:
+            self.app.scrollToSee(
+                (self.labelItem,) +
+                (tuple(see) if isinstance(see, (tuple, list, set)) else ()))
+        return self.labelItem
+        
     def items(self):       # Tuple of all canvas items being used
         return self.labelItem, self.outputBox, self.outputText
 
@@ -138,7 +147,8 @@ class OutputBox(object):
             (len(lines) - 1) * self.lineHeight)
 
     def appendText(
-            self, textOrItem, separator=' ', sleepTime=0, deleteItem=True):
+            self, textOrItem, separator=' ', sleepTime=0, deleteItem=True,
+            see=(), expand=True):
         '''Append new text to output text.  Can provide text string or numeric
         ID of canvas item to animate move to output position folloed
         by optional deletion.  If there is already some current text,
@@ -171,14 +181,14 @@ class OutputBox(object):
             self.app.moveItemsTo(
                 textOrItem, self.endCoords(), sleepTime=sleepTime, 
                 startFont=self.app.canvas.getItemFont(textOrItem),
-                endFont=self.outputFont)
+                endFont=self.outputFont, see=see, expand=expand)
         self.app.canvas_itemConfig(self.outputText, text='\n'.join(lines))
         if animate and deleteItem:
             self.app.canvas.delete(textOrItem)
 
     def setToText(
             self, items, coords=None, sleepTime=0, deleteItems=True,
-            color=None):
+            color=None, see=(), expand=True):
         '''Move a tuple of items to the output box (animating if sleepTime is
         non-zero), then set the output box text to the text in the
         first text item.  Optionally set the background color of the
@@ -216,19 +226,33 @@ class OutputBox(object):
             if sleepTime:
                 self.app.moveItemsBy(
                     items, delta, sleepTime=sleepTime, endFont=self.outputFont,
-                    startFont=self.app.canvas.getItemFont(text1))
+                    startFont=self.app.canvas.getItemFont(text1),
+                    see=see, expand=expand)
             else:
                 for item in items:
                     self.app.canvas.move(item, *delta)
+                if see:
+                    self.app.scrollToSee(
+                        items +
+                        (tuple(see) if isinstance(see, (tuple, list, set))
+                         else ()), sleepTime=sleepTime)
+
         else:
             if sleepTime:
                 self.app.canvas.changeAnchor(CENTER, text1)
                 self.app.moveItemsLinearly(
                     items, coords, sleepTime=sleepTime, endFont=self.outputFont,
-                    startFont=self.app.canvas.getItemFont(text1))
+                    startFont=self.app.canvas.getItemFont(text1),
+                    see=see, expand=expand)
             else:
                 for item, coord in zip(items, coords):
                     self.app.canvas.coords(item, coord)
+                if see:
+                    self.app.scrollToSee(
+                        items +
+                        (tuple(see) if isinstance(see, (tuple, list, set))
+                         else ()), sleepTime=sleepTime)
+                    
         self.app.canvas.copyItemAttributes(text1, self.outputText, 'text')
         if color:
             self.background = (
@@ -247,7 +271,7 @@ if __name__ == '__main__':
     from drawnValue import *
     import random, sys
     
-    app = Visualization(title='OutputBox test')
+    app = Visualization(title='OutputBox test', canvasBounds=(0, 0, 800, 400))
 
     app.startAnimations()
     width, height = 140, 25
@@ -301,10 +325,11 @@ if __name__ == '__main__':
 
     outbox2 = OutputBox(
         app, background='bisque', label='Multi', labelPosition=W, labelAnchor=E,
-        nCharacters=35, nLines=7)
+        nCharacters=35, nLines=7, see=True)
     print('Appending word items to output box 2')
     for item in items:
-        outbox2.appendText(item, sleepTime=0.01)
+        outbox2.appendText(item, sleepTime=0.01, see=outbox2.items(),
+                           expand=True)
         app.wait(0.01)
 
     print('output box 2 contains:', outbox2)
