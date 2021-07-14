@@ -1309,7 +1309,7 @@ if __name__ == '__main__':
 
     edges = []
     for arg in sys.argv[1:]:
-        edgeMatch = edgePattern.match(arg)
+        edgeMatch = edgePattern.fullmatch(arg)
         if len(arg) > 1 and arg[0] == '-':
             if arg == '-d':
                 graph.DEBUG = True

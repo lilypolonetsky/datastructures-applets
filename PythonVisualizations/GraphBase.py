@@ -903,9 +903,11 @@ class GraphBase(VisualizationApp):
                 label = ''
         return label
             
-    def makeButtons(self):
+    def makeButtons(self, bidirectional=None):
         '''Make buttons common to weighted and unweighted graphs without
-        the animation control buttons'''
+        the animation control buttons.  If bidirectional is None, a button
+        to control the kind of edges is created, ottherwise, the kind of
+        edges is set to the truth value provided'''
         vcmd = (self.window.register(
             makeFilterValidate(self.maxArgWidth)), '%P')
         self.newVertexButton = self.addOperation(
@@ -924,11 +926,12 @@ class GraphBase(VisualizationApp):
             "New Graph", self.clickNewGraph,
             helpText='Create new, empty graph')
         self.bidirectionalEdges = IntVar()
-        self.bidirectionalEdges.set(1)
+        self.bidirectionalEdges.set(
+            1 if bidirectional is None or bidirectional else 0)
         self.bidirectionalEdgesButton = self.addOperation(
             "Bidirectional", self.clickBidirectionalEdges,
             buttonType=Checkbutton, variable=self.bidirectionalEdges, 
-            helpText='Use bidirectional edges')
+            helpText='Use bidirectional edges') if bidirectional is None else None
         return vcmd
 
     def validArgument(self):
@@ -937,9 +940,9 @@ class GraphBase(VisualizationApp):
 
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
-        for btn in [self.bidirectionalEdgesButton]: # Bidirectional edge status
-            widgetState(               # can only change without edges
-                btn,
+        if self.bidirectionalEdgesButton: # Bidirectional edge status
+            widgetState(                  # can only change without edges
+                self.bidirectionalEdgesButton,
                 NORMAL if enable and self.nEdges() == 0 else DISABLED)
     
     # Button functions
