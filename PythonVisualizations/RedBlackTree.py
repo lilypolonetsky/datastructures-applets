@@ -128,6 +128,9 @@ class RedBlackTree(BinaryTreeBase):
                     print('Skipping duplicate flip request (dt = {} ms)'.format(
                         event.time - self.lastFlipEvent[2]))
                 return
+            if not self.operationMutex.acquire(blocking=False):
+                self.setMessage('Cannot flip node color during other operation')
+                return
             self.lastFlipEvent = (key, event.serial, event.time)
             nodeIndex, _ = self._find(key)
             node = self.getNode(nodeIndex)
@@ -138,16 +141,22 @@ class RedBlackTree(BinaryTreeBase):
                 self.flipNodeColor(nodeIndex)
                 if self.DEBUG:
                     print('Flipped', node, 'color to', self.nodeColor(nodeIndex))
+            self.operationMutex.release()
         return flipHandler
 
     def rotateNode(self, key):
         def rotateHandler(event):
+            turn = 'left' if event.state & SHIFT else 'right'
             if self.DEBUG:
-                print('Rotate Node event', event.serial, event.time)
+                print('Rotate Node', turn, 'event', event.serial, event.time)
             if (key, event.serial) == self.lastRotateEvent[:2]:
                 if self.DEBUG:
                     print('Skipping duplicate rotate request (dt = {} ms)'
                           .format(event.time - self.lastRotateEvent[2]))
+                return
+            if not self.operationMutex.acquire(blocking=False):
+                self.setMessage('Cannot rotate node {} during other operation'
+                                .format(turn))
                 return
             self.lastRotateEvent = (key, event.serial, event.time)
             nodeIndex, _ = self._find(key)
@@ -156,18 +165,19 @@ class RedBlackTree(BinaryTreeBase):
                 self.cleanUp()
                 if self.DEBUG:
                     print('Rotate', node, '(color', self.nodeColor(nodeIndex),
-                          ')', 'left' if event.state & SHIFT else 'right')
+                          ')', turn)
                 if node is self.lastNodeClicked[0]: # Restore color before click
                     if self.DEBUG:
                         print('Restoring', node, 'color to', 
                               self.lastNodeClicked[1])
                     self.nodeColor(nodeIndex, self.lastNodeClicked[1])
-                if event.state & SHIFT:
+                if turn == 'left':
                     self.rotateLeft(nodeIndex)
                 else:
                     self.rotateRight(nodeIndex)
                 self.lastNodeClicked = (node, self.nodeColor(nodeIndex))
                 self.updateMeasures()
+            self.operationMutex.release()
         return rotateHandler
 
     def rotateLeft(self, top, animation=True, wait=0.1):
@@ -810,5 +820,6 @@ if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
     numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
     tree = RedBlackTree(values=numArgs if len(numArgs) > 0 else None)
+    tree.DEBUG = '-d' in sys.argv[1:]
 
     tree.runVisualization()

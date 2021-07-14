@@ -263,6 +263,7 @@ class Scrim(Canvas):
         'text': set(('fill', 'activefill', 'disabledfill',)),
         'image': set(),
         'window': set(),
+        None: set()
     }
     
     def fadeItems(self, items, colors=(FADED_FILL,)):

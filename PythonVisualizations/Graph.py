@@ -44,8 +44,10 @@ def adjacentVertices(self, n={nVal}):
         nArrowConfig = {'level': 1, 'anchor': SE}
         nVertConfig = {'level': 1, 'orientation': 10, 'anchor': SW}
         if code:
-            nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
-            nVertArrow = self.createLabeledArrow(nLabel, 'n', **nVertConfig)
+            nArrow = self.vertexTable.createLabeledArrow(
+                n, 'n', see=True, **nArrowConfig)
+            nVertArrow = self.createLabeledArrow(
+                nLabel, 'n', see=True, **nVertConfig)
             callEnviron |= set(nArrow + nVertArrow)
             self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
             self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
@@ -58,16 +60,16 @@ def adjacentVertices(self, n={nVal}):
             if code:
                 if jArrow is None:
                     jArrow = self.vertexTable.createLabeledArrow(
-                        j, 'j', **jArrowConfig)
+                        j, 'j', see=True, **jArrowConfig)
                     jVertArrow = self.createLabeledArrow(
-                        jLabel, 'j', **jVertConfig)
+                        jLabel, 'j', see=True, **jVertConfig)
                     callEnviron |= set(jArrow + jVertArrow)
                 else:
                     self.moveItemsTo(
                         jArrow + jVertArrow,
                         self.vertexTable.labeledArrowCoords(j, **jArrowConfig) +
                         self.labeledArrowCoords(jLabel, **jVertConfig),
-                        sleepTime=wait / 10)
+                        sleepTime=wait / 10, see=True, expand=True)
                 self.highlightCode('j != n', callEnviron, wait=wait)
                 if j != n:
                     edgeEntry = self.adjMat[nLabel, jLabel] # Highlight edge in
@@ -114,8 +116,10 @@ def adjacentUnvisitedVertices(
         nArrowConfig = {'level': 1, 'anchor': SE}
         nVertConfig = {'level': 1, 'orientation': 10, 'anchor': SW}
         if code:
-            nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
-            nVertArrow = self.createLabeledArrow(nLabel, 'n', **nVertConfig)
+            nArrow = self.vertexTable.createLabeledArrow(
+                n, 'n', see=True, **nArrowConfig)
+            nVertArrow = self.createLabeledArrow(
+                nLabel, 'n', see=True, **nVertConfig)
             callEnviron |= set(nArrow + nVertArrow)
             localVars = nArrow + nVertArrow
         
@@ -132,9 +136,9 @@ def adjacentUnvisitedVertices(
                 self.canvas.restoreItems(localVars, colors)
                 if jArrow is None:
                     jArrow = self.vertexTable.createLabeledArrow(
-                        j, 'j', **jArrowConfig)
+                        j, 'j', see=True, **jArrowConfig)
                     jVertArrow = self.createLabeledArrow(
-                        self.vertexTable[j].val, 'j', **jVertConfig)
+                        self.vertexTable[j].val, 'j', see=True, **jVertConfig)
                     callEnviron |= set(jArrow + jVertArrow)
                     localVars += jArrow + jVertArrow
                 else:
@@ -143,7 +147,7 @@ def adjacentUnvisitedVertices(
                         self.vertexTable.labeledArrowCoords(j, **jArrowConfig) +
                         self.labeledArrowCoords(self.vertexTable[j].val,
                                                 **jVertConfig),
-                        sleepTime=wait / 10)
+                        sleepTime=wait / 10, see=True, expand=True)
                 self.canvas.itemconfigure(visited[j].items[0], width=2)
                 self.highlightCode('not visited[j]', callEnviron, wait=wait)
                 self.canvas.itemconfigure(visited[j].items[0], width=0)
@@ -211,7 +215,8 @@ def depthFirst(self, n={nVal}):
             code=code.format(**locals()))
 
         nArrowConfig = {'level': 1, 'anchor': SE}
-        nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+        nArrow = self.vertexTable.createLabeledArrow(
+            n, 'n', see=True, **nArrowConfig)
         callEnviron |= set(nArrow)
         localVars = nArrow
         
@@ -230,7 +235,7 @@ def depthFirst(self, n={nVal}):
             self, (50, self.graphRegion[3] + 20),
             label='stack', vertical=False, cellHeight=self.VERTEX_RADIUS,
             labelFont=(self.VARIABLE_FONT[0], -12),
-            cellWidth=self.VERTEX_RADIUS * 3 // 2,
+            cellWidth=self.VERTEX_RADIUS * 3 // 2, see=True if code else (),
             cellBorderWidth=1 if code else 0)
         callEnviron |= set(stack.items())
 
@@ -243,7 +248,8 @@ def depthFirst(self, n={nVal}):
                 copyItems, 
                 (stack.cellCoords(len(stack)), stack.cellCenter(len(stack))),
                 sleepTime=wait / 10, endFont=self.ADJACENCY_MATRIX_FONT,
-                startFont=self.canvas.getItemFont(copyItems[1]))
+                startFont=self.canvas.getItemFont(copyItems[1]), see=True,
+                expand=True)
         stack.append(drawnValue(nLabel))
         if code:
             stack[-1].items = (
@@ -283,9 +289,9 @@ def depthFirst(self, n={nVal}):
                                    wait=wait)
                 if visitArrow is None:
                     visitArrow = stack.createLabeledArrow(
-                        len(stack) - 1, 'visit', **visitArrowConfig)
+                        len(stack) - 1, 'visit', see=True, **visitArrowConfig)
                     vertArrow = self.createLabeledArrow(
-                        visitLabel, 'visit', **visitArrowConfig)
+                        visitLabel, 'visit', see=True, **visitArrowConfig)
                     callEnviron |= set(visitArrow + vertArrow)
                     localVars += visitArrow + vertArrow
                 else:
@@ -294,21 +300,21 @@ def depthFirst(self, n={nVal}):
                         stack.labeledArrowCoords(len(stack) - 1, 
                                                  **visitArrowConfig) +
                         self.labeledArrowCoords(visit, **visitArrowConfig),
-                        sleepTime=wait / 10)
+                        sleepTime=wait / 10, see=True, expand=True)
 
             adj = None
             if code:
                 self.highlightCode('adj = None', callEnviron, wait=wait)
                 if adjArrow is None:
                     adjArrow = self.createLabeledArrow(
-                        lowerRight, 'adj', **adjArrowConfig)
+                        lowerRight, 'adj', see=True, **adjArrowConfig)
                     callEnviron |= set(adjArrow)
                     localVars += adjArrow
                 else:
                     self.moveItemsTo(
                         adjArrow, self.labeledArrowCoords(lowerRight,
                                                           **adjArrowConfig),
-                        sleepTime=wait / 10)
+                        sleepTime=wait / 10, see=True, expand=True)
                 self.highlightCode(self.innerLoopIterator, callEnviron,
                                    wait=wait)
                 colors = self.canvas.fadeItems(localVars)
@@ -322,9 +328,9 @@ def depthFirst(self, n={nVal}):
                     self.canvas.restoreItems(localVars, colors)
                     if jArrow is None:
                         jArrow = self.vertexTable.createLabeledArrow(
-                            j, 'j', **jArrowConfig)
+                            j, 'j', see=True, **jArrowConfig)
                         jVertArrow = self.createLabeledArrow(
-                            adjVertex, 'j', **jVertConfig)
+                            adjVertex, 'j', see=True, **jVertConfig)
                         callEnviron |= set(jArrow + jVertArrow)
                         localVars += jArrow + jVertArrow
                         colors = self.canvas.itemsColor(localVars)
@@ -334,12 +340,12 @@ def depthFirst(self, n={nVal}):
                             self.vertexTable.labeledArrowCoords(
                                 j, **jArrowConfig) +
                             self.labeledArrowCoords(adjVertex, **jVertConfig),
-                            sleepTime=wait / 10)
+                            sleepTime=wait / 10, see=True, expand=True)
                     self.highlightCode('adj = j', callEnviron, wait=wait)
                     self.moveItemsTo(
                         adjArrow, self.labeledArrowCoords(adjVertex,
                                                           **adjArrowConfig),
-                        sleepTime=wait / 10)
+                        sleepTime=wait / 10, see=True, expand=True)
                     self.highlightCode('break', callEnviron, wait=wait)
                 break
 
@@ -361,7 +367,8 @@ def depthFirst(self, n={nVal}):
                          stack.cellCenter(len(stack) - 1)),
                         sleepTime=wait / 10,
                         startFont=self.canvas.getItemFont(copyItems[1]),
-                        endFont=self.ADJACENCY_MATRIX_FONT)
+                        endFont=self.ADJACENCY_MATRIX_FONT, see=True,
+                        expand=True)
                     stack[-1].items = (
                         self.canvas.create_rectangle(
                             *stack.cellCoords(len(stack) - 1),
@@ -394,14 +401,14 @@ def depthFirst(self, n={nVal}):
         self.cleanUp(callEnviron)
 
     def createVisitedTable(self, size, initialValue=False, visible=True,
-                           gap=5, tags=('visited',)):
+                           gap=5, tags=('visited',), see=(), expand=True):
         visited = Table(
             self, (self.vertexTable.x0 + self.vertexTable.cellWidth + gap,
                    self.vertexTable.y0),
             *[drawnValue(initialValue) for k in range(size)],
             label='visited', labelAnchor=SW, vertical=True, 
             labelFont=self.vertexTable.labelFont, 
-            cellWidth=self.vertexTable.cellHeight,
+            cellWidth=self.vertexTable.cellHeight, see=see,
             cellHeight=self.vertexTable.cellHeight, cellBorderWidth=1)
         if visible:
             for j, dValue in enumerate(visited):
@@ -414,6 +421,12 @@ def depthFirst(self, n={nVal}):
                         *visited.cellCenter(j),
                         text=self.VISITED_SYMBOLS[initialValue], 
                         font=self.ADJACENCY_MATRIX_FONT, tags=tags))
+            if see:
+                self.scrollToSee(
+                    dValue.items + visited.items() +
+                    (tuple(see) if isinstance(see, (list, tuple, set)) else ()),
+                    expand=expand)
+                
         return visited
 
     def updateVisitedCells(self, visited, index=None):
@@ -449,7 +462,8 @@ def breadthFirst(self, n={nVal}):
             code=code.format(**locals()))
 
         nArrowConfig = {'level': 1, 'anchor': SE}
-        nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+        nArrow = self.vertexTable.createLabeledArrow(
+            n, 'n', see=True, **nArrowConfig)
         callEnviron |= set(nArrow)
         localVars = nArrow
         
@@ -458,7 +472,7 @@ def breadthFirst(self, n={nVal}):
             self.highlightCode('visited = [False] * self.nVertices()',
                                callEnviron, wait=wait)
         visited = self.createVisitedTable(
-            self.nVertices(), initialValue=False, visible=code)
+            self.nVertices(), see=True, initialValue=False, visible=code)
         if code:
             callEnviron |= set(flat(*(dv.items for dv in visited)) +
                                visited.items())
@@ -468,7 +482,7 @@ def breadthFirst(self, n={nVal}):
             self, (50, self.graphRegion[3] + 20),
             label='queue', vertical=False, cellHeight=self.VERTEX_RADIUS,
             labelFont=(self.VARIABLE_FONT[0], -12),
-            cellWidth=self.VERTEX_RADIUS * 3 // 2,
+            cellWidth=self.VERTEX_RADIUS * 3 // 2, see=True if code else (),
             cellBorderWidth=1 if code else 0)
         callEnviron |= set(queue.items())
 
@@ -481,7 +495,8 @@ def breadthFirst(self, n={nVal}):
                 copyItems, 
                 (queue.cellCoords(len(queue)), queue.cellCenter(len(queue))),
                 sleepTime=wait / 10, endFont=self.ADJACENCY_MATRIX_FONT,
-                startFont=self.canvas.getItemFont(copyItems[1]))
+                startFont=self.canvas.getItemFont(copyItems[1]), see=True,
+                expand=True)
         queue.append(drawnValue(nLabel))
         if code:
             queue[-1].items = (
@@ -514,7 +529,7 @@ def breadthFirst(self, n={nVal}):
                                    wait=wait)
                 if visitArrow is None:
                     visitArrow = queue.createLabeledArrow(
-                        0, 'visit', **visitArrowConfig)
+                        0, 'visit', see=True, **visitArrowConfig)
                     callEnviron |= set(visitArrow)
                     localVars += visitArrow
                 else:
@@ -522,7 +537,7 @@ def breadthFirst(self, n={nVal}):
                         visitArrow,
                         queue.labeledArrowCoords(len(queue) - 1, 
                                                  **visitArrowConfig),
-                        sleepTime=wait / 10)
+                        sleepTime=wait / 10, see=True, expand=True)
                     
             visitDValue = queue.pop(0)
             if code:
@@ -537,7 +552,7 @@ def breadthFirst(self, n={nVal}):
                           for item in self.vertices[visitLabel].items) +
                     flat(*((queue.cellCoords(j), queue.cellCenter(j)) for
                            j in range(len(queue)))),
-                    sleepTime=wait / 10)
+                    sleepTime=wait / 10, see=True, expand=True)
                 self.dispose(callEnviron, *visitDValue.items)
 
                 self.highlightCode('yield visit', callEnviron)
@@ -558,7 +573,7 @@ def breadthFirst(self, n={nVal}):
                     self.canvas.restoreItems(localVars, colors)
                     if jArrow is None:
                         jArrow = self.vertexTable.createLabeledArrow(
-                            j, 'j', **jArrowConfig)
+                            j, 'j', see=True, **jArrowConfig)
                         jVertArrow = self.createLabeledArrow(
                             adjVertex, 'j', **jVertConfig)
                         callEnviron |= set(jArrow + jVertArrow)
@@ -569,7 +584,7 @@ def breadthFirst(self, n={nVal}):
                             self.vertexTable.labeledArrowCoords(
                                 j, **jArrowConfig) +
                             self.labeledArrowCoords(adjVertex, **jVertConfig),
-                            sleepTime=wait / 10)
+                            sleepTime=wait / 10, see=True, expand=True)
 
                     self.highlightCode('queue.insert(j)', callEnviron,
                                        wait=wait)
@@ -585,7 +600,8 @@ def breadthFirst(self, n={nVal}):
                          queue.cellCenter(len(queue) - 1)),
                         sleepTime=wait / 10,
                         startFont=self.canvas.getItemFont(copyItems[1]),
-                        endFont=self.ADJACENCY_MATRIX_FONT)
+                        endFont=self.ADJACENCY_MATRIX_FONT, see=True,
+                        expand=True)
                     queue[-1].items = (
                         self.canvas.create_rectangle(
                             *queue.cellCoords(len(queue) - 1),
@@ -629,7 +645,7 @@ for vertex{vars} in graph.{order}First(start={startVal}):
         outputBox = OutputBox(
             self, bbox=(self.graphRegion[2] - 250, visible[3] - 40,
                         self.graphRegion[2], visible[3] - 10),
-            outputFont=(self.VALUE_FONT[0], -16))
+            outputFont=(self.VALUE_FONT[0], -16), see=True)
         callEnviron |= set(outputBox.items())
         
         iterator = (
@@ -653,9 +669,9 @@ for vertex{vars} in graph.{order}First(start={startVal}):
                 for v in range(len(path) - 1)]
             if vertexArrow is None:
                 vertexArrow = self.vertexTable.createLabeledArrow(
-                    vertex, 'vertex', **vertexArrowConfig)
+                    vertex, 'vertex', see=True, **vertexArrowConfig)
                 vertexVertArrow = self.createLabeledArrow(
-                    vertexLabel, 'vertex', **vertexVertConfig)
+                    vertexLabel, 'vertex', see=True, **vertexVertConfig)
                 callEnviron |= set(vertexArrow + vertexVertArrow)
                 localVars += vertexArrow + vertexVertArrow
             else:
@@ -664,7 +680,7 @@ for vertex{vars} in graph.{order}First(start={startVal}):
                     self.vertexTable.labeledArrowCoords(
                         vertex, **vertexArrowConfig) +
                     self.labeledArrowCoords(vertexLabel, **vertexVertConfig),
-                    sleepTime=wait / 10)
+                    sleepTime=wait / 10, see=True, expand=True)
             for edge in edgesInPath:
                 self.canvas.itemconfigure(
                     edge, width=self.ACTIVE_EDGE_WIDTH,
@@ -710,7 +726,8 @@ def minimumSpanningTree(self, n={nVal}):
             code=code.format(**locals()), startAnimations=start)
 
         nArrowConfig = {'level': 1, 'anchor': SE}
-        nArrow = self.vertexTable.createLabeledArrow(n, 'n', **nArrowConfig)
+        nArrow = self.vertexTable.createLabeledArrow(
+            n, 'n', see=True, **nArrowConfig)
         callEnviron |= set(nArrow)
         localVars, faded = nArrow, (Scrim.FADED_FILL,) * len(nArrow)
         
@@ -725,7 +742,7 @@ def minimumSpanningTree(self, n={nVal}):
         treeVerts = Table(
             self, V(treeLabelAnchor) + V(5, 15), vertical=False,
             label='vertices', cellHeight=self.VERTEX_RADIUS,
-            labelFont=(self.VARIABLE_FONT[0], -12),
+            labelFont=(self.VARIABLE_FONT[0], -12), see=True,
             cellWidth=self.VERTEX_RADIUS * 3 // 2, cellBorderWidth=1)
         localVars += treeVerts.items()
         callEnviron |= set(treeVerts.items())
@@ -741,7 +758,7 @@ def minimumSpanningTree(self, n={nVal}):
             label='vMap', labelAnchor=S, vertical=True, 
             labelFont=self.vertexTable.labelFont, 
             cellWidth=self.vertexTable.cellWidth,
-            cellHeight=self.vertexTable.cellHeight,
+            cellHeight=self.vertexTable.cellHeight, see=True,
             cellBorderWidth=self.vertexTable.cellBorderWidth)
         callEnviron |= set(vMap.items())
         localVars += vMap.items()
@@ -762,9 +779,9 @@ def minimumSpanningTree(self, n={nVal}):
                 for v in range(len(path) - 1)]
             if vertexArrow is None:
                 vertexArrow = self.vertexTable.createLabeledArrow(
-                    vertex, 'vertex', **vertexArrowConfig)
+                    vertex, 'vertex', see=True, **vertexArrowConfig)
                 vertexVertArrow = self.createLabeledArrow(
-                    vertexLabel, 'vertex', **vertexVertConfig)
+                    vertexLabel, 'vertex', see=True, **vertexVertConfig)
                 arrows = vertexArrow + vertexVertArrow
                 callEnviron |= set(arrows)
                 localVars += arrows
@@ -775,7 +792,7 @@ def minimumSpanningTree(self, n={nVal}):
                     self.vertexTable.labeledArrowCoords(
                         vertex, **vertexArrowConfig) +
                     self.labeledArrowCoords(vertexLabel, **vertexVertConfig),
-                    sleepTime=wait / 10)
+                    sleepTime=wait / 10, see=True, expand=True)
             for edge in edgesInPath:
                 self.canvas.itemconfigure(
                     edge, width=self.ACTIVE_EDGE_WIDTH,
@@ -783,7 +800,8 @@ def minimumSpanningTree(self, n={nVal}):
 
             self.highlightCode('vMap[vertex] = tree.nVertices()', callEnviron,
                                wait=wait)
-            vMapArrow = self.createVMapArrow(vMap, len(treeVerts), vertex)
+            vMapArrow = self.createVMapArrow(vMap, len(treeVerts), vertex,
+                                             see=True)
             vMap[len(treeVerts)] = drawnValue(vertexLabel, *vMapArrow)
             callEnviron |= set(vMapArrow)
             localVars += vMapArrow
@@ -823,7 +841,8 @@ def minimumSpanningTree(self, n={nVal}):
                 copies, (treeVerts.cellCoords(len(treeVerts)),
                          treeVerts.cellCenter(len(treeVerts))),
                 startFont=self.canvas.getItemFont(copies[1]),
-                endFont=self.ADJACENCY_MATRIX_FONT, sleepTime=wait / 10)
+                endFont=self.ADJACENCY_MATRIX_FONT, sleepTime=wait / 10,
+                see=True, expand=True)
             
             treeVerts.append(drawnValue(vertexLabel, newItems))
             callEnviron.add(treeVerts.items()[-1])
@@ -860,7 +879,7 @@ def minimumSpanningTree(self, n={nVal}):
         self.highlightCode('return tree', callEnviron, wait=wait)
         self.cleanUp(callEnviron)
 
-    def createVMapArrow(self, vMap, index, vertex):
+    def createVMapArrow(self, vMap, index, vertex, see=()):
         vCellCoords = self.vertexTable.cellCoords(vertex)
         tip = (vCellCoords[2] + 2, (vCellCoords[1] + vCellCoords[3]) / 2)
         base = vMap.cellCenter(index)
@@ -869,7 +888,364 @@ def minimumSpanningTree(self, n={nVal}):
         dot = self.canvas.create_oval(
             *(V(base) - VdotRadius), *(V(base) + VdotRadius),
             fill='red', width=0)
+        if see:
+            self.scrollToSee(
+                (arrow, dot) +
+                (tuple(see) if isinstance(see, (list, tuple, set)) else ()))
+            
         return (arrow, dot)
+
+    topologicalSortCode = '''
+def sortVertsTopologically(
+      self):
+   vertsByDegree = [
+      {} for j in range(
+         min(self.nVertices(), self.nEdges() + 1))]
+   inDegree = [0] * self.nVertices()
+   for vertex in self.vertices():
+      inDegree[vertex] = self.degree(vertex)[0]
+      vertsByDegree[inDegree[vertex]][vertex] = 1
+   result = []
+   while len(vertsByDegree[0]) > 0:
+      vertex, _ = vertsByDegree[0].popitem()
+      result.append(vertex)
+      for s in self.adjacentVertices(vertex):
+         vertsByDegree[inDegree[s]].pop(s)
+         inDegree[s] -= 1
+         vertsByDegree[inDegree[s]][s] = 1
+   if len(result) == self.nVertices():
+      return result
+   raise Exception('Cycle in graph, cannot sort') 
+'''
+    vertsByDegreeConstructor = re.compile(
+        r'vertsByDegree = .*\n.*\n.*1\)\)\]')
+
+    def topologicalSort(self, code=topologicalSortCode, start=True, wait=0.1):
+        sortTags = 'TSort'
+        callEnviron = self.createCallEnvironment(code=code,
+                                                 startAnimations=start)
+        localVars, faded = (), ()
+
+        vertsByDegreeCoords = (
+            textWidth(self.vertexTable.labelFont, '   vertsByDegree'),
+            self.graphRegion[3] + 30)
+        self.highlightCode('self.nVertices()', callEnviron, wait=wait)
+        edgeCountLabel = self.canvas.create_text(
+            *vertsByDegreeCoords, anchor=NW, text=str(self.nVertices()),
+            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR, tags=sortTags)
+        callEnviron.add(edgeCountLabel)
+        self.highlightCode('self.nEdges() + 1', callEnviron, wait=wait)
+        self.canvas.itemConfig(
+            edgeCountLabel,
+            text='min({}, {})'.format(self.nVertices(), self.nEdges() + 1))
+        self.highlightCode(
+            'min(self.nVertices(), self.nEdges() + 1)', callEnviron, wait=wait)
+        maxEdges = min(self.nVertices(), self.nEdges() + 1)
+        self.canvas.itemConfig(edgeCountLabel, text=str(maxEdges))
+
+        self.highlightCode(self.vertsByDegreeConstructor, callEnviron,
+                           wait=wait)
+        self.dispose(callEnviron, edgeCountLabel)
+        vertsByDegreeLabel = self.canvas.create_text(
+            *(V(vertsByDegreeCoords) + V(-15, 15)), anchor=E,
+            text='vertsByDegree', font=self.vertexTable.labelFont,
+            fill=self.VARIABLE_COLOR, tags=sortTags)
+        callEnviron.add(edgeCountLabel)
+        vertsByDegree = [
+            Table(self,
+                  (vertsByDegreeCoords[0] + j * self.vertexTable.cellWidth * 2,
+                   vertsByDegreeCoords[1]),
+                  label=str(j), labelAnchor=S, vertical=True, 
+                  labelFont=self.vertexTable.labelFont, 
+                  cellWidth=self.vertexTable.cellWidth,
+                  cellHeight=self.vertexTable.cellHeight, see=True,
+                  cellBorderWidth=self.vertexTable.cellBorderWidth)
+            for j in range(maxEdges)]
+        callEnviron |= set((vertsByDegreeLabel,
+                            *flat(*(tbl.items() for tbl in vertsByDegree))))
+        
+        self.highlightCode('inDegree = [0] * self.nVertices()', callEnviron,
+                           wait=wait)
+        gap = 5
+        inDegree = Table(
+            self, (self.vertexTable.x0 + self.vertexTable.cellWidth + gap,
+                   self.vertexTable.y0),
+            *[drawnValue(0) for k in range(self.nVertices())],
+            label='inDegree', labelAnchor=SW, vertical=True, 
+            labelFont=self.vertexTable.labelFont, 
+            cellWidth=self.vertexTable.cellHeight, see=True,
+            cellHeight=self.vertexTable.cellHeight, cellBorderWidth=1)
+        callEnviron |= set(inDegree.items())
+        localVars += inDegree.items()
+        faded = (Scrim.FADED_FILL, *((Scrim.FADED_OUTLINE,) * self.nVertices()))
+        for j, dValue in enumerate(inDegree):
+            dValue.items = (self.canvas.create_text(
+                *inDegree.cellCenter(j), text='0', 
+                font=self.ADJACENCY_MATRIX_FONT, tags=sortTags),)
+            callEnviron |= set(dValue.items)
+            localVars += dValue.items
+            faded += (Scrim.FADED_FILL,)
+            
+        self.highlightCode('vertex in self.vertices()', callEnviron, wait=wait)
+        vertexArrow, vertexArrowConfig = None, {}
+        vertexVertArrow = None
+        vertexVertConfig = {'orientation': 30, 'anchor': SW}
+        sArrow, sArrowConfig = None, {}
+        indegreeArrow, indegreeArrowConfig = None, {'orientation': 45}
+        visible = self.visibleCanvas()
+        for vertex in self.vertexIndices():
+            vertexLabel = self.vertexTable[vertex].val
+            if vertexArrow is None:
+                vertexArrow = self.vertexTable.createLabeledArrow(
+                    vertex, 'vertex', see=True, **vertexArrowConfig)
+                vertexVertArrow = self.createLabeledArrow(
+                    vertexLabel, 'vertex', see=True, **vertexVertConfig)
+                arrows = vertexArrow + vertexVertArrow
+                callEnviron |= set(arrows)
+                localVars += arrows
+                faded += (Scrim.FADED_FILL,) * len(arrows)
+            else:
+                self.moveItemsTo(
+                    vertexArrow + vertexVertArrow, 
+                    self.vertexTable.labeledArrowCoords(
+                        vertex, **vertexArrowConfig) +
+                    self.labeledArrowCoords(vertexLabel, **vertexVertConfig),
+                    sleepTime=wait / 10, see=True, expand=True)
+                
+            self.highlightCode('inDegree[vertex] = self.degree(vertex)[0]',
+                               callEnviron, wait=wait)
+            colors = self.canvas.fadeItems(localVars, faded)
+            inb, outb = self.degree(vertex)
+            self.canvas.restoreItems(localVars, colors)
+            self.moveItemsTo(
+                (inb, outb),
+                (inDegree.cellCenter(vertex), V(visible) - V(100, 100)),
+                sleepTime=wait / 10, startFont=self.canvas.getItemFont(inb),
+                endFont=self.ADJACENCY_MATRIX_FONT)
+            nInb = self.canvas.itemConfig(inb, 'text')
+            inDegree[vertex].val = int(nInb)
+            self.canvas.itemConfig(inDegree[vertex].items[0], text=nInb)
+            self.dispose(callEnviron, inb, outb)
+
+            self.highlightCode('vertsByDegree[inDegree[vertex]][vertex] = 1',
+                               callEnviron, wait=wait)
+            copies = [self.canvas.copyItem(item)
+                      for item in self.vertexTable[vertex].items]
+            callEnviron |= set(copies)
+            VbyDtable = vertsByDegree[inDegree[vertex].val]
+            nVerts = len(VbyDtable)
+            self.moveItemsTo(copies, (VbyDtable.cellCoords(nVerts),
+                                      VbyDtable.cellCenter(nVerts)),
+                             sleepTime=wait / 10, see=True, expand=True)
+            VbyDtable.append(drawnValue(vertexLabel, *copies))
+            callEnviron |= set(VbyDtable.items())
+            
+            self.highlightCode('vertex in self.vertices()', callEnviron,
+                               wait=wait)
+            
+        self.highlightCode('result = []', callEnviron, wait=wait)
+        result = []
+        outputBox = OutputBox(
+            self, bbox=(self.graphRegion[2] - 250, visible[3] - 40,
+                        visible[2] - 10, visible[3] - 10), label='result',
+            outputFont=(self.VALUE_FONT[0], -16), see=True)
+        callEnviron |= set(outputBox.items())
+
+        self.highlightCode('len(vertsByDegree[0]) > 0', callEnviron, wait=wait)
+        while len(vertsByDegree[0]) > 0:
+            self.highlightCode('vertex, _ = vertsByDegree[0].popitem()',
+                               callEnviron, wait=wait)
+            dValue = vertsByDegree[0].pop()
+            vertexLabel = dValue.val
+            self.dispose(callEnviron, *vertexArrow, dValue.items[0])
+            self.canvas.tag_lower(dValue.items[1], 
+                                  self.vertices[vertexLabel].items[0])
+            self.moveItemsTo(
+                dValue.items[1:] + vertexVertArrow,
+                (self.canvas.coords(self.vertices[vertexLabel].items[1]),
+                 *self.labeledArrowCoords(vertexLabel, **vertexVertConfig)),
+                sleepTime=wait / 10, see=True, expand=True)
+
+            self.highlightCode('result.append(vertex)', callEnviron, wait=wait)
+            outputBox.appendText(dValue.items[1], sleepTime=wait / 10)
+            result.append(vertexLabel)
+
+            self.highlightCode('s in self.adjacentVertices(vertex)',
+                               callEnviron, wait=wait)
+            colors = self.canvas.fadeItems(localVars, faded)
+            for s in self.adjacentVertices(self.getVertexIndex(vertexLabel)):
+                self.canvas.restoreItems(localVars, colors)
+                sVertexLabel = self.vertexTable[s].val
+                if sArrow is None:
+                    sArrow = self.vertexTable.createLabeledArrow(
+                        s, 's', see=True, **sArrowConfig)
+                    callEnviron |= set(sArrow)
+                    localVars += sArrow
+                    faded += (Scrim.FADED_FILL,) * len(sArrow)
+                else:
+                    self.moveItemsTo(
+                        sArrow,
+                        self.vertexTable.labeledArrowCoords(s, **sArrowConfig),
+                        sleepTime=wait / 10, see=True, expand=True)
+                    
+                self.highlightCode('vertsByDegree[inDegree[s]]',
+                                   callEnviron, wait=wait / 10)
+                VbyDtable = vertsByDegree[inDegree[s].val]
+                if indegreeArrow is None:
+                    indegreeArrow = VbyDtable.createLabeledArrow(
+                            -0.5, '', see=True, **indegreeArrowConfig)
+                    callEnviron |= set(indegreeArrow)
+                else:
+                    self.moveItemsTo(
+                        indegreeArrow,
+                        VbyDtable.labeledArrowCoords(
+                            -0.5, **indegreeArrowConfig),
+                        sleepTime=wait / 10, see=True, expand=True)
+                
+                self.highlightCode('vertsByDegree[inDegree[s]].pop(s)',
+                                   callEnviron, wait=wait)
+                itemIndex = [v.val for v in VbyDtable].index(
+                    sVertexLabel)
+                popValue = VbyDtable.pop(itemIndex)
+                popLocation = len(VbyDtable) + 1
+                popOffset = V(V(-1, 0, -1, 0) * (VbyDtable.cellWidth // 2))
+                self.moveItemsOnCurve(
+                    popValue.items +
+                    flat(*(VbyDtable[j].items
+                           for j in range(itemIndex, len(VbyDtable)))),
+                    (V(VbyDtable.cellCoords(popLocation)) + popOffset,
+                     V(VbyDtable.cellCenter(popLocation)) + popOffset) +
+                    flat(*((VbyDtable.cellCoords(j), VbyDtable.cellCenter(j))
+                           for j in range(itemIndex, len(VbyDtable)))),
+                    sleepTime=wait / 10, see=True, expand=True)
+                
+                self.highlightCode('inDegree[s] -= 1', callEnviron, wait=wait)
+                inDegree[s].val -= 1
+                self.canvas.itemConfig(inDegree[s].items[0], 
+                                       text=str(inDegree[s].val))
+                VbyDtable = vertsByDegree[inDegree[s].val]
+                self.moveItemsTo(indegreeArrow,
+                                 VbyDtable.labeledArrowCoords(
+                                     -0.5, **indegreeArrowConfig),
+                                 sleepTime=wait / 10, see=True, expand=True)
+
+                self.highlightCode('vertsByDegree[inDegree[s]][s] = 1',
+                                   callEnviron, wait=wait)
+                self.moveItemsTo(
+                    popValue.items,
+                    (VbyDtable.cellCoords(len(VbyDtable)),
+                     VbyDtable.cellCenter(len(VbyDtable))),
+                    sleepTime=wait / 10, see=True, expand=True)
+                VbyDtable.append(popValue)
+                callEnviron |= set(VbyDtable.items())
+            
+                self.highlightCode('s in self.adjacentVertices(vertex)',
+                                   callEnviron, wait=wait)
+                colors = self.canvas.fadeItems(localVars, faded)
+                
+            self.canvas.restoreItems(localVars, colors)
+            self.highlightCode('len(vertsByDegree[0]) > 0', callEnviron,
+                               wait=wait)
+            
+        self.highlightCode('len(result) == self.nVertices()', callEnviron,
+                           wait=wait)
+        if len(result) == self.nVertices():
+            self.highlightCode('return result', callEnviron)
+        else:
+            self.highlightCode("raise Exception('Cycle in graph, cannot sort')",
+                               callEnviron, color=self.EXCEPTION_HIGHLIGHT)
+
+        self.cleanUp(callEnviron)
+        return result if len(result) == self.nVertices() else None
+
+    degreeCode = '''
+def degree(self, n={nVal}):
+   self.validIndex(n)
+   inb, outb = 0, 0
+   for j in self.vertices():
+      if j != n:
+         if self.hasEdge(j, n):
+            inb += 1
+         if self.hasEdge(n, j):
+            outb += 1
+   return (inb, outb)
+'''
+    
+    def degree(self, n, code=degreeCode, wait=0.1):
+        nLabel = self.vertexTable[n].val if n < len(self.vertexTable) else None
+        nVal = "{} ('{}')".format(n, nLabel)
+        callEnviron = self.createCallEnvironment(code=code.format(**locals()))
+
+        nArrowConfig = {'level': 1, 'anchor': SE}
+        nVertConfig = {'level': 1, 'orientation': 10, 'anchor': SW}
+        nArrow = self.vertexTable.createLabeledArrow(
+            n, 'n', see=True, **nArrowConfig)
+        nVertArrow = self.createLabeledArrow(
+            nLabel, 'n', see=True, **nVertConfig)
+        callEnviron |= set(nArrow + nVertArrow)
+        self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
+        self.highlightCode('inb, outb = 0, 0', callEnviron, wait=wait)
+        inb, outb = 0, 0
+        inbCoords = self.vertexTable.cellCenter(self.nVertices() + 1)
+        outbCoords = self.vertexTable.cellCenter(self.nVertices() + 3)
+        outVars = [
+            (self.canvas.create_text(
+                *(V(coords) - V(self.vertexTable.cellWidth // 2, 0)), anchor=E,
+                text=name, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR),
+             self.canvas.create_text(
+                 *coords, anchor=W, text='0', font=self.VARIABLE_FONT,
+                 fill=self.VARIABLE_COLOR))
+            for name, coords in zip(('inb', 'outb'), (inbCoords, outbCoords))]
+        callEnviron |= set([var[0] for var in outVars])
+        self.scrollToSee(flat(outVars), sleepTime=wait / 10)
+            
+        self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
+        jArrowConfig = {'level': 2, 'anchor': SE}
+        jVertConfig = {'level': 1, 'orientation': 40, 'anchor': SW}
+        jArrow, jVertArrow = None, None
+        for j in self.vertexIndices():
+            jLabel = self.vertexTable[j].val
+            if jArrow is None:
+                jArrow = self.vertexTable.createLabeledArrow(
+                    j, 'j', see=True, **jArrowConfig)
+                jVertArrow = self.createLabeledArrow(
+                    jLabel, 'j', see=True, **jVertConfig)
+                callEnviron |= set(jArrow + jVertArrow)
+            else:
+                self.moveItemsTo(
+                    jArrow + jVertArrow,
+                    self.vertexTable.labeledArrowCoords(j, **jArrowConfig) +
+                    self.labeledArrowCoords(jLabel, **jVertConfig),
+                    sleepTime=wait / 10, see=True, expand=True)
+            self.highlightCode('j != n', callEnviron, wait=wait)
+            if j != n:
+                edge = (jLabel, nLabel)
+                edgeEntry = self.adjMat[edge] # Highlight edge in
+                edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # adj matrix
+                               pady=self.ADJ_MAT_HIGHLIGHT_PAD)
+                self.highlightCode('self.hasEdge(j, n)', callEnviron, wait=wait)
+                if self.edgeWeight(*edge):
+                    self.highlightCode('inb += 1', callEnviron, wait=wait)
+                    inb += 1
+                    self.canvas.itemConfig(outVars[0][1], text=str(inb))
+                edgeEntry.grid(padx=0, pady=0)
+
+                edge = (nLabel, jLabel)
+                edgeEntry = self.adjMat[edge] # Highlight edge in
+                edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # adj matrix
+                               pady=self.ADJ_MAT_HIGHLIGHT_PAD)
+                self.highlightCode('self.hasEdge(n, j)', callEnviron, wait=wait)
+                if self.edgeWeight(*edge):
+                    self.highlightCode('outb += 1', callEnviron, wait=wait)
+                    outb += 1
+                    self.canvas.itemConfig(outVars[1][1], text=str(outb))
+                edgeEntry.grid(padx=0, pady=0)
+                
+            self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
+
+        self.highlightCode('return (inb, outb)', callEnviron)
+        self.cleanUp(callEnviron)
+        return tuple(var[1] for var in outVars)
     
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
@@ -878,6 +1254,10 @@ def minimumSpanningTree(self, n={nVal}):
             widgetState( # can only traverse when start node selected
                 btn,
                 NORMAL if enable and self.selectedVertex else DISABLED)
+        widgetState(  # Can only sort directional graphs with 1+ edges
+            self.sortButton,
+            NORMAL if enable and self.nEdges() > 0 and
+            not self.bidirectionalEdges.get() else DISABLED)
 
     def makeButtons(self, *args, **kwargs):
         '''Make buttons specific to unweighted graphs and aadd the
@@ -892,6 +1272,10 @@ def minimumSpanningTree(self, n={nVal}):
         self.MSTButton = self.addOperation(
             "Minimum Spanning Tree", self.clickMinimumSpanningTree,
             helpText='Compute a minimum spanning tree', state=DISABLED)
+        self.sortButton = self.addOperation(
+            "Topological Sort", self.clickTopologicalSort,
+            helpText='Compute a toplogical sort of the vertices',
+            state=DISABLED)
         self.addAnimationButtons()
 
     def clickTraverse(self, kind):
@@ -907,6 +1291,17 @@ def minimumSpanningTree(self, n={nVal}):
                                      start=self.startMode())
         else:
             self.setMessage('Must select start vertex before traversal')
+
+    def clickTopologicalSort(self):
+        if self.bidirectionalEdges.get():
+            self.setMessage('Edges must be directional to sort vertices')
+        elif self.nEdges() == 0:
+            self.setMessage('Must have at least 1 edge to sort vertices')
+        else:
+            result = self.topologicalSort(start=self.startMode())
+            self.setMessage(
+                'Sorted vertices: {}'.format(' '.join(result)) if result else
+                'Cycle in graph.  Sorting impossble.')
             
 if __name__ == '__main__':
     graph = Graph(weighted=False)
