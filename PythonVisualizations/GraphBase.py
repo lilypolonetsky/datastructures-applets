@@ -252,7 +252,7 @@ class GraphBase(VisualizationApp):
         offset = V(V(V(delta).rotate(-90)).unit()) * self.VERTEX_RADIUS
         inflection = midPoint if self.bidirectionalEdges.get() else V(
             midPoint) + V(offset)
-        weightCenter = V(inflection) + V(V(offset) * 0.5)
+        weightCenter = V(inflection) + V(offset)
         p0 = V(base) + V(V(V(V(inflection) - V(base)).unit()) * removeRadius)
         p1 = inflection
         p2 = V(tip) + V(V(V(V(inflection) - V(tip)).unit()) * removeRadius)
