@@ -231,7 +231,12 @@ class GraphBase(VisualizationApp):
             arrow=None if self.bidirectionalEdges.get() else LAST,
             activefill=self.ACTIVE_EDGE_COLOR, tags=tags + ('line',),
             activewidth=self.ACTIVE_EDGE_WIDTH, splinesteps=steps, smooth=True)
-        weightText = self.canvas.create_text(
+        weightText = self.canvas.create_window(
+            *weightCenter, state=HIDDEN if weight == 0 else NORMAL,
+            tags=tags + ('weightWindow',),
+            window=self.createEdgeWeightEntry(self.GRAPH_REGION_BACKGROUND,
+                                              edgePair, weight, self.canvas)
+        ) if self.weighted else self.canvas.create_text(
             *weightCenter,
             text='' if weight == 0 or not self.weighted else str(weight),
             font=self.VERTEX_FONT, fill=self.EDGE_COLOR, tags=tags + ('text',),
@@ -247,7 +252,7 @@ class GraphBase(VisualizationApp):
         offset = V(V(V(delta).rotate(-90)).unit()) * self.VERTEX_RADIUS
         inflection = midPoint if self.bidirectionalEdges.get() else V(
             midPoint) + V(offset)
-        weightCenter = V(inflection) + V(V(offset) * 0.5)
+        weightCenter = V(inflection) + V(offset)
         p0 = V(base) + V(V(V(V(inflection) - V(base)).unit()) * removeRadius)
         p1 = inflection
         p2 = V(tip) + V(V(V(V(inflection) - V(tip)).unit()) * removeRadius)
@@ -676,13 +681,15 @@ class GraphBase(VisualizationApp):
                 otherVertColor = self.canvas_itemConfig(otherVert.items[0], 
                                                         'fill')
                 entry = self.createEdgeWeightEntry(
-                    vertColor, (vert.val[0], otherVert.val[0]))
+                    vertColor, (vert.val[0], otherVert.val[0]), None)
                 entry.grid(row=self.nextID, column=otherVert.val[1], 
                            sticky=(N, E, S, W))
+                self.adjMat[vert.val[0], otherVert.val[0]] = [0, entry]
                 entry = self.createEdgeWeightEntry(
-                    otherVertColor, (otherVert.val[0], vert.val[0]))
+                    otherVertColor, (otherVert.val[0], vert.val[0]), None)
                 entry.grid(row=otherVert.val[1], column=self.nextID,
                            sticky=(N, E, S, W))
+                self.adjMat[otherVert.val[0], vert.val[0]] = [0, entry]
                 maxWidth = max(maxWidth, textWidth(self.ADJACENCY_MATRIX_FONT,
                                                    otherVert.val[0]))
                 columnIDs.append(otherVert.val[1])
@@ -737,14 +744,19 @@ class GraphBase(VisualizationApp):
     def getVertexIndex(self, label):
         return [dv.val for dv in self.vertexTable].index(label)
 
-    def createEdgeWeightEntry(self, color, edge):
+    def createEdgeWeightEntry(self, color, edge, weight=None, parent=None):
         if self.weighted:
-            entry = Entry(self.adjMatrixFrame, bg=color,
+            entry = Entry(parent or self.adjMatrixFrame, bg=color,
                           font=self.ADJACENCY_MATRIX_FONT, width=2,
                           state=NORMAL,
                           takefocus=False, validate='key', 
                           validatecommand=self.weightValidate)
+            self.weight(entry, weight)
             def edgeWeightChange(event):
+                if not (isinstance(edge, tuple) and len(edge) == 2):
+                    if self.DEBUG:
+                        print('Attempt to change weight of empty edge')
+                    return
                 if not self.operationMutex.acquire(blocking=False):
                     self.setMessage('Cannot change edge during other operation')
                     self.weight(entry, self.edgeWeight(*edge))
@@ -768,11 +780,16 @@ class GraphBase(VisualizationApp):
                 self.enableButtons()
             entry['command'] = toggleEdge
             
-        self.adjMat[edge] = entry
         return entry
 
     def weight(self, weightEntry, newWeight=None):
         'Get or set the weight in a weight entry widget'
+        if isinstance(weightEntry, str):
+            try:
+                weightEntry = self.window.nametowidget(weightEntry)
+            except KeyError:
+                raise ValueError('String "{}" is not a recognized widget'.
+                                 format(weightEntry))
         if isinstance(weightEntry, Entry):
             text = weightEntry.get() 
             if newWeight is None:
@@ -790,7 +807,10 @@ class GraphBase(VisualizationApp):
                 return int(text) if text else 0
             if (newWeight > 0 and str(newWeight) != text) or text != '':
                 weightEntry['text'] = '' if newWeight == 0 else str(newWeight)
-        
+        else:
+            raise ValueError('Cannot set weight in widget of type {}'.format(
+                type(weightEntry)))
+                
     def updateVertex(self, vertexLabel):
         if not vertexLabel in self.vertices:
             raise ValueError('Cannot update non-existant vertex {}'.format(
@@ -832,17 +852,17 @@ class GraphBase(VisualizationApp):
             if ed not in self.adjMat and (weight is None or weight == 0):
                 raise Exception('Missing adjacency matrix entry {}->{}'.format(
                     *ed))
-            self.weight(self.adjMat[ed], weight)  # Set weight in adj matrix
+            self.weight(self.adjMat[ed][1], weight)  # Set weight in adj matrix
         if weight is None:   # When no weight provided, return existing weight
-            return self.weight(self.adjMat[edge])
+            return self.adjMat[edge][0]
 
         if weight > 0:         # For new/updated edges, update canvas display
             if edge not in self.edges:
                 self.createEdge(fromVert, toVert, weight, checkMutex=False)
-            else:
-                self.canvas.itemconfigure(
-                    self.edges[edge].items[1],
-                    text=str(weight) if self.weighted else '')
+            elif self.weighted:
+                self.weight(self.canvas.itemConfig(self.edges[edge].items[1],
+                                                   'window'),
+                            weight)
         else:                  # weight == 0 means edge is deleted
             if edge in self.edges:
                 self.dispose({}, *self.edges[edge].items)
@@ -850,7 +870,10 @@ class GraphBase(VisualizationApp):
             if self.bidirectionalEdges.get() and revEdge in self.edges:
                 self.dispose({}, *self.edges[revEdge].items)
                 del self.edges[revEdge]
-                    
+        self.adjMat[edge][0] = weight
+        if self.bidirectionalEdges.get():                    
+            self.adjMat[revEdge][0] = weight
+            
     def createEdge(
             self, fromVert, toVert, weight=1, tags=('edge',), checkMutex=True):
         edgeKey = (fromVert, toVert)
@@ -903,9 +926,11 @@ class GraphBase(VisualizationApp):
                 label = ''
         return label
             
-    def makeButtons(self):
+    def makeButtons(self, bidirectional=None):
         '''Make buttons common to weighted and unweighted graphs without
-        the animation control buttons'''
+        the animation control buttons.  If bidirectional is None, a button
+        to control the kind of edges is created, ottherwise, the kind of
+        edges is set to the truth value provided'''
         vcmd = (self.window.register(
             makeFilterValidate(self.maxArgWidth)), '%P')
         self.newVertexButton = self.addOperation(
@@ -924,11 +949,12 @@ class GraphBase(VisualizationApp):
             "New Graph", self.clickNewGraph,
             helpText='Create new, empty graph')
         self.bidirectionalEdges = IntVar()
-        self.bidirectionalEdges.set(1)
+        self.bidirectionalEdges.set(
+            1 if bidirectional is None or bidirectional else 0)
         self.bidirectionalEdgesButton = self.addOperation(
             "Bidirectional", self.clickBidirectionalEdges,
             buttonType=Checkbutton, variable=self.bidirectionalEdges, 
-            helpText='Use bidirectional edges')
+            helpText='Use bidirectional edges') if bidirectional is None else None
         return vcmd
 
     def validArgument(self):
@@ -937,9 +963,9 @@ class GraphBase(VisualizationApp):
 
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
-        for btn in [self.bidirectionalEdgesButton]: # Bidirectional edge status
-            widgetState(               # can only change without edges
-                btn,
+        if self.bidirectionalEdgesButton: # Bidirectional edge status
+            widgetState(                  # can only change without edges
+                self.bidirectionalEdgesButton,
                 NORMAL if enable and self.nEdges() == 0 else DISABLED)
     
     # Button functions

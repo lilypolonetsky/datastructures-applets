@@ -72,8 +72,8 @@ def adjacentVertices(self, n={nVal}):
                         sleepTime=wait / 10, see=True, expand=True)
                 self.highlightCode('j != n', callEnviron, wait=wait)
                 if j != n:
-                    edgeEntry = self.adjMat[nLabel, jLabel] # Highlight edge in
-                    edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # adj matrix
+                    edgeEntry = self.adjMat[nLabel, jLabel][1] # Highlight adj
+                    edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # mat edge
                                    pady=self.ADJ_MAT_HIGHLIGHT_PAD)
                     self.highlightCode('self.hasEdge(n, j)', callEnviron,
                                        wait=wait)
@@ -1220,7 +1220,7 @@ def degree(self, n={nVal}):
             self.highlightCode('j != n', callEnviron, wait=wait)
             if j != n:
                 edge = (jLabel, nLabel)
-                edgeEntry = self.adjMat[edge] # Highlight edge in
+                edgeEntry = self.adjMat[edge][1] # Highlight edge in
                 edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # adj matrix
                                pady=self.ADJ_MAT_HIGHLIGHT_PAD)
                 self.highlightCode('self.hasEdge(j, n)', callEnviron, wait=wait)
@@ -1231,7 +1231,7 @@ def degree(self, n={nVal}):
                 edgeEntry.grid(padx=0, pady=0)
 
                 edge = (nLabel, jLabel)
-                edgeEntry = self.adjMat[edge] # Highlight edge in
+                edgeEntry = self.adjMat[edge][1] # Highlight edge in
                 edgeEntry.grid(padx=self.ADJ_MAT_HIGHLIGHT_PAD, # adj matrix
                                pady=self.ADJ_MAT_HIGHLIGHT_PAD)
                 self.highlightCode('self.hasEdge(n, j)', callEnviron, wait=wait)
@@ -1309,7 +1309,7 @@ if __name__ == '__main__':
 
     edges = []
     for arg in sys.argv[1:]:
-        edgeMatch = edgePattern.match(arg)
+        edgeMatch = edgePattern.fullmatch(arg)
         if len(arg) > 1 and arg[0] == '-':
             if arg == '-d':
                 graph.DEBUG = True
