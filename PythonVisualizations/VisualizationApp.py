@@ -1031,14 +1031,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
 # Tk widget utilities
 
-def buttonImage(btn, image=None):
-    if image is None:   # Tk stores the actual image in the image attribute
-        return btn.image
-    else:    
-        btn['image'] = image # This triggers an update to the button appearance
-        btn.image = image  # and this puts the aclual image in the attribut
-        return image
-
 def clearHintHandler(hintLabel, textEntry=None):
     'Clear the hint text and set focus to textEntry, if provided'
     return lambda event: (
