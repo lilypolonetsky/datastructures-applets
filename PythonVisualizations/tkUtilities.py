@@ -177,6 +177,15 @@ def parseTkFont(fontspec):
             return (font[0], int(font[1]), *font[2:])
         return parseTkFont(tkfont.nametofont(fontspec))
 
+def buttonImage(btn, image=None):
+    'Get or set the image of a Tk button'
+    if image is None:   # Tk stores the actual image in the image attribute
+        return btn.image
+    else:    
+        btn['image'] = image # This triggers an update to the button appearance
+        btn.image = image  # and this puts the aclual image in the attribute
+        return image
+
 class Scrim(Canvas):
     '''Enhanced Tk Canvas widget with more convenience methods.
     '''

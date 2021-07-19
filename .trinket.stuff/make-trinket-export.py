@@ -35,7 +35,8 @@ if __name__ == '__main__':
       '-i', '--ignore', default=False, action='store_true',
       help='Ignore files with non-ASCII characters after cleansing')
    parser.add_argument(
-      '-x', '--exclude', nargs='*', default=['__init__.*', '.*[Tt]est.*'],
+      '-x', '--exclude', nargs='*',
+      default=['__init__.*', '.*[Tt]est.*', 'runAllVisualizations.py'],
       help='Regex for filenames to exclude from export')
    parser.add_argument(
       '-v', '--verbose', action='count', default=0,

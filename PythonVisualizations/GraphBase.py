@@ -99,9 +99,12 @@ class GraphBase(VisualizationApp):
         panelTitle = Label(self.adjMatControlBar, text='Adjacency\nMatrix',
                            font=self.ADJACENCY_MATRIX_FONT)
         panelTitle.pack(side=LEFT)
+        self.createAdjacencyMatrixControlImages()
         self.matrixExpose = Button(
-            self.adjMatControlBar, text='X', font=self.ADJACENCY_MATRIX_FONT, 
-            command=self.toggleAdjacencyMatrixDisplay)
+            self.adjMatControlBar, image=self.adjMatControlImages['collapse'],
+            command=self.toggleAdjacencyMatrixDisplay, takefocus=False,
+            width=20)
+        buttonImage(self.matrixExpose, self.adjMatControlImages['collapse'])
         self.matrixExpose.pack(side=LEFT, expand=False, fill=Y)
         self.buttonPadX = int(self.window.winfo_fpixels(
             self.matrixExpose['padx']))
@@ -117,12 +120,26 @@ class GraphBase(VisualizationApp):
             self.adjacencyMatrixAnchor = anchor
             self.adjacencyMatrixPanel.withdraw()
 
+    def createAdjacencyMatrixControlImages(self, height=None):
+        if height is None:
+            height = abs(self.CONTROLS_FONT[1])
+        targetSize = (height, height)
+        names = ('collapse', 'uncollapse')
+        images = dict((name, Img.open(name + '-symbol.png')) for name in names)
+        ratios = dict((name, min(*(V(targetSize) / V(images[name].size))))
+                      for name in names)
+        self.adjMatControlImages = dict(
+            (name, ImageTk.PhotoImage(images[name].resize(
+                (int(round(d)) for d in V(images[name].size) * ratios[name]))))
+            for name in names)
+            
     def toggleAdjacencyMatrixDisplay(self):
         if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves():
-            self.matrixExpose['text'] = '+'
+            buttonImage(self.matrixExpose,
+                        self.adjMatControlImages['uncollapse'])
             self.adjMatrixFrame.pack_forget()
         else:
-            self.matrixExpose['text'] = 'X'
+            buttonImage(self.matrixExpose, self.adjMatControlImages['collapse'])
             self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
         self.positionAdjacencyMatrix()
 
