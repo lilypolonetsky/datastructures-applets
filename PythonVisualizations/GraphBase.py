@@ -2,14 +2,6 @@ from tkinter import *
 import random
 
 try:
-    from PIL import Image as Img
-    from PIL import ImageTk
-except ModuleNotFoundError as e:
-    print('Pillow module not found.  Did you try running:')
-    print('pip3 install -r requirements.txt')
-    raise e
-
-try:
     from coordinates import *
     from drawnValue import *
     from TableDisplay import *
