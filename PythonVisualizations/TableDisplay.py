@@ -43,8 +43,9 @@ class Table(list):     # Display a table (array/list) in a visualization app
             cellBorderColor='black',     # Cell border color
             cellBorderTags=('cell',),
             indicesFont=None,            # If provided, draw numeric cell
-            indicesColor='gray60',       # indices to the left or above cells
-            indicesOffset=4,             # with the given offset
+            indicesColor='gray60',       # indices using this font & color
+            indicesAnchor=None,          # offset to the left or above cells
+            indicesOffset=4,             # or to the right/below if anchor = W/N
             indicesTags=('cell', 'cellIndex'),
             eventHandlerPairs=(),        # (event, handler) pairs for indices
             labeledArrowFont=None,       # Labeled arrow font and color default
@@ -80,6 +81,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.cellBorderTags = cellBorderTags
         self.indicesFont = indicesFont
         self.indicesColor = indicesColor
+        self.indicesAnchor = indicesAnchor or (E if vertical else S)
         self.indicesOffset = indicesOffset
         self.indicesTags = indicesTags
         self.eventHandlers = eventHandlerPairs
@@ -115,7 +117,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
                     self.app.canvas.type(self.indices[j]) == 'text') else
                 self.app.canvas.create_text(
                     *self.arrayCellIndexCoords(j), text=str(j),
-                    anchor=E if self.vertical else S, font=self.indicesFont,
+                    anchor=self.indicesAnchor, font=self.indicesFont,
                     fill=self.indicesColor, tags=self.indicesTags)
                 for j in range(len(self))]
         for textItem in self.indices:
@@ -166,8 +168,13 @@ class Table(list):     # Display a table (array/list) in a visualization app
         cell = self.cellCoords(indexOrCoords)
         center = BBoxCenter(cell)
         gap = self.indicesOffset + self.cellBorderWidth
-        return (cell[0] - self.indicesOffset, center[1]) if self.vertical else (
-            center[0], cell[1] - self.indicesOffset)
+        if self.vertical:
+            x = cell[0] - gap if E in self.indicesAnchor else cell[2] + gap
+            y = center[1]
+        else:
+            x = center[0]
+            y = cell[1] - gap if S in self.indicesAnchor else cell[3] + gap
+        return (x, y)
 
     def labeledArrowCoords(
             self, indexOrCoords, level=1, orientation=0, **kwargs):
@@ -255,7 +262,8 @@ if __name__ == '__main__':
     app.startAnimations()
     table1 = Table(app, (100, 50), 'foo', 'bar', label='Foo bar',
                    vertical=True, indicesFont=('Courier', -14), see=True,
-                   cellHeight=30, cellBorderWidth=4,
+                   cellHeight=30, cellBorderWidth=4, indicesAnchor=W,
+                   indicesOffset=10,
                    eventHandlerPairs=(('<Button-1>', 
                                        Table.populateArgWithCellIndexHandler),))
     print('table1 contains:', table1)
@@ -273,7 +281,8 @@ if __name__ == '__main__':
 
     table3 = Table(app, (300, 70), *tuple(range(17, -1, -1)), label='Numbers+',
                    vertical=False, segmentLength=7, cellHeight=40, see=True,
-                   segmentGap=90, cellBorderWidth=1)
+                   segmentGap=90, cellBorderWidth=1)  #,
+                   # indicesFont=('Courier', -14), indicesAnchor=NE)
     print('table3 contains:', table3)
     extras = (True, False, True)
     app.wait(0.5)
