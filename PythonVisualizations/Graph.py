@@ -752,14 +752,15 @@ def minimumSpanningTree(self, n={nVal}):
         self.highlightCode('vMap = [None] * self.nVertices()', callEnviron,
                            wait=wait)
         vMap = Table(
-            self, (self.vertexTable.x0 + self.vertexTable.cellWidth + 25,
+            self, (self.vertexTable.x0 + self.vertexTable.cellWidth + 5,
                    self.vertexTable.y0),
             *[drawnValue(None) for k in range(self.nVertices())],
             label='vMap', labelAnchor=S, vertical=True, 
             labelFont=self.vertexTable.labelFont, 
-            cellWidth=self.vertexTable.cellWidth,
-            cellHeight=self.vertexTable.cellHeight, see=True,
-            cellBorderWidth=self.vertexTable.cellBorderWidth)
+            cellWidth=15, cellHeight=self.vertexTable.cellHeight, see=True,
+            cellBorderWidth=self.vertexTable.cellBorderWidth,
+            indicesFont=self.vertexTable.labelFont, indicesAnchor=W,
+            indicesOffset=30)
         callEnviron |= set(vMap.items())
         localVars += vMap.items()
         faded += (Scrim.FADED_FILL,
@@ -880,9 +881,9 @@ def minimumSpanningTree(self, n={nVal}):
         self.cleanUp(callEnviron)
 
     def createVMapArrow(self, vMap, index, vertex, see=()):
-        vCellCoords = self.vertexTable.cellCoords(vertex)
-        tip = (vCellCoords[2] + 2, (vCellCoords[1] + vCellCoords[3]) / 2)
-        base = vMap.cellCenter(index)
+        indexCoords = vMap.arrayCellIndexCoords(index)
+        tip = indexCoords
+        base = vMap.cellCenter(vertex)
         arrow = self.canvas.create_line(*base, *tip, arrow=LAST)
         VdotRadius = V(3, 3)
         dot = self.canvas.create_oval(
