@@ -15,7 +15,7 @@ except ModuleNotFoundError:
 V = vector
 
 class GraphBase(VisualizationApp):
-    MAX_VERTICES = 16
+    MAX_VERTICES = 14
     VERTEX_RADIUS = 18
     vRadius = vector((VERTEX_RADIUS, VERTEX_RADIUS))
     VERTEX_FONT = ('Helvetica', -14)
@@ -154,10 +154,10 @@ class GraphBase(VisualizationApp):
         w, h = max(80, shown.winfo_reqwidth()), max(10, shown.winfo_reqheight())
         winW, winH, x0, y0 = widgetGeometry(self.window.winfo_toplevel())
         canW, canH = widgetDimensions(self.canvas)
-        x = x0 + (0 if W in anchor else canW - w if E in anchor else
-                  int(canW - w) // 2)
-        y = y0 + (0 if N in anchor else canH - h if S in anchor else
-                  int(canH - h) // 2)
+        x = x0 + max(0, (0 if W in anchor else canW - w if E in anchor else
+                         int(canW - w) // 2))
+        y = y0 + max(0, (0 if N in anchor else canH - h if S in anchor else
+                         int(canH - h) // 2))
         self.adjacencyMatrixPanel.wm_geometry('+{}+{}'.format(x, y))
         
     def newGraph(self):
@@ -623,9 +623,13 @@ class GraphBase(VisualizationApp):
         
     def newVertexHandler(self):
         def newVertHandler(event):
-            self.createVertex(self.getArgument(), 
-                              coords=(self.canvas.canvasx(event.x),
-                                      self.canvas.canvasy(event.y)))
+            if self.nVertices() < self.MAX_VERTICES:
+                self.createVertex(self.getArgument(), 
+                                  coords=(self.canvas.canvasx(event.x),
+                                          self.canvas.canvasy(event.y)))
+            else:
+                self.setMessage('Maximum number of vertices = {}'.format(
+                    self.MAX_VERTICES))
             self.enableButtons()
         return newVertHandler
 
@@ -887,6 +891,7 @@ class GraphBase(VisualizationApp):
             if self.bidirectionalEdges.get() and revEdge in self.edges:
                 self.dispose({}, *self.edges[revEdge].items)
                 del self.edges[revEdge]
+        self.positionAdjacencyMatrix()
         self.adjMat[edge][0] = weight
         if self.bidirectionalEdges.get():                    
             self.adjMat[revEdge][0] = weight
@@ -984,6 +989,17 @@ class GraphBase(VisualizationApp):
             widgetState(                  # can only change without edges
                 self.bidirectionalEdgesButton,
                 NORMAL if enable and self.nEdges() == 0 else DISABLED)
+        for btn in (self.newVertexButton, self.randomFillButton):
+            widgetState(
+                btn,
+                NORMAL if enable and widgetState(self.newVertexButton) == NORMAL
+                and self.nVertices() < self.MAX_VERTICES
+                else DISABLED)
+        widgetState(
+            self.deleteVertexButton,
+            NORMAL if enable and widgetState(self.deleteVertexButton) == NORMAL
+            and self.nVertices() > 0
+            else DISABLED)
     
     # Button functions
     def clickNewVertex(self):
@@ -1012,16 +1028,17 @@ class GraphBase(VisualizationApp):
     def randomFill(self, nVertices):
         maxLabel = (self.DEFAULT_VERTEX_LABEL if len(self.vertices) == 0 else
                     self.nextVertexLabel(max(v for v in self.vertices)))
-        for n in range(nVertices):
+        for n in range(min(nVertices, self.MAX_VERTICES - self.nVertices())):
             self.createVertex(maxLabel)
             maxLabel = self.nextVertexLabel(maxLabel)
         
     def clickRandomFill(self):
         val = self.validArgument()
-        if val and val.isdigit() and int(val) <= self.MAX_VERTICES:
+        if (val and val.isdigit() and
+            int(val) <= self.MAX_VERTICES - self.nVertices()):
             self.randomFill(int(val))
         else:
             self.setMessage('Number of vertices must be {} or less'.format(
-                self.MAX_VERTICES))
+                self.MAX_VERTICES - self.nVertices()))
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
 
