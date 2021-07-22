@@ -754,7 +754,7 @@ def minimumSpanningTree(self, n={nVal}):
         vMap = Table(
             self, (self.vertexTable.x0 + self.vertexTable.cellWidth + 5,
                    self.vertexTable.y0),
-            *[drawnValue(None) for k in range(self.nVertices())],
+            *([None] * self.nVertices()),
             label='vMap', labelAnchor=S, vertical=True, 
             labelFont=self.vertexTable.labelFont, 
             cellWidth=15, cellHeight=self.vertexTable.cellHeight, see=True,
@@ -803,7 +803,7 @@ def minimumSpanningTree(self, n={nVal}):
                                wait=wait)
             vMapArrow = self.createVMapArrow(vMap, len(treeVerts), vertex,
                                              see=True)
-            vMap[len(treeVerts)] = drawnValue(vertexLabel, *vMapArrow)
+            vMap[vertex] = drawnValue(len(treeVerts), *vMapArrow)
             callEnviron |= set(vMapArrow)
             localVars += vMapArrow
             faded += (Scrim.FADED_FILL,) * len(vMapArrow)
