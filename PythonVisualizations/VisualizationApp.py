@@ -78,7 +78,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def __init__(  # Constructor
             self,
             maxArgWidth=3,    # Maximum length/width of text arguments
-            hoverDelay=1000,  # Milliseconds to wait before showing hints
+            hoverDelay=500,  # Milliseconds to wait before showing hints
             **kwargs):
         super().__init__(**kwargs)
 
@@ -234,8 +234,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 helpTexts = getattr(textEntry, 'helpTexts', set())
                 helpTexts.add(help)
                 setattr(textEntry, 'helpTexts', helpTexts)
-            if argHelpText: # Make a label if there are hints on what to enter
-                self.setHint(button)
+            #if argHelpText: # Make a label if there are hints on what to enter
+                #self.setHint(self.textEntries[0])
 
             # Place button in grid of buttons
             buttonColumn = self.withArgsColumn + len(withArgs) // maxRows
@@ -312,23 +312,27 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.entryHint = None
         # Leaves only the label and removes the app window
         self.tw.overrideredirect(True)
-        x = widget.winfo_pointerx() + 10
-        y = widget.winfo_pointery() + 5
-        self.tw.geometry("+%d+%d" % (x, y))
         
-        if hintText is None:    # Default hint is description of all arguments
-            hintText = 'Click to enter {}'.format(
+        if hintText is None:    # Default hint is description of all arguments and goes next to textEntry
+            x = widget.winfo_rootx() + 10
+            y = widget.winfo_rooty() + 20
+            hintText = '^ Click to enter {}'.format(
                 ',\n'.join([
                     ' or '.join(hint for hint in 
                                 getattr(entry, 'helpTexts', set()))
                     for entry in self.textEntries]))
+        else:
+            x = widget.winfo_pointerx() + 10
+            y = widget.winfo_pointery() + 5
+
+        self.tw.geometry("+%d+%d" % (x, y))
+
         if self.entryHint is None: # Create hint if not present
             self.entryHint = Label(
                 self.tw, text=hintText,
                 font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
             self.entryHint.pack()
         else:                      # Update hint text if already present
-            print("entryHint: ", self.entryHint, "tw: ", self.tw)
             self.entryHint['text'] = hintText
             if hintText == '':
                 if self.tw:
@@ -350,8 +354,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             setattr(widget, 'timeout_ID',
                     widget.after(
                         self.HOVER_DELAY, 
-                        lambda: print(self.setHint(widget, hint), setattr(widget, 'timeout_ID', None), hint)))
-            print(event.widget, "armed")
+                        lambda: self.setHint(widget, hint) or setattr(widget, 'timeout_ID', None)))
         return handler
 
     def makeDisarmHandler(self, widget):
@@ -359,11 +362,9 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if event.widget == widget and getattr(widget, 'timeout_ID', None):
                 widget.after_cancel(getattr(widget, 'timeout_ID'))
             setattr(widget, 'timeout_ID', None)
-            print(event.widget, "disarmed")
             if self.tw:
                 self.tw.destroy()
                 self.tw = None
-            print("destroyed")
         return Dhandler
 
     def makeTimer(self, widget, delay=300, attrName='timeout_ID'):
@@ -521,7 +522,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if str(val):
                 self.textEntries[index].insert(0, str(val))
             self.setArgumentHighlight(index)
-            self.setHint('')
+            self.setHint(self.textEntries[index], '')
             self.argumentChanged()
 
     def setArguments(self, *values):
@@ -1017,6 +1018,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.widgetState(self.stepButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
+        
         # Calls from stack level 2+ only stop animation for their level
         # At lowest level, animation stops and play & stop buttons are disabled
         if len(self.callStack) <= 1:
@@ -1027,6 +1029,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                     self.widgetState(btn, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
+
+    def runVisualization(self): #override of runVisualization that populates default hint
+        if (len(self.textEntries) > 0):
+            widget = self.textEntries[0]
+            setattr(widget, 'timeout_ID',
+                    widget.after(
+                        self.HOVER_DELAY, 
+                        lambda: self.setHint(widget) or setattr(widget, 'timeout_ID', None)))
+        self.window.mainloop()
 
 # Tk widget utilities
 
