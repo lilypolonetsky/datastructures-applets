@@ -17,6 +17,7 @@ V = vector
 class GraphBase(VisualizationApp):
     MAX_VERTICES = 14
     VERTEX_RADIUS = 18
+    MAX_VERTEX_LABEL_WIDTH = 2
     vRadius = vector((VERTEX_RADIUS, VERTEX_RADIUS))
     VERTEX_FONT = ('Helvetica', -14)
     SELECTED_RADIUS = VERTEX_RADIUS * 6 // 5
@@ -41,6 +42,7 @@ class GraphBase(VisualizationApp):
     def __init__(                    # Create a graph visualization application
             self, title="Graph", graphRegion=None, weighted=False, **kwargs):
         kwargs['title'] = title
+        kwargs['maxArgWidth'] = self.MAX_VERTEX_LABEL_WIDTH
         if 'canvasBounds' not in kwargs:
             kwargs['canvasBounds'] = (0, 0, kwargs.get('canvasWidth', 800),
                                       kwargs.get('canvasHeight', 400))
