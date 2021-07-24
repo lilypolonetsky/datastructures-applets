@@ -359,9 +359,11 @@ def getPhotoImage(filename, size, cache=True):
         ratio = min(*(V(size) / V(image.size)))
         if __tk_image_cache__['debug']:
             print('Resizing {} into PhotoImage cache with ratio {}'.format(
-                filename, ratio))
+                filename, ratio), end=' ')
         __tk_image_cache__['PhotoImage'][id(image), size] = ImageTk.PhotoImage(
             image.resize(int(round(d)) for d in V(image.size) * ratio))
+        if __tk_image_cache__['debug']:
+            print('as', __tk_image_cache__['PhotoImage'][id(image), size])
     return __tk_image_cache__['PhotoImage'][id(image), size]
     
 if __name__ == '__main__':
