@@ -127,13 +127,10 @@ class GraphBase(VisualizationApp):
             height = abs(self.CONTROLS_FONT[1])
         targetSize = (height, height)
         names = ('collapse', 'uncollapse')
-        images = dict((name, Img.open(name + '-symbol.png')) for name in names)
-        ratios = dict((name, min(*(V(targetSize) / V(images[name].size))))
-                      for name in names)
         self.adjMatControlImages = dict(
-            (name, ImageTk.PhotoImage(images[name].resize(
-                (int(round(d)) for d in V(images[name].size) * ratios[name]))))
+            (name, getPhotoImage(name + '-symbol.png', targetSize))
             for name in names)
+        return self.adjMatControlImages
             
     def toggleAdjacencyMatrixDisplay(self):
         if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves():
