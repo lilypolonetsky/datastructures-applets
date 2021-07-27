@@ -22,8 +22,8 @@ try:
     import VisualizationApp
     VAP = VisualizationApp.VisualizationApp
 except ModuleNotFoundError:
-    from .VisualizationApp import VisualizationApp as VAP
     from .allVisualizationsCommon import *
+    from .VisualizationApp import VisualizationApp as VAP
 
 PREFERRED_ARRANGEMENT = [
     ['Chapter 2', ['Array', 'OrderedArray']],
