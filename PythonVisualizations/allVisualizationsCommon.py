@@ -9,20 +9,21 @@ from tkinter import ttk
 
 try:
     import VisualizationApp
-    VAP = VisualizationApp.VisualizationApp
+    VAPs = (VisualizationApp.VisualizationApp,)
 except ModuleNotFoundError:
     from .VisualizationApp import VisualizationApp as VAP
+    VAPs = (VAP,)
     
 pathsep = re.compile(r'[/\\]')
 
 def findVisualizations(filesAndDirectories, verbose=0):
-    global __path__
+    global VAPs
     classes = set()
     try:
-        orig__path__ = __path__
+        orig__path__ = sys.path
     except NameError:
         orig__path__ = None
-        __path__ = []
+        sys.path = []
     for fileOrDir in filesAndDirectories:
         isDir = os.path.isdir(fileOrDir)
         files = glob.glob(os.path.join(fileOrDir, '*.py')) if isDir else [
@@ -44,15 +45,21 @@ def findVisualizations(filesAndDirectories, verbose=0):
             if modulename:
                 try:
                     path = '/'.join(dirs)
-                    addPath = path and not path in __path__
+                    addPath = path and not path in sys.path
                     if verbose > 1:
                         if addPath:
-                            print('Adding {} to __path__ ...'.format(path),
+                            print('Adding {} to sys.path ...'.format(path),
                                   file=sys.stderr)
                         print('Attempting to import {} ... ' .format(
                             modulename), file=sys.stderr, end='')
                     if addPath:
-                        __path__.append(path) 
+                        sys.path.append(path)
+                        try:
+                            vap = import_module('VisualizationApp')
+                            if not vap in VAPs:
+                                VAPs = (vap.VisualizationApp, *VAPs)
+                        except ModuleNotFoundError:
+                            pass
                     module = import_module(modulename)
                     if verbose > 1:
                         print('Imported. Looking for VisualizationApp'
@@ -72,7 +79,7 @@ def findVisualizations(filesAndDirectories, verbose=0):
                         print('Unable to import module', modulename,
                               file=sys.stderr)
     if orig__path__ is not None:
-        __path__ = orig__path__
+        sys.path = orig__path__
     return classes
     
 def isStringInFile(text, filename):
@@ -83,8 +90,8 @@ def findVisualizationClasses(module, verbose=0):
     classes = []
     for name in dir(module):
         this = getattr(module, name)          # Check if this 
-        if (isinstance(this, type(object)) and # is a class
-            issubclass(this, VAP) and this is not VAP and # a subclass of VAP
+        if (isinstance(this, type(object)) and # is a class that is a proper
+            issubclass(this, VAPs) and not (this in VAPs) and # subclass of VAP
             this.__module__ == module.__name__): # defined in ths module
             classes.append(this)
         elif verbose > 2:

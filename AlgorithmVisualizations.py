@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 __doc__ = """
-Program to show algorithm visualizations in a nested tabbed Tk notebook.
+Program to show algorithm visualizations in a single application.
 """
 
 from PythonVisualizations import runAllVisualizationsMenu
