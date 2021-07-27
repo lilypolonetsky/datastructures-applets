@@ -253,10 +253,10 @@ if __name__ == '__main__':
         dirs = set([os.path.relpath(os.getcwd())])
         if sys.argv and os.path.dirname(sys.argv[0]):
             dirs.add(os.path.dirname(sys.argv[0]))
-        # try:
-        #     dirs.add(os.path.dirname(__file__))
-        # except:
-        #     pass
+        try:
+            dirs.add(os.path.dirname(__file__))
+        except:
+            pass
         if args.verbose > 1:
             print('No files provided.  Unique directories to search:', dirs,
                   'with search order:', list(dirs))
