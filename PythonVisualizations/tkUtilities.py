@@ -355,7 +355,7 @@ def getImage(filename, cache=True, path=None):
                 fname = os.path.join(dir, filename)
                 break
         if __tk_image_cache__['debug']:
-            print('Reading {} into Img cache'.format(fame))
+            print('Reading {} into Img cache'.format(fname))
         __tk_image_cache__['Img'][filename] = Img.open(fname)
     return __tk_image_cache__['Img'][filename]
 
