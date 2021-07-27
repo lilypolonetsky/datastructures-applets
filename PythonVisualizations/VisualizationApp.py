@@ -244,8 +244,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 helpTexts = getattr(textEntry, 'helpTexts', set())
                 helpTexts.add(help)
                 setattr(textEntry, 'helpTexts', helpTexts)
-            if argHelpText: # Make a label if there are hints on what to enter
-                self.setHint()
 
             # Place button in grid of buttons
             buttonColumn = self.withArgsColumn + len(withArgs) // maxRows
@@ -331,6 +329,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.entryHint.bind(
                 '<Shift-Button>', # Extend hint activation delay
                 self.extendHintActivationHandler())
+            lastRow = max(int(op.grid_info()['row'])
+                          for op in self.operations.grid_slaves()
+                          if (isinstance(op, (self.buttonTypes, Frame))))
+            self.entryHint.grid(column=self.argsColumn,
+                                row=max(len(self.textEntries) + 1, lastRow))
+
         else:                      # Update hint text if already present
             self.entryHint['text'] = hintText
             if hintText == '':
@@ -1029,6 +1033,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
+    def runVisualization(self):
+        if self.textEntries:  # Make initial hint if there are text entry areas
+            self.setHint()
+        self.window.mainloop()
+        
 # Tk widget utilities
 
 def clearHintHandler(hintLabel, textEntry=None):
