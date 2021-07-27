@@ -3,7 +3,7 @@ Utilty methods and classes for Tk, and in particular, a specialized
 version of canvas called 'Scrim', and a cache of Tk images.
 """
 
-import re, sys, math
+import re, sys, math, os
 from tkinter import *
 from tkinter import ttk
 import tkinter.font as tkfont
@@ -346,15 +346,21 @@ class Scrim(Canvas):
 # Tk image utilities
 __tk_image_cache__ = {'Img': {}, 'PhotoImage': {}, 'debug': False}
 
-def getImage(filename, cache=True):
+def getImage(filename, cache=True, path=None):
     if not cache or filename not in __tk_image_cache__['Img']:
+        if path is None: path = sys.path
+        fname = filename
+        for dir in path:
+            if os.path.exists(os.path.join(dir, filename)):
+                fname = os.path.join(dir, filename)
+                break
         if __tk_image_cache__['debug']:
-            print('Reading {} into Img cache'.format(filename))
-        __tk_image_cache__['Img'][filename] = Img.open(filename)
+            print('Reading {} into Img cache'.format(fame))
+        __tk_image_cache__['Img'][filename] = Img.open(fname)
     return __tk_image_cache__['Img'][filename]
 
-def getPhotoImage(filename, size, cache=True):
-    image = getImage(filename, cache=cache)
+def getPhotoImage(filename, size, cache=True, path=None):
+    image = getImage(filename, cache=cache, path=path)
     if not cache or (id(image), size) not in __tk_image_cache__['PhotoImage']:
         ratio = min(*(V(size) / V(image.size)))
         if __tk_image_cache__['debug']:
