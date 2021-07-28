@@ -275,6 +275,9 @@ class GraphBase(VisualizationApp):
         steps = int(max(abs(delta[0]), abs(delta[1]), 5))
         return p0, p1, p2, steps, weightCenter
 
+    def vertexCoords(self, vertexLabel):
+        return self.canvas.coords(self.vertices[vertexLabel].items[1])
+    
     def createLabeledArrow(
             self, vertexOrCoords, label, color=None, font=None,
             width=1, anchor=None, tags=('arrow',), **kwargs):
@@ -301,10 +304,9 @@ class GraphBase(VisualizationApp):
 
     def labeledArrowCoords(
             self, vertexOrCoords, level=1, orientation=0, offset=5, **kwargs):
-        center = (self.canvas_coords(self.vertices[vertexOrCoords].items[1])
+        center = (self.vertexCoords(vertexOrCoords)
                   if isinstance(vertexOrCoords, str) else
-                  self.canvas_coords(self.vertices[
-                      self.vertexTable[vertexOrCoords].val].items[1])
+                  self.vertexCoords(self.vertexTable[vertexOrCoords].val)
                   if isinstance(vertexOrCoords, int) and 
                   vertexOrCoords < len(self.vertexTable) else
                   vertexOrCoords)
@@ -341,7 +343,7 @@ class GraphBase(VisualizationApp):
             else:
                 self.selectVertex(vertexLabel)
                 self.dragItems = self.createEdgeItems(
-                    self.canvas_coords(vert.items[1]), (event.x, event.y),
+                    self.vertexCoords(vertexLabel), (event.x, event.y),
                     weight=0, removeRadius=0)
             self.lastPos = (event.x, event.y)
             self.enableButtons()
@@ -368,7 +370,7 @@ class GraphBase(VisualizationApp):
                 for item in self.dragItems:
                     self.canvas.move(item, *delta)
 
-                newCenter = self.canvas_coords(self.dragItems[1])
+                newCenter = self.canvas.coords(self.dragItems[1])
                 bad = self.badPosition(newCenter, ignore=(vertexLabel,))
                 self.canvas.itemconfigure(
                     self.dragItems[0], state=HIDDEN if bad else NORMAL)
@@ -376,16 +378,14 @@ class GraphBase(VisualizationApp):
                     self.dragItems[1], 
                     fill=self.BAD_POSITION_TEXT_COLOR if bad else self.VALUE_COLOR)
             elif dragItemType == 'line':
-                vert = self.vertices[vertexLabel]
                 p0, p1, p2, steps, wc = self.edgeCoords(
-                    self.canvas_coords(vert.items[1]), self.lastPos,
+                    self.vertexCoords(vertexLabel), self.lastPos,
                     removeRadius=0)
                 self.canvas.coords(self.dragItems[0], *p0, *p1, *p2)
                 self.canvas.itemconfigure(self.dragItems[0], splinesteps=steps)
                 self.canvas.coords(self.dragItems[1], *wc)
                 toVert = self.findVertex(
-                    self.lastPos, 
-                    exclude=self.vertexPlusAdjacent(vertexLabel))
+                    self.lastPos, exclude=self.vertexPlusAdjacent(vertexLabel))
                 if toVert:
                     self.canvas.itemconfigure(
                         self.vertices[toVert].items[0],
@@ -421,7 +421,7 @@ class GraphBase(VisualizationApp):
             if self.dragItems:
                 dragItemType = self.canvas.type(self.dragItems[0])
                 if dragItemType == 'oval':
-                    newCenter = self.canvas_coords(self.dragItems[1])
+                    newCenter = self.canvas.coords(self.dragItems[1])
                     bad = self.badPosition(newCenter, ignore=(vertexLabel,))
                     if bad:
                         if self.DEBUG:
@@ -430,9 +430,8 @@ class GraphBase(VisualizationApp):
                                        event.serial))
                         self.undoDrag(vertexLabel)
                     else:
-                        delta = V(self.canvas_coords(self.dragItems[1])) - V(
-                            self.canvas_coords(
-                                self.vertices[vertexLabel].items[1]))
+                        delta = V(self.canvas.coords(self.dragItems[1])) - V(
+                            self.vertexCoords(vertexLabel))
                         for item in self.vertices[vertexLabel].items:
                             self.canvas.move(item, *delta)
                         self.dispose({}, *self.dragItems)
@@ -484,9 +483,8 @@ class GraphBase(VisualizationApp):
             return
         wait = 30
         if dragItemType == 'oval':
-            oldCenter = self.canvas_coords(
-                self.vertices[vertexLabel].items[1])
-            center = self.canvas_coords(self.dragItems[1])
+            oldCenter = self.vertexCoords(vertexLabel)
+            center = self.canvas.coords(self.dragItems[1])
             delta = V(V(V(oldCenter) - V(center)) * 0.2)
             if self.DEBUG:
                 print('delta**2 = {:3.1f}'.format(delta.len2()))
@@ -508,7 +506,7 @@ class GraphBase(VisualizationApp):
                     wait, 
                     lambda: self.undoDrag(vertexLabel, after, endDistance, serial))
         elif dragItemType == 'line':
-            edgeCoords = self.canvas_coords(self.dragItems[0])
+            edgeCoords = self.canvas.coords(self.dragItems[0])
             base, tip = edgeCoords[:2], edgeCoords[-2:]
             newTip = V(V(V(tip) * 8) + V(V(base) * 2)) / 10
             if self.DEBUG:
@@ -549,23 +547,22 @@ class GraphBase(VisualizationApp):
                             'de' if vertexLabel is None else ''))
                 return
             self.cleanUp()
-        radius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
+        Vradius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
         if self.selectedVertex:
             if vertexLabel is None:
                 self.canvas.delete(self.selectedVertex[1])
                 self.selectedVertex = None
             else:
-                center = V(self.canvas.coords(
-                    self.vertices[vertexLabel].items[1]))
+                Vcenter = V(self.vertexCoords(vertexLabel))
                 self.canvas.coords(self.selectedVertex[1],
-                                   *(center - radius), *(center + radius))
+                                   *(Vcenter - Vradius), *(Vcenter + Vradius))
                 self.selectedVertex = (vertexLabel, self.selectedVertex[1])
         elif vertexLabel:
-            center = V(self.canvas.coords(self.vertices[vertexLabel].items[1]))
+            Vcenter = V(self.canvas.coords(self.vertices[vertexLabel].items[1]))
             self.selectedVertex = (
                 vertexLabel, 
                 self.canvas.create_oval(
-                    *(center - radius), *(center + radius),
+                    *(Vcenter - Vradius), *(Vcenter + Vradius),
                     fill=self.SELECTED_COLOR, outline=self.SELECTED_OUTLINE,
                     width=self.SELECTED_WIDTH, tags=tags))
             self.canvas.tag_lower(self.selectedVertex[1], 'vertex')
@@ -612,9 +609,8 @@ class GraphBase(VisualizationApp):
     def findVertex(self, point, exclude=()):
         for v in self.vertices:
             if v not in exclude:
-                vert = self.vertices[v]
-                center = self.canvas_coords(vert.items[1])
-                if distance2(point, center) <= self.VERTEX_RADIUS **2:
+                if (distance2(point, self.vertexCoords(v)) <=
+                    self.VERTEX_RADIUS ** 2):
                     return v
 
     def vertexPlusAdjacent(self, vert):
@@ -638,7 +634,7 @@ class GraphBase(VisualizationApp):
         '''
         if border is None: border = self.VERTEX_RADIUS
         return (
-            any(distance2(center, self.canvas_coords(v.items[1])) <
+            any(distance2(center, self.canvas.coords(v.items[1])) <
                 (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values()
                 if v.val[0] not in ignore)
             or not BBoxContains(
@@ -657,7 +653,7 @@ class GraphBase(VisualizationApp):
             self.setMessage(str(e))
             self.operationMutex.release()
             return
-        newCenter = self.canvas_coords(items[1])
+        newCenter = self.canvas.coords(items[1])
         if self.badPosition(newCenter):
             self.setMessage('Vertices must be visible and not overlap')
             self.dispose({}, *items)
@@ -838,9 +834,7 @@ class GraphBase(VisualizationApp):
         for edge in self.findEdges(vertexLabel):
             items = self.edges[edge].items
             p0, p1, p2, steps, wc = self.edgeCoords(
-                self.canvas_coords(self.vertices[edge[0]].items[1]),
-                self.canvas_coords(self.vertices[edge[1]].items[1]),
-            )
+                self.vertexCoords(edge[0]), self.vertexCoords(edge[1]))
             self.canvas.coords(items[0], *p0, *p1, *p2)
             self.canvas.itemConfig(items[0], splinesteps=steps)
             self.canvas.coords(items[1], *wc)
@@ -901,8 +895,7 @@ class GraphBase(VisualizationApp):
         if fromVert == toVert or edgeKey in self.edges and isinstance(
                 self.edge[edgeKey], drawnValue):
             return
-        centers = tuple(self.canvas_coords(self.vertices[v].items[1])
-                        for v in edgeKey)
+        centers = tuple(self.vertexCoords(v) for v in edgeKey)
         if checkMutex and not self.operationMutex.acquire(blocking=False):
             self.setMessage('Cannot create edge during other operation')
             return
