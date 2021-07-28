@@ -810,7 +810,7 @@ def minimumSpanningTree(self, n={nVal}):
 
             self.highlightCode('tree.addVertex(self.getVertex(vertex))',
                                callEnviron, wait=wait)
-            vertCoords = self.canvas.coords(self.vertices[vertexLabel].items[1])
+            vertCoords = self.vertexCoords(vertexLabel)
             if len(treeVerts) == 0:
                 inflection = V(treeLabelAnchor) + V(300, 0)
                 tipCoords = self.labeledArrowCoords(
@@ -1063,7 +1063,7 @@ def sortVertsTopologically(
                                   self.vertices[vertexLabel].items[0])
             self.moveItemsTo(
                 dValue.items[1:] + vertexVertArrow,
-                (self.canvas.coords(self.vertices[vertexLabel].items[1]),
+                (self.vertexCoords(vertexLabel),
                  *self.labeledArrowCoords(vertexLabel, **vertexVertConfig)),
                 sleepTime=wait / 10, see=True, expand=True)
 
