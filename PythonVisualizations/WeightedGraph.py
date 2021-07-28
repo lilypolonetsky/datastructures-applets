@@ -231,7 +231,7 @@ def minimumSpanningTree(self, n={nVal}):
                             anchor=W if j else E)
                     weightLabel = self.canvas.create_text(
                         *self.canvas.coords(self.edges[edge].items[1]),
-                        text=str(weight), font=self.VERTEX_FONT)
+                        text=str(w), font=self.VERTEX_FONT)
                     toMove = (*vertLabels, weightLabel)
                     callEnviron |= set(toMove)
                     insertAt = self.edgeInsertPosition(edges, w)
@@ -266,11 +266,7 @@ def minimumSpanningTree(self, n={nVal}):
                 callEnviron, wait=wait)
             dValue = None if len(edges) == 0 else edges.pop(0)
             edge, w = (None, 0) if dValue is None else dValue.val
-            edgeLabelCoords = (
-                (nVertsBBox[0], nVertsBBox[3] + 5) if edge is None else
-                self.edgeCoords(
-                    *(self.canvas.coords(self.vertices[edge[j]].items[1])
-                      for j in (0, 1)))[-1])
+            edgeLabelCoords = self.edgeLabelCoords(edge, nVertsBBox)
             edgeLabelAnchor = NE if edge is None else CENTER
             if edgeLabel is None:
                 wLabel = self.canvas.create_text(
@@ -285,7 +281,7 @@ def minimumSpanningTree(self, n={nVal}):
                 faded += (Scrim.FADED_FILL,) * 2
             self.updateEdgeAndWeightFromQueue(
                 edge, w, edgeLabel, wLabel, highlightedEdge, edges, dValue,
-                callEnviron, wait, edgeLabelCoords, edgeLabelAnchor)
+                nVertsBBox, callEnviron, wait, edgeLabelCoords, edgeLabelAnchor)
                     
             self.highlightCode('not edges.isEmpty()', callEnviron, wait=wait)
             if len(edges) > 0:
@@ -300,7 +296,7 @@ def minimumSpanningTree(self, n={nVal}):
                 edge, w = dValue.val
                 self.updateEdgeAndWeightFromQueue(
                     edge, w, edgeLabel, wLabel, highligtedEdge, edges, dValue,
-                    callEnviron, wait)
+                    nVertsBBox, callEnviron, wait)
 
                 self.highlightCode('not edges.isEmpty() TBD', callEnviron,
                                    wait=wait)
@@ -413,19 +409,16 @@ def minimumSpanningTree(self, n={nVal}):
 
     def updateEdgeAndWeightFromQueue(
             self, edge, weight, edgeLabel, weightLabel, highlightedEdge, edges,
-            dValue, callEnviron, wait, edgeLabelCoords=None,
+            dValue, nVertsBBox, callEnviron, wait, edgeLabelCoords=None,
             edgeLabelAnchor=None):
         if edgeLabelCoords is None:
-            edgeLabelCoords = (
-                (nVertsBBox[0], nVertsBBox[3] + 5) if edge is None else
-                self.edgeCoords(
-                    *(self.canvas.coords(self.vertices[edge[j]].items[1])
-                      for j in (0, 1)))[-1])
+            edgeLabelCoords = self.edgeLabelCoords(edge, nVertsBBox)
         if edgeLabelAnchor is None:
             edgeLabelAnchor = NE if edge is None else CENTER
         self.canvas.changeAnchor(edgeLabelAnchor, edgeLabel)
         toMove = [edgeLabel]
         moveTo = [edgeLabelCoords]
+        toDispose = []
         if edge is not None:
             queueFrontCoords = self.edgePriorityQueueCoords(edges, 0)
             toMove += [self.canvas.create_text(
@@ -448,6 +441,13 @@ def minimumSpanningTree(self, n={nVal}):
             self.vertexCoords(edge[0]) + self.vertexCoords(edge[1]))
         self.canvas.itemConfig(weightLabel, text='w = {}'.format(weight))
         self.dispose(callEnviron, *toDispose)
+
+    def edgeLabelCoords(self, edge, nVertsBBox):
+        return ((nVertsBBox[0], nVertsBBox[3] + 5) if edge is None else
+                self.edgeCoords(
+                    *(self.vertexCoords(edge[j])
+                      for j in ((1, 0) if edge == self.edges[edge].val else
+                                (0, 1))))[-1])
     
     def enableButtons(self, enable=True):
         super(type(self).__bases__[0], self).enableButtons( # Grandparent
