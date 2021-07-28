@@ -257,6 +257,7 @@ class GraphBase(VisualizationApp):
             text='' if weight == 0 or not self.weighted else str(weight),
             font=self.VERTEX_FONT, fill=self.EDGE_COLOR, tags=tags + ('text',),
             activefill=self.ACTIVE_EDGE_COLOR)
+        self.canvas.tag_lower(line, 'vertex')
         if edgePair:
             self.canvas.tag_bind(line, '<Double-Button-1>', 
                                  self.deleteEdgeHandler(edgePair))
