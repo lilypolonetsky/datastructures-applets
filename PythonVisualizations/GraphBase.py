@@ -340,7 +340,10 @@ class GraphBase(VisualizationApp):
             self.cleanUp()
             if moveVertex:
                 copies = tuple(self.canvas.copyItem(i, includeBindings=False)
-                               for i in vert.items)
+                               for i in vert.items + (vert.items[0],))
+                self.canvas.itemConfig(
+                    copies[-1], state=HIDDEN, fill='', width=2,
+                    outline=self.BAD_POSITION_TEXT_COLOR)
                 self.dragItems = copies
             else:
                 self.selectVertex(vertexLabel)
@@ -379,6 +382,13 @@ class GraphBase(VisualizationApp):
                 self.canvas.itemconfigure(
                     self.dragItems[1], 
                     fill=self.BAD_POSITION_TEXT_COLOR if bad else self.VALUE_COLOR)
+                self.canvas.itemconfigure(
+                    self.dragItems[2], state=NORMAL if bad else HIDDEN)
+                if not bad:
+                    for orig, copy in zip(self.vertices[vertexLabel].items,
+                                          self.dragItems[:2]):
+                        self.canvas.coords(orig, self.canvas.coords(copy))
+                    self.updateVertex(vertexLabel)
             elif dragItemType == 'line':
                 p0, p1, p2, steps, wc = self.edgeCoords(
                     self.vertexCoords(vertexLabel), self.lastPos,
@@ -642,14 +652,15 @@ class GraphBase(VisualizationApp):
             any(distance2(center, self.canvas.coords(v.items[1])) <
                 (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values()
                 if v.val[0] not in ignore) or
-            any(collinearBetween(self.vertexCoords(self.vertexTable[j].val),
-                                 center,
-                                 self.vertexCoords(self.vertexTable[k].val),
-                                 1e-4)
-                for j in range(len(self.vertexTable))
-                for k in range(j + 1, len(self.vertexTable))
-                if self.edgeWeight(self.vertexTable[j].val,
-                                   self.vertexTable[k].val) > 0))
+            (self.bidirectionalEdges.get() and
+             any(collinearBetween(self.vertexCoords(self.vertexTable[j].val),
+                                  center,
+                                  self.vertexCoords(self.vertexTable[k].val),
+                                  1e-4)
+                 for j in range(len(self.vertexTable))
+                 for k in range(j + 1, len(self.vertexTable))
+                 if self.edgeWeight(self.vertexTable[j].val,
+                                    self.vertexTable[k].val) > 0)))
     
     def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
         if not self.operationMutex.acquire(blocking=False):
