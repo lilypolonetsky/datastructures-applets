@@ -337,6 +337,7 @@ class GraphBase(VisualizationApp):
                 return
             vert = self.vertices[vertexLabel]
             self.setMessage('')
+            self.cleanUp()
             if moveVertex:
                 copies = tuple(self.canvas.copyItem(i, includeBindings=False)
                                for i in vert.items)
@@ -631,19 +632,34 @@ class GraphBase(VisualizationApp):
 
     def badPosition(self, center, border=None, ignore=()):
         '''Check if a proposed vertex center would make it overlap other
-        vertices or is outside the visible canvas minus a border.
+        vertices or is outside the visible canvas minus a border or is
+        on the line segment bewtween any pair of connected vertices.
         '''
         if border is None: border = self.VERTEX_RADIUS
         return (
+            not BBoxContains(
+                V(self.graphRegion) + V(V(1, 1, -1, -1) * border), center) or
             any(distance2(center, self.canvas.coords(v.items[1])) <
                 (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values()
-                if v.val[0] not in ignore)
-            or not BBoxContains(
-                V(self.graphRegion) + V(V(1, 1, -1, -1) * border), center))
+                if v.val[0] not in ignore) or
+            any(collinearBetween(self.vertexCoords(self.vertexTable[j].val),
+                                 center,
+                                 self.vertexCoords(self.vertexTable[k].val),
+                                 1e-4)
+                for j in range(len(self.vertexTable))
+                for k in range(j + 1, len(self.vertexTable))
+                if self.edgeWeight(self.vertexTable[j].val,
+                                   self.vertexTable[k].val) > 0))
     
     def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
         if not self.operationMutex.acquire(blocking=False):
             self.setMessage('Cannot create vertex during other operation')
+            return
+        if self.nVertices() >= self.MAX_VERTICES:
+            self.setMessage('Already have max Number of vertices {}'.format(
+                self.MAX_VERTICES))
+            if self.operationMutex.locked():
+                self.operationMutex.release()
             return
         try:
             self.cleanUp()
@@ -985,14 +1001,11 @@ class GraphBase(VisualizationApp):
         for btn in (self.newVertexButton, self.randomFillButton):
             widgetState(
                 btn,
-                NORMAL if enable and widgetState(self.newVertexButton) == NORMAL
-                and self.nVertices() < self.MAX_VERTICES
+                NORMAL if enable and self.nVertices() < self.MAX_VERTICES
                 else DISABLED)
         widgetState(
             self.deleteVertexButton,
-            NORMAL if enable and widgetState(self.deleteVertexButton) == NORMAL
-            and self.nVertices() > 0
-            else DISABLED)
+            NORMAL if enable and self.nVertices() > 0 else DISABLED)
     
     # Button functions
     def clickNewVertex(self):
@@ -1001,7 +1014,8 @@ class GraphBase(VisualizationApp):
             self.setMessage('Cannot duplicate vertex {}'.format(val))
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
             return
-        self.createVertex(val)
+        if not self.createVertex(val):
+            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
     
     def clickDeleteVertex(self):
         val = self.validArgument()
@@ -1022,7 +1036,8 @@ class GraphBase(VisualizationApp):
         maxLabel = (self.DEFAULT_VERTEX_LABEL if len(self.vertices) == 0 else
                     self.nextVertexLabel(max(v for v in self.vertices)))
         for n in range(min(nVertices, self.MAX_VERTICES - self.nVertices())):
-            self.createVertex(maxLabel)
+            if not self.createVertex(maxLabel):
+                break
             maxLabel = self.nextVertexLabel(maxLabel)
         
     def clickRandomFill(self):
@@ -1030,8 +1045,41 @@ class GraphBase(VisualizationApp):
         if (val and val.isdigit() and
             int(val) <= self.MAX_VERTICES - self.nVertices()):
             self.randomFill(int(val))
+        elif self.MAX_VERTICES <= self.nVertices():
+            self.setMessage('Already have max Number of vertices {}'.format(
+                self.MAX_VERTICES))
         else:
             self.setMessage('Number of vertices must be {} or less'.format(
                 self.MAX_VERTICES - self.nVertices()))
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
 
+if __name__ == '__main__':
+    graph = GraphBase(weighted=any(':' in arg for arg in sys.argv[1:]))
+    edgePattern = re.compile(r'(\w+)-(\w+)(:([1-9][0-9]?))?')
+
+    edges = []
+    for arg in sys.argv[1:]:
+        edgeMatch = edgePattern.fullmatch(arg)
+        if len(arg) > 1 and arg[0] == '-':
+            if arg == '-d':
+                graph.DEBUG = True
+            elif arg == '-b':
+                graph.bidirectionalEdges.set(1)
+            elif arg == '-B':
+                graph.bidirectionalEdges.set(0)
+            elif arg[1:].isdigit():
+                graph.setArgument(arg[1:])
+                graph.randomFillButton.invoke()
+                graph.setArgument(
+                    chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
+        elif edgeMatch and all(edgeMatch.group(i) in sys.argv[1:] 
+                               for i in (1, 2)):
+            edges.append((edgeMatch.group(1), edgeMatch.group(2),
+                          int(edgeMatch.group(4)) if edgeMatch.group(4) else 1))
+        else:
+            graph.setArgument(arg)
+            graph.newVertexButton.invoke()
+    for fromVert, toVert, weight in edges:
+        graph.createEdge(fromVert, toVert, weight)
+        
+    graph.runVisualization()
