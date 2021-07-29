@@ -15,7 +15,7 @@ except ModuleNotFoundError:
 
 V = vector
 
-def updateCells(func):  # Wrapper to update cells after changes to Table array
+def updateCells(func):  # Decorator to update cells after changes to Table array
     def fWrapper(self, *args, **kwargs):
         result = func(self, *args, **kwargs)
         self.drawCells()
@@ -207,6 +207,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
     append = updateCells(list.append)
     extend = updateCells(list.extend)
     remove = updateCells(list.remove)
+    __setitem__ = updateCells(list.__setitem__)
 
     def __delitem__(self, key):
         result = super().__delitem__(key)

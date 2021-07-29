@@ -1,12 +1,21 @@
 __doc__ = """
-Utilty methods and classes for Tk, and in particular, canvases and their items.
+Utilty methods and classes for Tk, and in particular, a specialized
+version of canvas called 'Scrim', and a cache of Tk images.
 """
 
-import re, sys, math
+import re, sys, math, os
 from tkinter import *
 from tkinter import ttk
 import tkinter.font as tkfont
 from enum import Enum
+
+try:
+    from PIL import Image as Img
+    from PIL import ImageTk
+except ModuleNotFoundError as e:
+    print('Pillow module not found.  Did you try running:')
+    print('pip3 install -r requirements.txt')
+    raise e
 
 try:
     from coordinates import *
@@ -333,9 +342,38 @@ class Scrim(Canvas):
 
     def getItemFont(self, item):
         return parseTkFont(self.itemConfig(item, 'font'))
+
+# Tk image utilities
+__tk_image_cache__ = {'Img': {}, 'PhotoImage': {}, 'debug': False}
+
+def getImage(filename, cache=True, path=None):
+    if not cache or filename not in __tk_image_cache__['Img']:
+        if path is None: path = sys.path
+        fname = filename
+        for dir in path:
+            if os.path.exists(os.path.join(dir, filename)):
+                fname = os.path.join(dir, filename)
+                break
+        if __tk_image_cache__['debug']:
+            print('Reading {} into Img cache'.format(fname))
+        __tk_image_cache__['Img'][filename] = Img.open(fname)
+    return __tk_image_cache__['Img'][filename]
+
+def getPhotoImage(filename, size, cache=True, path=None):
+    image = getImage(filename, cache=cache, path=path)
+    if not cache or (id(image), size) not in __tk_image_cache__['PhotoImage']:
+        ratio = min(*(V(size) / V(image.size)))
+        if __tk_image_cache__['debug']:
+            print('Resizing {} into PhotoImage cache with ratio {}'.format(
+                filename, ratio), end=' ')
+        __tk_image_cache__['PhotoImage'][id(image), size] = ImageTk.PhotoImage(
+            image.resize(int(round(d)) for d in V(image.size) * ratio))
+        if __tk_image_cache__['debug']:
+            print('as', __tk_image_cache__['PhotoImage'][id(image), size])
+    return __tk_image_cache__['PhotoImage'][id(image), size]
     
 if __name__ == '__main__':
-    import random
+    import random, glob, os
 
     for dims in range(2, 4):
         print('=' * 70)
@@ -400,6 +438,21 @@ if __name__ == '__main__':
         widgetState(tkButton, NORMAL) or widgetState(ttkButton, DISABLED)
         or updateButtonState())
 
+    pngFiles = glob.glob(os.path.join('.', '*.png'))
+    if pngFiles:
+        __tk_image_cache__['debug'] = True
+        buttonSize = widgetDimensions(tkButton)
+        height = max(buttonSize[1], textHeight(scrim.getItemFont(buttonState)))
+        images = [getPhotoImage(pngFile, (height, height))
+                  for pngFile in pngFiles]
+        imageButton = Button(tk, image=images[0])
+        imageButton.pack(side=LEFT, expand=TRUE)
+        buttonImage(imageButton, images[0])
+        def rotateButtonImage():
+            i = images.index(buttonImage(imageButton))
+            print('Pressed {} button'.format(pngFiles[i]))
+            buttonImage(imageButton, images[(i + 1) % len(images)])
+        imageButton['command'] = rotateButtonImage
     palette = ('red', 'green', 'blue', '', 'pink', 'black', 'yellow',
                'orange', 'brown')
     nc = len(palette)

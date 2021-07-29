@@ -754,7 +754,7 @@ def minimumSpanningTree(self, n={nVal}):
         vMap = Table(
             self, (self.vertexTable.x0 + self.vertexTable.cellWidth + 5,
                    self.vertexTable.y0),
-            *[drawnValue(None) for k in range(self.nVertices())],
+            *([None] * self.nVertices()),
             label='vMap', labelAnchor=S, vertical=True, 
             labelFont=self.vertexTable.labelFont, 
             cellWidth=15, cellHeight=self.vertexTable.cellHeight, see=True,
@@ -803,14 +803,14 @@ def minimumSpanningTree(self, n={nVal}):
                                wait=wait)
             vMapArrow = self.createVMapArrow(vMap, len(treeVerts), vertex,
                                              see=True)
-            vMap[len(treeVerts)] = drawnValue(vertexLabel, *vMapArrow)
+            vMap[vertex] = drawnValue(len(treeVerts), *vMapArrow)
             callEnviron |= set(vMapArrow)
             localVars += vMapArrow
             faded += (Scrim.FADED_FILL,) * len(vMapArrow)
 
             self.highlightCode('tree.addVertex(self.getVertex(vertex))',
                                callEnviron, wait=wait)
-            vertCoords = self.canvas.coords(self.vertices[vertexLabel].items[1])
+            vertCoords = self.vertexCoords(vertexLabel)
             if len(treeVerts) == 0:
                 inflection = V(treeLabelAnchor) + V(300, 0)
                 tipCoords = self.labeledArrowCoords(
@@ -1063,7 +1063,7 @@ def sortVertsTopologically(
                                   self.vertices[vertexLabel].items[0])
             self.moveItemsTo(
                 dValue.items[1:] + vertexVertArrow,
-                (self.canvas.coords(self.vertices[vertexLabel].items[1]),
+                (self.vertexCoords(vertexLabel),
                  *self.labeledArrowCoords(vertexLabel, **vertexVertConfig)),
                 sleepTime=wait / 10, see=True, expand=True)
 
@@ -1187,17 +1187,16 @@ def degree(self, n={nVal}):
         self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
         self.highlightCode('inb, outb = 0, 0', callEnviron, wait=wait)
         inb, outb = 0, 0
-        inbCoords = self.vertexTable.cellCenter(self.nVertices() + 1)
-        outbCoords = self.vertexTable.cellCenter(self.nVertices() + 3)
+        Voffset = V(50, 0)
         outVars = [
             (self.canvas.create_text(
-                *(V(coords) - V(self.vertexTable.cellWidth // 2, 0)), anchor=E,
+                *(V(self.vertexTable.cellCenter(row)) + Voffset),
                 text=name, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR),
              self.canvas.create_text(
-                 *coords, anchor=W, text='0', font=self.VARIABLE_FONT,
-                 fill=self.VARIABLE_COLOR))
-            for name, coords in zip(('inb', 'outb'), (inbCoords, outbCoords))]
-        callEnviron |= set([var[0] for var in outVars])
+                 *(V(self.vertexTable.cellCenter(row + 1)) + Voffset),
+                 text='0', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
+            for name, row in zip(('inb', 'outb'), (1, 4))]
+        callEnviron |= set(outVars[0] + outVars[1])
         self.scrollToSee(flat(outVars), sleepTime=wait / 10)
             
         self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
@@ -1245,8 +1244,10 @@ def degree(self, n={nVal}):
             self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
 
         self.highlightCode('return (inb, outb)', callEnviron)
+        result = tuple(var[1] for var in outVars)
+        callEnviron -= set(result)
         self.cleanUp(callEnviron)
-        return tuple(var[1] for var in outVars)
+        return result
     
     def enableButtons(self, enable=True):
         super().enableButtons(enable)

@@ -17,6 +17,7 @@ V = vector
 class GraphBase(VisualizationApp):
     MAX_VERTICES = 14
     VERTEX_RADIUS = 18
+    MAX_VERTEX_LABEL_WIDTH = 2
     vRadius = vector((VERTEX_RADIUS, VERTEX_RADIUS))
     VERTEX_FONT = ('Helvetica', -14)
     SELECTED_RADIUS = VERTEX_RADIUS * 6 // 5
@@ -41,6 +42,7 @@ class GraphBase(VisualizationApp):
     def __init__(                    # Create a graph visualization application
             self, title="Graph", graphRegion=None, weighted=False, **kwargs):
         kwargs['title'] = title
+        kwargs['maxArgWidth'] = self.MAX_VERTEX_LABEL_WIDTH
         if 'canvasBounds' not in kwargs:
             kwargs['canvasBounds'] = (0, 0, kwargs.get('canvasWidth', 800),
                                       kwargs.get('canvasHeight', 400))
@@ -125,13 +127,10 @@ class GraphBase(VisualizationApp):
             height = abs(self.CONTROLS_FONT[1])
         targetSize = (height, height)
         names = ('collapse', 'uncollapse')
-        images = dict((name, Img.open(name + '-symbol.png')) for name in names)
-        ratios = dict((name, min(*(V(targetSize) / V(images[name].size))))
-                      for name in names)
         self.adjMatControlImages = dict(
-            (name, ImageTk.PhotoImage(images[name].resize(
-                (int(round(d)) for d in V(images[name].size) * ratios[name]))))
+            (name, getPhotoImage(name + '-symbol.png', targetSize))
             for name in names)
+        return self.adjMatControlImages
             
     def toggleAdjacencyMatrixDisplay(self):
         if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves():
@@ -258,6 +257,7 @@ class GraphBase(VisualizationApp):
             text='' if weight == 0 or not self.weighted else str(weight),
             font=self.VERTEX_FONT, fill=self.EDGE_COLOR, tags=tags + ('text',),
             activefill=self.ACTIVE_EDGE_COLOR)
+        self.canvas.tag_lower(line, 'vertex')
         if edgePair:
             self.canvas.tag_bind(line, '<Double-Button-1>', 
                                  self.deleteEdgeHandler(edgePair))
@@ -276,6 +276,9 @@ class GraphBase(VisualizationApp):
         steps = int(max(abs(delta[0]), abs(delta[1]), 5))
         return p0, p1, p2, steps, weightCenter
 
+    def vertexCoords(self, vertexLabel):
+        return self.canvas.coords(self.vertices[vertexLabel].items[1])
+    
     def createLabeledArrow(
             self, vertexOrCoords, label, color=None, font=None,
             width=1, anchor=None, tags=('arrow',), **kwargs):
@@ -302,10 +305,9 @@ class GraphBase(VisualizationApp):
 
     def labeledArrowCoords(
             self, vertexOrCoords, level=1, orientation=0, offset=5, **kwargs):
-        center = (self.canvas_coords(self.vertices[vertexOrCoords].items[1])
+        center = (self.vertexCoords(vertexOrCoords)
                   if isinstance(vertexOrCoords, str) else
-                  self.canvas_coords(self.vertices[
-                      self.vertexTable[vertexOrCoords].val].items[1])
+                  self.vertexCoords(self.vertexTable[vertexOrCoords].val)
                   if isinstance(vertexOrCoords, int) and 
                   vertexOrCoords < len(self.vertexTable) else
                   vertexOrCoords)
@@ -335,14 +337,18 @@ class GraphBase(VisualizationApp):
                 return
             vert = self.vertices[vertexLabel]
             self.setMessage('')
+            self.cleanUp()
             if moveVertex:
                 copies = tuple(self.canvas.copyItem(i, includeBindings=False)
-                               for i in vert.items)
+                               for i in vert.items + (vert.items[0],))
+                self.canvas.itemConfig(
+                    copies[-1], state=HIDDEN, fill='', width=2,
+                    outline=self.BAD_POSITION_TEXT_COLOR)
                 self.dragItems = copies
             else:
                 self.selectVertex(vertexLabel)
                 self.dragItems = self.createEdgeItems(
-                    self.canvas_coords(vert.items[1]), (event.x, event.y),
+                    self.vertexCoords(vertexLabel), (event.x, event.y),
                     weight=0, removeRadius=0)
             self.lastPos = (event.x, event.y)
             self.enableButtons()
@@ -369,24 +375,29 @@ class GraphBase(VisualizationApp):
                 for item in self.dragItems:
                     self.canvas.move(item, *delta)
 
-                newCenter = self.canvas_coords(self.dragItems[1])
+                newCenter = self.canvas.coords(self.dragItems[1])
                 bad = self.badPosition(newCenter, ignore=(vertexLabel,))
                 self.canvas.itemconfigure(
                     self.dragItems[0], state=HIDDEN if bad else NORMAL)
                 self.canvas.itemconfigure(
                     self.dragItems[1], 
                     fill=self.BAD_POSITION_TEXT_COLOR if bad else self.VALUE_COLOR)
+                self.canvas.itemconfigure(
+                    self.dragItems[2], state=NORMAL if bad else HIDDEN)
+                if not bad:
+                    for orig, copy in zip(self.vertices[vertexLabel].items,
+                                          self.dragItems[:2]):
+                        self.canvas.coords(orig, self.canvas.coords(copy))
+                    self.updateVertex(vertexLabel)
             elif dragItemType == 'line':
-                vert = self.vertices[vertexLabel]
                 p0, p1, p2, steps, wc = self.edgeCoords(
-                    self.canvas_coords(vert.items[1]), self.lastPos,
+                    self.vertexCoords(vertexLabel), self.lastPos,
                     removeRadius=0)
                 self.canvas.coords(self.dragItems[0], *p0, *p1, *p2)
                 self.canvas.itemconfigure(self.dragItems[0], splinesteps=steps)
                 self.canvas.coords(self.dragItems[1], *wc)
                 toVert = self.findVertex(
-                    self.lastPos, 
-                    exclude=self.vertexPlusAdjacent(vertexLabel))
+                    self.lastPos, exclude=self.vertexPlusAdjacent(vertexLabel))
                 if toVert:
                     self.canvas.itemconfigure(
                         self.vertices[toVert].items[0],
@@ -422,7 +433,7 @@ class GraphBase(VisualizationApp):
             if self.dragItems:
                 dragItemType = self.canvas.type(self.dragItems[0])
                 if dragItemType == 'oval':
-                    newCenter = self.canvas_coords(self.dragItems[1])
+                    newCenter = self.canvas.coords(self.dragItems[1])
                     bad = self.badPosition(newCenter, ignore=(vertexLabel,))
                     if bad:
                         if self.DEBUG:
@@ -431,9 +442,8 @@ class GraphBase(VisualizationApp):
                                        event.serial))
                         self.undoDrag(vertexLabel)
                     else:
-                        delta = V(self.canvas_coords(self.dragItems[1])) - V(
-                            self.canvas_coords(
-                                self.vertices[vertexLabel].items[1]))
+                        delta = V(self.canvas.coords(self.dragItems[1])) - V(
+                            self.vertexCoords(vertexLabel))
                         for item in self.vertices[vertexLabel].items:
                             self.canvas.move(item, *delta)
                         self.dispose({}, *self.dragItems)
@@ -485,9 +495,8 @@ class GraphBase(VisualizationApp):
             return
         wait = 30
         if dragItemType == 'oval':
-            oldCenter = self.canvas_coords(
-                self.vertices[vertexLabel].items[1])
-            center = self.canvas_coords(self.dragItems[1])
+            oldCenter = self.vertexCoords(vertexLabel)
+            center = self.canvas.coords(self.dragItems[1])
             delta = V(V(V(oldCenter) - V(center)) * 0.2)
             if self.DEBUG:
                 print('delta**2 = {:3.1f}'.format(delta.len2()))
@@ -509,7 +518,7 @@ class GraphBase(VisualizationApp):
                     wait, 
                     lambda: self.undoDrag(vertexLabel, after, endDistance, serial))
         elif dragItemType == 'line':
-            edgeCoords = self.canvas_coords(self.dragItems[0])
+            edgeCoords = self.canvas.coords(self.dragItems[0])
             base, tip = edgeCoords[:2], edgeCoords[-2:]
             newTip = V(V(V(tip) * 8) + V(V(base) * 2)) / 10
             if self.DEBUG:
@@ -550,23 +559,22 @@ class GraphBase(VisualizationApp):
                             'de' if vertexLabel is None else ''))
                 return
             self.cleanUp()
-        radius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
+        Vradius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
         if self.selectedVertex:
             if vertexLabel is None:
                 self.canvas.delete(self.selectedVertex[1])
                 self.selectedVertex = None
             else:
-                center = V(self.canvas.coords(
-                    self.vertices[vertexLabel].items[1]))
+                Vcenter = V(self.vertexCoords(vertexLabel))
                 self.canvas.coords(self.selectedVertex[1],
-                                   *(center - radius), *(center + radius))
+                                   *(Vcenter - Vradius), *(Vcenter + Vradius))
                 self.selectedVertex = (vertexLabel, self.selectedVertex[1])
         elif vertexLabel:
-            center = V(self.canvas.coords(self.vertices[vertexLabel].items[1]))
+            Vcenter = V(self.canvas.coords(self.vertices[vertexLabel].items[1]))
             self.selectedVertex = (
                 vertexLabel, 
                 self.canvas.create_oval(
-                    *(center - radius), *(center + radius),
+                    *(Vcenter - Vradius), *(Vcenter + Vradius),
                     fill=self.SELECTED_COLOR, outline=self.SELECTED_OUTLINE,
                     width=self.SELECTED_WIDTH, tags=tags))
             self.canvas.tag_lower(self.selectedVertex[1], 'vertex')
@@ -613,9 +621,8 @@ class GraphBase(VisualizationApp):
     def findVertex(self, point, exclude=()):
         for v in self.vertices:
             if v not in exclude:
-                vert = self.vertices[v]
-                center = self.canvas_coords(vert.items[1])
-                if distance2(point, center) <= self.VERTEX_RADIUS **2:
+                if (distance2(point, self.vertexCoords(v)) <=
+                    self.VERTEX_RADIUS ** 2):
                     return v
 
     def vertexPlusAdjacent(self, vert):
@@ -635,19 +642,35 @@ class GraphBase(VisualizationApp):
 
     def badPosition(self, center, border=None, ignore=()):
         '''Check if a proposed vertex center would make it overlap other
-        vertices or is outside the visible canvas minus a border.
+        vertices or is outside the visible canvas minus a border or is
+        on the line segment bewtween any pair of connected vertices.
         '''
         if border is None: border = self.VERTEX_RADIUS
         return (
-            any(distance2(center, self.canvas_coords(v.items[1])) <
+            not BBoxContains(
+                V(self.graphRegion) + V(V(1, 1, -1, -1) * border), center) or
+            any(distance2(center, self.canvas.coords(v.items[1])) <
                 (2 * self.SELECTED_RADIUS) ** 2 for v in self.vertices.values()
-                if v.val[0] not in ignore)
-            or not BBoxContains(
-                V(self.graphRegion) + V(V(1, 1, -1, -1) * border), center))
+                if v.val[0] not in ignore) or
+            (self.bidirectionalEdges.get() and
+             any(collinearBetween(self.vertexCoords(self.vertexTable[j].val),
+                                  center,
+                                  self.vertexCoords(self.vertexTable[k].val),
+                                  1e-4)
+                 for j in range(len(self.vertexTable))
+                 for k in range(j + 1, len(self.vertexTable))
+                 if self.edgeWeight(self.vertexTable[j].val,
+                                    self.vertexTable[k].val) > 0)))
     
     def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
         if not self.operationMutex.acquire(blocking=False):
             self.setMessage('Cannot create vertex during other operation')
+            return
+        if self.nVertices() >= self.MAX_VERTICES:
+            self.setMessage('Already have max Number of vertices {}'.format(
+                self.MAX_VERTICES))
+            if self.operationMutex.locked():
+                self.operationMutex.release()
             return
         try:
             self.cleanUp()
@@ -658,7 +681,7 @@ class GraphBase(VisualizationApp):
             self.setMessage(str(e))
             self.operationMutex.release()
             return
-        newCenter = self.canvas_coords(items[1])
+        newCenter = self.canvas.coords(items[1])
         if self.badPosition(newCenter):
             self.setMessage('Vertices must be visible and not overlap')
             self.dispose({}, *items)
@@ -839,9 +862,7 @@ class GraphBase(VisualizationApp):
         for edge in self.findEdges(vertexLabel):
             items = self.edges[edge].items
             p0, p1, p2, steps, wc = self.edgeCoords(
-                self.canvas_coords(self.vertices[edge[0]].items[1]),
-                self.canvas_coords(self.vertices[edge[1]].items[1]),
-            )
+                self.vertexCoords(edge[0]), self.vertexCoords(edge[1]))
             self.canvas.coords(items[0], *p0, *p1, *p2)
             self.canvas.itemConfig(items[0], splinesteps=steps)
             self.canvas.coords(items[1], *wc)
@@ -902,8 +923,7 @@ class GraphBase(VisualizationApp):
         if fromVert == toVert or edgeKey in self.edges and isinstance(
                 self.edge[edgeKey], drawnValue):
             return
-        centers = tuple(self.canvas_coords(self.vertices[v].items[1])
-                        for v in edgeKey)
+        centers = tuple(self.vertexCoords(v) for v in edgeKey)
         if checkMutex and not self.operationMutex.acquire(blocking=False):
             self.setMessage('Cannot create edge during other operation')
             return
@@ -992,14 +1012,12 @@ class GraphBase(VisualizationApp):
         for btn in (self.newVertexButton, self.randomFillButton):
             widgetState(
                 btn,
-                NORMAL if enable and widgetState(self.newVertexButton) == NORMAL
-                and self.nVertices() < self.MAX_VERTICES
-                else DISABLED)
+                NORMAL if enable and self.nVertices() < self.MAX_VERTICES and
+                self.getArgument(0) else DISABLED)
         widgetState(
             self.deleteVertexButton,
-            NORMAL if enable and widgetState(self.deleteVertexButton) == NORMAL
-            and self.nVertices() > 0
-            else DISABLED)
+            NORMAL if enable and self.nVertices() > 0 and
+            self.getArgument(0) else DISABLED)
     
     # Button functions
     def clickNewVertex(self):
@@ -1008,7 +1026,8 @@ class GraphBase(VisualizationApp):
             self.setMessage('Cannot duplicate vertex {}'.format(val))
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
             return
-        self.createVertex(val)
+        if not self.createVertex(val):
+            self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
     
     def clickDeleteVertex(self):
         val = self.validArgument()
@@ -1029,7 +1048,8 @@ class GraphBase(VisualizationApp):
         maxLabel = (self.DEFAULT_VERTEX_LABEL if len(self.vertices) == 0 else
                     self.nextVertexLabel(max(v for v in self.vertices)))
         for n in range(min(nVertices, self.MAX_VERTICES - self.nVertices())):
-            self.createVertex(maxLabel)
+            if not self.createVertex(maxLabel):
+                break
             maxLabel = self.nextVertexLabel(maxLabel)
         
     def clickRandomFill(self):
@@ -1037,8 +1057,41 @@ class GraphBase(VisualizationApp):
         if (val and val.isdigit() and
             int(val) <= self.MAX_VERTICES - self.nVertices()):
             self.randomFill(int(val))
+        elif self.MAX_VERTICES <= self.nVertices():
+            self.setMessage('Already have max Number of vertices {}'.format(
+                self.MAX_VERTICES))
         else:
             self.setMessage('Number of vertices must be {} or less'.format(
                 self.MAX_VERTICES - self.nVertices()))
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
 
+if __name__ == '__main__':
+    graph = GraphBase(weighted=any(':' in arg for arg in sys.argv[1:]))
+    edgePattern = re.compile(r'(\w+)-(\w+)(:([1-9][0-9]?))?')
+
+    edges = []
+    for arg in sys.argv[1:]:
+        edgeMatch = edgePattern.fullmatch(arg)
+        if len(arg) > 1 and arg[0] == '-':
+            if arg == '-d':
+                graph.DEBUG = True
+            elif arg == '-b':
+                graph.bidirectionalEdges.set(1)
+            elif arg == '-B':
+                graph.bidirectionalEdges.set(0)
+            elif arg[1:].isdigit():
+                graph.setArgument(arg[1:])
+                graph.randomFillButton.invoke()
+                graph.setArgument(
+                    chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
+        elif edgeMatch and all(edgeMatch.group(i) in sys.argv[1:] 
+                               for i in (1, 2)):
+            edges.append((edgeMatch.group(1), edgeMatch.group(2),
+                          int(edgeMatch.group(4)) if edgeMatch.group(4) else 1))
+        else:
+            graph.setArgument(arg)
+            graph.newVertexButton.invoke()
+    for fromVert, toVert, weight in edges:
+        graph.createEdge(fromVert, toVert, weight)
+        
+    graph.runVisualization()

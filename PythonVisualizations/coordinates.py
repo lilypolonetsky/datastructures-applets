@@ -127,6 +127,18 @@ class vector(object):
         'Get normal vector of a 2-D vector'
         return - self.coords[1], self.coords[0]
 
+def collinear(p1, p2, p3, threshold=1e-8):
+    'Test if three points are collinear'
+    d1, d2 = vector(vector(p2) - vector(p1)), vector(vector(p3) - vector(p1))
+    l1, l2 = d1.vlen(), d2.vlen()
+    return l1 == 0 or l2 == 0 or abs(abs(d1.dot(d2) / l1 / l2) - 1) < threshold
+
+def collinearBetween(p1, p2, p3, threshold=1e-8):
+    'Test if three points are collinear with p2 between p1 and p3'
+    d1, d2 = vector(vector(p1) - vector(p2)), vector(vector(p3) - vector(p2))
+    l1, l2 = d1.vlen(), d2.vlen()
+    return l1 == 0 or l2 == 0 or abs(d1.dot(d2) / l1 / l2 + 1) < threshold
+
 def distance2(point1, point2):
     return vector(vector(point1) - vector(point2)).len2()
 

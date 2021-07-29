@@ -230,6 +230,13 @@ def resizeHandler(event):
         print('Resize of application window', event.widget, 'to',
               event.widget.winfo_width(), 'x', event.widget.winfo_height())
 
+def genericEventHandler(event):
+    if event.widget in appWindows:
+        appTitle = getattr(event.widget, 'appTitle', '')
+        if appTitle: appTitle += ' '
+        print('{} event on {}application window {}'.format(
+            event.type, appTitle, event.widget))
+        
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", 
         adjustForTrinket=False, seed='3.14159', verbose=0):
@@ -307,7 +314,12 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
             appWindows.append(pane)
             try:
                 vizApp = app(window=pane)
-                name = folder + ': ' + getattr(vizApp, 'title', app.__name__)
+                appTitle = getattr(vizApp, 'title', app.__name__)
+                name = folder + ': ' + appTitle
+                setattr(pane, 'appTitle', appTitle)
+                if verbose > 0:
+                    for eventType in ('<Map>', '<Visibility>'):
+                        pane.bind(eventType, genericEventHandler, '+')
             except Exception as e:
                 name = app.__name__ + ' *'
                 msg = 'Error instantiating {}:\n{}'.format(app.__name__, e)
