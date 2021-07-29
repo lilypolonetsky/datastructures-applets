@@ -1196,7 +1196,7 @@ def degree(self, n={nVal}):
                  *(V(self.vertexTable.cellCenter(row + 1)) + Voffset),
                  text='0', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
             for name, row in zip(('inb', 'outb'), (1, 4))]
-        callEnviron |= set([var[0] for var in outVars])
+        callEnviron |= set(outVars[0] + outVars[1])
         self.scrollToSee(flat(outVars), sleepTime=wait / 10)
             
         self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
@@ -1244,8 +1244,10 @@ def degree(self, n={nVal}):
             self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
 
         self.highlightCode('return (inb, outb)', callEnviron)
+        result = tuple(var[1] for var in outVars)
+        callEnviron -= set(result)
         self.cleanUp(callEnviron)
-        return tuple(var[1] for var in outVars)
+        return result
     
     def enableButtons(self, enable=True):
         super().enableButtons(enable)
