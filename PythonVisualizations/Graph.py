@@ -1187,16 +1187,15 @@ def degree(self, n={nVal}):
         self.highlightCode('self.validIndex(n)', callEnviron, wait=wait)
         self.highlightCode('inb, outb = 0, 0', callEnviron, wait=wait)
         inb, outb = 0, 0
-        inbCoords = self.vertexTable.cellCenter(self.nVertices() + 1)
-        outbCoords = self.vertexTable.cellCenter(self.nVertices() + 3)
+        Voffset = V(50, 0)
         outVars = [
             (self.canvas.create_text(
-                *(V(coords) - V(self.vertexTable.cellWidth // 2, 0)), anchor=E,
+                *(V(self.vertexTable.cellCenter(row)) + Voffset),
                 text=name, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR),
              self.canvas.create_text(
-                 *coords, anchor=W, text='0', font=self.VARIABLE_FONT,
-                 fill=self.VARIABLE_COLOR))
-            for name, coords in zip(('inb', 'outb'), (inbCoords, outbCoords))]
+                 *(V(self.vertexTable.cellCenter(row + 1)) + Voffset),
+                 text='0', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
+            for name, row in zip(('inb', 'outb'), (1, 4))]
         callEnviron |= set([var[0] for var in outVars])
         self.scrollToSee(flat(outVars), sleepTime=wait / 10)
             
