@@ -1094,4 +1094,4 @@ if __name__ == '__main__':
     for fromVert, toVert, weight in edges:
         graph.createEdge(fromVert, toVert, weight)
         
-    graph.runVisualization()
+    graph.runVisualization() # runAllVisualizations ignore

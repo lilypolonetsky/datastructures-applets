@@ -15,6 +15,8 @@ except ModuleNotFoundError:
     VAPs = (VAP,)
     
 pathsep = re.compile(r'[/\\]')
+runVizCallPattern = re.compile(
+    r'\n[^#]*\.runVisualization\(\)(?!.*#\s*runAllVisualizations ignore)')
 
 def findVisualizations(filesAndDirectories, verbose=0):
     global VAPs
@@ -37,7 +39,7 @@ def findVisualizations(filesAndDirectories, verbose=0):
             if verbose > 2 and isDir:
                 print('Files:', '\n'.join(files), file=sys.stderr)
         for filename in [f for f in files 
-                         if isStringInFile('runVisualization()', f)]:
+                         if isPatternInFile(runVizCallPattern, f)]:
             dirs = pathsep.split(os.path.normpath(os.path.dirname(filename)))
             if dirs and dirs[0] == '.':
                 dirs.pop(0)
@@ -81,11 +83,13 @@ def findVisualizations(filesAndDirectories, verbose=0):
     if orig__path__ is not None:
         sys.path = orig__path__
     return classes
-    
-def isStringInFile(text, filename):
+
+def isPatternInFile(textOrRegex, filename):
     with open(filename, 'r') as f:
-        return text in f.read()
-            
+        return (text in f.read()) if isinstance(textOrRegex, str) else (
+            textOrRegex.search(f.read())
+            if isinstance(textOrRegex, type(pathsep)) else False)
+
 def findVisualizationClasses(module, verbose=0):
     classes = []
     for name in dir(module):
