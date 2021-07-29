@@ -1,4 +1,3 @@
-#! /usr/bin/env python3
 __doc__ = """
 Program to show algorithm visualizations one at at time with a
 dropdown menu to select one.  This program loads all the visualization

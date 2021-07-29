@@ -1,4 +1,3 @@
-#! /usr/bin/env python3
 __doc__ = """ 
 Program to show algorithm visualizations in a tabbed Tk notebook
 presentation form.  This program loads all the visualization modules
