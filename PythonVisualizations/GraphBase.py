@@ -1001,11 +1001,12 @@ class GraphBase(VisualizationApp):
         for btn in (self.newVertexButton, self.randomFillButton):
             widgetState(
                 btn,
-                NORMAL if enable and self.nVertices() < self.MAX_VERTICES
-                else DISABLED)
+                NORMAL if enable and self.nVertices() < self.MAX_VERTICES and
+                self.getArgument(0) else DISABLED)
         widgetState(
             self.deleteVertexButton,
-            NORMAL if enable and self.nVertices() > 0 else DISABLED)
+            NORMAL if enable and self.nVertices() > 0 and
+            self.getArgument(0) else DISABLED)
     
     # Button functions
     def clickNewVertex(self):
