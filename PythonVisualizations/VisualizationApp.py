@@ -17,14 +17,6 @@ from tkinter import ttk
 PRESSED = 'pressed' # Oddly the ttk module does not define this like tk's ACTIVE
 
 try:
-    from PIL import Image as Img
-    from PIL import ImageTk
-except ModuleNotFoundError as e:
-    print('Pillow module not found.  Did you try running:')
-    print('pip3 install -r requirements.txt')
-    raise e
-
-try:
     from TextHighlight import *
     from tkUtilities import *
     from Visualization import *
@@ -82,6 +74,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     SPEED_SCALE_MIN = 10
     SPEED_SCALE_MAX = 500
     SPEED_SCALE_DEFAULT = (SPEED_SCALE_MIN + SPEED_SCALE_MAX) // 2
+    DEBUG = False
 
     def __init__(  # Constructor
             self,
@@ -453,13 +446,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             height = abs(self.CONTROLS_FONT[1])
         targetSize = (height, height)
         names = ('play', 'pause', 'skip-next', 'stop')
-        images = dict((name, Img.open(name + '-symbol.png')) for name in names)
-        ratios = dict((name, min(*(V(targetSize) / V(images[name].size))))
-                      for name in names)
         self.playControlImages = dict(
-            (name, ImageTk.PhotoImage(images[name].resize(
-                (int(round(d)) for d in V(images[name].size) * ratios[name]))))
+            (name, getPhotoImage(name + '-symbol.png', targetSize))
             for name in names)
+        return self.playControlImages
         
     def runOperation(self, command, cleanUpBefore, button=None, mutex=True):
         def animatedOperation(): # If button that uses arguments is provided,
