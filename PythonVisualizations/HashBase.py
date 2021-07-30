@@ -2,11 +2,17 @@ from tkinter import *
 from math import *
 
 try:
+    from coordinates import *
+    from tkUtilities import *
     from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .coordinates import *
+    from .tkUtilities import *
     from .drawnValue import *
     from .VisualizationApp import *
+
+V = vector
 
 class HashBase(VisualizationApp):
     CELL_BORDER = 2
@@ -93,7 +99,7 @@ class HashBase(VisualizationApp):
         inputCoords = self.hashInputCoords()
         seedCoords = self.hashSeedCoords()
         outputCoords = self.hashOutputCoords()
-        charWidth = self.textWidth(font, 'W')
+        charWidth = textWidth(font, 'W')
         characters = set([
             self.canvas.create_text(
                 inputCoords[0] - ((len(text) - i) * charWidth),
@@ -165,7 +171,7 @@ class HashBase(VisualizationApp):
                            max(self.VALUE_FONT[1], - self.cellHeight * 7 // 10))
         self.cellIndexFont = (self.VARIABLE_FONT[0],
                               max(self.VALUE_FONT[1], -10))
-        self.cellWidth = self.textWidth(self.VALUE_FONT,
+        self.cellWidth = textWidth(self.VALUE_FONT,
                                         'W' * (self.maxArgWidth + 2))
 
     def cellColumn(self, index):
@@ -200,7 +206,7 @@ class HashBase(VisualizationApp):
     
     def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
-        return add_vector(cell_coords, self.arrayCellDelta())
+        return V(cell_coords) + V(self.arrayCellDelta())
     
     def arrayIndexCoords(self, indexOrCoords, level=1):
         'Coordinates of an index arrow and anchor of its text label'
@@ -216,7 +222,7 @@ class HashBase(VisualizationApp):
         space to hold several lines of text'''
         if font is None:
             font = getattr(self, 'outputFont', self.VALUE_FONT)
-        lineHeight = self.textHeight(font, ' ')
+        lineHeight = textHeight(font, ' ')
         left = self.targetCanvasWidth * 4 // 10
         top = self.targetCanvasHeight - pad * 3 - lineHeight * nLines
         return (left, top,
@@ -278,7 +284,7 @@ class HashBase(VisualizationApp):
                     *valPos, text=str(key), font=self.VALUE_FONT,
                     fill=self.VALUE_COLOR, tags="cellVal"))
         handler = lambda e: self.setArgument(
-            self.canvas.itemconfigure(cell[1], 'text')[-1] if
+            self.canvas.itemConfig(cell[1], 'text') if
             self.canvas.type(cell[1]) == 'text' else '')
         for item in cell:
             self.canvas.tag_bind(item, '<Button>', handler)
@@ -296,132 +302,3 @@ class HashBase(VisualizationApp):
                 *coords[1], text=name or '', anchor=SE if level > 0 else SW,
                 font=font, fill=color))
         return items
-
-    def createOutputBox(self, coords=None, color=None):
-        if coords is None: coords = self.outputBoxCoords()
-        return self.canvas.create_rectangle(
-            *coords, fill= self.OPERATIONS_BG if color is None else color)
-
-    def appendTextToOutputBox(
-            self, textOrItem, callEnviron, separator=' ', splitOn=None,
-            font=None, pad=5, color='black', sleepTime=0.01):
-        '''Append the given text or canvas text item (integer) to the
-        text in the output box.  The self.outputText attribute is either
-        created or used to find the existing output text.  The new text
-        is moved into position at the end of the existing output text.
-        The separator is added if the existing text and new text do not
-        end with or start with whitespace, respectively.  The new text
-        is split on the characters in the splitOn string which defaults
-        to whitespace.  The split pieces are added to fill out lines within
-        the output box before adding newlines.
-        '''
-        outputBoxCoords = self.outputBoxCoords(font=font, pad=pad)
-        if (getattr(self, 'outputText', None) is None or
-            self.canvas.type(self.outputText) != 'text'):
-            if font is None:
-                font = getattr(self, 'outputFont', self.VALUE_FONT)
-            self.outputText = self.canvas.create_text(
-                *(V(outputBoxCoords) + V(pad, pad)),
-                anchor=NW, text='', font=font, fill=color)
-            callEnviron.add(self.outputText)
-        else:
-            font = self.getItemFont(self.outputText)
-        inputIsTextItem = (isinstance(textOrItem, int) and
-                           self.canvas.type(textOrItem) == 'text')
-        if inputIsTextItem:
-            textToAdd = self.canvas_itemConfig(textOrItem, 'text')
-            startFont = self.getItemFont(textOrItem)
-        else:
-            textToAdd = str(textOrItem)
-            startFont = font
-        text = self.canvas_itemConfig(self.outputText, 'text')
-        newText = (
-            separator if text and not text[-1].isspace() and
-            textToAdd and not textToAdd[0].isspace() else '') + textToAdd
-        maxLineWidth = outputBoxCoords[2] - outputBoxCoords[0] - 2 * pad
-        textParts = []
-        while newText:
-            lines = text.split('\n')
-            width = self.textWidth(font, lines[-1] + newText)
-            if width <= maxLineWidth:
-                text += newText
-                textParts.append(newText)
-                newText = ''
-            else:
-                parts = newText.split(splitOn)
-                maxPart, maxPartLen = len(parts), 0
-                for p in range(len(parts), -1, -1): # Search among break points
-                    if p < len(parts) and len(parts[p]) >= maxPartLen:
-                        maxPart = p
-                    breakAt = max(
-                        len(newText) - sum(len(s) + 1 for s in parts[p:]), 0)
-                    if self.textWidth(font, lines[-1] + newText[:breakAt]) <= maxLineWidth:
-                        break
-                    
-                # Add text that fits within maxLineWidth
-                text += newText[:breakAt]
-                textParts.append(newText[:breakAt])
-                
-                # If no text could be added and we're on a new line,
-                # add a line break in the middle of the largest part
-                # to break it up on the next loop
-                if (breakAt == 0 and len(lines[-1]) == 0 and
-                    maxPart < len(parts)):
-                    breakAt = len(parts[maxPart]) // 2 + max(
-                        len(newText) - sum(len(s) + 1 for s in parts[maxPart:]),
-                        0)
-                    newText = newText[:breakAt] + '\n' + newText[breakAt:]
-                    
-                else:  # Advance to any text that did not fit
-                    while breakAt < len(newText) and newText[breakAt].isspace():
-                        breakAt += 1
-                    newText = newText[breakAt:]
-                    if newText:
-                        text += '\n'
-
-        # Animate text moving into output box, possibly in parts
-        items, toCoords = [], []
-        lines = self.canvas_itemConfig(self.outputText, 'text').split('\n')
-        lineHeight = self.textHeight(font, ' ')
-        outputTextCoords = self.canvas.coords(self.outputText)
-        if inputIsTextItem:
-            for p, part in enumerate(textParts):
-                partCopy = self.copyCanvasItem(textOrItem)
-                items.append(partCopy)
-                self.changeAnchor(NW, partCopy)
-                if len(items) == 1:
-                    partCoords = self.canvas.coords(partCopy)
-                    toCoords.append(
-                        V(outputTextCoords) + 
-                        V(self.textWidth(font, lines[-1] if lines else ''), 0))
-                else:
-                    size = BBoxSize(self.canvas.bbox(items[-1]))
-                    partCoords = V(partCoords) + V(size[0], 0)
-                    toCoords.append(V(outputTextCoords) + V(0, p * lineHeight))
-                self.canvas_itemConfig(partCopy, text=part)
-                self.canvas.coords(partCopy, partCoords)
-        else:
-            partCoords = self.newValueCoords()
-            for p, part in enumerate(textParts):
-                partItem = self.canvas.create_text(
-                    *partCoords, anchor=NW, text=part, font=startFont,
-                    fill=color)
-                partCoords = (V(partCoords) + 
-                              V(BBoxSize(self.canvas.bbox(partItem))[0], 0))
-                toCoords.append(
-                    V(outputTextCoords) + 
-                    (V(self.textWidth(font, lines[-1] if lines else ''), 0)
-                     if p == 0 else
-                     V(0, p * lineHeight)))
-            
-        callEnviron |= set(items)
-        self.moveItemsTo(items, toCoords, sleepTime=sleepTime,
-                         startFont=startFont, endFont=font)
-        self.canvas_itemConfig(self.outputText, text=text)
-        self.dispose(callEnviron, *items)
-        
-def makeFilterValidate(maxWidth, exclude=''):
-    "Register this with one parameter: %P"
-    return lambda value_if_allowed: (
-        len(value_if_allowed) <= maxWidth and
-        all(c not in exclude for c in value_if_allowed))

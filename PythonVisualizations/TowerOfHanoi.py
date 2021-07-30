@@ -1,11 +1,12 @@
 from tkinter import *
 
 try:
-    from VisualizationApp import *
     from coordinates import *
+    from VisualizationApp import *
 except ModuleNotFoundError:
-    from .VisualizationApp import *
     from .coordinates import *
+    from .tkUtilities import *
+    from .VisualizationApp import *
 
 V = vector
 
@@ -42,8 +43,6 @@ class TowerOfHanoi(VisualizationApp):
         self.spindles = [[]] * 3      # lists of disk indices
         self.spindleBBoxes = [[]] * 3 # 4 coordinates of spindle's bounding box
         self.disks = []
-        self.picked = None
-        self.allowUserMoves = True
         self.moves = 0
         self.spindleWidth = max(4, self.width // 90)
         self.diskThickness = max(self.spindleWidth, 18)
@@ -115,7 +114,6 @@ def reset(self):
         wait = 0.05
         callEnviron = None
         if nDisks > 0:
-            self.allowUserMoves = False
             callEnviron = self.createCallEnvironment(
                 code.format(**locals()), sleepTime=wait / 5, 
                 startAnimations=start)
@@ -179,11 +177,11 @@ def reset(self):
                     spindleLabel, self.spindleLabelCenter(spindle + 1),
                     sleepTime=wait / 5)
 
+        self.picked, self.pickedFrom = None, None
         if callEnviron:
             self.cleanUp(callEnviron2, sleepTime=wait / 5)
             self.highlightCode([], callEnviron, wait)
             self.cleanUp(callEnviron, sleepTime=wait / 5)
-        self.allowUserMoves = True
 
     def createSpindleDrawing(self, index):
         tags = ('spindle', self.spindleTag(index))
@@ -311,15 +309,16 @@ def reset(self):
     
     def enterLeaveHandler(self, ID, tag, normal, highlight):
         def leaveEnterHandler(event):
-            kwargs = highlight if (event.type == EventType.Enter and
-                                   self.allowUserMoves and
-                                   self.isPickable(ID)) else normal
+            kwargs = highlight if (
+                event.type == EventType.Enter and self.isPickable(ID) and
+                not self.operationMutex.locked()) else normal
             self.canvas.itemconfigure(tag, **kwargs)
         return leaveEnterHandler
     
     def startMoveHandler(self, ID, tag, normal, highlight):
         def startHandler(event):
-            if not self.allowUserMoves:
+            if not self.operationMutex.acquire(blocking=False):
+                self.setMessage('Cannot move disks during other operation')
                 return
             self.cleanUp(ignoreStops=True)  # Clean up any items left by solver
             spindle, pos = self.diskSpindlePos(ID)
@@ -328,9 +327,8 @@ def reset(self):
                       self.spindles[spindle][-1], 'on top of it')
                 return
             if spindle is not None:
-                self.pickedFrom = spindle
                 self.spindles[spindle].pop()
-            self.picked = ID
+            self.picked, self.pickedFrom = ID, spindle
             self.lastPos = (event.x, event.y)
             self.canvas.tag_raise(tag, 'spindle')
             if spindle is not None:
@@ -339,7 +337,7 @@ def reset(self):
 
     def moveHandler(self, ID, tag, normal, highlight):
         def mvHandler(event):
-            if self.picked is None or not self.allowUserMoves:
+            if self.picked is None or not self.operationMutex.locked():
                 return
             self.canvas.move(
                 tag, event.x - self.lastPos[0], event.y - self.lastPos[1])
@@ -354,7 +352,7 @@ def reset(self):
 
     def releaseHandler(self, ID, tag, normal, highlight):
         def relHandler(event):
-            if not self.allowUserMoves:
+            if self.picked is None or not self.operationMutex.locked():
                 return
             diskBBox = self.canvas.bbox(tag)
             dropAt = None
@@ -366,16 +364,23 @@ def reset(self):
                     break
             if dropAt is None:
                 if self.pickedFrom is None:
+                    self.operationMutex.release()
                     return
                 dropAt = self.pickedFrom
             self.spindles[dropAt].append(ID)
             self.canvas.itemconfigure(self.spindleTag(dropAt), **normal)
-            self.restoreDisks()
+            diskItems = sorted(self.canvas.find_withtag(tag))
+            diskCoords = self.diskCoords(ID)
+            self.restoreTo(diskItems, diskCoords, after=lambda items, coords:
+                           [self.canvas.coords(i, c)
+                            for i, c in zip(items, coords)])
             self.canvas.tag_lower(tag, 'spindle')
             self.updateSpindles(dropAt)
             self.picked, self.pickedFrom = None, None
             if self.isDone():
                 self.showCompletion()
+            self.operationMutex.release()
+            self.enableButtons()
         return relHandler
 
     def updateSpindles(self, *spindleIDs):
@@ -388,36 +393,27 @@ def reset(self):
                 self.spindleTag(spindle))
             self.window.update()
 
-    def restoreDisks(self, *diskIDs, cleanUpAll=True):
-        callEnviron = None if cleanUpAll else self.createCallEnvironment(
-            startAnimations=None)
-        self.startAnimations(enableStops=False)
-        for ID in (diskIDs if diskIDs else range(len(self.disks))):
-            tag = self.diskTag(ID)
-            items = sorted(self.canvas.find_withtag(tag))
-            current = [self.canvas.coords(item) for item in items
-                       if self.canvas.coords(item)]
-            target = self.diskCoords(ID)
-            if len(current) == len(target): # Both coords must be present
-                self.moveItemsTo(items, target, steps=10, sleepTime=0.01)
-        self.cleanUp(callEnviron)
-
     def stop(self, *args):   # Customize stop operation to restore disk
         super().stop(*args)
-        self.restoreDisks()
+
+        for ID in range(len(self.disks)):
+            diskItems = sorted(self.canvas.find_withtag(self.diskTag(ID)))
+            diskCoords = self.diskCoords(ID)
+            self.restoreTo(diskItems, diskCoords, after=lambda items, coords:
+                           [self.canvas.coords(i, c)
+                            for i, c in zip(items, coords)])
 
     def showCompletion(self):
         msg = 'Puzzle completed!'
         if self.getMessage() == msg:
             return
-        canvasDimensions = self.widgetDimensions(self.canvas)
+        canvasDimensions = widgetDimensions(self.canvas)
         starCenter = V(canvasDimensions) * V(1/3, 1)
         size, ratio, points, angle = 5, 0.38, 5, 270
         rate = 0.92
         targetCenter = V(canvasDimensions) * V(1/2, 1/2)
         targetSize = canvasDimensions[0] / 2
         targetAngle = -90
-        self.allowUserMoves = False
         callEnviron = self.createCallEnvironment(startAnimations=False)
         self.startAnimations(enableStops=False)
         starCoords = regularStar(starCenter, size, size * ratio, points, angle)
@@ -538,6 +534,32 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
                          sleepTime=wait)
         self.canvas.tag_lower(tag, 'spindle')
         self.updateSpindles(toSpindle)
+
+    def restoreTo(
+            self, items, targetCoords, by=0.2, dist2=4, wait=30,
+            increaseBy=1.1, after=None):
+        '''Restore a set of canvas items to their target coordinates.  At each
+        step, advance linearly by the given "by" factor until the
+        squared distance of all (non-deleted) items is less than dist2
+        from their target.  Increase the "by" factor by the increaseBy
+        ratio after waiting wait milliseconds between steps.  Execute
+        tha after function on the item and targetCoords at the end, if
+        callable.
+        '''
+        targets = [
+            (item, self.canvas_coords(item), tgt) 
+            for item, tgt in zip(items, targetCoords) if self.canvas.type(item)]
+        if all(distance2(target[1], target[2]) <= dist2 for target in targets):
+            if callable(after):
+                after(items, targetCoords)
+            return
+        by = max(0.01, min(1, by))
+        for item, coords, target in targets:
+            self.canvas.coords(
+                item, V(V(coords) * (1 - by)) + V(V(target) * by))
+        self.canvas.after(wait, lambda: self.restoreTo(
+            items, targetCoords, by * increaseBy, dist2, wait, increaseBy,
+            after))
         
     def makeButtons(self):
         vcmd = (self.window.register(numericValidate),
@@ -570,7 +592,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
     def cleanUp(self, callEnviron=None, **kwargs):
         super().cleanUp(callEnviron=callEnviron, **kwargs)
         if callEnviron is None and len(self.callStack) == 0:
-            self.allowUserMoves = True
+            self.setMessage('')
     
     # Button functions
     def clickNew(self):
@@ -591,9 +613,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
 
     def clickSolve(self):
         if self.leftSpindleFull():
-            self.allowUserMoves = False
             self.solve(self.nDisks(), startAnimations=self.startMode())
-            self.allowUserMoves = True
             self.setMessage('{} total move{} made'.format(
                 self.moves, '' if self.moves == 1 else 's'))
         else:

@@ -2,12 +2,15 @@ import random
 from tkinter import *
 
 try:
+    from coordinates import *
     from drawnValue import *
     from SortingBase import *
 except ModuleNotFoundError:
+    from .coordinates import *
     from .drawnValue import *
     from .SortingBase import *
 
+V = vector
 
 class PriorityQueue(SortingBase):
 
@@ -154,11 +157,10 @@ def peek(self):
         callEnviron.add(outputBox)
 
         # calculate where the value will need to move to
-        midOutputBox = divide_vector(
-            add_vector(outputBoxCoords[:2], outputBoxCoords[2:]), 2)
+        midOutputBox = BBoxCenter(outputBoxCoords)
 
         # create the value to move to output box
-        valueOutput = self.copyCanvasItem(self.list[-1].items[1])
+        valueOutput = self.canvas.copyItem(self.list[-1].items[1])
         callEnviron.add(valueOutput)
 
         # move value to output box
@@ -342,7 +344,7 @@ def remove(self):
 
     def clickNew(self):
         val = self.validArgument()
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         maxCells = (canvasDims[0] - self.ARRAY_X0) // self.CELL_SIZE - 1
         # Error if number of desired cells won't fit on canvas
         if val is None or 0 == val or val > maxCells:

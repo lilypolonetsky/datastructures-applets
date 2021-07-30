@@ -2,9 +2,11 @@ from tkinter import *
 import random, sys, re, math
 
 try:
+    from tkUtilities import *
     from VisualizationApp import *
     from BinaryTreeBase import *
 except ModuleNotFoundError:
+    from .tkUtilities import *
     from .VisualizationApp import *
     from .BinaryTreeBase import *
 
@@ -305,16 +307,16 @@ class Tree234(BinaryTreeBase):
 
     def textItemClickHandler(self, textItem):
         def textItemClick(e=None):
-            self.setArgument(self.canvas.itemconfigure(textItem, 'text')[-1])
+            self.setArgument(self.canvas.itemConfig(textItem, 'text'))
         return textItemClick
                 
     def treeObjectCoords(
             self, offsetAngle=None, offset=None, fields=[], font=None,
             scale=None):
         fieldFont, _ = self.treeObjectFonts(font)
-        ffHeight = self.textHeight(fieldFont)
-        rootWidth = self.textWidth(fieldFont, ' root ')
-        fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
+        ffHeight = textHeight(fieldFont)
+        rootWidth = textWidth(fieldFont, ' root ')
+        fieldsWidth = sum(textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
         if offset is None: offset = 80
         if offsetAngle is None: offsetAngle = 180
@@ -611,11 +613,11 @@ def __find(self, goal={goal}, current={currentStr}, parent={parentStr}, prepare=
                 self.highlightCode(
                     'current, parent = self.__splitNode(current, parent, goal)',
                     callEnviron)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
             current, parent = self._splitNode(
                 current, parent, goal, animation=animation, wait=wait)
             if animation:
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
                 self.moveArrowsTo(
                     (currentArrow, parentArrow, iArrow), 
                     (current, parent, current),
@@ -643,12 +645,12 @@ def __find(self, goal={goal}, current={currentStr}, parent={parentStr}, prepare=
                     (('return', 3), 
                      'self.__find(goal, current.children[i], current, prepare)'),
                     callEnviron)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
             result = self._find(
                 goal, current.children[i], current, prepare,
                 animation=animation, wait=wait)
             if animation:
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
                 self.scrollToSee(currentArrow + current.dValue.items[1:])
                 
         self.cleanUp(callEnviron, sleepTime=wait / 10)
@@ -702,7 +704,7 @@ def __splitNode(self, toSplit={toSplitStr},
         newNodeItems = self.createNodeShapes(
             toSplit.center if animation else newNodeCenter, 
             [toSplit.keys[2]], 
-            data=[self.canvas.itemconfigure(toSplit.dataItems()[2], 'fill')[-1]],
+            data=[self.canvas.itemConfig(toSplit.dataItems()[2], 'fill')],
             parent=None,  # Don't connect to parent yet
             childNum=1 if parent is self else parent.nKeys + 1)
         childrenToRemove = toSplit.children[2:toSplit.nChild]
@@ -726,12 +728,12 @@ def __splitNode(self, toSplit={toSplitStr},
                 sleepTime=wait / 10, see=newNodeItems)
             self.highlightCode('toSplit.nKeys = 1', callEnviron, wait=wait)
         toSplit.nKeys = 1
-        self.canvas.itemconfigure(toSplit.keyItems()[2], text='')
-        self.canvas.itemconfigure(toSplit.dataItems()[2], fill='')
+        self.canvas.itemConfig(toSplit.keyItems()[2], text='')
+        self.canvas.itemConfig(toSplit.dataItems()[2], fill='')
         toSplit.keys[2] = None
         for i in range(toSplit.nKeys, Tree234.maxKeys):
-            self.canvas.itemconfigure(toSplit.keyItems()[i], 
-                                      fill=self.leftoverColor)
+            self.canvas.itemConfig(toSplit.keyItems()[i],
+                                   fill=self.leftoverColor)
 
         if animation:
             self.highlightCode('toSplit.nChild = max(0, toSplit.nChild - 2)',
@@ -751,8 +753,8 @@ def __splitNode(self, toSplit={toSplitStr},
             newRootCenter = V(rootCenter) + V(newRootOffset)
             newRootItems = self.createNodeShapes(
                 newRootCenter if animation else rootCenter,
-                [toSplit.keys[1]], data=[self.canvas.itemconfigure(
-                    toSplit.dataItems()[1], 'fill')[-1]])
+                [toSplit.keys[1]], data=[self.canvas.itemConfig(
+                    toSplit.dataItems()[1], 'fill')])
             self.rootNode = Node234(
                 drawnValue([toSplit.keys[1]], *newRootItems),
                 toSplit, newNode, 
@@ -789,13 +791,13 @@ def __splitNode(self, toSplit={toSplitStr},
                 self.highlightCode(
                     'parent.insertKeyValue(toSplit.keys[1], toSplit.data[1], '
                     'newNode)', callEnviron)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
             self.insertKeyValue(
                 parent, toSplit.keys[1], newNode, animation=animation, 
                 wait=wait,
                 keyData=(toSplit.keyItems()[1], toSplit.dataItems()[1]))
             if animation:
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
                 
         self.restoreNodePositions(
             parent, sleepTime=wait / 10 if animation else 0,
@@ -813,8 +815,8 @@ def __splitNode(self, toSplit={toSplitStr},
                  ('toSplit', 17) if goal < toSplit.keys[1] else ('newNode', 5),
                  ('parent', 5)), callEnviron)
 
-        self.canvas.itemconfigure(toSplit.keyItems()[1], text='')
-        self.canvas.itemconfigure(toSplit.dataItems()[1], fill='')
+        self.canvas.itemConfig(toSplit.keyItems()[1], text='')
+        self.canvas.itemConfig(toSplit.dataItems()[1], fill='')
         self.cleanUp(callEnviron)
         return (toSplit if goal < toSplit.keys[1] else newNode,
                 parent)
@@ -909,7 +911,7 @@ def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
             center = self.canvas.coords(keyData[0])
             offset = (self.CIRCLE_SIZE, self.CIRCLE_SIZE)
             keyItem, dataItem = tuple(
-                self.copyCanvasItem(item) for item in keyData)
+                self.canvas.copyItem(item) for item in keyData)
             self.canvas.tag_lower(dataItem, keyData[0])
         for item in node.keyItems():
             self.canvas.tag_lower(dataItem, item)
@@ -926,7 +928,8 @@ def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
                     sleepTime=wait / 10)
 
                 self.highlightCode('return False', callEnviron, wait=wait)
-            self.copyItemAttributes(dataItem, node.dataItems()[i], 'fill')
+            self.canvas.copyItemAttributes(dataItem, node.dataItems()[i],
+                                           'fill')
             self.cleanUp(callEnviron)
             return False
 
@@ -952,14 +955,14 @@ def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
             jKey, jData = node.keyItems()[j], node.dataItems()[j]
             if animation:
                 self.highlightCode('self.keys[j] = self.keys[j-1]', callEnviron)
-                keyCopy = self.copyCanvasItem(node.keyItems()[j - 1])
+                keyCopy = self.canvas.copyItem(node.keyItems()[j - 1])
                 callEnviron.add(keyCopy)
                 self.moveItemsOnCurve(
                     keyCopy, self.canvas.coords(jKey), sleepTime=wait / 10, 
                     see=node.dValue.items[1:])
-            self.canvas.itemconfigure(
-                jKey, text=self.canvas.itemconfigure(node.keyItems()[j - 1], 
-                                                     'text')[-1])
+            self.canvas.itemConfig(
+                jKey,
+                text=self.canvas.itemConfig(node.keyItems()[j - 1], 'text'))
             node.keys[j] = node.keys[j - 1]
             
             if animation:
@@ -967,7 +970,7 @@ def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
                 callEnviron.discard(keyCopy)
                 self.highlightCode('self.data[j] = self.data[j-1]', callEnviron,
                                    wait=wait)
-                dataCopy = self.copyCanvasItem(node.dataItems()[j - 1])
+                dataCopy = self.canvas.copyItem(node.dataItems()[j - 1])
                 for item in node.keyItems()[j - 1:j+1]:
                     self.canvas.tag_lower(dataCopy, item)
                 callEnviron.add(dataCopy)
@@ -976,7 +979,8 @@ def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
                     see=node.dValue.items[1:])
                 self.highlightCode(
                     'self.children[j+1] = self.children[j]', callEnviron)
-            self.copyItemAttributes(node.dataItems()[j - 1], jData, 'fill')
+            self.canvas.copyItemAttributes(node.dataItems()[j - 1], jData,
+                                           'fill')
             node.children[j + 1] = node.children[j]
             child = node.children[j + 1]
             if child:
@@ -1003,12 +1007,12 @@ def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
             circleCoords = self.canvas.coords(dataItem)
             self.canvas.coords(
                 keyItem, *(V(V(circleCoords[:2]) + V(circleCoords[2:])) / 2))
-            self.canvas.itemconfigure(
+            self.canvas.itemConfig(
                 keyItem, fill=self.leftoverColor if i >= node.nKeys else
                 self.activeColor)
             self.moveItemsTo(keyItem, self.canvas.coords(node.keyItems()[i]),
                              sleepTime=wait / 10)
-        self.canvas.itemconfigure(node.keyItems()[i], text=str(key))
+        self.canvas.itemConfig(node.keyItems()[i], text=str(key))
         node.keys[i] = key
         
         iData = node.dataItems()[i]
@@ -1018,14 +1022,14 @@ def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
             self.highlightCode(('self.data[i] = data', 2), callEnviron)
             self.moveItemsTo(
                 dataItem, self.canvas.coords(iData), sleepTime=wait / 10)
-        self.copyItemAttributes(dataItem, iData, 'fill')
+        self.canvas.copyItemAttributes(dataItem, iData, 'fill')
 
         if animation:
             self.canvas.delete(dataItem)
             callEnviron.discard(dataItem)
             self.highlightCode('self.nKeys += 1', callEnviron, wait=wait)
 
-        self.canvas.itemconfigure(
+        self.canvas.itemConfig(
             node.keyItems()[node.nKeys], fill=self.activeColor)
         node.nKeys += 1
 
@@ -1141,7 +1145,7 @@ def search(self, goal={goal}):
             for node in nodes:
                 self.restoreNodePositions(node, sleepTime=0, see=False)
                 for i, key in enumerate(node.keys):
-                    self.canvas.itemconfigure(
+                    self.canvas.itemConfig(
                         node.keyItems()[i], 
                         text='' if node.keys[i] is None else str(node.keys[i]),
                         fill=self.activeColor if i < node.nKeys else
@@ -1265,9 +1269,9 @@ for key, data in tree.traverse("{traverseType}"):
         dataIndex = None
         localVars = ()
         dataIndexConfig = {'level': 2, 'orientation': -100, 'keyNum': 0}
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for node, key, items in self.traverse(traverseType):
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             keyNum = node.keys.index(key)
             dataIndexConfig['keyNum'] = keyNum
             if dataIndex is None:
@@ -1280,17 +1284,17 @@ for key, data in tree.traverse("{traverseType}"):
                 self.moveArrowsTo(dataIndex, node, dataIndexConfig, wait)
 
             self.highlightCode('print(key)', callEnviron, wait=wait)
-            keyItem = self.copyCanvasItem(node.keyItems()[keyNum])
+            keyItem = self.canvas.copyItem(node.keyItems()[keyNum])
             callEnviron.add(keyItem)
-            keyItemFont = self.getItemFont(keyItem)
-            currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
+            keyItemFont = self.canvas.getItemFont(keyItem)
+            currentText = self.canvas.itemConfig(outputText, 'text')
             textBBox = self.canvas.bbox(outputText)
-            newTextWidth = self.textWidth(self.outputFont, ' ' + str(key))
+            newTextWidth = textWidth(self.outputFont, ' ' + str(key))
             self.moveItemsTo(
                 keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
                 startFont=keyItemFont, endFont=self.outputFont, 
                 see=((outputBox,)), sleepTime=wait / 10)
-            self.canvas.itemconfigure(
+            self.canvas.itemConfig(
                 outputText,
                 text=currentText + (' ' if len(currentText) > 0 else '') +
                 str(key))
@@ -1298,9 +1302,9 @@ for key, data in tree.traverse("{traverseType}"):
             callEnviron.discard(keyItem)
 
             self.highlightCode(iteratorCall, callEnviron, wait=wait)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
 
-        self.restoreLocalItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors)
         while self.iteratorStack:
             self.cleanUp(self.iteratorStack.pop())
         self.highlightCode([], callEnviron)
@@ -1383,11 +1387,11 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             self.highlightCode('c < node.nChild', callEnviron, wait=wait)
             if c < node.nChild:
                 self.highlightCode(childLoopIter, callEnviron, wait=wait)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
                 
                 for child, childKey, childKeyItems in self._traverse(
                         node.children[c], traverseType):
-                    self.restoreLocalItems(localVars, colors)
+                    self.canvas.restoreItems(localVars, colors)
                     keyNum = child.keys.index(childKey)
                     childArrowConfig['keyNum'] = keyNum
                     if childArrow is None:
@@ -1408,7 +1412,7 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
                         callEnviron, itemCoords, sleepTime=wait / 10)
                 
                     self.highlightCode(childLoopIter, callEnviron, wait=wait)
-                    colors = self.itemsFillColor(localVars)
+                    colors = self.canvas.itemsColor(localVars)
 
             self.highlightCode('traverseType == "in"', callEnviron, wait=wait)
             if traverseType == "in":

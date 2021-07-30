@@ -1,13 +1,17 @@
 from tkinter import *
 import re
 try:
+    from coordinates import *
     from Hashing import *
     from VisualizationApp import *
     from HashBase import *
 except ModuleNotFoundError:
+    from .coordinates import *
     from .Hashing import *
     from .VisualizationApp import *
     from .HashBase import *
+
+V = vector
 
 # Regular expression for false positive fraction
 fraction = re.compile(r'0*\.\d+')
@@ -46,17 +50,17 @@ class BloomFilter(HashBase):
         col = i % self.bits_per_row
         upperLeft = (self.BV_X0 + col * self.CELL_SIZE + self.CELL_BORDER,
                      self.BV_Y0 + row * self.BV_ROW_HEIGHT + self.CELL_BORDER)
-        return upperLeft + add_vector(upperLeft, (self.CELL_SIZE - 1, ) * 2)
+        return upperLeft + (V(upperLeft) + V((self.CELL_SIZE - 1, ) * 2))
 
     # Get point in center of a cell in the bit vector
     def bitCellCenter(self, i):
         upperLeft = self.bitCellCoords(i)
-        return add_vector(upperLeft[:2], (self.CELL_SIZE // 2, ) * 2)
+        return V(upperLeft[:2]) + V((self.CELL_SIZE // 2, ) * 2)
 
     # Create an arrow pointing to a cell in the bit vector starting
     # from an origin determined by the hash key
     def cellArrow(self, bit, hashKey, nHashes, color=PROBE_COLOR):
-        tip = add_vector(self.bitCellCenter(bit), (0, self.CELL_SIZE * 5 / 8))
+        tip = V(self.bitCellCenter(bit)) + V(0, self.CELL_SIZE * 5 / 8)
         hashOutputCoords = self.hashOutputCoords()
         sep = 10
         origin = (hashOutputCoords[0] +
@@ -64,15 +68,13 @@ class BloomFilter(HashBase):
                   (self.insertedBoxPos[0] - hashOutputCoords[0]),
                   hashOutputCoords[1] - sep)
         offset = (0, min(self.CELL_SIZE * 2, (origin[1] - tip[1]) / 4))
-        p1 = subtract_vector(origin, offset)
-        p4 = add_vector(tip, offset)
-        delta = rotate_vector(
-            multiply_vector(subtract_vector(p4, p1), 1/3),
+        p1 = V(origin) - V(offset)
+        p4 = V(tip) + V(offset)
+        delta = V(V(V(p4) - V(p1)) / 3).rotate(
             -20 * max(-1, min(1, (p4[0] - p1[0]) / (p1[1] - p4[1]))))
         steps = int(max(abs(tip[0] - origin[0]), abs(tip[1] - origin[1])))
         return self.canvas.create_line(
-            *origin, *p1, *add_vector(p1, delta),
-            *subtract_vector(p4, delta), *p4, *tip,
+            *origin, *p1, *(V(p1) + V(delta)), *(V(p4) - V(delta)), *p4, *tip,
             smooth=True, splinesteps=steps, arrow=LAST, width=2, fill=color)
     
     def __bitsNeeded(self, numKeys, numHashes, maxFalsePositive):
@@ -228,7 +230,7 @@ class BloomFilter(HashBase):
         return bits == self.__numHashes
 
     def determine_max_bits(self):
-        canvasDimensions = self.widgetDimensions(self.canvas)
+        canvasDimensions = widgetDimensions(self.canvas)
         self.bits_per_row = canvasDimensions[0] // self.CELL_SIZE - 2
         self.max_bits = max(
             (canvasDimensions[1] // self.BV_ROW_HEIGHT - 1) * self.bits_per_row,
@@ -236,12 +238,11 @@ class BloomFilter(HashBase):
 
     def display(self):
         self.canvas.delete("all")
-        canvasDimensions = self.widgetDimensions(self.canvas)
+        canvasDimensions = widgetDimensions(self.canvas)
         for n, bit in enumerate(self.__bv):
             cellCoords = self.bitCellCoords(n)
             border = self.canvas.create_rectangle(
-                *add_vector(cellCoords, 
-                            multiply_vector((-1, -1, 0, 0), self.CELL_BORDER)),
+                *(V(cellCoords) + V(V(-1, -1, 0, 0) * self.CELL_BORDER)),
                 outline=self.BORDER_COLOR, width=self.CELL_BORDER, fill='')
             # create display objects for the associated bit on the canvas
             self.__displayList[n] = self.canvas.create_rectangle(
@@ -249,15 +250,15 @@ class BloomFilter(HashBase):
                 outline='')
         self.createHasher()
         self.insertedBoxPos = self.bitCellCoords(
-            self.max_bits + self.bits_per_row // 2)[:2] + subtract_vector(
-                canvasDimensions, (self.CELL_SIZE, ) * 2)
+            self.max_bits + self.bits_per_row // 2)[:2] + (
+                V(canvasDimensions) - V((self.CELL_SIZE, ) * 2))
         self.insertedBox = self.canvas.create_rectangle(
             *self.insertedBoxPos, fill=self.INSERTED_BG)
         self.insertedKeys = self.canvas.create_text(
-            *add_vector(self.insertedBoxPos, 
-                        (abs(self.CONTROLS_FONT[1]), ) * 2),
-            anchor=NW, font=self.INSERTED_FONT, fill=self.INSERTED_COLOR,
-            state=DISABLED)
+            *(V(self.insertedBoxPos) + V((abs(self.CONTROLS_FONT[1]), ) * 2)),
+            anchor=NW, font=self.INSERTED_FONT, state=DISABLED,
+            fill=self.INSERTED_COLOR if self.showInserts.get() else
+            self.INSERTED_BG)
         self.updateInserted()
 
         self.window.update()
@@ -269,13 +270,13 @@ class BloomFilter(HashBase):
         
         # Break text into lines at whitespace
         lines = text.split('\n')
-        textWidth = lambda txt: self.textWidth(self.INSERTED_FONT, txt)
+        txtWidth = lambda txt: textWidth(self.INSERTED_FONT, txt)
         pad = abs(self.INSERTED_FONT[1])
         maxWidth = self.insertedBoxPos[2] - self.insertedBoxPos[0] - pad
-        while textWidth(lines[-1]) > maxWidth:
+        while txtWidth(lines[-1]) > maxWidth:
             words = lines[-1].split()
             line = ''
-            while words and textWidth(line + words[0] + ' ') < maxWidth:
+            while words and txtWidth(line + words[0] + ' ') < maxWidth:
                 line += words.pop(0) + ' '
             lines[-1:] = [line, ' '.join(words)]
         self.canvas.itemconfigure(self.insertedKeys, text = '\n'.join(lines))

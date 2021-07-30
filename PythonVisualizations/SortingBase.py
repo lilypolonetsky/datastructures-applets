@@ -1,11 +1,15 @@
 import random
 from tkinter import *
 try:
+    from coordinates import *
     from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
+
+V = vector
 
 class SortingBase(VisualizationApp):
     CELL_SIZE = 50
@@ -49,14 +53,14 @@ class SortingBase(VisualizationApp):
                        self.currentCellCenter(toIndex))
                 
         # create new display objects as copies of the "from" cell and value
-        copyItems = [self.copyCanvasItem(i) for i in fromValue.items 
+        copyItems = [self.canvas.copyItem(i) for i in fromValue.items 
                      if i is not None]
         callEnviron |= set(copyItems)
 
         # Move copies to the desired location
         if startAngle == 0:                            # move items linearly
-            self.moveItemsTo(copyItems, toPositions, steps=steps,
-                            sleepTime=sleepTime)
+            self.moveItemsTo(copyItems, toPositions[:len(copyItems)],
+                             steps=steps, sleepTime=sleepTime)
         else:                                          # move items on curve
             self.moveItemsOnCurve(
                 copyItems, toPositions, startAngle=startAngle, 
@@ -76,10 +80,10 @@ class SortingBase(VisualizationApp):
 
     def tempCoords(self, index):  # Determine coordinates for a temporary var
         cellCoords = self.currentCellCoords(index) # aligned below an array
-        canvasDims = self.widgetDimensions(self.canvas) # cell
+        canvasDims = widgetDimensions(self.canvas) # cell
         bottom = min(canvasDims[1] - 1,
                      cellCoords[3] + int(self.CELL_HEIGHT * 1.7))
-        return add_vector(cellCoords, (0, bottom - cellCoords[3]) * 2)
+        return V(cellCoords) + V((0, bottom - cellCoords[3]) * 2)
 
     def tempLabelCoords(self, index, font=None):
         if font is None:
@@ -101,7 +105,7 @@ class SortingBase(VisualizationApp):
         posCell = self.canvas.coords(fromValue.items[0])
         cellXCenter = (posCell[0] + posCell[2]) // 2
 
-        copyItems = [self.copyCanvasItem(i) for i in fromValue.items 
+        copyItems = [self.canvas.copyItem(i) for i in fromValue.items 
                      if i is not None]
         callEnviron |= set(copyItems)
         
@@ -118,7 +122,7 @@ class SortingBase(VisualizationApp):
             callEnviron.add(tempLabel)
 
         delta = (tempLabelPos[0] - cellXCenter, tempPos[1] - posCell[1])
-        newCoords = [add_vector(self.canvas.coords(i), delta * 2)
+        newCoords = [V(self.canvas.coords(i)) + V(delta * 2)
                      for i in copyItems] + [tempLabelPos]
         self.moveItemsTo(copyItems + [tempLabel], newCoords,
                          sleepTime=sleepTime)
@@ -165,7 +169,7 @@ class SortingBase(VisualizationApp):
         if a == b:  # Swapping with self - just move up & down
             delta = (0, (coordsA[3] - coordsA[1]) * 3 // 4)
             self.moveItemsBy(itemsA, delta, sleepTime=0.02)
-            self.moveItemsBy(itemsA, multiply_vector(delta, -1), sleepTime=0.02)
+            self.moveItemsBy(itemsA, V(delta) * -1, sleepTime=0.02)
             return
     
         # make a and b cells plus their associated items switch places
@@ -211,7 +215,7 @@ class SortingBase(VisualizationApp):
     def computeCellWidth(self, nCells=None):
         if nCells is None:
             nCells = self.size
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         return max(self.CELL_MIN_WIDTH,
                    min(self.CELL_SIZE,
                        (canvasDims[0] - self.ARRAY_X0) // (nCells + 1)))
@@ -220,7 +224,7 @@ class SortingBase(VisualizationApp):
         if width is None:
             width = self.CELL_WIDTH
         return (self.CELL_BORDER +
-                self.textWidth(self.VALUE_FONT, str(self.valMax))) < width
+                textWidth(self.VALUE_FONT, str(self.valMax))) < width
 
     # ARRAY FUNCTIONALITY
     newCode = '''
@@ -230,7 +234,7 @@ def __init__(self, initialSize={val}):
 '''
     
     def new(self, val, code=newCode, start=True):
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         maxCells = min(
             self.maxCells, 
             (canvasDims[0] - self.ARRAY_X0) // self.CELL_MIN_WIDTH - 1)
@@ -271,7 +275,7 @@ def insert(self, item={val}):
 """
 
     def insert(self, val, allowGrowth=False, code=insertCode, start=True):
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         # Check if inserted cell will be off of the canvas
         offCanvas = canvasDims[0] <= self.cellCoords(len(self.list))[2]
 
@@ -582,7 +586,7 @@ def traverse(self, function=print):
         callEnviron |= set(indexDisplay)
 
         # draw output box
-        canvasDimensions = self.widgetDimensions(self.canvas)
+        canvasDimensions = widgetDimensions(self.canvas)
         outputFont = (self.VALUE_FONT[0], int(self.VALUE_FONT[1] * .75))
         spacing = self.outputBoxSpacing(outputFont)
         padding = 10
@@ -597,7 +601,7 @@ def traverse(self, function=print):
         for j, n in enumerate(self.list):
             # create the value to move to output box
             valueOutput = (
-                self.copyCanvasItem(n.items[1]) 
+                self.canvas.copyItem(n.items[1]) 
                 if len(n.items) > 1 and n.items[1] else
                 self.canvas.create_text(
                     *self.cellCenter(j), text=n.val, font=outputFont))
@@ -620,7 +624,7 @@ def traverse(self, function=print):
         self.cleanUp(callEnviron)
 
     def outputBoxSpacing(self, outputFont):
-        return self.textWidth(outputFont, self.valMax) + abs(outputFont[1])
+        return textWidth(outputFont, str(self.valMax) + '  ')
     
     def outputBoxCoords(self, outputFont, padding=10, N=None):
         '''Coordinates for an output box in lower right of canvas with enough
@@ -628,7 +632,7 @@ def traverse(self, function=print):
         if N is None:
             N = len(self.list)
         spacing = self.outputBoxSpacing(outputFont)
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         left = max(0, canvasDims[0] - N * spacing - padding) // 2
         return (left, canvasDims[1] - abs(outputFont[1]) * 3 - padding,
                 left + N * spacing + padding, canvasDims[1] - padding)
@@ -648,10 +652,12 @@ def traverse(self, function=print):
 
     def newValueCoords(self):
         cell0 = self.cellCoords(0)   # Shift cell 0 coords off canvans
-        canvasDims = self.widgetDimensions(self.canvas)
-        return add_vector(
-            cell0,
-            (canvasDims[0] // 2 - cell0[0], canvasDims[1] - cell0[1]) * 2)
+        canvasDims = widgetDimensions(self.canvas)
+        upperOpsDims = widgetDimensions(self.operationsUpper)
+        lowerOpsDims = widgetDimensions(self.operationsLower)
+        return V(cell0) + V(
+            (max(upperOpsDims[0], lowerOpsDims[0]) // 2 - cell0[0],
+             canvasDims[1] - cell0[1]) * 2)
 
     def cellTag(self, index): # Tag name for a particular cell in an array
         return "cell-{}".format(index)
@@ -663,7 +669,7 @@ def traverse(self, function=print):
     
     def arrayCellCoords(self, index):
         cell_coords = self.cellCoords(index)
-        return add_vector(cell_coords, self.arrayCellDelta())
+        return V(cell_coords) + V(self.arrayCellDelta())
 
     def currentCellCoords(self, index):
         '''Compute coords from current array cell position.  For indices
@@ -671,10 +677,9 @@ def traverse(self, function=print):
         cell width horizontally.
         '''
         closest = max(0, min(len(self.arrayCells) - 1, index))
-        return subtract_vector(
-            add_vector(self.canvas.coords(self.arrayCells[closest]),
-                       ((index - closest) * self.CELL_WIDTH, 0) * 2),
-            self.arrayCellDelta())
+        return V(V(self.canvas.coords(self.arrayCells[closest])) +
+                 V(((index - closest) * self.CELL_WIDTH, 0) * 2)) - V(
+                     self.arrayCellDelta())
 
     def currentCellCenter(self, index):
         x1, y1, x2, y2 = self.currentCellCoords(index)
@@ -706,7 +711,7 @@ def traverse(self, function=print):
             valPos = self.cellCenter(indexOrCoords)
         else:
             rectPos = indexOrCoords
-            valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
+            valPos = BBoxCenter(rectPos)
         if color is None:
             # Take the next color from the palette
             color = drawnValue.palette[SortingBase.nextColor]
@@ -741,8 +746,7 @@ def traverse(self, function=print):
     
     def createFoundCircle(self, index):
         return self.canvas.create_oval(
-            *add_vector(self.cellCoords(index), 
-                        multiply_vector((1, 1, -1, -1), self.CELL_BORDER)),
+            *(V(self.cellCoords(index)) + V(V(1, 1, -1, -1) * self.CELL_BORDER)),
             outline=self.FOUND_COLOR)
     
     def redrawArrayCells(self, tag="arrayBox"):
@@ -770,8 +774,7 @@ def traverse(self, function=print):
 
     def toTarget(         # Return the 2-D vector between the indexed item's
             self, index): # current position and its normal position in array
-        return subtract_vector(
-            self.cellCoords(index), 
+        return V(self.cellCoords(index)) - V(
             self.canvas.coords(self.list[index].items[0])[:2])
     
     def shuffle(self, steps=20):
@@ -781,7 +784,7 @@ def traverse(self, function=print):
         random.shuffle(self.list)  # Randomly move items internally in array
 
         coords0 = self.cellCoords(0) # Get the height of a cell
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         height = int(coords0[3] - coords0[1])
         vSpace = canvasDims[1] - coords0[3]
         
@@ -799,12 +802,11 @@ def traverse(self, function=print):
                 for item in self.list[i].items: # Get drawnValue items
                     if item is not None: # If not None, move it by velocity
                         self.canvas.move(item, *velocity[i])
-                velocity[i] = add_vector(  # Change velocity to move towards
-                    add_vector(            # target location
-                        multiply_vector(velocity[i], 0.8), 
-                        divide_vector(self.toTarget(i), stepsToGo)),
-                    (random.randint(-jitter, jitter), # Add some random jitter
-                     random.randint(-half, half)))
+                velocity[i] = V(  # Change velocity to move towards
+                    V(V(velocity[i]) * 0.8) + # target location and add
+                    V(V(self.toTarget(i)) / stepsToGo)) + V(
+                        (random.randint(-jitter, jitter), # some random jitter
+                         random.randint(-half, half)))
             self.wait(0.05)
 
         # Ensure all items get to new positions

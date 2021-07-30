@@ -1,13 +1,17 @@
 import random
 from tkinter import *
 try:
+    from coordinates import *
     from drawnValue import *
     from VisualizationApp import *
     from SortingBase import *    
 except ModuleNotFoundError:
+    from .coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
     from .SortingBase import *    
+
+V = vector
 
 class AdvancedArraySort(SortingBase):
     PIVOT_LINE_COLOR = 'VioletRed3'
@@ -264,19 +268,19 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         if hi - lo + 1 <= short:
             self.highlightCode('return self.insertionSort(lo, hi, key)',
                                callEnviron, wait=wait)
-            self.fadeNonLocalItems(loIndex + hiIndex)
+            colors = self.canvas.fadeItems(loIndex + hiIndex)
             self.insertionSort(lo, hi)
-            self.restoreLocalItems(loIndex + hiIndex)
+            self.canvas.restoreItems(loIndex + hiIndex, colors)
             self.cleanUp(callEnviron, sleepTime=codeWait)
             return
         
         self.highlightCode('pivotItem = self.{}(lo, hi, key)'.format(
             'medianOfThree' if  self.useMedianOf3.get() else 'rightmost'),
                            callEnviron)
-        self.fadeNonLocalItems(loIndex + hiIndex)
+        colors = self.canvas.fadeItems(loIndex + hiIndex)
         pivotItem = (self.medianOfThree(lo, hi) if self.useMedianOf3.get() else
                      self.rightmost(lo, hi))
-        self.restoreLocalItems(loIndex + hiIndex)
+        self.canvas.restoreItems(loIndex + hiIndex, colors)
 
         pivotItemShape = self.list[hi].items[0]
         pivotPartition = self.createPivotPartition(
@@ -288,10 +292,10 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
             'hipart = self.__part(key(pivotItem), {}, hi - 1, key)'.format(
                 'lo + 1' if self.useMedianOf3.get() else 'lo'),
             callEnviron)
-        self.fadeNonLocalItems(loIndex + hiIndex)
+        colors = self.canvas.fadeItems(loIndex + hiIndex)
         hipart = self.partition(
             pivotItem, lo + (1 if self.useMedianOf3.get() else 0), hi - 1)
-        self.restoreLocalItems(loIndex + hiIndex)
+        self.canvas.restoreItems(loIndex + hiIndex, colors)
         hipartIndex = self.createIndex(hipart, 'hipart', level=2)
         callEnviron |= set(hipartIndex)
         
@@ -307,18 +311,18 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
 
         self.highlightCode('self.quicksort(lo, hipart - 1, short, key)',
                            callEnviron)
-        self.fadeNonLocalItems(loIndex + hiIndex + hipartIndex)
+        colors = self.canvas.fadeItems(loIndex + hiIndex + hipartIndex)
         self.quicksort(lo, hipart - 1, short, code, 
                        bottomCallEnviron=bottomCallEnviron)
-        self.restoreLocalItems(loIndex + hiIndex + hipartIndex)
+        self.canvas.restoreItems(loIndex + hiIndex + hipartIndex, colors)
         self.canvas.tag_raise('pivotPartition')
 
         self.highlightCode('self.quicksort(hipart + 1, hi, short, key)',
                            callEnviron)
-        self.fadeNonLocalItems(loIndex + hiIndex + hipartIndex)
+        colors = self.canvas.fadeItems(loIndex + hiIndex + hipartIndex)
         self.quicksort(hipart + 1, hi, short, code, 
                        bottomCallEnviron=bottomCallEnviron)
-        self.restoreLocalItems(loIndex + hiIndex + hipartIndex)
+        self.canvas.restoreItems(loIndex + hiIndex + hipartIndex, colors)
         self.canvas.tag_raise('pivotPartition')
         
         self.highlightCode([], callEnviron)
@@ -335,7 +339,7 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         pad = self.PIVOT_LINE_PAD
 
         labels = ['pivot', str(pivot), '[{}, {}]'.format(lo, hi)]
-        widths = [self.textWidth(font, label) for label in labels]
+        widths = [textWidth(font, label) for label in labels]
         height = abs(font[1])
         maxWidth = max(*widths)
         lbls = tuple(self.canvas.create_text(
@@ -348,8 +352,7 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
             width=self.PIVOT_LINE_WIDTH)
         if not self.showPartitions:
             for item in lbls + (line,):
-                self.canvas.coords(
-                    item, multiply_vector(self.canvas.coords(item), -1))
+                self.canvas.coords(item, V(self.canvas.coords(item)) * -1)
         return lbls + (line,)
 
     def pivotMarkCoords(self, pivotIndex):
@@ -367,14 +370,13 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         items = (mark,)
         if not self.showPartitions:
             for item in items:
-                self.canvas.coords(
-                    item, multiply_vector(self.canvas.coords(item), -1))
+                self.canvas.coords(item, V(self.canvas.coords(item)) * -1)
         return items
 
     def showPartitionsControlCoords(self):
         gap = 10
         size = 16
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         return (gap, canvasDims[1] - gap - size, 
                 gap + size, canvasDims[1] - gap)
     
@@ -382,12 +384,12 @@ def quicksort(self, lo={lo}, hi={hi}, short=3, key=identity):
         coords = self.showPartitionsControlCoords()
         box = self.canvas.create_rectangle(
             *coords, fill=self.DEFAULT_BG, outline=self.CONTROLS_COLOR, width=2)
-        center = divide_vector(add_vector(coords[:2], coords[2:]), 2)
+        center = BBoxCenter(coords)
         self.showPartitionsCheck = self.canvas.create_text(
-            *(center if self.showPartitions else multiply_vector(center, -1)),
+            *(center if self.showPartitions else V(center) * -1),
             text='✓', fill=self.CONTROLS_COLOR, font=self.CONTROLS_FONT)
         label = self.canvas.create_text(
-            *add_vector(center, (coords[2] - coords[0], 0)), anchor=W,
+            *(V(center) + V(coords[2] - coords[0], 0)), anchor=W,
             text='Show pivot partitions', fill=self.CONTROLS_COLOR, 
             font=self.CONTROLS_FONT)
         items = (box, self.showPartitionsCheck, label)
@@ -550,7 +552,7 @@ def shellSort(self):
                 toMove = [j for j in range(outer if h > 1 else -1, -1, -h)]
                 itemsToMove = list(flat(*[
                     self.list[j].items + (self.arrayCells[j],) for j in toMove]))
-                toMoveCoords = [add_vector(self.canvas.coords(i), descend)
+                toMoveCoords = [V(self.canvas.coords(i)) + V(descend)
                                 for i in itemsToMove]
                 itemsToRestore = list(flat(*[
                     self.list[j].items + (self.arrayCells[j],) for j in toRestore]))
@@ -601,10 +603,9 @@ def shellSort(self):
                     inner -= h
                     arrowPos = self.indexCoords(inner, level=-1)
                     tempLabelPos = self.tempLabelCoords(max(-1, inner - h))
-                    delta = subtract_vector(
-                        tempLabelPos, self.canvas.coords(tempLabel))
+                    delta = V(tempLabelPos) - V(self.canvas.coords(tempLabel))
                     tempCoords = [
-                        add_vector(self.canvas.coords(i), delta * 2)
+                        V(self.canvas.coords(i)) + V(delta * 2)
                         for i in tempVal.items] + [tempLabelPos]
                     self.moveItemsTo(
                         innerArrow + tempVal.items + (tempLabel,),
@@ -613,7 +614,7 @@ def shellSort(self):
 
                     self.highlightCode('nShifts += 1', callEnviron, wait=wait)
                     nShifts += 1
-                    self.canvas.itemconfigure(
+                    self.canvas.itemConfig(
                         nShiftsLabel, text=nShiftsValue.format(nShifts))
                     
                     self.highlightCode('inner >= h', callEnviron, wait=wait)
@@ -633,7 +634,7 @@ def shellSort(self):
                     self.highlightCode(('nShifts += 1', 2), callEnviron,
                                        wait=wait)
                     nShifts += 1
-                    self.canvas.itemconfigure(
+                    self.canvas.itemConfig(
                         nShiftsLabel, text=nShiftsValue.format(nShifts))
                     
                 else:
@@ -665,39 +666,36 @@ def shellSort(self):
         spanCenter = ((spanCoords[0] + spanCoords[-2]) // 2, spanCoords[5])
         textPattern = "h: {}"
         hText = textPattern.format(h)
-        textWidth = self.textWidth(font, hText)
-        boxCoords = (spanCenter[0] - textWidth / 2 - 1, spanCoords[1],
-                     spanCenter[0] + textWidth / 2 + 1, spanCoords[3])
+        tWidth = textWidth(font, hText)
+        boxCoords = (spanCenter[0] - tWidth / 2 - 1, spanCoords[1],
+                     spanCenter[0] + tWidth / 2 + 1, spanCoords[3])
         self.wait(0)
         if hLabel:  # Adjust existing hLabel: (span, box, text)
             currentCoords = self.canvas.coords(hLabel[0])
-            currentText = self.canvas.itemconfigure(hLabel[2], 'text')[-1]
+            currentText = self.canvas.itemConfig(hLabel[2], 'text')
             startH = int(currentText[3:]) if currentText != hText else h
             if currentCoords != spanCoords or currentText != hText:
                 for step in range(steps):
-                    sCoords = divide_vector(
-                        add_vector(multiply_vector(currentCoords,
-                                                   steps - 1 - step),
-                                   multiply_vector(spanCoords, step + 1)),
-                        steps)
+                    sCoords = V(V(V(currentCoords) * (steps - (step + 1))) +
+                                V(V(spanCoords) * (step + 1))) / steps
                     sCenter = ((sCoords[0] + sCoords[-2]) // 2, sCoords[5])
                     if startH != h:
                         text = 'h: {:3.1f}'.format(
                             (startH * (steps - 1 - step) + h * (step + 1)) /
                             steps)
-                        textWidth = self.textWidth(font, text)
-                    bCoords = (sCenter[0] - textWidth / 2 - 1, sCoords[1],
-                               sCenter[0] + textWidth / 2 + 1, sCoords[3])
+                        tWidth = textWidth(font, text)
+                    bCoords = (sCenter[0] - tWidth / 2 - 1, sCoords[1],
+                               sCenter[0] + tWidth / 2 + 1, sCoords[3])
                     for i, coords in zip(hLabel, (sCoords, bCoords, sCenter)):
                         self.canvas.coords(i, *coords)
                     if startH != h:
-                        self.canvas.itemconfigure(hLabel[2], text=text)
+                        self.canvas.itemConfig(hLabel[2], text=text)
                     self.wait(sleepTime)
                     
                 for i, coords in zip(hLabel, 
                                      (spanCoords, boxCoords, spanCenter)):
                     self.canvas.coords(i, *coords)
-                self.canvas.itemconfigure(hLabel[2], text=hText)
+                self.canvas.itemConfig(hLabel[2], text=hText)
                         
         else: # Create new hLabel
             if color is None:

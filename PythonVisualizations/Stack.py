@@ -1,11 +1,15 @@
 from tkinter import *
 
 try:
+    from coordinates import *
     from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
+
+V = vector
 
 class Stack(VisualizationApp):
     nextColor = 0
@@ -30,7 +34,7 @@ class Stack(VisualizationApp):
         kwargs['title'] = title
         kwargs['maxArgWidth'] = maxArgWidth
         super().__init__(**kwargs)
-        self.CELL_WIDTH = self.textWidth(
+        self.CELL_WIDTH = textWidth(
             self.VALUE_FONT, '▢' * (maxArgWidth + 2))
         self.size = size
         self.list = []
@@ -89,7 +93,7 @@ def push(self, item={val}):
         toPositions = (cellCoords, cellCenter)
 
         # determine the top left and bottom right positions
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         left = int(self.cell0()[0] * 0.75)
         startPosition = [left, canvasDims[1],
                          left + self.CELL_WIDTH - self.CELL_BORDER,
@@ -132,7 +136,7 @@ def pop(self):
         self.highlightCode('top = self.__stackList[self.__top]', callEnviron)
 
         # move copies of item to be deleted to top area
-        newItems = [self.copyCanvasItem(i) for i in self.list[-1].items]
+        newItems = [self.canvas.copyItem(i) for i in self.list[-1].items]
         callEnviron |= set(newItems)
 
         itemPos = self.topBoxCoords()
@@ -202,7 +206,7 @@ def peek(self):
         midOutputBoxX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
 
         # create the value to move to output box
-        valueOutput = self.copyCanvasItem(self.list[pos].items[1])
+        valueOutput = self.canvas.copyItem(self.list[pos].items[1])
         valueList = (valueOutput,)
         callEnviron.add(valueOutput)
 
@@ -248,7 +252,7 @@ def isEmpty(self):
     
     def cell0(self):
         if self.__cell0 is None: 
-            canvasDims = self.widgetDimensions(self.canvas)
+            canvasDims = widgetDimensions(self.canvas)
             self.__cell0 = (self.STACK_X0,
                             canvasDims[1] - self.CELL_HEIGHT - self.CELL_BORDER)
         return self.__cell0
@@ -260,16 +264,14 @@ def isEmpty(self):
                 y0 - self.CELL_HEIGHT * cell_index - self.CELL_BORDER)
 
     def cellCenter(self, index):  # Center point for array cell at index
-        half_cell_x = self.CELL_WIDTH // 2 - self.CELL_BORDER
-        half_cell_y = self.CELL_HEIGHT // 2 - self.CELL_BORDER
-        return add_vector(self.cellCoords(index), (half_cell_x, half_cell_y))
+        return BBoxCenter(self.cellCoords(index))
 
     def createArrayCell(self, index):  # Create a box representing an array cell
         cell_coords = self.cellCoords(index)
         half_border = self.CELL_BORDER // 2
         other_half = self.CELL_BORDER - half_border
-        cell = add_vector(cell_coords,
-                          (-half_border, -half_border, other_half, other_half))
+        cell = V(cell_coords) + V(
+            -half_border, -half_border, other_half, other_half)
         rect = self.canvas.create_rectangle(
             cell, fill=None, outline=self.CELL_BORDER_COLOR,
             width=self.CELL_BORDER)
@@ -298,7 +300,7 @@ def isEmpty(self):
             valPos = self.cellCenter(indexOrCoords)
         else:
             rectPos = indexOrCoords
-            valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
+            valPos = BBoxCenter(rectPos)
 
         if color is None:
             # Take the next color from the palette
@@ -328,7 +330,7 @@ def __init__(self, max={newSize}):
             wait = 0.1
             callEnviron = self.createCallEnvironment(
                 code=code.format(**locals()), startAnimations=start)
-            canvasDims = self.widgetDimensions(self.canvas)
+            canvasDims = widgetDimensions(self.canvas)
             try:
                 self.highlightCode(
                     'self.__stackList = [None] * max', callEnviron, wait=wait)

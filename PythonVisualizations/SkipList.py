@@ -2,8 +2,10 @@ import math
 import random
 from tkinter import *
 try:
+    from tkUtilities import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .tkUtilities import *
     from .VisualizationApp import *
 
 class Link():
@@ -44,7 +46,7 @@ class SkipList(VisualizationApp):
         self.arrowX2 = lambda to: to.x
         self.arrowY2 = lambda to, i: to.y - self.CELL_HEIGHT*i - self.ARROW_Y1 
         # The - 2 takes into acount the header and end
-        self.maxInserts = lambda : ((self.widgetDimensions(self.canvas)[0] //
+        self.maxInserts = lambda : ((widgetDimensions(self.canvas)[0] //
                                      self.LINK_WIDTH) - 2)
         self.__numLinks = 0
         

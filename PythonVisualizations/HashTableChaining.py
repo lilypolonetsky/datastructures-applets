@@ -2,10 +2,14 @@ from tkinter import *
 import re, math
 try:
     from drawnValue import *
+    from tkUtilities import *
     from HashTableOpenAddressing import *
+    from OutputBox import *
 except ModuleNotFoundError:
     from .drawnValue import *
+    from .tkUtilities import *
     from .HashTableOpenAddressing import *
+    from .OutputBox import *
 
 # Regular expression for max load factor
 maxLoadFactorPattern = re.compile(r'[01](\.\d*)?')
@@ -98,13 +102,13 @@ def insert(self, key={key}, value):
                                    callEnviron, wait=wait)
                 if self.loadFactor() > self.maxLoadFactor:
                     self.highlightCode('self.__growTable()', callEnviron)
-                    colors = self.fadeNonLocalItems(localVars)
+                    colors = self.canvas.fadeItems(localVars)
 
             if self.loadFactor() > self.maxLoadFactor:
                 self.__growTable(code=self._growTableCode if code else '',
                                  adjust=adjust)
                 if code:
-                    self.restoreLocalItems(localVars, colors)
+                    self.canvas.restoreItems(localVars, colors)
 
         if code:
             self.highlightCode('return flag', callEnviron)
@@ -152,8 +156,8 @@ def insert(self, key={key}, value):
                 self.expandCanvasFor(*newItems)
                 
         if updateExisting:
-            self.copyItemAttributes(newItems[0], linkedList[listIndex].items[0],
-                                    'fill')
+            self.canvas.copyItemAttributes(
+                newItems[0], linkedList[listIndex].items[0], 'fill')
             self.dispose(callEnviron, *newItems)
         else:
             linkedList.append(drawnValue(key, *newItems))
@@ -351,16 +355,16 @@ def __growTable(self):
                             
                         self.highlightCode('self.insert(*item)', callEnviron)
                         if self.showHashing.get():
-                            keyCopy = self.copyCanvasItem(link.items[1])
+                            keyCopy = self.canvas.copyItem(link.items[1])
                             callEnviron.add(keyCopy)
-                        colors = self.fadeNonLocalItems(localVars)
+                        colors = self.canvas.fadeItems(localVars)
                     self.insert(
                         link.val, 
                         nodeItems=link.items, adjust=adjust,
                         inputText=keyCopy, code=self.insertCode if code else '')
                     callEnviron -= set(link.items)
                     if code:
-                        self.restoreLocalItems(localVars, colors)
+                        self.canvas.restoreItems(localVars, colors)
                         self.highlightCode('item in oldTable[i].traverse()',
                                            callEnviron, wait=wait)
                 if code:
@@ -390,8 +394,8 @@ def search(self, key={key}):
         outBox = (outBox[0], outBox[1], 
                   outBox[0] + self.linkWidth + 2 * pad, outBox[3])
         outBoxCenter = BBoxCenter(outBox)
-        outputBox = self.createOutputBox(coords=outBox)
-        callEnviron.add(outputBox)
+        outputBox = OutputBox(self, bbox=outBox, outputFont=self.outputFont)
+        callEnviron |= set(outputBox.items())
         
         if code:
             self.highlightCode('i = self.hash(key)', callEnviron)
@@ -430,16 +434,13 @@ def search(self, key={key}):
 
         found = linkIndex < len(linkedList)
         if found:
-            items = [self.copyCanvasItem(item)
+            items = [self.canvas.copyItem(item)
                      for item in linkedList[linkIndex].items[0:2]]
             callEnviron |= set(items)
-            self.canvas.tag_lower(items[0])
-            delta = V(BBoxCenter(outBox)) - V(self.canvas_coords(items[1])) 
-            self.moveItemsBy(
-                items, delta, see=True, sleepTime=wait / 10,
-                startFont=self.getItemFont(items[1]), endFont=self.outputFont)
-            self.copyItemAttributes(items[0], outputBox, 'fill')
-            self.dispose(callEnviron, items[0])
+            
+            outputBox.setToText(items, sleepTime=wait / 10, color=True)
+            callEnviron -= set(items)
+
         else:
             if itemArrow:
                 self.moveItemsTo(itemArrow, self.linkIndexCoords(i), see=True,
@@ -488,11 +489,11 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
         if self.table[i] is not None:
             if code:
                 self.highlightCode('self.__table[i].delete(key)', callEnviron)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
             if self.deleteFromList(
                     key, i, callEnviron, animate=code, wait=wait):
                 if code:
-                    self.restoreLocalItems(localVars, colors)
+                    self.canvas.restoreItems(localVars, colors)
                     self.highlightCode('self.__nItems -= 1', callEnviron,
                                        wait=wait)
                 self.nItems -= 1
@@ -504,7 +505,7 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
 
         if code:
             if colors:
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
             self.highlightCode(('ignoreMissing', 2), callEnviron, wait=wait)
         if ignoreMissing:
             self.highlightCode('return False', callEnviron)
@@ -666,7 +667,7 @@ def traverse(self):
         '''
         vCorner = V(corner)
         rectAt = (vCorner + V(self.linkHeight, 0))
-        width = (self.textWidth(self.VALUE_FONT, str(key) + '  ') 
+        width = (textWidth(self.VALUE_FONT, str(key) + '  ') 
                  if key else self.linkWidth)
         rectAt += V(rectAt) + V(width, self.linkHeight)
         keyAt = BBoxCenter(rectAt)
@@ -691,7 +692,7 @@ def traverse(self):
         space to hold several lines of text'''
         if font is None:
             font = getattr(self, 'outputFont', self.VALUE_FONT)
-        lineHeight = self.textHeight(font, ' ')
+        lineHeight = textHeight(font, ' ')
         left = self.targetCanvasWidth * 4 // 10
         top = pad + abs(self.VARIABLE_FONT[1])
         return (left, top,
@@ -799,8 +800,8 @@ def traverse(self):
         self.cellIndexFont = (self.VARIABLE_FONT[0], - 10)
 
         self.linkHeight = 12
-        self.linkWidth = self.textWidth(self.VALUE_FONT,
-                                        'W' * (self.maxArgWidth + 2))
+        self.linkWidth = textWidth(self.VALUE_FONT,
+                                   'W' * (self.maxArgWidth + 2))
         self.linkDotRadius = 4
         self.linkDotColor = 'red'
         self.linkArrowColor = 'black'
@@ -941,19 +942,19 @@ def traverse(self):
         h = self.hasher
 
         if textItem and self.canvas.type(textItem) == 'text':
-            self.changeAnchor(E, textItem)
+            self.canvas.changeAnchor(E, textItem)
             bbox = self.canvas.bbox(textItem)
             self.moveItemsTo(
                 textItem, self.hashInputCoords(nInputs=1), see=h['Blocks'],
-                sleepTime=sleepTime, startFont=self.getItemFont(textItem),
-                endFont=self.VARIABLE_FONT)
+                sleepTime=sleepTime, endFont=self.VARIABLE_FONT,
+                startFont=self.canvas.getItemFont(textItem))
             self.canvas_itemConfig(textItem, fill=color)
             
         # Create individual character text items to feed into hasher
         text, hashed = str(text), str(hashed)
         inputCoords = self.hashInputCoords(nInputs=1)
         outputCoords = self.hashOutputCoords()
-        charWidth = self.textWidth(font, 'W')
+        charWidth = textWidth(font, 'W')
         characters = set([
             self.canvas.create_text(
                 inputCoords[0] - ((len(text) - i) * charWidth),

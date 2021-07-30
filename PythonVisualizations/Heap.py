@@ -106,7 +106,7 @@ def insert(self, item={val}):
         startPosition = V(self.cellCoords(-1.4)) - V(self.siftDelta * 2)
         cellPair = self.createCellValue(startPosition, val)
         callEnviron |= set(cellPair)
-        nodeKey = self.copyCanvasItem(cellPair[1])
+        nodeKey = self.canvas.copyItem(cellPair[1])
         callEnviron.add(nodeKey)
 
         # Place it in the array
@@ -122,7 +122,7 @@ def insert(self, item={val}):
         node = self.createNode(
             val, parent=self.getNode((self.nItems - 1) // 2),
             direction=Child.LEFT if self.nItems % 2 == 1 else Child.RIGHT,
-            color=self.canvas.itemconfigure(cellPair[0], 'fill')[-1])
+            color=self.canvas.itemConfig(cellPair[0], 'fill'))
         self.canvas.delete(nodeKey)
         callEnviron.discard(nodeKey)
         
@@ -202,7 +202,7 @@ def _growHeap(self):
                            wait=wait / 5)
         for v in self.list:
             self.highlightCode('self._arr[i] = current[i]', callEnviron)
-            newValue = tuple(self.copyCanvasItem(i) for i in v.items)
+            newValue = tuple(self.canvas.copyItem(i) for i in v.items)
             callEnviron |= set(newValue)
             self.moveItemsBy(newValue, V(self.arrayCopyDelta) * -1,
                              sleepTime=wait / 10)
@@ -248,9 +248,9 @@ def _siftUp(self, i={i}):
         
         self.highlightCode('item = self._arr[i]', callEnviron, wait=wait)
         upItem = self.list[i].copy()
-        copyItem = tuple(self.copyCanvasItem(j) for j in upItem.items)
+        copyItem = tuple(self.canvas.copyItem(j) for j in upItem.items)
         node = self.getNode(i)
-        nodeCopy = tuple(self.copyCanvasItem(j) 
+        nodeCopy = tuple(self.canvas.copyItem(j) 
                          for j in node.drawnValue.items[1:])
         callEnviron |= set(copyItem + nodeCopy)
         self.moveItemsBy(
@@ -286,10 +286,10 @@ def _siftUp(self, i={i}):
                                    callEnviron)
                 # move a copy of the parent down to node i
                 copyVal = tuple(
-                    self.copyCanvasItem(j) for j in self.list[parent].items)
+                    self.canvas.copyItem(j) for j in self.list[parent].items)
                 parentNode = self.getNode(parent)
                 parentNodeCopy = tuple(
-                    self.copyCanvasItem(j) 
+                    self.canvas.copyItem(j) 
                     for j in parentNode.drawnValue.items[1:])
                 callEnviron |= set(copyVal + parentNodeCopy)
                 self.moveItemsOnCurve(
@@ -394,9 +394,9 @@ def _siftDown(self, i={i}):
 
         self.highlightCode('item = self._arr[i]', callEnviron, wait=wait)
         downItem = self.list[i].copy()   # Store item at cell i
-        itemCopy = tuple(self.copyCanvasItem(j) for j in downItem.items)
+        itemCopy = tuple(self.canvas.copyItem(j) for j in downItem.items)
         nodeCopy = tuple(
-            self.copyCanvasItem(j) for j in iNode.drawnValue.items[1:])
+            self.canvas.copyItem(j) for j in iNode.drawnValue.items[1:])
         callEnviron |= set(itemCopy + nodeCopy)
         self.moveItemsBy(
             itemCopy + nodeCopy, self.siftDelta, sleepTime=wait / 10)
@@ -472,7 +472,7 @@ def _siftDown(self, i={i}):
                                    callEnviron)
                 maxNode = self.getNode(maxi)
                 copyVal = tuple(
-                    self.copyCanvasItem(j) 
+                    self.canvas.copyItem(j) 
                     for j in self.list[maxi].items + 
                     maxNode.drawnValue.items[1:])
                 callEnviron |= set(copyVal)
@@ -598,9 +598,9 @@ def siftDown(array, j={j}, N={N}, key=identity):
         if code:
             self.highlightCode('item = array[j]', callEnviron, wait=wait)
         downItem = self.list[j].copy()   # Store item at cell j
-        itemCopy = tuple(self.copyCanvasItem(i) for i in downItem.items)
+        itemCopy = tuple(self.canvas.copyItem(i) for i in downItem.items)
         nodeCopy = tuple(
-            self.copyCanvasItem(i) for i in jNode.drawnValue.items[1:])
+            self.canvas.copyItem(i) for i in jNode.drawnValue.items[1:])
         callEnviron |= set(itemCopy + nodeCopy)
         self.moveItemsBy(
             itemCopy + nodeCopy, self.siftDelta, sleepTime=wait / 10)
@@ -682,7 +682,7 @@ def siftDown(array, j={j}, N={N}, key=identity):
                     self.highlightCode('array[j] = array[maxi]',
                                        callEnviron)
                 maxNode = self.getNode(maxi)
-                copyVal = tuple(self.copyCanvasItem(i) 
+                copyVal = tuple(self.canvas.copyItem(i) 
                                 for i in self.list[maxi].items +
                                 maxNode.drawnValue.items[1:])
                 callEnviron |= set(copyVal)
@@ -750,7 +750,7 @@ def siftDown(array, j={j}, N={N}, key=identity):
         '''
         item = self.list[index]
         if color is None: 
-            color = self.canvas.itemconfigure(item.items[0], 'fill')[-1]
+            color = self.canvas.itemConfig(item.items[0], 'fill')
         if center is None:
             center = self.nodeCenter(index)
 
@@ -852,10 +852,10 @@ def heapify(array, N=None, key=identity):
             if code:
                 self.highlightCode('siftDown(array, heapLo, N, key)',
                                    callEnviron)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
             self.siftDown(heapLo, N, code=self.siftDownCode if code else None)
             if code:
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
 
                 self.highlightCode('heapLo > 0', callEnviron, wait=wait)
 
@@ -892,7 +892,7 @@ def peek(self):
             root = self.list[0].val
 
             # create the items to move to output box
-            outputValues = tuple(self.copyCanvasItem(i) for i in
+            outputValues = tuple(self.canvas.copyItem(i) for i in
                                  self.getRoot().drawnValue.items[1:] +
                                  (self.list[0].items[1],))
             callEnviron |= set(outputValues)
@@ -902,7 +902,7 @@ def peek(self):
                 self.nodeItemCoords(outBoxCenter)[1:] + (outBoxCenter,),
                 sleepTime=wait / 10,
                 startFont=self.VALUE_FONT, endFont=self.outputFont)
-            self.copyItemAttributes(outputValues[0], outputBox, 'fill')
+            self.canvas.copyItemAttributes(outputValues[0], outputBox, 'fill')
             self.dispose(callEnviron, outputValues[0], outputValues[1])
 
         else:
@@ -949,7 +949,7 @@ def remove(self):
         callEnviron.add(self.canvas.create_text(
             outBoxCoords[0] - 10, outBoxCenter[1], text='root', anchor=E,
             font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
-        itemCopies = tuple(self.copyCanvasItem(item) for item in
+        itemCopies = tuple(self.canvas.copyItem(item) for item in
                             rootNode.drawnValue.items[1:] + (root.items[1],))
         callEnviron |= set(itemCopies)
         self.canvas.tag_lower(itemCopies[0], outputBox)
@@ -959,7 +959,7 @@ def remove(self):
             self.nodeItemCoords(outBoxCenter)[1:] + (outBoxCenter,),
             sleepTime=wait / 10, startFont=self.VALUE_FONT,
             endFont=self.outputFont)
-        self.copyItemAttributes(itemCopies[0], outputBox, 'fill')
+        self.canvas.copyItemAttributes(itemCopies[0], outputBox, 'fill')
         self.dispose(callEnviron, itemCopies[0], itemCopies[1])
 
         isHeap = True
@@ -980,7 +980,7 @@ def remove(self):
                     self.canvas.delete(item)
             else:                 # Otherwise prepare to move copies and remove
                 itemsToMove = tuple( # originals later
-                    self.copyCanvasItem(i)
+                    self.canvas.copyItem(i)
                     for i in lastItem.items + lastNode.drawnValue.items[1:])
                 toRemove = set(self.list[0].items +
                                rootNode.drawnValue.items[1:] +
@@ -1061,9 +1061,9 @@ for item in heap.traverse():
         self.highlightCode('item in heap.traverse()', callEnviron, wait=wait)
         arrayIndex, treeIndex = None, None
         localVars = ()
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for i, item in self.traverse():
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if arrayIndex is None:
                 arrayIndex = self.createArrayIndex(i, 'item')
                 treeIndex = self.createArrow(i, 'item')
@@ -1077,26 +1077,26 @@ for item in heap.traverse():
                     sleepTime=wait / 10)
 
             self.highlightCode('print(item)', callEnviron, wait=wait)
-            outputValues = tuple(self.copyCanvasItem(i) for i in
+            outputValues = tuple(self.canvas.copyItem(i) for i in
                                  (item.drawnValue.items[2],
                                   self.list[i].items[1]))
             callEnviron |= set(outputValues)
 
-            currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
+            currentText = self.canvas.itemConfig(outputText, 'text')
             newText = (' ' if len(currentText) > 0 else '') + str(item.getKey())
             textBBox = self.canvas.bbox(outputText)
-            newTextWidth = self.textWidth(self.outputFont, newText)
+            newTextWidth = textWidth(self.outputFont, newText)
             textCenter = (textBBox[2] + newTextWidth // 2, outBoxCenter[1])
             self.moveItemsTo(
                 outputValues, (textCenter, textCenter), sleepTime=wait / 10, 
                 startFont=self.VALUE_FONT, endFont=self.outputFont)
-            self.canvas.itemconfigure(outputText, text=currentText + newText)
+            self.canvas.itemConfig(outputText, text=currentText + newText)
             self.dispose(callEnviron, *outputValues)
 
             self.highlightCode('item in heap.traverse()', callEnviron, wait=wait)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
 
-        self.restoreLocalItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors)
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 
@@ -1190,7 +1190,7 @@ def traverse(self):
             valPos = self.cellCenter(indexOrCoords)
         else:
             rectPos = indexOrCoords
-            valPos = divide_vector(add_vector(rectPos[:2], rectPos[2:]), 2)
+            valPos = BBoxCenter(rectPos)
 
         if color is None:
             # Take the next color from the palette
@@ -1223,7 +1223,7 @@ def traverse(self):
                 self.createNode(
                     n.val, parent=self.getNode((i - 1) // 2),
                     direction=Child.LEFT if i % 2 == 1 else Child.RIGHT,
-                    color=self.canvas.itemconfigure(n.items[0], 'fill')[-1])
+                    color=self.canvas.itemConfig(n.items[0], 'fill'))
 
     def fixPositions(self):  # Move canvas display items to exact cell coords
         for i, dValue in enumerate(self.list):

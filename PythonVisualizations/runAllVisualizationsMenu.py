@@ -1,4 +1,3 @@
-#! /usr/bin/env python3
 __doc__ = """
 Program to show algorithm visualizations one at at time with a
 dropdown menu to select one.  This program loads all the visualization
@@ -18,9 +17,11 @@ from tkinter import *
 from tkinter import ttk
 
 try:
+    from allVisualizationsCommon import *
     import VisualizationApp
     VAP = VisualizationApp.VisualizationApp
 except ModuleNotFoundError:
+    from .allVisualizationsCommon import *
     from .VisualizationApp import VisualizationApp as VAP
 
 PREFERRED_ARRANGEMENT = [
@@ -41,91 +42,8 @@ PREFERRED_ARRANGEMENT = [
     ['Chapter 16', ['BloomFilter', 'SkipList']],
     ]
 
-pathsep = re.compile(r'[/\\]')
-
-def findVisualizations(filesAndDirectories, verbose=0):
-    classes = set()
-    for fileOrDir in filesAndDirectories:
-        isDir = os.path.isdir(fileOrDir)
-        files = glob.glob(os.path.join(fileOrDir, '*.py')) if isDir else [
-                   fileOrDir]
-        if verbose > 1:
-            print(
-                'Looking for "runVisualization()" in',
-                '{} python files in {}'.format(len(files), fileOrDir) if isDir
-                else fileOrDir,
-                file=sys.stderr)
-            if verbose > 2 and isDir:
-                print('Files:', '\n'.join(files), file=sys.stderr)
-        for filename in [f for f in files 
-                         if isStringInFile('runVisualization()', f)]:
-            dirs = pathsep.split(os.path.normpath(os.path.dirname(filename)))
-            if dirs and dirs[0] == '.':
-                dirs.pop(0)
-            modulename, ext = os.path.splitext(os.path.basename(filename))
-            if modulename:
-                try:
-                    fullmodulename = '.'.join(dirs + [modulename])
-                    if verbose > 1:
-                        print('Attempting to import {} ... ' .format(
-                            fullmodulename), file=sys.stderr, end='')
-                    module = import_module(fullmodulename)
-                    if verbose > 1:
-                        print('Imported. Looking for VisualizationApp'
-                              .format(fullmodulename),
-                              file=sys.stderr)
-                    newclasses = findVisualizationClasses(module, verbose)
-                    if verbose > 1:
-                        print('Found {} matching classes: {}'
-                              .format(len(newclasses), newclasses),
-                              file=sys.stderr)
-                        previouslyFound = set(newclasses) & classes
-                        if len(previouslyFound) > 0:
-                            print('Previously found:', previouslyFound,
-                                  file=sys.stderr)
-                    classes |= set(newclasses)
-                except ModuleNotFoundError:
-                    if verbose > 0:
-                        print('Unable to import module', modulename,
-                              file=sys.stderr)
-    return classes
-    
-def isStringInFile(text, filename):
-    with open(filename, 'r') as f:
-        return text in f.read()
-            
-def findVisualizationClasses(module, verbose=0):
-    classes = []
-    for name in dir(module):
-        this = getattr(module, name)          # Check if this 
-        if (isinstance(this, type(object)) and # is a class
-            issubclass(this, VAP) and this is not VAP and # a subclass of VAP
-            this.__module__ == module.__name__): # defined in ths module
-            classes.append(this)
-        elif verbose > 2:
-            print('Ignoring {}.{} of type {}'.format(
-                module.__name__, name, type(this)), file=sys.stderr)
-    return classes
-
-URL_pattern = re.compile(r'(https*|ftp)://[\w-]+\.[\w/.,?&=#%-]+')
-
 INTRO_FONT = ('Helvetica', -16)
 MENU_FONT = ('Helvetica', -12)
-
-intro_msg = """
-Welcome to the algorithm visualizations for the book:
-Data Structures and Algorithms in Python
-
-Please use these visualization tools along with the book to improve
-your understanding of how computers organize and manipulate data
-efficiently.
-
-{customInstructions}
-
-Exceptional students in the Computer Science Department of
-Stern College at Yeshiva University developed these visualizations.
-https://www.yu.edu/stern/ug/computer-science
-"""
 
 desktopInstructions = '''
 Select a visualization from the menu at the top to see the
@@ -140,51 +58,6 @@ different data structures.  If you are viewing this in a browser on a
 touch screen device, you may not be allowed to click on text entry
 boxes and use the soft keyboard to enter values.
 '''
-
-def openURL(URL):         # Make a callback function to open an URL
-    return lambda e: webbrowser.open(URL)
-
-def makeIntro(
-        mesg, container, font=INTRO_FONT, URLfg='blue', 
-        URLfont=INTRO_FONT + ('underline',), row=0, column=0):
-    '''Make introduction screen as a sequence of labels for each line of a
-    a message.  The labels are stacked, centered inside a container
-    widget.  URLs are converted to a label within a frame that has a
-    binding to open the URL.
-    Increment row for each line added and return the grid row for the
-    next row of the container.
-    '''
-    for line in mesg.split('\n'):
-        URLs = ([m for m in URL_pattern.finditer(line)] if URLfg and URLfont 
-                else [])
-        if URLs:
-            URLframe = ttk.Frame(container, cursor='hand2')
-            last = 0
-            col = 0
-            for match in URLs:
-                if match.start() > last:
-                    label = ttk.Label(URLframe, text=line[last:match.start()],
-                                      font=font)
-                    label.grid(row=0, column=col)
-                    col += 1
-                link = ttk.Label(
-                    URLframe, text=match.group(), font=URLfont,
-                    foreground=URLfg)
-                link.grid(row=0, column=col)
-                col += 1
-                link.bind('<Button-1>', openURL(match.group()))
-                last = match.end()
-            if last < len(line):
-                label = ttk.Label(URLframe, text=line[last:], 
-                                  font=font)
-                label.grid(row=0, column=col)
-                col += 1
-            URLframe.grid(row=row, column=column)
-        else:
-            label = ttk.Label(container, text=line, font=font)
-            label.grid(row=row, column=column)
-        row += 1
-    return row
 
 appWindows = []
 userSelectedWindow = None
@@ -230,6 +103,13 @@ def resizeHandler(event):
         print('Resize of application window', event.widget, 'to',
               event.widget.winfo_width(), 'x', event.widget.winfo_height())
 
+def genericEventHandler(event):
+    if event.widget in appWindows:
+        appTitle = getattr(event.widget, 'appTitle', '')
+        if appTitle: appTitle += ' '
+        print('{} event on {}application window {}'.format(
+            event.type, appTitle, event.widget))
+        
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", 
         adjustForTrinket=False, seed='3.14159', verbose=0):
@@ -307,7 +187,10 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
             appWindows.append(pane)
             try:
                 vizApp = app(window=pane)
-                name = folder + ': ' + getattr(vizApp, 'title', app.__name__)
+                appTitle = getattr(vizApp, 'title', app.__name__)
+                name = folder + ': ' + appTitle
+                setattr(pane, 'appTitle', appTitle)
+                pane.bind('<Map>', oneTimeShowHintHandler(vizApp), '+')
             except Exception as e:
                 name = app.__name__ + ' *'
                 msg = 'Error instantiating {}:\n{}'.format(app.__name__, e)
@@ -374,8 +257,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
         
     if args.files is None or args.files == []:
-        args.files = [os.path.dirname(sys.argv[0]) or
-                      os.path.relpath(os.getcwd())]
+        dirs = set([os.path.relpath(os.getcwd())])
+        if sys.argv and os.path.dirname(sys.argv[0]):
+            dirs.add(os.path.dirname(sys.argv[0]))
+        try:
+            dirs.add(os.path.dirname(__file__))
+        except:
+            pass
+        if args.verbose > 1:
+            print('No files provided.  Unique directories to search:', dirs,
+                  'with search order:', list(dirs))
+        args.files = list(dirs)
     showVisualizations(findVisualizations(args.files, args.verbose),
                        start=args.start, title=args.title, verbose=args.verbose,
                        adjustForTrinket=args.warn_for_trinket,

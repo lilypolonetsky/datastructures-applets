@@ -5,10 +5,12 @@ from enum import Enum
 try:
     from coordinates import *
     from drawnValue import *
+    from tkUtilities import *
     from VisualizationApp import *
 except ModuleNotFoundError:
     from .coordinates import *
     from .drawnValue import *
+    from .tkUtilities import *
     from .VisualizationApp import *
 
 V = vector
@@ -265,7 +267,7 @@ class BinaryTreeBase(VisualizationApp):
         '''
         fieldFont, labelFont = self.treeObjectFonts(font)
         fieldWidths = self.treeObjectFieldWidths(font=fieldFont, fields=fields)
-        ffHeight = self.textHeight(fieldFont)
+        ffHeight = textHeight(fieldFont)
         x0, y0, x1, y1 = self.treeObjectCoords(
             offsetAngle, offset, fields, fieldFont)
         rect = self.canvas.create_rectangle(
@@ -299,15 +301,15 @@ class BinaryTreeBase(VisualizationApp):
 
     def treeObjectFieldWidths(self, fields=[], font=None):
         if font is None: fieldFont, _ = self.treeObjectFonts()
-        return [self.textWidth(fieldFont, ' {} '.format(field))
+        return [textWidth(fieldFont, ' {} '.format(field))
                 for field in fields]
     
     def treeObjectCoords(
             self, offsetAngle=None, offset=None, fields=[], font=None):
         fieldFont, _ = self.treeObjectFonts(font)
-        ffHeight = self.textHeight(fieldFont)
-        rootWidth = self.textWidth(fieldFont, ' root ')
-        fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
+        ffHeight = textHeight(fieldFont)
+        rootWidth = textWidth(fieldFont, ' root ')
+        fieldsWidth = sum(textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
         if offset is None: offset = 40
         if offsetAngle is None: offsetAngle = 180
@@ -321,10 +323,10 @@ class BinaryTreeBase(VisualizationApp):
     def treeDotCenter(self, fields=[], font=None):
         '''Relative coords of dot center within tree object rectangle'''
         fieldFont, _ = self.treeObjectFonts(font)
-        rootWidth = self.textWidth(fieldFont, ' root ')
-        fieldsWidth = sum(self.textWidth(fieldFont, ' {} '.format(field))
+        rootWidth = textWidth(fieldFont, ' root ')
+        fieldsWidth = sum(textWidth(fieldFont, ' {} '.format(field))
                           for field in fields)
-        ffHeight = self.textHeight(fieldFont)
+        ffHeight = textHeight(fieldFont)
         return fieldsWidth + rootWidth // 2, ffHeight + self.CIRCLE_SIZE
 
     def treeObjectArrowCoords(self, **kwargs):
@@ -474,7 +476,7 @@ class BinaryTreeBase(VisualizationApp):
         tags = ['highlight', 'line'] + (
             [] if tags is None else tags.split() if isinstance(tags, str) else
             list(tags))
-        highlightLine = self.copyCanvasItem(line)
+        highlightLine = self.canvas.copyItem(line)
         self.canvas.tag_lower(highlightLine,
                               self.getRoot().drawnValue.items[1])
 
@@ -549,7 +551,7 @@ class BinaryTreeBase(VisualizationApp):
         for node in nodes: # Restore text label above shape background
             shape, text = node.drawnValue.items[1:3]
             if self.canvas.type(text):
-                self.canvas.itemconfigure(text, text=str(node.getKey()))
+                self.canvas.itemConfig(text, text=str(node.getKey()))
                 if self.canvas.type(shape):
                     self.canvas.tag_raise(text, shape)
         
@@ -559,7 +561,7 @@ class BinaryTreeBase(VisualizationApp):
 
     def outputBoxSpacing(self, font=None):
         if font is None: font = self.VALUE_FONT
-        return self.textWidth(font, ' ' + str(self.valMax))
+        return textWidth(font, ' ' + str(self.valMax))
     
     def outputBoxCoords(self, font=None, padding=6, N=None, canvasDims=None):
         '''Coordinates for an output box in lower right of canvas with enough
@@ -568,7 +570,7 @@ class BinaryTreeBase(VisualizationApp):
         if font is None: font = self.VALUE_FONT
         spacing = self.outputBoxSpacing(font)
         if canvasDims is None:
-            canvasDims = self.widgetDimensions(self.canvas)
+            canvasDims = widgetDimensions(self.canvas)
         width = max(2 * (self.CIRCLE_SIZE + padding), N * spacing + 2 * padding)
         left = max(0, canvasDims[0] - width) // 2
         height = max(2 * self.CIRCLE_SIZE, abs(font[1]) * 2 + padding)
@@ -926,13 +928,13 @@ def updateHeight(self):
                 self.highlightCode('self.height = self.left.height',
                                    callEnviron, wait=wait)
             height = self.getHeight(left)
-            self.canvas.itemconfigure(heightText, text=str(height))
+            self.canvas.itemConfig(heightText, text=str(height))
         else:
             if animation:
                 self.highlightCode(
                     ['self.height =', '0'], callEnviron, wait=wait)
             height = 0
-            self.canvas.itemconfigure(heightText, text='0')
+            self.canvas.itemConfig(heightText, text='0')
             
         right = self.getRightChildIndex(node)
         if animation:
@@ -950,12 +952,12 @@ def updateHeight(self):
                     self.highlightCode('self.height = self.right.height',
                                        callEnviron, wait=wait)
                 height = rightHeight
-                self.canvas.itemconfigure(heightText, text=str(height))
+                self.canvas.itemConfig(heightText, text=str(height))
 
         if animation:
             self.highlightCode('self.height += 1', callEnviron, wait=wait)
         height += 1
-        self.canvas.itemconfigure(heightText, text=str(height))
+        self.canvas.itemConfig(heightText, text=str(height))
         
         if animation:
             self.highlightCode([], callEnviron)
@@ -1016,7 +1018,7 @@ def insert(self, key={key}, data):
                 self.canvas.tag_lower(newData, existingNode.drawnValue.items[2])
                 self.moveItemsTo(
                     newData, self.canvas.coords(oldData), sleepTime=wait / 10)
-            self.copyItemAttributes(newData, oldData, 'fill')
+            self.canvas.copyItemAttributes(newData, oldData, 'fill')
             if animation:
                 self.canvas.delete(newData)
                 callEnviron.discard(newData)
@@ -1056,7 +1058,7 @@ def insert(self, key={key}, data):
                     newNode.drawnValue.items,
                     self.nodeItemCoords(node, parent), sleepTime=wait / 10)
                 if dir == 'left':
-                    self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
+                    self.canvas.itemConfig(nodeIndex[1], anchor=SE)
                 self.moveItemsBy(
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait/10)
             newNode.center = self.nodeCenter(node)
@@ -1105,9 +1107,9 @@ for key, data in tree.traverse("{traverseType}"):
         self.highlightCode(iteratorCall, callEnviron, wait=wait)
         dataIndex = None
         localVars = ()
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for node, key, items in self.traverse(traverseType):
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if dataIndex is None:
                 dataIndex = self.createArrow(
                     node, 'key, data', orientation=-135)
@@ -1119,15 +1121,15 @@ for key, data in tree.traverse("{traverseType}"):
                                  sleepTime=wait / 10)
 
             self.highlightCode('print(key)', callEnviron, wait=wait)
-            keyItem = self.copyCanvasItem(items[2])
+            keyItem = self.canvas.copyItem(items[2])
             callEnviron.add(keyItem)
-            currentText = self.canvas.itemconfigure(outputText, 'text')[-1]
+            currentText = self.canvas.itemConfig(outputText, 'text')
             textBBox = self.canvas.bbox(outputText)
-            newTextWidth = self.textWidth(self.outputFont, ' ' + str(key))
+            newTextWidth = textWidth(self.outputFont, ' ' + str(key))
             self.moveItemsTo(
                 keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
                 sleepTime=wait / 10)
-            self.canvas.itemconfigure(
+            self.canvas.itemConfig(
                 outputText,
                 text=currentText + (' ' if len(currentText) > 0 else '') +
                 str(key))
@@ -1135,9 +1137,9 @@ for key, data in tree.traverse("{traverseType}"):
             callEnviron.discard(keyItem)
 
             self.highlightCode(iteratorCall, callEnviron, wait=wait)
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
 
-        self.restoreLocalItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors)
         while self.iteratorStack:
             self.cleanUp(self.iteratorStack.pop())
         self.highlightCode([], callEnviron)
@@ -1224,16 +1226,16 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
             callEnviron, wait=wait)
         localVars = nodeArrow
         childArrow = None
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for childIndex, childKey, childData in self._traverse(
                 self.getLeftChildIndex(nodeIndex), traverseType):
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if childArrow is None:
                 childArrow = self.createArrow(
                     childIndex, 'childData', orientation=-115)
                 callEnviron |= set(childArrow)
                 localVars += childArrow
-                colors = self.itemsFillColor(localVars)
+                colors = self.canvas.itemsColor(localVars)
             else:
                 self.moveItemsTo(
                     childArrow, 
@@ -1250,8 +1252,8 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
             self.highlightCode(
                 ('childKey, childData in self.__traverse(\n         node.leftChild, traverseType)', 1),
                 callEnviron, wait=wait)
-            colors = self.fadeNonLocalItems(localVars)
-        self.restoreLocalItems(localVars, colors)
+            colors = self.canvas.fadeItems(localVars)
+        self.canvas.restoreItems(localVars, colors)
 
         self.highlightCode('traverseType == "in"', callEnviron, wait=wait)
         if traverseType == "in":
@@ -1266,16 +1268,16 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
         self.highlightCode(
             ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
             callEnviron, wait=wait)
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for childIndex, childKey, childData in self._traverse(
                 self.getRightChildIndex(nodeIndex), traverseType):
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
             if childArrow is None:
                 childArrow = self.createArrow(
                     childIndex, 'childData', orientation=-115)
                 callEnviron |= set(childArrow)
                 localVars += childArrow
-                colors = self.itemsFillColor(localVars)
+                colors = self.canvas.itemsColor(localVars)
             else:
                 self.moveItemsTo(
                     childArrow, 
@@ -1292,8 +1294,8 @@ def __traverse(self, node={node}, traverseType="{traverseType}"):
             self.highlightCode(
                 ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
                 callEnviron, wait=wait)
-            colors = self.fadeNonLocalItems(localVars)
-        self.restoreLocalItems(localVars, colors)
+            colors = self.canvas.fadeItems(localVars)
+        self.canvas.restoreItems(localVars, colors)
 
         self.highlightCode('traverseType == "post"', callEnviron, wait=wait)
         if traverseType == "post":

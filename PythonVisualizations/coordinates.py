@@ -21,7 +21,7 @@ class vector(object):
 
     def __str__(self):
         return 'V({})'.format(', '.join(map(str, self.coords)))
-
+    
     def __eq__(self, other):
         if isinstance(other, vector):
             return self.coords == other.coords
@@ -110,15 +110,34 @@ class vector(object):
 
     def unit(self, minLength=0):
         length = self.vlen()
-        return self / (length if length >= minLength else 1)
+        return self / (length if length > minLength else 1)
 
     def rotate(self, angle, radians=False):
+        'Rotate a 2-D vector by an angle'
         a = angle if radians else math.radians(angle)
         s, c = math.sin(a), math.cos(a)
         return (self.dot(vector(c, -s)), self.dot(vector(s, c)))
 
+    def orient2d(self, radians=False):
+        'Get orientation angle of a 2-D vector'
+        a = math.atan2(self.coords[1], self.coords[0])
+        return a if radians else math.degrees(a)
+
     def normal2d(self):
+        'Get normal vector of a 2-D vector'
         return - self.coords[1], self.coords[0]
+
+def collinear(p1, p2, p3, threshold=1e-8):
+    'Test if three points are collinear'
+    d1, d2 = vector(vector(p2) - vector(p1)), vector(vector(p3) - vector(p1))
+    l1, l2 = d1.vlen(), d2.vlen()
+    return l1 == 0 or l2 == 0 or abs(abs(d1.dot(d2) / l1 / l2) - 1) < threshold
+
+def collinearBetween(p1, p2, p3, threshold=1e-8):
+    'Test if three points are collinear with p2 between p1 and p3'
+    d1, d2 = vector(vector(p1) - vector(p2)), vector(vector(p3) - vector(p2))
+    l1, l2 = d1.vlen(), d2.vlen()
+    return l1 == 0 or l2 == 0 or abs(d1.dot(d2) / l1 / l2 + 1) < threshold
 
 def distance2(point1, point2):
     return vector(vector(point1) - vector(point2)).len2()
@@ -174,8 +193,10 @@ if __name__ == '__main__':
         'A < B', 'A == B', 'A > B', 'A == A', 'A <= B', 'A <= A',
         'A[0]', 'A[:2]', 'A[::2]', 'str(V(*A[::2]))', 'str(V(A[::2]))',
         'A["x"]', 'A["y"]', 'A["z"]',
-        'V(A[::2]).rotate(90)', 'A.rotate(37)',
+        'V(A[::2]).rotate(90)', 'A.rotate(37)', 'A.orient2d()',
+        'A * -1', 'V(A * -1).orient2d()',
         'A.dot(B)', 'A.len2()', 'A.vlen()', 'A.unit()', 'A.normal2d()',
+        'V(A.normal2d()).orient2d()', 
         'V(1e-1, 1e-10).unit()', 'V(1e-10, 0).unit(minLength=1e-9)',
         'V(1e-10, 0).unit(minLength=1e-10)', 'V(1e-10, 0).unit(minLength=1e-11)',
         'bbox(A, B)', 'bbox(B[1:], A)',

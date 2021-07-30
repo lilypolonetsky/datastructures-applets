@@ -35,17 +35,16 @@ def insert(self, item={val}):
    if self.__nItems >= len(self.__a):
       raise Exception("Array overflow")
 
-   j = self.__nItems
-   while 0 < j and self.__a[j - 1] > item:
+   index = self.find(item)
+   for j in range(self.__nItems, index, -1):
       self.__a[j] = self.__a[j-1]
-      j -= 1
-
-   self.__a[j] = item
+         
+   self.__a[index] = item
    self.__nItems += 1
 '''
 
     def insert(self, val, code=insertCode, start=True):
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
@@ -60,61 +59,54 @@ def insert(self, item={val}):
             self.cleanUp(callEnviron)
             return
 
-        self.highlightCode('j = self.__nItems', callEnviron, wait=wait)
-        j = len(self.list)
-        indexJ = self.createIndex(j, 'j')
-        callEnviron |= set(indexJ)
-
-        self.highlightCode('0 < j', callEnviron, wait=wait)
+        self.highlightCode('index = self.find(item)', callEnviron)
+        index = self.find(val)
+        indexIndex = self.createIndex(index, 'index', level=2)
+        callEnviron |= set(indexIndex)
         
-        startPosition = self.tempCoords(j - 1)
-        cell = self.createCellValue(startPosition, val)
-        itemLabel = self.canvas.create_text(
-            *self.tempLabelCoords(j - 1, self.VARIABLE_FONT), text='item', 
-            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
-        newItem = cell + (itemLabel,)
-        callEnviron |= set(newItem)
-        
-        if 0 < j:
-            self.highlightCode('self.__a[j - 1] > item', callEnviron, wait)
-        
+        self.highlightCode('j in range(self.__nItems, index, -1)', callEnviron,
+                           wait=wait)
         #  Move bigger items right
-        while 0 < j and self.list[j-1].val > val:
+        indexJ = None
+        for j in range(len(self.list), index, -1):
+            if indexJ is None:
+                indexJ = self.createIndex(j, 'j')
+                callEnviron |= set(indexJ)
+
             self.highlightCode('self.__a[j] = self.__a[j-1]', callEnviron)
             self.assignElement(j - 1, j, callEnviron, sleepTime=wait / 10)
             
-            self.highlightCode('j -= 1', callEnviron)
-            j -= 1
-            self.moveItemsBy(indexJ + newItem, (-self.CELL_WIDTH, 0), 
+            self.highlightCode('j in range(self.__nItems, index, -1)', 
+                               callEnviron)
+            self.moveItemsBy(indexJ, (-self.CELL_WIDTH, 0), 
                              sleepTime=wait / 10)
             
-            self.highlightCode('0 < j', callEnviron, wait=wait)
-            if 0 < j:
-                self.highlightCode('self.__a[j - 1] > item', callEnviron, wait)
-            
+            self.highlightCode('j in range(self.__nItems, index, -1)',
+                               callEnviron, wait=wait)
         
-        self.highlightCode('self.__a[j] = item', callEnviron, wait=wait)
+        cell = self.createCellValue(self.newValueCoords(), val)
+        callEnviron |= set(cell)
+
+        self.highlightCode('self.__a[index] = item', callEnviron, wait=wait)
         
         # Move the new cell into the array
-        toPositions = (self.fillCoords(val, self.cellCoords(j)),)
+        toPositions = (self.fillCoords(val, self.cellCoords(index)),)
         if len(cell) > 1:
-            toPositions += (self.cellCenter(j),)
+            toPositions += (self.cellCenter(index),)
         self.moveItemsTo(cell, toPositions, sleepTime=wait / 10)
 
-        if j < len(self.list):
-            for item in self.list[j].items: # Delete items covered by new item
+        if index < len(self.list):
+            for item in self.list[index].items: # Delete replaced items
                 if item is not None:
                     self.canvas.delete(item)
-            self.list[j] = drawnValue(val, *cell)
+            self.list[index] = drawnValue(val, *cell)
         else:
             self.list.append(drawnValue(val, *cell))
         callEnviron ^= set(cell)  # New item is no longer temporary
-        self.canvas.delete(itemLabel)
-        callEnviron.discard(itemLabel)
         
         # Move nItems pointer
         self.highlightCode('self.__nItems += 1', callEnviron)
-        self.moveItemsBy(self.nItems, (self.CELL_WIDTH, 0), sleepTime=wait/10)
+        self.moveItemsBy(self.nItems, (self.CELL_WIDTH, 0), sleepTime=wait / 10)
 
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
@@ -156,6 +148,7 @@ def find(self, item={val}):
         midIndex = None
         self.highlightCode('lo <= hi', callEnviron, wait=wait)
 
+        self.highlightCode('lo <= hi', callEnviron, wait=wait)
         while lo <= hi:
             self.highlightCode('mid = (lo + hi) // 2', callEnviron)
             mid = (lo + hi) // 2
@@ -188,7 +181,6 @@ def find(self, item={val}):
                 hiCoords = self.indexCoords(hi, level=3)
                 self.moveItemsTo(hiIndex, (hiCoords, hiCoords[:2]),
                                  sleepTime=wait / 10)
-
             self.highlightCode('lo <= hi', callEnviron, wait=wait)
                 
         self.highlightCode('return lo', callEnviron)

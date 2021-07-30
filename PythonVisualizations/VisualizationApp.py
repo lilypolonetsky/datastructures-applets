@@ -10,25 +10,19 @@ The control panel has containers for
  * A text window for showing and highlighting code snippets
 """
 
-import time, re, pdb, sys, os.path
+import time, re, pdb, sys, os.path, threading
 from collections import *
 from tkinter import *
 from tkinter import ttk
 PRESSED = 'pressed' # Oddly the ttk module does not define this like tk's ACTIVE
 
 try:
-    from PIL import Image as Img
-    from PIL import ImageTk
-except ModuleNotFoundError as e:
-    print('Pillow module not found.  Did you try running:')
-    print('pip3 install -r requirements.txt')
-    raise e
-
-try:
     from TextHighlight import *
+    from tkUtilities import *
     from Visualization import *
 except ModuleNotFoundError:
     from .TextHighlight import *
+    from .tkUtilities import *
     from .Visualization import *
     
 def gridDict(frame):    # Get all widget's within a frame's grid indexed by
@@ -48,6 +42,12 @@ def numericValidate(action, index, value_if_allowed, prior_value, text,
 def makeWidthValidate(maxWidth):
     "Register this with one parameter: %P"
     return lambda value_if_allowed: len(value_if_allowed) <= maxWidth
+        
+def makeFilterValidate(maxWidth, exclude=''):
+    "Register this with one parameter: %P"
+    return lambda value_if_allowed: (
+        len(value_if_allowed) <= maxWidth and
+        all(c not in exclude for c in value_if_allowed))
 
 class VisualizationApp(Visualization): # Base class for visualization apps
 
@@ -74,6 +74,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     SPEED_SCALE_MIN = 10
     SPEED_SCALE_MAX = 500
     SPEED_SCALE_DEFAULT = (SPEED_SCALE_MIN + SPEED_SCALE_MAX) // 2
+    DEBUG = False
 
     def __init__(  # Constructor
             self,
@@ -88,6 +89,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         # Set up instance variables for managing animations and operations
         self.callStack = []    # Stack of local environments for visualziation
 
+        self.operationMutex = threading.Lock()
         self.pauseButton, self.stopButton, self.stepButton = None, None, None
         self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
@@ -154,8 +156,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         visibleCanvas = self.visibleCanvas()
         maxY = (self.canvasBounds[3] if self.canvasBounds and offCanvas else
                 visibleCanvas[3])
-        upperDims = self.widgetDimensions(self.operationsUpper)
-        lowerDims = self.widgetDimensions(self.operationsLower)
+        upperDims = widgetDimensions(self.operationsUpper)
+        lowerDims = widgetDimensions(self.operationsLower)
         midControlPanel = max(upperDims[0], lowerDims[0]) // 2
         return visibleCanvas[0] + midControlPanel, maxY + buffer
 
@@ -202,6 +204,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             maxRows=4,      # Operations w/o args beyond maxRows -> new columns
             buttonType=ttk.Button, # Type of button (see buttonTypes)
             cleanUpBefore=True, # Clean up all previous animations before Op
+            mutex=True,     # Operation is mutually exclusive of others
             bg=None,        # Background color, default is OPERATIONS_BG
             **kwargs):      # Tk button keyword args
         if buttonType not in self.buttonTypes:
@@ -216,10 +219,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             button = buttonType( # Create button based on type
                 self.operations, text=label, font=self.CONTROLS_FONT, bg=bg,
                 **kwargs)
-        button['command'] = self.runOperation(callback, cleanUpBefore, button)
+        button['command'] = self.runOperation(
+            callback, cleanUpBefore, button, mutex)
         button.bind('<Button>', self.recordModifierKeyState)
         button.bind('<KeyPress>', self.recordModifierKeyState)
         setattr(button, 'required_args', numArguments)
+        setattr(button, 'mutex', mutex)
 
 
         # Placement
@@ -234,8 +239,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 helpTexts = getattr(textEntry, 'helpTexts', set())
                 helpTexts.add(help)
                 setattr(textEntry, 'helpTexts', helpTexts)
-            #if argHelpText: # Make a label if there are hints on what to enter
-                #self.setHint(self.textEntries[0])
 
             # Place button in grid of buttons
             buttonColumn = self.withArgsColumn + len(withArgs) // maxRows
@@ -243,7 +246,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             button.grid(
                 column=buttonColumn, row=buttonRow, padx=8, sticky=(E, W))
             withArgs.append(button)
-            self.widgetState(button, DISABLED)
+            widgetState(button, DISABLED)
             nEntries = len(self.textEntries)
             rowSpan = max(1, (min(maxRows, len(withArgs)) - 1) // nEntries)
             
@@ -401,12 +404,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.pressButton(button)
 
     def pressButton(self, button):  # Simulate button press, if enabled
-        if self.widgetState(button) == NORMAL:
-            self.widgetState(    # Simulate button press
+        if widgetState(button) == NORMAL:
+            widgetState(    # Simulate button press
                 button, PRESSED if isinstance(button, ttk.Button) else ACTIVE)
             self.window.update()
             time.sleep(0.05)
-            self.widgetState(
+            widgetState(
                 button, 
                 '!' + PRESSED if isinstance(button, ttk.Button) else NORMAL)
             button.invoke()
@@ -458,15 +461,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             height = abs(self.CONTROLS_FONT[1])
         targetSize = (height, height)
         names = ('play', 'pause', 'skip-next', 'stop')
-        images = dict((name, Img.open(name + '-symbol.png')) for name in names)
-        ratios = dict((name, min(*(V(targetSize) / V(images[name].size))))
-                      for name in names)
         self.playControlImages = dict(
-            (name, ImageTk.PhotoImage(images[name].resize(
-                (int(round(d)) for d in V(images[name].size) * ratios[name]))))
+            (name, getPhotoImage(name + '-symbol.png', targetSize))
             for name in names)
+        return self.playControlImages
         
-    def runOperation(self, command, cleanUpBefore, button=None):
+    def runOperation(self, command, cleanUpBefore, button=None, mutex=True):
         def animatedOperation(): # If button that uses arguments is provided,
             if button and getattr(button, 'required_args', 0) > 0: # record it
                 for entry in self.textEntries[:getattr( # as the last button
@@ -481,13 +481,19 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                     self.cleanUp()
                 if button and button in animationControls:
                     button.focus_set()
+                if mutex:
+                    if not self.operationMutex.acquire(blocking=False):
+                        self.setMessage('Cannot run more than one operation')
+                        return
                 command()
             except UserStop as e:
                 self.cleanUp(self.callStack[0] if self.callStack else None,
                              ignoreStops=True)
+            if mutex and self.operationMutex.locked():
+                self.operationMutex.release()
             self.enableButtons()
             focus = self.window.focus_get()
-            if (focus and  # If focus ended on an argument button or an
+            if (focus and  # If focus ended on a button needing arguments or an
                 (focus in withArgs or  # animation control run on something w/
                  focus in animationControls and button in withArgs) # args
                 and self.textEntries): # and there are text entry boxes
@@ -538,7 +544,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         withArgs, withoutArgs = self.getOperations()
         for button in withArgs:
             nArgs = getattr(button, 'required_args')
-            self.widgetState(
+            widgetState(
                 button,
                 DISABLED if not self.animationsStopped() or any(
                     arg == '' for arg in args[:nArgs]) else NORMAL)
@@ -565,7 +571,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             return          # then nothing to show
         if self.codeText is None:
             padX, padY = 10, 10
-            self.codeTextCharWidth = self.textWidth( 
+            self.codeTextCharWidth = textWidth( 
                 self.CODE_FONT, '0123456789') // 10
             self.codeVScroll = Scrollbar(self.codeFrame, orient=VERTICAL)
             self.vScrollWidth = max(
@@ -615,7 +621,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.codeText.configure(state=DISABLED)
 
             # Doing a window update here can cause multiple resize events
-            self.window.update()
+            self.window.update_idletasks()
             
     def removeCode(self,     # Remove algorithm code from the codeText box
                    code,     # Code to remove
@@ -713,7 +719,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             color = self.CODE_HIGHLIGHT
         if isinstance(fragments, (list, tuple)):
             if (len(fragments) == 2 and   # Look for (str, int) pair
-                isinstance(fragments[0], (str, type(geom_delims))) and
+                isinstance(fragments[0], (str, type(geomPattern))) and
                 isinstance(fragments[1], int)):
                 frags = [tuple(fragments)] # Look up by (str, int) tuple
             else:
@@ -848,14 +854,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         itemCoords = {}
         canvasDims = (V(self.canvasBounds[2:]) - self.canvasBounds[:2]
                       if self.canvasBounds else 
-                      self.widgetDimensions(self.canvas))
+                      widgetDimensions(self.canvas))
         away = V(canvasDims) * 10
+        itemOrder = self.canvas.find_all()
         for item in callEnviron:
             if isinstance(item, int) and self.canvas.type(item):
                 coords = self.canvas.coords(item)
                 if any(self.withinCanvas((coords[j], coords[j + 1]))
                        for j in range(0, len(coords), 2)):
-                    itemCoords[item] = coords
+                    itemCoords[item] = (coords, itemOrder.index(item))
                     self.canvas.coords(item, V(coords) +
                                        V(away * (len(coords) // 2)))
         return itemCoords
@@ -868,8 +875,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                           addBoundary=True, allowStepping=False)
             codeBlock.markStart()
             self.highlightCode(codeBlock.currentFragments, callEnviron, wait=0)
-        for item in itemCoords:
-            self.canvas.coords(item, *itemCoords[item])
+        for item in sorted(itemCoords.keys(), key=lambda x: itemCoords[x][1]):
+            self.canvas.coords(item, *itemCoords[item][0])
             self.canvas.tag_raise(item)
 
     def callStackHighlights(self):
@@ -968,13 +975,15 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         for btn in withArgs + withoutArgs:
             if isinstance(btn, self.buttonTypes):
                 nArgs = getattr(btn, 'required_args', 0)
-                self.widgetState(
-                    btn, NORMAL if enable and all(args[:nArgs]) else DISABLED)
+                mutex = getattr(btn, 'mutex', False)
+                widgetState(
+                    btn, NORMAL if enable and all(args[:nArgs]) and not (
+                        mutex and self.operationMutex.locked()) else DISABLED)
             
             elif btn is getattr(self, 'playControlsFrame', False):
                 for b in (self.pauseButton, self.stepButton, self.stopButton):
                     if b:
-                        self.widgetState(
+                        widgetState(
                             b,
                             NORMAL if (
                                 enable and not self.animationsStopped() and
@@ -1012,10 +1021,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             buttonImage(self.pauseButton, self.playControlImages['pause'])
         for btn in (self.pauseButton, self.stopButton):
             if btn and enableStops:
-                self.widgetState(btn, NORMAL)
+                widgetState(btn, NORMAL)
         if self.stepButton and enableStops and (
                 self.codeText or state == Animation.STEP):
-            self.widgetState(self.stepButton, NORMAL)
+            widgetState(self.stepButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
         
@@ -1026,25 +1035,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.enableButtons(enable=True)
             for btn in (self.pauseButton, self.stopButton, self.stepButton):
                 if btn:
-                    self.widgetState(btn, DISABLED)
+                    widgetState(btn, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
-
-    def runVisualization(self): #override of runVisualization that populates default hint
-        if (len(self.textEntries) > 0):
-            widget = self.textEntries[0]
-            setattr(widget, 'timeout_ID',
-                    widget.after(
-                        self.HOVER_DELAY, 
-                        lambda: self.setHint(widget) or setattr(widget, 'timeout_ID', None)))
-        self.window.mainloop()
-
-# Tk widget utilities
-
-def buttonImage(btn, image=None):
-    if image is None:   # Tk stores the actual image in the image attribute
-        return btn.image
-    else:    
-        btn['image'] = image # This triggers an update to the button appearance
-        btn.image = image  # and this puts the aclual image in the attribut
-        return image

@@ -3,10 +3,12 @@ import random
 
 try:
     from coordinates import *
+    from tkUtilities import *
     from drawnValue import *
     from VisualizationApp import *
     from BinaryTreeBase import *
 except ModuleNotFoundError:
+    from .tkUtilities import *
     from .coordinates import *
     from .drawnValue import *
     from .VisualizationApp import *
@@ -63,7 +65,7 @@ class RedBlackTree(BinaryTreeBase):
         items = super().createNodeShape(
             x, y, key, tag, color=color, parent=parent, radius=radius,
             **kwargs)
-        self.canvas.itemconfigure(items[1], tags=(tag, 'shape'))
+        self.canvas.itemConfig(items[1], tags=(tag, 'shape'))
         for item in (redBlackLabel, *items[1:]):
             self.canvas.tag_bind(item, '<Button-1>', self.flipColor(key))
             self.canvas.tag_bind(item, '<Double-Button-1>', self.rotateNode(key))
@@ -80,10 +82,10 @@ class RedBlackTree(BinaryTreeBase):
         node = node if isinstance(node, Node) else self.getNode(node)
         if node:
             if color:
-                self.canvas.itemconfigure(node.drawnValue.items[3], fill=color)
+                self.canvas.itemConfig(node.drawnValue.items[3], fill=color)
             else:
-                return self.canvas.itemconfigure(
-                    node.drawnValue.items[3], 'fill')[-1]
+                return self.canvas.itemConfig(
+                    node.drawnValue.items[3], 'fill')
     
     def nodeRing(self, node, ring=None):
         'Get or set the canvas oval representing the color ring around a node'
@@ -126,6 +128,9 @@ class RedBlackTree(BinaryTreeBase):
                     print('Skipping duplicate flip request (dt = {} ms)'.format(
                         event.time - self.lastFlipEvent[2]))
                 return
+            if not self.operationMutex.acquire(blocking=False):
+                self.setMessage('Cannot flip node color during other operation')
+                return
             self.lastFlipEvent = (key, event.serial, event.time)
             nodeIndex, _ = self._find(key)
             node = self.getNode(nodeIndex)
@@ -136,16 +141,22 @@ class RedBlackTree(BinaryTreeBase):
                 self.flipNodeColor(nodeIndex)
                 if self.DEBUG:
                     print('Flipped', node, 'color to', self.nodeColor(nodeIndex))
+            self.operationMutex.release()
         return flipHandler
 
     def rotateNode(self, key):
         def rotateHandler(event):
+            turn = 'left' if event.state & SHIFT else 'right'
             if self.DEBUG:
-                print('Rotate Node event', event.serial, event.time)
+                print('Rotate Node', turn, 'event', event.serial, event.time)
             if (key, event.serial) == self.lastRotateEvent[:2]:
                 if self.DEBUG:
                     print('Skipping duplicate rotate request (dt = {} ms)'
                           .format(event.time - self.lastRotateEvent[2]))
+                return
+            if not self.operationMutex.acquire(blocking=False):
+                self.setMessage('Cannot rotate node {} during other operation'
+                                .format(turn))
                 return
             self.lastRotateEvent = (key, event.serial, event.time)
             nodeIndex, _ = self._find(key)
@@ -154,18 +165,19 @@ class RedBlackTree(BinaryTreeBase):
                 self.cleanUp()
                 if self.DEBUG:
                     print('Rotate', node, '(color', self.nodeColor(nodeIndex),
-                          ')', 'left' if event.state & SHIFT else 'right')
+                          ')', turn)
                 if node is self.lastNodeClicked[0]: # Restore color before click
                     if self.DEBUG:
                         print('Restoring', node, 'color to', 
                               self.lastNodeClicked[1])
                     self.nodeColor(nodeIndex, self.lastNodeClicked[1])
-                if event.state & SHIFT:
+                if turn == 'left':
                     self.rotateLeft(nodeIndex)
                 else:
                     self.rotateRight(nodeIndex)
                 self.lastNodeClicked = (node, self.nodeColor(nodeIndex))
                 self.updateMeasures()
+            self.operationMutex.release()
         return rotateHandler
 
     def rotateLeft(self, top, animation=True, wait=0.1):
@@ -332,7 +344,7 @@ class RedBlackTree(BinaryTreeBase):
         sharedParent = fromParent == toParent
         child = fromChild if fromChild else toParent
         lineToMove = child.getLine()
-        newLine = self.copyCanvasItem(lineToMove)
+        newLine = self.canvas.copyItem(lineToMove)
         self.canvas.tag_lower(newLine)
         callEnviron.add(newLine)
         lineToMoveCoords = self.canvas.coords(lineToMove)
@@ -358,7 +370,7 @@ class RedBlackTree(BinaryTreeBase):
                      self.nodeColor(self.getRoot()) == self.BLACK_COLOR)
         redRedLinks = self.getRedRedLinks()
         blackHeights = self.blackHeights()
-        dy = self.textHeight(self.VALUE_FONT)
+        dy = textHeight(self.VALUE_FONT)
         for m in range(len(self.measures)):
             if self.canvas.type(self.measures[m]) != 'text':
                 self.measures[m] = self.canvas.create_text(
@@ -372,7 +384,7 @@ class RedBlackTree(BinaryTreeBase):
                 (2, 'Black heights: {}'.format(blackHeights),
                  len(blackHeights) <= 1),
                 (3, ' RED-BLACK CORRECT!' if allMet else '', allMet)):
-            self.canvas.itemconfigure(
+            self.canvas.itemConfig(
                 self.measures[m], text=text,
                 fill=self.MEASURE_MET if met else self.MEASURE_UNMET,
                 font=self.VALUE_FONT + (() if met else ('underline',)))
@@ -380,7 +392,7 @@ class RedBlackTree(BinaryTreeBase):
     def clearMeasures(self):
         for measure in self.measures:
             if measure and self.canvas.type(measure) == 'text':
-                self.canvas.itemconfigure(measure, text='')
+                self.canvas.itemConfig(measure, text='')
         self.canvas.delete(self.measureTag)
 
     def getRedRedLinks(self):
@@ -469,10 +481,10 @@ class RedBlackTree(BinaryTreeBase):
             callEnviron.add(label)
             self.wait(sleepTime * 10)
             pShape = parent.drawnValue.items[1]
-            pRings = tuple(self.copyCanvasItem(pRing) for child in children)
+            pRings = tuple(self.canvas.copyItem(pRing) for child in children)
             cShapes = tuple(child.drawnValue.items[1] for child in children)
             ringsToMove = pRings + (
-                tuple(self.copyCanvasItem(ring) for ring in cRings)
+                tuple(self.canvas.copyItem(ring) for ring in cRings)
                 if parentColor is None else ())
             callEnviron |= set(ringsToMove)
             for ring in ringsToMove:
@@ -546,7 +558,7 @@ class RedBlackTree(BinaryTreeBase):
                     newData, self.canvas.coords(oldData), sleepTime=wait / 10)
         if not inserted:
             callEnviron |= set(newNode.drawnValue.items)
-            self.copyItemAttributes(newData, oldData, 'fill')
+            self.canvas.copyItemAttributes(newData, oldData, 'fill')
 
         self.cleanUp(callEnviron)
         return inserted
@@ -563,10 +575,10 @@ class RedBlackTree(BinaryTreeBase):
 
         if self.getNode(node):
             localVars = parentIndex + nodeIndex
-            colors = self.fadeNonLocalItems(localVars)
+            colors = self.canvas.fadeItems(localVars)
             deletedKeyAndData = self.__delete(parent, node)
             callEnviron |= set(deletedKeyAndData)
-            self.restoreLocalItems(localVars, colors)
+            self.canvas.restoreItems(localVars, colors)
 
             outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
             outBox = self.createOutputBox(coords=outBoxCoords)
@@ -579,19 +591,19 @@ class RedBlackTree(BinaryTreeBase):
             self.moveItemsTo(
                 deletedKeyAndData, self.nodeItemCoords(outBoxCenter)[1:],
                 sleepTime=wait / 10)
-            self.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
+            self.canvas.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
             self.dispose(callEnviron, deletedKeyAndData[0], deletedKeyAndData[2])
 
             if self.getNode(node):
                 if node % 2 == 1:
-                    self.canvas.itemconfigure(nodeIndex[1], anchor=SE)
+                    self.canvas.itemConfig(nodeIndex[1], anchor=SE)
                 self.moveItemsBy(
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait / 10)
         else:
             deletedKeyAndData = None
 
         self.cleanUp(callEnviron)
-        return (self.canvas.itemconfigure(deletedKeyAndData[1], 'text')[-1]
+        return (self.canvas.itemConfig(deletedKeyAndData[1], 'text')
                 if deletedKeyAndData else None)
     
     def __delete(self, parent, node, level=1):
@@ -612,7 +624,7 @@ class RedBlackTree(BinaryTreeBase):
         callEnviron.add(deletedLabel)
         nodeItems = self.getNode(node).drawnValue.items
         ring, shape, text = tuple(   # Copy items in stacking order
-            self.copyCanvasItem(nodeItems[j]) for j in (3, 1, 2))
+            self.canvas.copyItem(nodeItems[j]) for j in (3, 1, 2))
         deletedKeyAndData = (shape, text, ring)
         self.moveItemsTo(
             deletedKeyAndData, self.nodeItemCoords(upperRightNodeCoords)[1:],
@@ -624,9 +636,9 @@ class RedBlackTree(BinaryTreeBase):
                 
                 localVars = (
                     deletedLabel, *deletedKeyAndData, *parentIndex, *nodeIndex)
-                colors = self.fadeNonLocalItems(localVars)
+                colors = self.canvas.fadeItems(localVars)
                 self.__promote_successor(node)
-                self.restoreLocalItems(localVars, colors)
+                self.canvas.restoreItems(localVars, colors)
                 
             else:
                 if parent == -1:
@@ -684,25 +696,25 @@ class RedBlackTree(BinaryTreeBase):
         successorNode = self.getNode(successor)
         successorKey = successorNode.getKey()
         successorDataItem, successorKeyItem = tuple(
-            self.copyCanvasItem(item) 
+            self.canvas.copyItem(item) 
             for item in successorNode.drawnValue.items[1:3])
         callEnviron |= set((successorDataItem, successorKeyItem))
         self.moveItemsTo(
             successorKeyItem, self.nodeCenter(nodeIndex), sleepTime=wait / 10)
-        self.copyItemAttributes(successorKeyItem, node.drawnValue.items[2],
-                                'text')
+        self.canvas.copyItemAttributes(
+            successorKeyItem, node.drawnValue.items[2], 'text')
 
         self.moveItemsTo(
             successorDataItem, self.canvas.coords(node.drawnValue.items[1]),
             sleepTime=wait / 10)
-        self.copyItemAttributes(successorDataItem, node.drawnValue.items[1],
-                                'fill')
+        self.canvas.copyItemAttributes(
+            successorDataItem, node.drawnValue.items[1], 'fill')
         
         localVars = nodeArrow + parentIndex + successorIndex
-        colors = self.fadeNonLocalItems(localVars)
+        colors = self.canvas.fadeItems(localVars)
         for item in self.__delete(parent, successor, level=2):
             self.canvas.delete(item)
-        self.restoreLocalItems(localVars, colors)
+        self.canvas.restoreItems(localVars, colors)
         
         self.cleanUp(callEnviron)
 
@@ -808,5 +820,6 @@ if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
     numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
     tree = RedBlackTree(values=numArgs if len(numArgs) > 0 else None)
+    tree.DEBUG = '-d' in sys.argv[1:]
 
     tree.runVisualization()

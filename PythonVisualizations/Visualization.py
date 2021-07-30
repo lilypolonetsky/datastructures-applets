@@ -11,106 +11,13 @@ from enum import Enum
 
 try:
     from coordinates import *
+    from tkUtilities import *
 except ModuleNotFoundError:
     from .coordinates import *
+    from .tkUtilities import *
     
 # Utilities for vector math; used for canvas item coordinates
 V = vector
-def add_vector(v1, v2):
-    return V(v1) + V(v2)
-
-def subtract_vector(v1, v2):
-    return V(v1) - V(v2)
-
-def divide_vector(v1, v2):   # v2 can be scalar
-    if not isinstance(v2, (list, tuple)):
-        v2 = [v2] * len(v1)  # Copy scalar value for vector dimension
-    return V(v1) / V(v2)
-
-def multiply_vector(v1, v2): # v2 can be scalar
-    if not isinstance(v2, (list, tuple)):
-        v2 = [v2] * len(v1)  # Copy scalar value for vector dimension
-    return V(v1) * V(v2)
-
-def rotate_vector(v1, angle=0): # Rotate vector by angle degrees
-    return V(v1).rotate(angle)
-
-def vector_length2(vect):    # Get the vector's length squared
-    return V(vect).len2()
-
-def vector_length(vect):     # Get the vector's length
-    return V(vect).vlen()
-
-def BBoxesOverlap(bbox1, bbox2, zeroOK=True):
-    'Determine if bounding boxes overlap'
-    half = len(bbox1) // 2
-    return all(rangesOverlap(bbox1[j], bbox1[j + half], 
-                             bbox2[j], bbox2[j + half], zeroOK=zeroOK)
-               for j in range(half))
-
-def rangesOverlap(lo1, hi1, lo2, hi2, zeroOK=True):
-    'Determine if a range overlaps another.  Allow zero overlap, if requested.'
-    return ((hi1 > lo2 or (zeroOK and hi1 == lo2)) and
-            (lo1 < hi2 or (zeroOK and lo1 == hi2)))
-
-def BBoxContains(bbox1, bbox2):
-    'Return whether bounding box 1 fully contains bounding box 2'
-    half = len(bbox1) // 2
-    return all(bbox1[j] <= bbox2[j] and bbox1[j + half] >= bbox2[j + half]
-               for j in range(half))
-
-def BBoxEmpty(bbox):
-    'Return whether a bounding box has any area'
-    return not(bbox[0] < bbox[2] and bbox[1] < bbox[3])
-
-def BBoxIntersection(*bboxes):
-    'Return the, possibly empty, intersection of sequence of bounding boxes'
-    if len(bboxes) == 0:
-        return [0, 0, 0, 0]
-    elif len(bboxes) == 1:
-        return bboxes[0]
-    else:
-        half = len(bboxes[0]) // 2
-        return tuple((max if j < half else min)(bbox[j] for bbox in bboxes)
-                     for j in range(len(bboxes[0])))
-
-def BBoxUnion(*bboxes):
-    'Return the smallest bounding box containing a sequence of bounding boxes'
-    if len(bboxes) == 0:
-        return [0, 0, 0, 0]
-    elif len(bboxes) == 1:
-        return bboxes[0]
-    else:
-        half = len(bboxes[0]) // 2
-        return tuple((min if j < half else max)(bbox[j] for bbox in bboxes)
-                     for j in range(len(bboxes[0])))
-
-def BBoxEnclosing(*coordinates, dims=2):
-    '''Compute the enclosing bounding box for a set of coordinates in the
-    form of a Tk coordinate list: x0, y0, x1, y1, ..., xN, yN
-    The dims keyword parameter can be 3 or more for higher dimensional BBoxes'''
-    minCoords = tuple(min(coordinates[j] 
-                          for j in range(dim, len(coordinates), dims))
-                      for dim in range(dims))
-    maxCoords = tuple(max(coordinates[j] 
-                          for j in range(dim, len(coordinates), dims))
-                      for dim in range(dims))
-    return minCoords + maxCoords
-
-def BBoxCenter(bbox):
-    half = len(bbox) // 2
-    return V(V(bbox[:half]) + V(bbox[half:])) / 2
-
-def BBoxSize(bbox):
-    half = len(bbox) // 2
-    return V(bbox[half:]) - V(bbox[:half])
-
-# Tk definitions
-# Modifier key constants
-SHIFT, CAPS_LOCK, CTRL, ALT = 0x01, 0x02, 0x04, 0x08
-
-# Window geometry specification strings
-geom_delims = re.compile(r'[\sXx+-]')
 
 # Animation states
 class Animation(Enum):
@@ -167,7 +74,7 @@ class Visualization(object):  # Base class for Python visualizations
                 self.targetCanvasWidth, canvasWidth = 788, 788 # scrollbar
         else:
             self.canvasVScroll = None
-        self.canvas = Canvas(
+        self.canvas = Scrim(
             self.canvasFrame, width=canvasWidth, height=canvasHeight,
             bg=self.DEFAULT_BG)
         self.canvas.pack(side=TOP, expand=True, fill=BOTH)
@@ -190,63 +97,12 @@ class Visualization(object):  # Base class for Python visualizations
     def setDestroyFlag(self, event=None): # Capture destruction of top window
         if event and event.widget == self.window:
             self.destroyed = True
-        
-    # General Tk widget methods
-    def widgetDimensions(self, widget):  # Get widget's (width, height)
-        geom = geom_delims.split(widget.winfo_geometry())
-        if geom[0] == '1' and geom[1] == '1':  # If not yet managed, use config
-            geom = (widget.config('width')[-1], widget.config('height')[-1])
-        return int(geom[0]), int(geom[1])
-
-    def widgetState(self, widget, state=None): # Get or set widget state
-        if isinstance(widget, (ttk.Button,)):
-            if state is None:
-                stateFlags = widget.state()
-                return DISABLED if DISABLED in stateFlags else NORMAL
-            else:
-                widget.state(('!disabled', '!pressed') if state == NORMAL 
-                             else (state, ))
-        else:
-            if state is None:
-                return widget['state']
-            else:
-                widget['state'] = state
-            
-    sizePattern = re.compile(r'-?\d+')
-
-    def textWidth(self, font, text=' '):
-        return self.tkFontFromSpec(font).measure(text)
-        
-    def textHeight(self, font, text=' '):
-        lines = text.split('\n')
-        nLines = len(lines) if lines and len(lines[-1]) > 0 else len(lines) - 1
-        return self.tkFontFromSpec(font).metrics()['linespace'] * nLines
-
-    def tkFontFromSpec(self, spec):
-        family = spec[0]
-        size = spec[1] if (len(spec) > 1 and 
-                           (isinstance(spec[1], int) or
-                            (isinstance(spec[1], str) and 
-                             self.sizePattern.match(spec[1])))) else 0
-        return tkfont.Font(
-            family=family, size=size,
-            weight=self.lookFor(('bold', 'light'), spec, 'normal'),
-            slant=self.lookFor(('italic', 'oblique'), spec, 'roman'),
-            underline=1 if self.lookFor(('underline',), spec, 0) else 0,
-            overstrike=1 if self.lookFor(('overstrike',), spec, 0) else 0)
-        
-    def lookFor(self, keys, spec, default):  # Find keyword in font spec
-        strings = [x.lower() for x in spec if isinstance(x, str)]
-        for key in keys:
-            if key.lower() in strings:
-                return key
-        return default
 
     def expandCanvasFor(self, *itemOrBBox):
         '''Expand canvas scroll region if needed to view given canvas items
         (integers) or bounding boxes (4-tuples or 4-element lists)'''
         bounds = getattr(self, 'canvasBounds', 
-                         (0, 0, *self.widgetDimensions(self.canvas)))
+                         (0, 0, *widgetDimensions(self.canvas)))
         bbox = BBoxUnion(*(
             self.canvas.bbox(item) if isinstance(item, int) else item
             for item in itemOrBBox if isinstance(item, int) or
@@ -270,93 +126,26 @@ class Visualization(object):  # Base class for Python visualizations
         '''Do what the tk canvas itemconfigure command does, but return only
         the setting for each item attribute, not the tuple with the name and
         default value.'''
-        config = self.canvas.itemconfigure(canvasitem, *key, **kwargs)
-        if isinstance(config, dict):
-            for k in config:     # Replace tuple values with the last item
-                if isinstance(config[k], tuple):  # in tuple
-                    config[k] = config[k][-1]
-        elif len(kwargs) == 0 and isinstance(config, tuple):
-            config = config[-1]
-        return config
-
-    def copyCanvasItem(      # Make a copy of an item in the canvas
-            self, canvasitem):
-        creator = getattr(self.canvas,  # Get canvas creation function for type
-                          'create_{}'.format(self.canvas.type(canvasitem)))
-        newItem = creator(*self.canvas.coords(canvasitem),
-                          **self.canvas_itemConfig(canvasitem))
-        for eventType in self.canvas.tag_bind(canvasitem): # Copy event handlers
-            self.canvas.tag_bind(newItem, eventType,
-                                 self.canvas.tag_bind(canvasitem, eventType))
-        return newItem
-
-    anchorVectors = {
-        NW: (-1, -1), N: (0, -1), NE: (1, -1),
-        W: (-1, 0), CENTER: (0, 0), E: (1, 0),
-        SW: (-1, 1),  S: (0, 1),  SE: (1, 1)}
-
-    def changeAnchor(self, newAnchor, *items):
-        'Change the anchor but not the position of a text item'
-        for item in items:
-            if self.canvas.type(item) == 'text':
-                anchor = self.canvas.itemconfigure(item, 'anchor')[-1]
-                if anchor in self.anchorVectors and anchor != newAnchor:
-                    bbox = self.canvas.bbox(item)
-                    size = V(bbox[2:]) - V(bbox[:2])
-                    coords = self.canvas.coords(item)
-                    delta = V(V(self.anchorVectors[newAnchor]) - 
-                              V(self.anchorVectors[anchor])) / 2
-                    self.canvas.coords(item, V(coords) + V(V(delta) * V(size)))
-                    self.canvas.itemconfigure(item, anchor=newAnchor)
+        return self.canvas.itemConfig(canvasitem, *key, **kwargs)
 
     def canvas_coords(self, tagOrID):
-        return tuple(self.canvas.coords(tagOrID))
+        return self.canvas.coords(tagOrID)
+
+    def copyCanvasItem(self, item, **kwargs):
+        '''Deprecated.  Use Scrim.copyItem instead '''
+        return self.canvas.copyItem(item, **kwargs)
     
-    def copyItemAttributes(   # Copy attributes from one canvas item to another
-            self, fromItem, toItem, *attributes):
-        kwargs = dict((attrib, self.canvas.itemconfigure(fromItem, attrib)[-1])
-                      for attrib in attributes)
-        self.canvas.itemconfigure(toItem, **kwargs)
-    
-    def fadeNonLocalItems(self, items, colors=NONLOCAL_VARIABLE_COLOR):
-        '''Set fill color of non-local variable canvas items to a faded color
-        or sequence of colors.  If the length of items exceeds the length of
-        colors, the last color in the sequence is used.
-        Returns a list of the current fill color of each item that can be used
-        to restore them later.
-        '''
-        if isinstance(colors, (list, tuple)):
-            return self.itemsFillColor(items, *colors)
-        return self.itemsFillColor(items, colors)
+    def fadeNonLocalItems(self, items, colors=Scrim.FADED_COLORS):
+        '''Deprecated.  Use Scrim.fadeItems instead '''
+        return self.canvas.fadeItems(items, colors)
         
-    def restoreLocalItems(self, items, colors=VARIABLE_COLOR, top=True):
-        '''Restore fill color of local variable canvas items to either a given
-        color or list of colors.  Optionally, raise the items to display on
-        top of other canvas items'''
-        if isinstance(colors, (list, tuple)):
-            self.itemsFillColor(items, *colors)
-        else:
-            self.itemsFillColor(items, colors)
-        if top:
-            for item in items:
-                if isinstance(item, int):
-                    self.canvas.tag_raise(item)
+    def restoreLocalItems(self, items, colors, top=True):
+        '''Deprecated.  Use Scrim.restoreItems instead. '''
+        return self.canvas.restoreItems(items, colors, top)
 
     def itemsFillColor(self, items, *colors):
-        '''Get or set item fill color for a list of items.  When colors is
-        not provided, it returns the list of configured colors.  When provided
-        1 or more colors are provided, the corresponding items are configured
-        to use that fill color.  If there are more items than colors, the
-        last color is used for the remaining items.
-        '''
-        nColors = len(colors)
-        itemColors = []
-        for i, item in enumerate(items):
-            itemColors.append(self.canvas.itemconfigure(item, 'fill')[-1])
-            if nColors > 0:
-                self.canvas.itemconfigure(
-                    item, fill=colors[min(i, nColors - 1)])
-        return itemColors
+        '''Deprecated.  Use Scrim.itemsColor instead. '''
+        return self.canvas.itemsColor(items, colors)
 
     def dispose(self, callEnviron, *items):
         'Delete items from the canvas and call environment, if it is a set'
@@ -366,11 +155,13 @@ class Visualization(object):  # Base class for Python visualizations
             self.canvas.delete(item)
 
     def getItemFont(self, item):
-        font = self.canvas.itemconfigure(item, 'font')[-1].split()
-        return (font[0], int(font[1]), *font[2:])
+        return self.canvas.getItemFont(item)
     
     def createCanvasText(self, x, y, **kwargs):
-        'Enforce special requirements when creating canvas text items'
+        '''Enforce special requirements when creating canvas text items.
+        Record the font at initialization as a tag for use in scaling text
+        items.
+        '''
         font = kwargs.get('font', self.DEFAULT_FONT)
         tags = kwargs.get('tags', ())
         if not isinstance(tags, tuple): 
@@ -546,7 +337,7 @@ class Visualization(object):  # Base class for Python visualizations
             items = (items,)
         if not isinstance(delta, (list, tuple)) or len(delta) != 2:
             raise ValueError('Delta must be a 2-dimensional vector')
-        if items and vector_length2(delta) >= 0.001: # If some items and delta
+        if items and V(delta).len2() >= 0.001: # If some items and delta
 
             steps = max(1, steps) # Must use at least 1 step
             changeFont = startFont and endFont and startFont != endFont
@@ -787,7 +578,7 @@ class Visualization(object):  # Base class for Python visualizations
         When canvasBounds are smaller than canvas, the 'visible' bounds can
         exceed the canvasBounds bounding box.
         '''
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         if any(x is None for x in 
                (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
             return (0, 0) + canvasDims
@@ -805,7 +596,7 @@ class Visualization(object):  # Base class for Python visualizations
     def visibleCanvasFraction(self):
         'Return the ratio of the visible canvas to the canvas bounds in X, Y'
         return tuple(max(0, min(1, x)) for x in
-                     (V(self.widgetDimensions(self.canvas)) /
+                     (V(widgetDimensions(self.canvas)) /
                       V(V(self.canvasBounds[2:]) - V(self.canvasBounds[:2]))))
 
     def scrollToSee(self, itemsOrBBoxes, sleepTime=0.01, steps=10, **kwargs):
@@ -861,7 +652,7 @@ class Visualization(object):  # Base class for Python visualizations
         if expand and not BBoxEmpty(BBox) and (
                 not BBoxContains(self.canvasBounds, BBox)):
             self.setCanvasBounds(BBox)
-        canvasDims = self.widgetDimensions(self.canvas)
+        canvasDims = widgetDimensions(self.canvas)
         canvasBounds = self.canvasBounds
         visibleCanvasFraction = self.visibleCanvasFraction()
         xPos = list(self.canvasHScroll.get())
@@ -954,41 +745,6 @@ class UserStop(Exception):   # Exception thrown when user stops animation
 
 if __name__ == '__main__':
     import random
-    for dims in range(2, 4):
-        print('=' * 70)
-        p1 = tuple(c for c in range(1, dims + 1))
-        p2 = tuple(c * (c + 1) + 1 for c in p1)
-        mid = V(V(p1) + V(p2)) // 2
-        bboxes = [p1 + mid, mid + p2, p1 + p2]
-        badBBox = mid + p1
-        for i in range(len(bboxes) - 1):
-            boxiEmpty = BBoxEmpty(bboxes[i])
-            print('BBox {} {} empty'.format(bboxes[i],
-                                            'is' if boxiEmpty else 'is not'))
-            for j in range(i + 1, len(bboxes)):
-                print('BBox 1 = {!s:25}  BBox 2 = {!s:25}'.format(
-                    bboxes[i], bboxes[j]))
-                for f in (BBoxUnion, BBoxIntersection, BBoxesOverlap, BBoxContains):
-                    print('{}({}, {}) = {}'.format(
-                        f.__name__, bboxes[i], bboxes[j], 
-                        f(bboxes[i], bboxes[j])))
-                print('{}({}, {}) = {}'.format(
-                    'BBoxContains', bboxes[j], bboxes[i],
-                    BBoxContains(bboxes[j], bboxes[i])))
-                if not boxiEmpty and BBoxEmpty(
-                        BBoxIntersection(bboxes[i], bboxes[j])):
-                    print('The first box is not empty but the intesection is.')
-                if not all(BBoxContains(BBoxUnion(bboxes[i], bboxes[j]), bb)
-                           for bb in (bboxes[i], bboxes[j])):
-                    print('Union of {} {} does not contain both!'.format(
-                        bboxes[i], bboxes[j]))
-                if not all(BBoxContains(bb, BBoxIntersection(bboxes[i], bboxes[j]))
-                           for bb in (bboxes[i], bboxes[j])):
-                    print(('The bounding boxes {} {} do not both contain'
-                           'their intersection!').format(bboxes[i], bboxes[j]))
-
-        print('Bad BBox {} {} empty'.format(
-                badBBox, 'is' if BBoxEmpty(badBBox) else 'is not'))
         
     app = Visualization(title='Visualization test')
 
@@ -1024,8 +780,10 @@ if __name__ == '__main__':
 
     makeLineWithBBox()
     app.startAnimations()
-    for anchor in app.anchorVectors:
-        app.changeAnchor(anchor, centerText)
+    for anchor in Scrim.anchorVectors:
+        app.canvas.changeAnchor(anchor, centerText)
+        app.canvas.itemConfig(
+            centerText, text='Center of the canvas ({})'.format(anchor))
         app.wait(0.1)
 
     app.runVisualization()
