@@ -1037,3 +1037,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                     widgetState(btn, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
+
+    def runVisualization(self): #override of runVisualization that populates default hint
+        if (len(self.textEntries) > 0):
+            widget = self.textEntries[0]
+            setattr(widget, 'timeout_ID',
+                    widget.after(
+                        self.HOVER_DELAY, 
+                        lambda: self.setHint(widget) or setattr(widget, 'timeout_ID', None)))
+        self.window.mainloop()
