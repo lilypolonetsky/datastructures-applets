@@ -528,7 +528,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if str(val):
                 self.textEntries[index].insert(0, str(val))
             self.setArgumentHighlight(index)
-            self.setHint(self.textEntries[index], '')
             self.argumentChanged()
 
     def setArguments(self, *values):

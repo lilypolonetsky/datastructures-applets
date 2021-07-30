@@ -172,6 +172,6 @@ def oneTimeShowHintHandler(visualizationApp, hintText=None, delay=500):
     return lambda event: (
         getattr(visualizationApp, 'initial_hint_shown', False) or
         visualizationApp.window.after(
-            delay, lambda: visualizationApp.setHint(hintText)) and
+            delay, lambda: visualizationApp.setHint(visualizationApp.textEntries[0], hintText)) and
         setattr(visualizationApp, 'initial_hint_shown', True))
         
