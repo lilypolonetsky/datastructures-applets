@@ -158,6 +158,14 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
     def cellCenter(self, indexOrCoords):
         return BBoxCenter(self.cellCoords(indexOrCoords))
+
+    def cellAndCenters(self, indexOrCoords, rows=1):
+        'Return the cell and center coords for a cell with N rows of text '
+        Vy = V(0, self.cellHeight // max(1, rows))
+        Vcenter = V(self.cellCenter(indexOrCoords))
+        textCenters = tuple(Vcenter + V(Vy * (j - rows / 2 + 1/2))
+                            for j in range(max(1, rows)))
+        return (self.cellCoords(indexOrCoords), *textCenters)
     
     def arrayCellCoords(self, indexOrCoords):
         half = self.cellBorderWidth // 2
@@ -269,9 +277,10 @@ if __name__ == '__main__':
                                        Table.populateArgWithCellIndexHandler),))
     print('table1 contains:', table1)
 
-    table2 = Table(app, (100, 300), 'lime', 'apple', 'fig', 'pear',
+    table2 = Table(app, (100, 300),
+                   'lime\n4', 'apple\n10', 'fig\n8\n??', 'pear\n7',
                    label='Stack', vertical=True, direction=-1, see=True,
-                   indicesFont=('Courier', -14), cellWidth=60, cellHeight=30,
+                   indicesFont=('Courier', -14), cellWidth=60, cellHeight=50,
                    eventHandlerPairs=(('<Button-1>', 
                                        Table.populateArgWithCellIndexHandler),))
     print('table2 contains:', table2)
@@ -294,12 +303,15 @@ if __name__ == '__main__':
     count = 0
     for tbl in (table1, table2, table3):
         for i in range(len(tbl)):
+            val = tbl[i].split('\n') if isinstance(tbl[i], str) else [tbl[i]]
+            coords = tbl.cellAndCenters(i, rows=len(val))
             tbl[i] = drawnValue(
                 tbl[i],
                 app.canvas.create_rectangle(
-                    *tbl.cellCoords(i), fill=drawnValue.palette[count],
+                    *coords[0], fill=drawnValue.palette[count],
                     outline='', width=0),
-                app.canvas.create_text(*tbl.cellCenter(i), text=str(tbl[i])))
+                *(app.canvas.create_text(*coords[j + 1], text=str(v))
+                  for j, v in enumerate(val)))
             count = (count + 1) % len(drawnValue.palette)
     print('Filled in', count, 'table cells')
     app.wait(1)
