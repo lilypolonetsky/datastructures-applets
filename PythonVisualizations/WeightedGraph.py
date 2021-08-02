@@ -16,7 +16,8 @@ class WeightedGraph(Graph):
     EDGE_PRIORITY_QUEUE_COLOR = 'misty rose'
     
     def __init__(self, title='Weighted Graph', **kwargs):
-        super().__init__(title=title, weighted=True, **kwargs)
+        super().__init__(
+            title=title, weighted=True, selectableVertices=2, **kwargs)
         
     minimumSpanningTreeCode = '''
 def minimumSpanningTree(self, n={nVal}):
@@ -443,20 +444,79 @@ def minimumSpanningTree(self, n={nVal}):
         self.dispose(callEnviron, *toDispose)
 
     def edgeLabelCoords(self, edge, nVertsBBox):
+        'Position of the edge variable label in minimum spanning tree algorithm'
         return ((nVertsBBox[0], nVertsBBox[3] + 5) if edge is None else
                 self.edgeCoords(
                     *(self.vertexCoords(edge[j])
                       for j in ((1, 0) if edge == self.edges[edge].val else
                                 (0, 1))))[-1])
+
+    shortestPathCode = '''
+def shortestPath(self, start={startVal}, end={endVal}):
+   visited = {{}}
+   costs = {{start: (0, start)}}
+   while end not in visited:
+      nextVert, cost = None, math.inf
+      for vertex in costs:
+         if (vertex not in visited and
+             costs[vertex][0] <= cost):
+            nextVert, cost = vertex, costs[vertex][0]
+      if nextVert is None:
+         break
+      visited[nextVert] = 1
+      for adj in self.adjacentVertices(nextVert):
+         if adj not in visited:
+            pathCost = (
+               self.edgeWeight(nextVert, adj) +
+               costs[nextVert][0])
+            if (adj not in costs or
+                costs[adj][0] > pathCost):
+               costs[adj] = (
+                  pathCost, nextVert)
+   path = []
+   while end in visited:
+      path.append(end)
+      if end == start:
+         break
+      end = costs[end][1]
+   return list(reversed(path))
+'''
+    
+    def shortestPath(self, start, end, code=shortestPathCode,
+                     startAnimations=True, wait=0.1):
+        SPtags = 'SP'
+        startVert = (start if isinstance(start, str) else
+                     self.vertexTable[start].val
+                     if start < len(self.vertexTable) else None)
+        start = (start if isinstance(start, int) else
+                 self.getVertexIndex(start))
+        startVal = "{} ('{}')".format(start, startVert)
+        endVert = (end if isinstance(end, str) else
+                     self.vertexTable[end].val
+                     if end < len(self.vertexTable) else None)
+        end = (end if isinstance(end, int) else self.getVertexIndex(end))
+        endVal = "{} ('{}')".format(end, endVert)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=startAnimations)
+        
+        self.setMessage('TBD')
+        
+        self.highlightCode('list(reversed(path))', callEnviron, wait=wait)
+        self.cleanUp(callEnviron)
     
     def enableButtons(self, enable=True):
         super(type(self).__bases__[0], self).enableButtons( # Grandparent
             enable)
         for btn in (self.depthFirstTraverseButton, 
                     self.breadthFirstTraverseButton, self.MSTButton):
-            widgetState( # can only traverse when start node selected
+            widgetState( # these operations need 1 selected vertex
                 btn,
-                NORMAL if enable and self.selectedVertex else DISABLED)
+                NORMAL if enable and self.selectedVertices[0] else DISABLED)
+        for btn in (self.shortestPathButton,):
+            widgetState( # these operations need 2 selected vertices
+                btn,
+                NORMAL if enable and all(self.selectedVertices[:2]) else
+                DISABLED)
 
     def makeButtons(self, *args, **kwargs):
         '''Make buttons specific to unweighted graphs and aadd the
@@ -472,7 +532,19 @@ def minimumSpanningTree(self, n={nVal}):
         self.MSTButton = self.addOperation(
             "Minimum Spanning Tree", self.clickMinimumSpanningTree,
             helpText='Compute a minimum spanning tree', state=DISABLED)
+        self.shortestPathButton = self.addOperation(
+            "Shortest Path", self.clickShortestPath,
+            helpText='Find the shortest path connecting 2 vertices',
+            state=DISABLED)
         self.addAnimationButtons()
+
+    def clickShortestPath(self):
+        if all(self.selectedVertices):
+            self.shortestPath(self.selectedVertices[0][0],
+                              self.selectedVertices[1][0],
+                              startAnimations=self.startMode())
+        else:
+            self.setMessage('Must select start and end vertices to find path')
             
 if __name__ == '__main__':
     graph = WeightedGraph()

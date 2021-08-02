@@ -100,6 +100,8 @@ def filterDict(d, filter=lambda key: True):
 # Tk definitions
 # Modifier key constants
 SHIFT, CAPS_LOCK, CTRL, ALT = 0x01, 0x02, 0x04, 0x08
+# Mouse button constants
+MOUSE_BUTTON_1, MOUSE_BUTTON_2, MOUSE_BUTTON_3 = 0x0100, 0x0200, 0x0400
 
 # Window geometry specification strings
 geomPattern = re.compile(r'(\d+)[\sXx]+(\d+)([+-])(-?\d+)([+-])(-?\d+)')

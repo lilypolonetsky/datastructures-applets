@@ -22,8 +22,7 @@ class GraphBase(VisualizationApp):
     VERTEX_FONT = ('Helvetica', -14)
     SELECTED_RADIUS = VERTEX_RADIUS * 6 // 5
     SELECTED_WIDTH = 2
-    SELECTED_COLOR = 'white'
-    SELECTED_OUTLINE = 'purple3'
+    SELECTED_OUTLINES = ['purple3', 'yellow3']
     ADJACENCY_MATRIX_FONT = ('Helvetica', -12)
     ADJACENCY_MATRIX_BG = 'red3'
     GRAPH_REGION_BACKGROUND = 'old lace'
@@ -40,7 +39,8 @@ class GraphBase(VisualizationApp):
     DEBUG = False
     
     def __init__(                    # Create a graph visualization application
-            self, title="Graph", graphRegion=None, weighted=False, **kwargs):
+            self, title="Graph", graphRegion=None, weighted=False,
+            selectableVertices=1, **kwargs):
         kwargs['title'] = title
         kwargs['maxArgWidth'] = self.MAX_VERTEX_LABEL_WIDTH
         if 'canvasBounds' not in kwargs:
@@ -53,6 +53,7 @@ class GraphBase(VisualizationApp):
         self.weighted = weighted
         self.weightValidate = (self.window.register(numericValidate),
                                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        self.selectableVertices = selectableVertices
         self.createAdjacencyMatrixPanel()
         self.buttons = self.makeButtons()
         self.newGraph()
@@ -178,7 +179,7 @@ class GraphBase(VisualizationApp):
             cell.grid_forget()
         self.adjMatrix00 = Frame(self.adjMatrixFrame, bg='white')
         self.adjMatrix00.grid(row=0, column=0, sticky=(N, E, S, W))
-        self.selectedVertex = None
+        self.selectedVertices = [None for _ in range(self.selectableVertices)]
         self.dragItems = None
         self.nextID = 1
         self.display()
@@ -232,10 +233,15 @@ class GraphBase(VisualizationApp):
         releaseHandler = self.releaseHandler(label)
         deleteHandler = self.deleteVertexHandler(label)
         for item in items:
-            self.canvas.tag_bind(item, '<Button-1>', startMoveHandler)
-            self.canvas.tag_bind(item, '<B1-Motion>', moveHandler)
-            self.canvas.tag_bind(item, '<ButtonRelease-1>', releaseHandler)
-            self.canvas.tag_bind(item, '<Double-Button-1>', deleteHandler)
+            for btn in (1, 2, 3):
+                self.canvas.tag_bind(
+                    item, '<Button-{}>'.format(btn), startMoveHandler)
+                self.canvas.tag_bind(
+                    item, '<B{}-Motion>'.format(btn), moveHandler)
+                self.canvas.tag_bind(
+                    item, '<ButtonRelease-{}>'.format(btn), releaseHandler)
+                self.canvas.tag_bind(
+                    item, '<Double-Button-{}>'.format(btn), deleteHandler)
         return items
 
     def createEdgeItems(self, base, tip, weight=0, tags=('edge',),
@@ -320,38 +326,27 @@ class GraphBase(VisualizationApp):
        
     def startMoveHandler(self, vertexLabel):
         def startHandler(event):
-            moveVertex = event.state & SHIFT
             if self.DEBUG:
-                print('Entering startHandler {} "{}" #{}'.format(
-                    'to move' if moveVertex else 'to add edge to',
+                print('Entering startHandler {}B{} on "{}" #{}'.format(
+                    'Shift-' if event.state & SHIFT else '', event.num,
                     vertexLabel, event.serial))
             if self.dragItems:
                 if self.DEBUG:
                     print('Exiting startHandler #{} dragItems = {}"'.format(
                         event.serial, self.dragItems))
                 return
-            if self.operationMutex.locked():
-                self.setMessage(
-                    'Cannot {} vertex during other operation'.format(
-                        'move' if moveVertex else 'add edge to'))
+            if not self.operationMutex.acquire(blocking=False):
+                self.setMessage('Cannot select vertex during other operation')
                 return
-            vert = self.vertices[vertexLabel]
+            selectionIndex = 1 if (len(self.selectedVertices) > 0 and (
+                event.state & SHIFT or
+                isinstance(event.num, int) and event.num != 1)) else 0
+            self.selectVertex(vertexLabel, vID=selectionIndex, checkMutex=False)
+            self.lastPos = (event.x, event.y)
             self.setMessage('')
             self.cleanUp()
-            if moveVertex:
-                copies = tuple(self.canvas.copyItem(i, includeBindings=False)
-                               for i in vert.items + (vert.items[0],))
-                self.canvas.itemConfig(
-                    copies[-1], state=HIDDEN, fill='', width=2,
-                    outline=self.BAD_POSITION_TEXT_COLOR)
-                self.dragItems = copies
-            else:
-                self.selectVertex(vertexLabel)
-                self.dragItems = self.createEdgeItems(
-                    self.vertexCoords(vertexLabel), (event.x, event.y),
-                    weight=0, removeRadius=0)
-            self.lastPos = (event.x, event.y)
             self.enableButtons()
+            self.operationMutex.release()
             if self.DEBUG:
                 print('Finished startHandler on "{}" #{}'.format(
                     vertexLabel, event.serial))
@@ -359,15 +354,37 @@ class GraphBase(VisualizationApp):
 
     def moveHandler(self, vertexLabel):
         def mvHandler(event):
+            moveVertex = (
+                event.state & (SHIFT | MOUSE_BUTTON_2 | MOUSE_BUTTON_3) or
+                (isinstance(event.num, int) and event.num != 1))
             if self.DEBUG:
-                print('Entering mvHandler on "{}" #{}'.format(
+                btn = event.num if isinstance(event.num, int) else (
+                    min(3,
+                        (event.state &
+                         (MOUSE_BUTTON_2 | MOUSE_BUTTON_2 | MOUSE_BUTTON_3)) /
+                        MOUSE_BUTTON_1))
+                print('Entering mvHandler B{} on {} "{}" #{}'.format(
+                    btn, 'vertex' if moveVertex else 'new edge for',
                     vertexLabel, event.serial))
-            if not self.dragItems:
-                if self.DEBUG:
-                    print(('Exiting mvHandler #{} dragItems = {}"').format(
-                        event.serial, self.dragItems))
+            if not self.operationMutex.acquire(blocking=False):
+                self.setMessage('Cannot {} during other operation'.format(
+                    'move vertex' if moveVertex else 'add edge'))
                 return
             self.enableButtons(False)
+            if not self.dragItems:
+                if moveVertex:
+                    vert = self.vertices[vertexLabel]
+                    copies = tuple(
+                        self.canvas.copyItem(i, includeBindings=False)
+                        for i in vert.items + (vert.items[0],))
+                    self.canvas.itemConfig(
+                        copies[-1], state=HIDDEN, fill='', width=2,
+                        outline=self.BAD_POSITION_TEXT_COLOR)
+                    self.dragItems = copies
+                else:
+                    self.dragItems = self.createEdgeItems(
+                        self.vertexCoords(vertexLabel), (event.x, event.y),
+                        weight=0, removeRadius=0)
             delta = (event.x - self.lastPos[0], event.y - self.lastPos[1])
             self.lastPos = (event.x, event.y)
             dragItemType = self.canvas.type(self.dragItems[0])
@@ -381,7 +398,8 @@ class GraphBase(VisualizationApp):
                     self.dragItems[0], state=HIDDEN if bad else NORMAL)
                 self.canvas.itemconfigure(
                     self.dragItems[1], 
-                    fill=self.BAD_POSITION_TEXT_COLOR if bad else self.VALUE_COLOR)
+                    fill=self.BAD_POSITION_TEXT_COLOR if bad else
+                    self.VALUE_COLOR)
                 self.canvas.itemconfigure(
                     self.dragItems[2], state=NORMAL if bad else HIDDEN)
                 if not bad:
@@ -410,6 +428,7 @@ class GraphBase(VisualizationApp):
             else:
                 raise Exception('Dragging items of type {} not supported'.
                                 format(dragItemType))
+            self.operationMutex.release()
             if self.DEBUG:
                 print('Finished mvHandler on "{}" #{}'.format(
                     vertexLabel, event.serial))
@@ -428,8 +447,8 @@ class GraphBase(VisualizationApp):
     def releaseHandler(self, vertexLabel):
         def relHandler(event):
             if self.DEBUG:
-                print('Entering reHandler on "{}" #{}'.format(
-                    vertexLabel, event.serial))
+                print('Entering relHandler B{} on "{}" #{}'.format(
+                    event.num, vertexLabel, event.serial))
             if self.dragItems:
                 dragItemType = self.canvas.type(self.dragItems[0])
                 if dragItemType == 'oval':
@@ -473,6 +492,7 @@ class GraphBase(VisualizationApp):
                 else:
                     raise Exception('Dragging items of type {} not supported'.
                                     format(dragItemType))
+                    
             self.enableButtons(True)
         return relHandler
 
@@ -547,37 +567,44 @@ class GraphBase(VisualizationApp):
                     wait,
                     lambda: self.undoDrag(vertexLabel, after, endDistance, serial))
 
-    def selectVertex(self, vertexLabel, tags='selected', checkMutex=True):
+    def selectVertex(
+            self, vertexLabel, vID=0, tags='selected', checkMutex=True):
         if not (vertexLabel in self.vertices or vertexLabel is None):
             return
+        if not (0 <= vID and vID < len(self.selectedVertices)):
+            return
+        selection = self.selectedVertices[vID]
         if checkMutex:
             if not self.operationMutex.acquire(blocking=False):
-                if vertexLabel != (self.selectedVertex[0]
-                                   if self.selectedVertex else None):
+                if vertexLabel != (selection[0] if selection else None):
                     self.setMessage(
                         'Cannot {}select vertex during operation'.format(
                             'de' if vertexLabel is None else ''))
                 return
             self.cleanUp()
         Vradius = V((self.SELECTED_RADIUS, self.SELECTED_RADIUS))
-        if self.selectedVertex:
+        if selection:
             if vertexLabel is None:
-                self.canvas.delete(self.selectedVertex[1])
-                self.selectedVertex = None
+                self.canvas.delete(selection[1])
+                self.selectedVertices[vID] = None
             else:
                 Vcenter = V(self.vertexCoords(vertexLabel))
-                self.canvas.coords(self.selectedVertex[1],
+                self.canvas.coords(selection[1],
                                    *(Vcenter - Vradius), *(Vcenter + Vradius))
-                self.selectedVertex = (vertexLabel, self.selectedVertex[1])
+                self.selectedVertices[vID] = (vertexLabel, selection[1])
         elif vertexLabel:
-            Vcenter = V(self.canvas.coords(self.vertices[vertexLabel].items[1]))
-            self.selectedVertex = (
+            Vcenter = V(self.vertexCoords(vertexLabel))
+            self.selectedVertices[vID] = (
                 vertexLabel, 
                 self.canvas.create_oval(
                     *(Vcenter - Vradius), *(Vcenter + Vradius),
-                    fill=self.SELECTED_COLOR, outline=self.SELECTED_OUTLINE,
+                    fill='', outline=self.SELECTED_OUTLINES[vID],
                     width=self.SELECTED_WIDTH, tags=tags))
-            self.canvas.tag_lower(self.selectedVertex[1], 'vertex')
+            self.canvas.tag_lower(self.selectedVertices[vID][1], 'vertex')
+        if vertexLabel:   # Clear any other selections pointing at the same
+            for j, selection in enumerate(self.selectedVertices): #  vertex
+                if j != vID and selection and selection[0] == vertexLabel:
+                    self.selectVertex(None, vID=j, checkMutex=False)
         if checkMutex and self.operationMutex.locked():
             self.operationMutex.release()
        
@@ -656,7 +683,7 @@ class GraphBase(VisualizationApp):
              any(collinearBetween(self.vertexCoords(self.vertexTable[j].val),
                                   center,
                                   self.vertexCoords(self.vertexTable[k].val),
-                                  1e-4)
+                                  1e-3)
                  for j in range(len(self.vertexTable))
                  for k in range(j + 1, len(self.vertexTable))
                  if self.edgeWeight(self.vertexTable[j].val,
@@ -754,8 +781,9 @@ class GraphBase(VisualizationApp):
             self.setMessage('Cannot delete vertex during other operation')
             return
         self.cleanUp()
-        if self.selectedVertex and self.selectedVertex[0] == vertexLabel:
-            self.selectVertex(None, checkMutex=False)
+        for j, selection in enumerate(self.selectedVertices):
+            if selection and selection[0] == vertexLabel:
+                self.selectVertex(None, vID=j, checkMutex=False)
         for edge in self.findEdges(vertexLabel):
             self.edgeWeight(*edge, 0)
         vertex = self.vertices[vertexLabel]
@@ -866,8 +894,9 @@ class GraphBase(VisualizationApp):
             self.canvas.coords(items[0], *p0, *p1, *p2)
             self.canvas.itemConfig(items[0], splinesteps=steps)
             self.canvas.coords(items[1], *wc)
-        if self.selectedVertex and vertexLabel == self.selectedVertex[0]:
-            self.selectVertex(vertexLabel, checkMutex=False)
+        for j, selection in enumerate(self.selectedVertices):
+            if selection and selection[0] == vertexLabel:
+                self.selectVertex(vertexLabel, vID=j, checkMutex=False)
 
     def findEdges(self, vertex, inbound=True, outbound=True, unique=None):
         '''Find edges incident to a vertex, possibly filtering by direction.
