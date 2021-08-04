@@ -911,6 +911,16 @@ if __name__ == '__main__':
                 graph.randomFillButton.invoke()
                 graph.setArgument(
                     chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
+            elif arg == '-Turala':  # Example from textbook
+                for vert in ('Bl', 'Ce', 'Da', 'Gr', 'Ka', 'Na'):
+                    graph.setArgument(vert)
+                    graph.newVertexButton.invoke()
+                for edge in ('Bl-Ce:22', 'Bl-Da:16', 'Ce-Da:29', 'Ce-Gr:34',
+                             'Ce-Na:65', 'Ce-Ka:26', 'Da-Gr:28', 'Da-Ka:24',
+                             'Gr-Ka:25', 'Gr-Na:30', 'Ka-Na:36'):
+                    edgeMatch = edgePattern.fullmatch(edge)
+                    graph.createEdge(edgeMatch.group(1), edgeMatch.group(2),
+                                     int(edgeMatch.group(4)))
         elif edgeMatch and all(edgeMatch.group(i) in sys.argv[1:] 
                                for i in (1, 2)):
             edges.append((edgeMatch.group(1), edgeMatch.group(2),
