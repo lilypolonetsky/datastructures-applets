@@ -296,10 +296,10 @@ def minimumSpanningTree(self, n={nVal}):
                 dValue = edges.pop(0)
                 edge, w = dValue.val
                 self.updateEdgeAndWeightFromQueue(
-                    edge, w, edgeLabel, wLabel, highligtedEdge, edges, dValue,
+                    edge, w, edgeLabel, wLabel, highlightedEdge, edges, dValue,
                     nVertsBBox, callEnviron, wait)
 
-                self.highlightCode('not edges.isEmpty() TBD', callEnviron,
+                self.highlightCode('not edges.isEmpty()', callEnviron,
                                    wait=wait)
                 if len(edges) > 0:
                     self.highlightCode('vMap[edge[1]] is not None', callEnviron,
@@ -911,13 +911,18 @@ if __name__ == '__main__':
                 graph.randomFillButton.invoke()
                 graph.setArgument(
                     chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
-            elif arg == '-Turala':  # Example from textbook
+            elif arg in ('-TuralaMST', '-TuralaSP'):  # Examples from textbook
                 for vert in ('Bl', 'Ce', 'Da', 'Gr', 'Ka', 'Na'):
                     graph.setArgument(vert)
                     graph.newVertexButton.invoke()
-                for edge in ('Bl-Ce:22', 'Bl-Da:16', 'Ce-Da:29', 'Ce-Gr:34',
-                             'Ce-Na:65', 'Ce-Ka:26', 'Da-Gr:28', 'Da-Ka:24',
-                             'Gr-Ka:25', 'Gr-Na:30', 'Ka-Na:36'):
+                for edge in (
+                        ('Bl-Ce:31', 'Bl-Da:24', 'Ce-Da:35', 'Ce-Gr:49',
+                         'Ce-Na:87', 'Ce-Ka:38', 'Da-Gr:41', 'Da-Ka:52',
+                         'Gr-Ka:25', 'Gr-Na:46', 'Ka-Na:43')
+                        if arg == '-TuralaMST' else
+                        ('Bl-Ce:22', 'Bl-Da:16', 'Ce-Da:29', 'Ce-Gr:34',
+                         'Ce-Na:65', 'Ce-Ka:26', 'Da-Gr:28', 'Da-Ka:24',
+                         'Gr-Ka:25', 'Gr-Na:30', 'Ka-Na:36')):
                     edgeMatch = edgePattern.fullmatch(edge)
                     graph.createEdge(edgeMatch.group(1), edgeMatch.group(2),
                                      int(edgeMatch.group(4)))
