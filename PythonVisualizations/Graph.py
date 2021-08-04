@@ -1255,7 +1255,7 @@ def degree(self, n={nVal}):
                     self.breadthFirstTraverseButton, self.MSTButton):
             widgetState( # can only traverse when start node selected
                 btn,
-                NORMAL if enable and self.selectedVertex else DISABLED)
+                NORMAL if enable and self.selectedVertices[0] else DISABLED)
         widgetState(  # Can only sort directional graphs with 1+ edges
             self.sortButton,
             NORMAL if enable and self.nEdges() > 0 and
@@ -1281,18 +1281,18 @@ def degree(self, n={nVal}):
         self.addAnimationButtons()
 
     def clickTraverse(self, kind):
-        if self.selectedVertex:
-            self.traverseExample(kind, self.selectedVertex[0],
+        if self.selectedVertices[0]:
+            self.traverseExample(kind, self.selectedVertices[0][0],
                                  start=self.startMode())
         else:
             self.setMessage('Must select start vertex before traversal')
 
     def clickMinimumSpanningTree(self):
-        if self.selectedVertex:
-            self.minimumSpanningTree(self.selectedVertex[0],
+        if self.selectedVertices[0]:
+            self.minimumSpanningTree(self.selectedVertices[0][0],
                                      start=self.startMode())
         else:
-            self.setMessage('Must select start vertex before traversal')
+            self.setMessage('Must select start vertex for tree')
 
     def clickTopologicalSort(self):
         if self.bidirectionalEdges.get():

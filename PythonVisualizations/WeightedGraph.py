@@ -1,5 +1,5 @@
 from tkinter import *
-import re
+import re, math
 
 try:
     from Graph import *
@@ -16,7 +16,8 @@ class WeightedGraph(Graph):
     EDGE_PRIORITY_QUEUE_COLOR = 'misty rose'
     
     def __init__(self, title='Weighted Graph', **kwargs):
-        super().__init__(title=title, weighted=True, **kwargs)
+        super().__init__(
+            title=title, weighted=True, selectableVertices=2, **kwargs)
         
     minimumSpanningTreeCode = '''
 def minimumSpanningTree(self, n={nVal}):
@@ -235,11 +236,11 @@ def minimumSpanningTree(self, n={nVal}):
                     toMove = (*vertLabels, weightLabel)
                     callEnviron |= set(toMove)
                     insertAt = self.edgeInsertPosition(edges, w)
-                    PQcoords = self.edgePriorityQueueCoords(edges, insertAt)
+                    PQcoords = edges.cellAndCenters(insertAt, rows=2)
                     newCoords=(PQcoords[1], PQcoords[1], PQcoords[2])
                     toMove += flat(*(ed.items for ed in edges[insertAt:]))
                     newCoords += flat(*[
-                        self.edgePriorityQueueCoords(edges, j)
+                        edges.cellAndCenters(j, rows=2)
                         for j in range(insertAt + 1, len(edges) + 1)])
                     self.moveItemsLinearly(
                         toMove, newCoords, sleepTime=wait / 10)
@@ -295,10 +296,10 @@ def minimumSpanningTree(self, n={nVal}):
                 dValue = edges.pop(0)
                 edge, w = dValue.val
                 self.updateEdgeAndWeightFromQueue(
-                    edge, w, edgeLabel, wLabel, highligtedEdge, edges, dValue,
+                    edge, w, edgeLabel, wLabel, highlightedEdge, edges, dValue,
                     nVertsBBox, callEnviron, wait)
 
-                self.highlightCode('not edges.isEmpty() TBD', callEnviron,
+                self.highlightCode('not edges.isEmpty()', callEnviron,
                                    wait=wait)
                 if len(edges) > 0:
                     self.highlightCode('vMap[edge[1]] is not None', callEnviron,
@@ -389,22 +390,19 @@ def minimumSpanningTree(self, n={nVal}):
             else:
                 hi = mid - 1
         return lo
-
-    def edgePriorityQueueCoords(self, edges, index):
-        Vy = V(0, textHeight(self.ADJACENCY_MATRIX_FONT) // 2)
-        Vcenter = V(edges.cellCenter(index))
-        return edges.cellCoords(index), Vcenter - Vy, Vcenter + Vy
     
-    def createEdgePriorityQueueEntry(self, edges, edge, weight, insertAt):
-        coords = self.edgePriorityQueueCoords(edges, insertAt)
+    def createEdgePriorityQueueEntry(
+            self, edges, edge, weight, insertAt, tags='edgePQ'):
+        coords = edges.cellAndCenters(insertAt, rows=2)
         rect = self.canvas.create_rectangle(
             *coords[0], fill=self.EDGE_PRIORITY_QUEUE_COLOR,
-            outline='', width=0, tags='edgePQ')
+            outline='', width=0, tags=tags)
         text1 = self.canvas.create_text(
             *coords[1], text='{}-{}'.format(*edge, weight),
-            font=self.ADJACENCY_MATRIX_FONT)
+            font=self.ADJACENCY_MATRIX_FONT, tags=tags)
         text2 = self.canvas.create_text(
-            *coords[2], text=str(weight), font=self.ADJACENCY_MATRIX_FONT)
+            *coords[2], text=str(weight), font=self.ADJACENCY_MATRIX_FONT,
+            tags=tags)
         return drawnValue((edge, weight), rect, text1, text2)
 
     def updateEdgeAndWeightFromQueue(
@@ -420,7 +418,7 @@ def minimumSpanningTree(self, n={nVal}):
         moveTo = [edgeLabelCoords]
         toDispose = []
         if edge is not None:
-            queueFrontCoords = self.edgePriorityQueueCoords(edges, 0)
+            queueFrontCoords = edges.cellAndCenters(0, rows=2)
             toMove += [self.canvas.create_text(
                 *queueFrontCoords[1], text=(' {}' if i else '{} ').format(v),
                 anchor=W if i else E, font=self.ADJACENCY_MATRIX_FONT)
@@ -432,7 +430,7 @@ def minimumSpanningTree(self, n={nVal}):
             moveTo.append(self.canvas.coords(weightLabel))
             toDispose = toMove[1:]
             toMove += list(flat(*(dv.items for dv in edges)))
-            moveTo += list(flat(*(self.edgePriorityQueueCoords(edges, j)
+            moveTo += list(flat(*(edges.cellAndCenters(j, rows=2)
                                   for j in range(len(edges)))))
         self.moveItemsLinearly(toMove, moveTo, sleepTime=wait / 10)
         self.canvas.coords(
@@ -443,20 +441,430 @@ def minimumSpanningTree(self, n={nVal}):
         self.dispose(callEnviron, *toDispose)
 
     def edgeLabelCoords(self, edge, nVertsBBox):
+        'Position of the edge variable label in minimum spanning tree algorithm'
         return ((nVertsBBox[0], nVertsBBox[3] + 5) if edge is None else
                 self.edgeCoords(
                     *(self.vertexCoords(edge[j])
                       for j in ((1, 0) if edge == self.edges[edge].val else
                                 (0, 1))))[-1])
+
+    shortestPathCode = '''
+def shortestPath(self, start={startVal}, end={endVal}):
+   visited = {{}}
+   costs = {{start: (0, start)}}
+   while end not in visited:
+      nextVert, cost = None, math.inf
+      for vertex in costs:
+         if (vertex not in visited and
+             costs[vertex][0] <= cost):
+            nextVert, cost = vertex, costs[vertex][0]
+      if nextVert is None:
+         break
+      visited[nextVert] = 1
+      for adj in self.adjacentVertices(nextVert):
+         if adj not in visited:
+            pathCost = (
+               self.edgeWeight(nextVert, adj) +
+               costs[nextVert][0])
+            if (adj not in costs or
+                costs[adj][0] > pathCost):
+               costs[adj] = (pathCost, nextVert)
+   path = []
+   while end in visited:
+      path.append(end)
+      if end == start:
+         break
+      end = costs[end][1]
+   return list(reversed(path))
+'''
+    pathCostAssignPattern = re.compile(
+        r'pathCost = .*\n.*\n.*costs\[nextVert\]\[0\]\)')
     
+    def shortestPath(self, start, end, code=shortestPathCode,
+                     startAnimations=True, wait=0.1):
+        SPtags = 'SP'
+        startVert = (start if isinstance(start, str) else
+                     self.vertexTable[start].val
+                     if start < len(self.vertexTable) else None)
+        start = (start if isinstance(start, int) else
+                 self.getVertexIndex(start))
+        startVal = "{} ('{}')".format(start, startVert)
+        endVert = (end if isinstance(end, str) else
+                     self.vertexTable[end].val
+                     if end < len(self.vertexTable) else None)
+        end = (end if isinstance(end, int) else self.getVertexIndex(end))
+        endVal = "{} ('{}')".format(end, endVert)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=startAnimations)
+
+        startArrowConfig, endArrowConfig = {'anchor': SE},  {'anchor': NE}
+        vertArrowConfig = {'orientation': 10, 'anchor': SW}
+        startArrow = self.vertexTable.createLabeledArrow(
+            start, 'start', **startArrowConfig)
+        startVertArrow = self.createLabeledArrow(
+            startVert, 'start', **vertArrowConfig)
+        endArrow = self.vertexTable.createLabeledArrow(
+            end, 'end', **endArrowConfig)
+        endVertArrow = self.createLabeledArrow(
+            endVert, 'end', **vertArrowConfig)
+        arrows = startArrow + startVertArrow + endArrow + endVertArrow
+        callEnviron |= set(arrows)
+        localVars = arrows
+        faded = (Scrim.FADED_FILL,) * len(arrows)
+
+        self.highlightCode('visited = {}', callEnviron, wait=wait)
+        visited = self.createVisitedTable(self.nVertices(), visible=False)
+        localVars += visited.items()
+        faded += (Scrim.FADED_FILL,
+                  *((Scrim.FADED_OUTLINE,) * (len(visited.items()) - 1)))
+        
+        self.highlightCode('costs = {start: (0, start)}', callEnviron,
+                           wait=wait)
+        costs = Table(
+            self, (70, self.graphRegion[3] + 40),
+            label='costs', labelAnchor=E, vertical=False,
+            labelFont=self.VARIABLE_FONT, 
+            cellWidth=self.VERTEX_RADIUS * 3, cellHeight=self.VERTEX_RADIUS * 2,
+            see=True, cellBorderWidth=self.vertexTable.cellBorderWidth)
+        localVars += costs.items()
+        faded += (Scrim.FADED_FILL,) * len(costs.items())
+        costs.append(drawnValue(
+            (startVert, 0, startVert),
+            *self.createCostsTableEntry(
+                costs, startVert, (0, startVert),
+                color=self.canvas.itemConfig(self.vertices[startVert].items[0],
+                                             'fill'))))
+        costVertices = (startVert,)
+        callEnviron |= set(costs.items() + costs[0].items)
+        localVars += (costs.items()[-1], *costs[0].items)
+        faded += (Scrim.FADED_OUTLINE,
+                  *((Scrim.FADED_FILL,) * len(costs[0].items)))
+
+        nextVertArrow, costsNextVertArrow = None, None
+        nextVertArrowConfig = {'orientation': 60}
+        nextVertNoneCoords = (-self.VERTEX_RADIUS,
+                              (self.graphRegion[1] + self.graphRegion[3]) // 2)
+        vertexArrow, vertexArrowConfig = None, {'level': 2}
+        vertexArrow2, vertexArrow2Config = None, {'level': -1}
+        adjArrow, costsAdjArrow, adjArrowConfig = None, None, {
+            'orientation': -60, 'level': 2}
+        costLabelCoords = V(self.graphRegion[2:]) + V(50, 15)
+        pathCostLabelCoords = V(costLabelCoords) + V(0, 15)
+        pathCostLabel = None
+        self.highlightCode('end not in visited', callEnviron, wait=wait)
+        while not visited[end].val:
+            self.highlightCode('nextVert, cost = None, math.inf', callEnviron,
+                               wait=wait)
+            nextVert, cost = None, math.inf
+            if nextVertArrow is None:
+                nextVertArrow = self.createLabeledArrow(
+                    nextVertNoneCoords, 'nextVert', **nextVertArrowConfig)
+                costsNextVertArrow = self.createLabeledArrow(
+                    nextVertNoneCoords, 'nextVert', **nextVertArrowConfig)
+                costLabel = self.canvas.create_text(
+                    *costLabelCoords, anchor=E, text='cost = {}'.format(cost),
+                    tags=SPtags, fill=self.VARIABLE_COLOR,
+                    font=self.VARIABLE_FONT)
+                items = (costLabel, *nextVertArrow, *costsNextVertArrow)
+                callEnviron |= set(items)
+                localVars += items
+                faded += (Scrim.FADED_FILL,) * len(items)
+            else:
+                arrowCoords = self.labeledArrowCoords(nextVertNoneCoords,
+                                                      **nextVertArrowConfig)
+                self.moveItemsTo(nextVertArrow + costsNextVertArrow,
+                                 arrowCoords + arrowCoords,
+                                 sleepTime=wait / 10)
+                self.canvas.itemConfig(costLabel,
+                                       text='cost = {}'.format(cost))
+
+            self.highlightCode('vertex in costs', callEnviron, wait=wait)
+            for costIndex in range(len(costs)):
+                vertex = costs[costIndex].val[0]
+                vertexIndex = self.getVertexIndex(vertex)
+                if vertexArrow is None:
+                    vertexArrow = costs.createLabeledArrow(
+                        costIndex, 'vertex', **vertexArrowConfig)
+                    vertexArrow2 = visited.createLabeledArrow(
+                        vertexIndex, 'vertex', **vertexArrow2Config)
+                    arrows = vertexArrow + vertexArrow2
+                    callEnviron |= set(arrows)
+                    localVars += arrows
+                    faded += (Scrim.FADED_FILL,) * len(arrows)
+                else:
+                    self.moveItemsTo(
+                        vertexArrow + vertexArrow2,
+                        costs.labeledArrowCoords(costIndex, **vertexArrowConfig)
+                        + visited.labeledArrowCoords(
+                            vertexIndex, **vertexArrow2Config),
+                        sleepTime=wait / 10)
+
+                self.highlightCode('vertex not in visited', callEnviron,
+                                   wait=wait)
+                if not visited[vertexIndex].val:
+                    self.highlightCode('costs[vertex][0] <= cost', callEnviron,
+                                       wait=wait)
+                if (not visited[vertexIndex].val and
+                    costs[costIndex].val[1] < cost):
+                    self.highlightCode(
+                        'nextVert, cost = vertex, costs[vertex][0]',
+                        callEnviron, wait=wait)
+                    nextVert, nextVertIndex = vertex, vertexIndex
+                    cost = costs[costIndex].val[1]
+                    costCopy = self.canvas.copyItem(costs[costIndex].items[2])
+                    callEnviron.add(costCopy)
+                    self.canvas.itemConfig(costCopy, text=str(cost),
+                                           anchor=E)
+                    self.moveItemsTo(
+                        (costCopy, *nextVertArrow, *costsNextVertArrow),
+                        (self.canvas.coords(costLabel),
+                         *(self.labeledArrowCoords(self.vertexCoords(nextVert),
+                                                   **nextVertArrowConfig) +
+                           costs.labeledArrowCoords(costIndex,
+                                                    **nextVertArrowConfig))),
+                        sleepTime=wait / 10)
+                    self.dispose(callEnviron, costCopy)
+                    self.canvas.itemConfig(
+                        costLabel, text='cost = {}'.format(cost))
+
+                self.highlightCode('vertex in costs', callEnviron, wait=wait)
+
+            self.moveItemsTo(
+                vertexArrow + vertexArrow2,
+                costs.labeledArrowCoords(len(costs), **vertexArrowConfig) +
+                visited.labeledArrowCoords(len(visited), **vertexArrow2Config),
+                sleepTime=wait / 10)
+
+            self.highlightCode('nextVert is None', callEnviron, wait=wait)
+            if nextVert is None:
+                self.highlightCode('break', callEnviron, wait=wait)
+                break
+            
+            self.highlightCode('visited[nextVert] = 1', callEnviron, wait=wait)
+            visited[nextVertIndex] = drawnValue(
+                True,
+                self.canvas.create_text(
+                    *visited.cellCenter(nextVertIndex), text='1',
+                    font=self.ADJACENCY_MATRIX_FONT, tags=SPtags))
+            callEnviron |= set(visited[nextVertIndex].items)
+            localVars += visited[nextVertIndex].items
+            faded += (Scrim.FADED_FILL,)
+
+            self.highlightCode('adj in self.adjacentVertices(nextVert)',
+                               callEnviron, wait=wait)
+            colors = self.canvas.fadeItems(localVars, faded)
+            for adj in self.adjacentVertices(nextVertIndex):
+                self.canvas.restoreItems(localVars, colors, top=False)
+                adjVertex = self.vertexTable[adj].val
+                costVertices = [c.val[0] for c in costs]
+                adjVertexInCosts = adjVertex in costVertices
+                adjVertexIndexInCosts = (
+                    costVertices.index(adjVertex) if adjVertexInCosts else
+                    len(costs))
+                if adjArrow is None:
+                    adjArrow = self.createLabeledArrow(adj, 'adj',
+                                                       **adjArrowConfig)
+                    costsAdjArrow = (
+                        costs.createLabeledArrow(adjVertexIndexInCosts, 'adj',
+                                                 **adjArrowConfig)
+                        if adjVertexInCosts else
+                        self.createLabeledArrow(adj, 'adj', **adjArrowConfig))
+                    arrows = adjArrow + costsAdjArrow
+                    callEnviron |= set(arrows)
+                    localVars += arrows
+                    faded += (Scrim.FADED_FILL,) * len(arrows)
+                else:
+                    self.moveItemsTo(
+                        adjArrow + costsAdjArrow,
+                        self.labeledArrowCoords(adj, **adjArrowConfig) +
+                        (costs.labeledArrowCoords(adjVertexIndexInCosts,
+                                                  **adjArrowConfig)
+                         if adjVertexInCosts else
+                         self.labeledArrowCoords(adj, **adjArrowConfig)),
+                        sleepTime=wait / 10)
+                    
+                self.highlightCode('adj not in visited', callEnviron, wait=wait)
+                if not visited[adj].val:
+                    self.highlightCode(self.pathCostAssignPattern, callEnviron,
+                                       wait=wait)
+                    costIndex = costVertices.index(nextVert)
+                    edge = (nextVert, adjVertex)
+                    edgeWeight = self.edgeWeight(*edge)
+                    cost = costs[costIndex].val[1]
+                    pathCost = edgeWeight + cost
+                    edgeWeightCopy = self.canvas.create_text(
+                        *self.canvas.coords(self.edges[edge].items[1]),
+                        anchor=E, text=str(edgeWeight), tags=SPtags,
+                        font=self.ADJACENCY_MATRIX_FONT)
+                    costCopy = self.canvas.copyItem(costs[costIndex].items[2])
+                    self.canvas.itemConfig(costCopy, text=str(cost), anchor=E)
+                    callEnviron |= set((edgeWeightCopy, costCopy))
+                    self.moveItemsTo(
+                        (edgeWeightCopy, costCopy), (pathCostLabelCoords,) * 2,
+                        sleepTime=wait / 10)
+                    if pathCostLabel is None:
+                        pathCostLabel = self.canvas.create_text(
+                            *pathCostLabelCoords, anchor=E,
+                            text='pathCost = {}'.format(pathCost), tags=SPtags,
+                            fill=self.VARIABLE_COLOR, font=self.VARIABLE_FONT)
+                        callEnviron.add(pathCostLabel)
+                        localVars += (pathCostLabel,)
+                        faded += (Scrim.FADED_FILL,)
+                    else:
+                        self.canvas.itemConfig(
+                            pathCostLabel, text='pathCost = {}'.format(pathCost))
+                    self.dispose(callEnviron, edgeWeightCopy, costCopy)
+                    
+                    self.highlightCode('adj not in costs', callEnviron,
+                                       wait=wait)
+                    if adjVertex in costVertices:
+                        self.highlightCode('costs[adj][0] > pathCost',
+                                           callEnviron, wait=wait)
+                    if (not adjVertexInCosts or
+                        costs[adjVertexIndexInCosts].val[1] > pathCost):
+                        self.highlightCode('costs[adj] = (pathCost, nextVert)',
+                                           callEnviron, wait=wait)
+                        pathCostCopy = self.canvas.create_text(
+                            *pathCostLabelCoords, anchor=E, text=str(pathCost),
+                            font=self.ADJACENCY_MATRIX_FONT)
+                        nextVertCopy = self.canvas.create_text(
+                            *self.vertexCoords(nextVert), anchor=W,
+                            text=' {}'.format(nextVert),
+                            font=self.ADJACENCY_MATRIX_FONT)
+                        toMove = (pathCostCopy, nextVertCopy)
+                        costCellCoords = costs.cellAndCenters(
+                            adjVertexIndexInCosts, rows=2)
+                        moveTo = (costCellCoords[2],) * 2
+                        if not adjVertexInCosts:
+                            toMove += (self.canvas.copyItem(
+                                self.vertices[adjVertex].items[1]),)
+                            moveTo += (costCellCoords[1],)
+                        callEnviron |= set(toMove)
+                        self.moveItemsTo(toMove, moveTo, sleepTime=wait / 10)
+                        costTuple = (pathCost, nextVert)
+                        if adjVertexInCosts:
+                            self.canvas.itemConfig(
+                                costs[adjVertexIndexInCosts].items[2],
+                                text=str(costTuple))
+                            costs[adjVertexIndexInCosts].val = (
+                                adjVertex, *costTuple)
+                        else:
+                            costs.append(drawnValue(
+                                (adjVertex, *costTuple),
+                                *self.createCostsTableEntry(
+                                    costs, adjVertex, costTuple,
+                                    color=self.canvas.itemConfig(
+                                        self.vertices[adjVertex].items[0],
+                                        'fill'))))
+                            localVars += (costs.items()[-1], *costs[-1].items)
+                            faded += (Scrim.FADED_OUTLINE,
+                                      *((Scrim.FADED_FILL,) *
+                                        len(costs[-1].items)))
+                        self.dispose(callEnviron, *toMove)
+
+                self.highlightCode('adj in self.adjacentVertices(nextVert)',
+                                   callEnviron, wait=wait)
+                colors = self.canvas.fadeItems(localVars, faded)
+            
+            self.canvas.restoreItems(localVars, colors, top=False)
+            
+            self.highlightCode('end not in visited', callEnviron, wait=wait)
+            
+        self.highlightCode('path = []', callEnviron, wait=wait)
+        self.dispose(callEnviron,
+                     *costsNextVertArrow, *nextVertArrow,
+                     *(adjArrow if adjArrow else ()))
+        path = Table(
+            self, (costs.x0, costs.y0 + costs.cellHeight + 5),
+            label='path', labelAnchor=E, vertical=False,
+            labelFont=self.VARIABLE_FONT, cellWidth=self.vertexTable.cellWidth,
+            cellHeight=self.vertexTable.cellHeight, see=True,
+            cellBorderWidth=self.vertexTable.cellBorderWidth)
+
+        self.highlightCode('end in visited', callEnviron, wait=wait)
+        endIndexInCosts = (
+            costVertices.index(endVert) if endVert in costVertices else -1)
+        if costsAdjArrow:
+            self.canvas.itemConfig(costsAdjArrow[1], text='end')
+            self.moveItemsTo(
+                costsAdjArrow,
+                costs.labeledArrowCoords(endIndexInCosts, **adjArrowConfig),
+                sleepTime=0, steps=1)
+        else:
+            costs.createLabeledArrow(endIndexInCosts, 'end', **adjArrowConfig)
+        while visited[end].val:
+            self.highlightCode('path.append(end)', callEnviron, wait=wait)
+            copies = tuple(self.canvas.copyItem(i)
+                           for i in self.vertexTable[end].items)
+            callEnviron |= set(copies)
+            self.moveItemsTo(copies, path.cellAndCenters(len(path)),
+                             sleepTime=wait / 10)
+            path.append(drawnValue(endVert, *copies))
+            callEnviron |= set(path.items())
+            if len(path) > 1:
+                edge = tuple(d.val for d in path[-2:])
+                treeEdgeHighlight = self.canvas.create_line(
+                    *self.canvas.coords(self.edges[edge].items[0]),
+                    fill=self.HIGHLIGHTED_EDGE_COLOR, tags=SPtags,
+                    width=self.HIGHLIGHTED_EDGE_WIDTH)
+                self.canvas.lower(treeEdgeHighlight, 'edge')
+                callEnviron.add(treeEdgeHighlight)
+            
+            self.highlightCode('end == start', callEnviron, wait=wait)
+            if end == start:
+                self.highlightCode(('break', 2), callEnviron, wait=wait)
+                break
+            
+            self.highlightCode('end = costs[end][1]', callEnviron, wait=wait)
+            endVert = costs[endIndexInCosts].val[2]
+            end = self.getVertexIndex(endVert)
+            endIndexInCosts = costVertices.index(endVert)
+            self.moveItemsTo(
+                endArrow + endVertArrow + costsAdjArrow,
+                self.vertexTable.labeledArrowCoords(end, **endArrowConfig) +
+                self.labeledArrowCoords(endVert, **vertArrowConfig) +
+                costs.labeledArrowCoords(endIndexInCosts, **adjArrowConfig),
+                sleepTime=wait / 10)
+
+            self.highlightCode('end in visited', callEnviron, wait=wait)
+        
+        self.highlightCode('list(reversed(path))', callEnviron, wait=wait)
+        self.cleanUp(callEnviron)
+        return [d.val for d in reversed(path)]
+
+    def createCostsTableEntry(
+            self, costs, vertex, values, color='white', index=None,
+            tags='costs'):
+        if index is None: index = len(costs)
+        coords = self.costsTableCoords(costs, index)
+        rect = self.canvas.create_rectangle(
+            *coords[0], outline='', width=0, fill=color, tags=tags)
+        vertLabel = self.canvas.create_text(
+            *coords[1], text=vertex, font=self.ADJACENCY_MATRIX_FONT, tags=tags)
+        valuesLabel = self.canvas.create_text(
+            *coords[2], text=str(values), font=self.ADJACENCY_MATRIX_FONT,
+            tags=tags)
+        return rect, vertLabel, valuesLabel
+
+    def costsTableCoords(self, costs, index):
+        coords = costs.cellAndCenters(index, rows=2)
+        center = costs.cellCenter(index)
+        return (*coords[0][:3], center[1]), coords[1], coords[2]
+        
+        
     def enableButtons(self, enable=True):
         super(type(self).__bases__[0], self).enableButtons( # Grandparent
             enable)
         for btn in (self.depthFirstTraverseButton, 
                     self.breadthFirstTraverseButton, self.MSTButton):
-            widgetState( # can only traverse when start node selected
+            widgetState( # these operations need 1 selected vertex
                 btn,
-                NORMAL if enable and self.selectedVertex else DISABLED)
+                NORMAL if enable and self.selectedVertices[0] else DISABLED)
+        for btn in (self.shortestPathButton,):
+            widgetState( # these operations need 2 selected vertices
+                btn,
+                NORMAL if enable and all(self.selectedVertices[:2]) else
+                DISABLED)
 
     def makeButtons(self, *args, **kwargs):
         '''Make buttons specific to unweighted graphs and aadd the
@@ -472,7 +880,21 @@ def minimumSpanningTree(self, n={nVal}):
         self.MSTButton = self.addOperation(
             "Minimum Spanning Tree", self.clickMinimumSpanningTree,
             helpText='Compute a minimum spanning tree', state=DISABLED)
+        self.shortestPathButton = self.addOperation(
+            "Shortest Path", self.clickShortestPath,
+            helpText='Find the shortest path connecting 2 vertices',
+            state=DISABLED)
         self.addAnimationButtons()
+
+    def clickShortestPath(self):
+        if all(self.selectedVertices):
+            path = self.shortestPath(self.selectedVertices[0][0],
+                                     self.selectedVertices[1][0],
+                                     startAnimations=self.startMode())
+            self.setMessage('Shortest path: ' + ' '.join(path) if path else
+                            'No path found')
+        else:
+            self.setMessage('Must select start and end vertices to find path')
             
 if __name__ == '__main__':
     graph = WeightedGraph()
@@ -489,6 +911,21 @@ if __name__ == '__main__':
                 graph.randomFillButton.invoke()
                 graph.setArgument(
                     chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
+            elif arg in ('-TuralaMST', '-TuralaSP'):  # Examples from textbook
+                for vert in ('Bl', 'Ce', 'Da', 'Gr', 'Ka', 'Na'):
+                    graph.setArgument(vert)
+                    graph.newVertexButton.invoke()
+                for edge in (
+                        ('Bl-Ce:31', 'Bl-Da:24', 'Ce-Da:35', 'Ce-Gr:49',
+                         'Ce-Na:87', 'Ce-Ka:38', 'Da-Gr:41', 'Da-Ka:52',
+                         'Gr-Ka:25', 'Gr-Na:46', 'Ka-Na:43')
+                        if arg == '-TuralaMST' else
+                        ('Bl-Ce:22', 'Bl-Da:16', 'Ce-Da:29', 'Ce-Gr:34',
+                         'Ce-Na:65', 'Ce-Ka:26', 'Da-Gr:28', 'Da-Ka:24',
+                         'Gr-Ka:25', 'Gr-Na:30', 'Ka-Na:36')):
+                    edgeMatch = edgePattern.fullmatch(edge)
+                    graph.createEdge(edgeMatch.group(1), edgeMatch.group(2),
+                                     int(edgeMatch.group(4)))
         elif edgeMatch and all(edgeMatch.group(i) in sys.argv[1:] 
                                for i in (1, 2)):
             edges.append((edgeMatch.group(1), edgeMatch.group(2),
