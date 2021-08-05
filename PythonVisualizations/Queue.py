@@ -58,9 +58,9 @@ class Queue(VisualizationApp):
         self.center = tuple(map(int, center))
         minDimension = min(*self.center)
         self.innerRadius = (innerRadius * minDimension if innerRadius <= 1 else
-                            innerRadus)
+                            innerRadius)
         self.outerRadius = (outerRadius * minDimension if outerRadius <= 1 else
-                            outerRadus)
+                            outerRadius)
         self.textRadius = (self.innerRadius + self.outerRadius) / 2
         self.makeButtons()
         self.display()
