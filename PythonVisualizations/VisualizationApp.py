@@ -295,6 +295,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.operations, width=self.maxArgWidth * 5 // 4, bg=self.ENTRY_BG,
             validate='key', validatecommand=validationCmd, 
             font=self.CONTROLS_FONT)
+        entry.bind('<FocusIn>', lambda event:
+                   event.widget.select_range(0, END), '+')
         entry.bind(
             '<KeyRelease>', lambda ev: self.argumentChanged(ev.widget), '+')
         for key in ('Return', 'KP_Enter'):
