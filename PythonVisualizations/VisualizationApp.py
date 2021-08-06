@@ -676,7 +676,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         if debug:
             print('Entering resizeCodeText with event =', event,
                   'self.codeText = ', self.codeText, '{} mapped'.format(
-                      'is' if self.codeText.winfo_ismapped() else 'is not'))
+                      'is' if self.codeText.winfo_ismapped() else 'is not'),
+                  'timeout_ID =', getattr(self.codeText, 'timeout_ID', None))
         if self.codeText is None or not self.codeText.winfo_ismapped():
             return
         ct = self.codeText
