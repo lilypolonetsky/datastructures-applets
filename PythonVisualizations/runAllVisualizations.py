@@ -176,10 +176,12 @@ if __name__ == '__main__':
 
     if args.files is None or args.files == []:
         dirs = set([os.path.relpath(os.getcwd())])
-        if sys.argv and os.path.dirname(sys.argv[0]):
+        if (sys.argv and os.path.exists(sys.argv[0]) and
+            os.path.dirname(sys.argv[0])):
             dirs.add(os.path.dirname(sys.argv[0]))
         try:
-            dirs.add(os.path.dirname(__file__))
+            if os.path.exists(__file__) and os.path.dirname(__file__):
+                dirs.add(os.path.dirname(__file__))
         except:
             pass
         if args.verbose > 1:
