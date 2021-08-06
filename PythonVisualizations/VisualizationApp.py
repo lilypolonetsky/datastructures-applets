@@ -671,17 +671,14 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                   'codeText character width =', self.codeTextCharWidth,
                   '\ndesired width in characters =', desired)
         return desired
-
-    __last_resize_event = 0
     
-    def resizeCodeText(self, event=None, debug=False):
+    def resizeCodeText(self, event=None, debug=True):
+        if debug:
+            print('Entering resizeCodeText with event =', event,
+                  'self.codeText = ', self.codeText, '{} mapped'.format(
+                      'is' if self.codeText.winfo_ismapped() else 'is not'))
         if self.codeText is None or not self.codeText.winfo_ismapped():
             return
-        if event and event.type == EventType.Configure and (
-                isinstance(event.time, int) or event.time.isdigit()):
-            if int(event.time) - self.__last_resize_event < 10:
-                return
-            self.__last_resize_event = int(event.time)
         ct = self.codeText
         nCharsWide = ct['width']
         padX = ct['padx']
@@ -690,13 +687,14 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         desired = self.codeTextWidth(padX, self.vScrollWidth, debug)
         timeout_ID = getattr(self.codeText, 'timeout_ID', None)
         skip = event is not None and timeout_ID is not None
-        if False:     # Set true for debugging printout
+        if debug and False:     # Set true for debugging printout
             print('Current width is', nCharsWide, 'and desired is', desired)
             if skip and desired != nCharsWide:
                 print('Skipping resize while timer {} running'.format(
                     timeout_ID))
         if not skip and desired != nCharsWide:
             ct['width'] = desired
+            self.makeTimer(ct, 50)
 
     def highlightCode(self, fragments, callEnviron, wait=0, color=None):
         '''Highlight a code fragment for a particular call environment.
