@@ -695,7 +695,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 print('Skipping resize while timer {} running'.format(
                     timeout_ID))
         if not skip and desired != nCharsWide:
-            self.makeTimer(ct, 50, resize_ID)
+            self.makeTimer(ct, 5, resize_ID)
             if debug:
                 print('Timer ID set to', getattr(ct, resize_ID, None))
             ct['width'] = desired
