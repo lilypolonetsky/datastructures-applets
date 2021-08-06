@@ -359,9 +359,9 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
     def makeTimer(self, widget, delay=300, attrName='timeout_ID'):
         'Make a handler that sets a timeout that clears itself after a delay'
-        return lambda event: setattr(
-            widget, attrName,
-            widget.after(delay, lambda: setattr(widget, attrName, None)))
+        setattr(widget, attrName,
+                widget.after(delay, lambda: setattr(widget, attrName, None)))
+        return getattr(widget, attrName)
 
     def extendHintActivationHandler(self):
         def Ehandler(event):
@@ -672,21 +672,22 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                   '\ndesired width in characters =', desired)
         return desired
     
-    def resizeCodeText(self, event=None, debug=True):
+    def resizeCodeText(self, event=None, debug=False):
+        ct = self.codeText
+        resize_ID = 'resize_timeout_ID'
         if debug:
             print('Entering resizeCodeText with event =', event,
-                  'self.codeText = ', self.codeText, '{} mapped'.format(
-                      'is' if self.codeText.winfo_ismapped() else 'is not'),
-                  'timeout_ID =', getattr(self.codeText, 'timeout_ID', None))
-        if self.codeText is None or not self.codeText.winfo_ismapped():
+                  'self.codeText = ', ct, '{} mapped'.format(
+                      'is' if ct.winfo_ismapped() else 'is not'),
+                  'timeout_ID =', getattr(ct, resize_ID, None))
+        if ct is None or not ct.winfo_ismapped():
             return
-        ct = self.codeText
         nCharsWide = ct['width']
         padX = ct['padx']
         self.vScrollWidth = max(
             self.vScrollWidth, self.codeVScroll.winfo_width())
         desired = self.codeTextWidth(padX, self.vScrollWidth, debug)
-        timeout_ID = getattr(self.codeText, 'timeout_ID', None)
+        timeout_ID = getattr(ct, resize_ID, None)
         skip = event is not None and timeout_ID is not None
         if debug and False:     # Set true for debugging printout
             print('Current width is', nCharsWide, 'and desired is', desired)
@@ -694,8 +695,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 print('Skipping resize while timer {} running'.format(
                     timeout_ID))
         if not skip and desired != nCharsWide:
+            self.makeTimer(ct, 50, resize_ID)
+            if debug:
+                print('Timer ID set to', getattr(ct, resize_ID, None))
             ct['width'] = desired
-            self.makeTimer(ct, 50)
 
     def highlightCode(self, fragments, callEnviron, wait=0, color=None):
         '''Highlight a code fragment for a particular call environment.
