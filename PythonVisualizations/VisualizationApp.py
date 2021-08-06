@@ -671,10 +671,17 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                   'codeText character width =', self.codeTextCharWidth,
                   '\ndesired width in characters =', desired)
         return desired
-        
+
+    __last_resize_event = 0
+    
     def resizeCodeText(self, event=None, debug=False):
         if self.codeText is None or not self.codeText.winfo_ismapped():
             return
+        if event and event.type == EventType.Configure and (
+                isinstance(event.time, int) or event.time.isdigit()):
+            if int(event.time) - self.__last_resize_event < 10:
+                return
+            self.__last_resize_event = int(event.time)
         ct = self.codeText
         nCharsWide = ct['width']
         padX = ct['padx']
