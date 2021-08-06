@@ -31,6 +31,7 @@ class GraphBase(VisualizationApp):
     ACTIVE_VERTEX_OUTLINE_WIDTH = 1
     EDGE_WIDTH = 1
     EDGE_COLOR = 'black'
+    MAX_EDGE_WEIGHT = 99
     ACTIVE_EDGE_COLOR = 'blue'
     ACTIVE_EDGE_WIDTH = 3
     BAD_POSITION_TEXT_COLOR = 'red'
@@ -829,15 +830,31 @@ class GraphBase(VisualizationApp):
                     if self.DEBUG:
                         print('Attempt to change weight of empty edge')
                     return
+                if not (isinstance(event.char, str) and event.char.isdigit() or
+                        event.keysym in ('Delete', 'BackSpace')):
+                    if self.DEBUG:
+                        print('Ignoring char', event.char, 'keysym',
+                              event.keysym, 'typed in edge weight entry')
+                    return
                 if not self.operationMutex.acquire(blocking=False):
                     self.setMessage('Cannot change edge during other operation')
                     self.weight(entry, self.edgeWeight(*edge))
                     return
                 self.cleanUp()
-                self.edgeWeight(*edge, self.weight(entry))
+                entry.configure(bg=color)
+                newWeight = self.weight(entry)
+                if 0 <= newWeight and newWeight <= self.MAX_EDGE_WEIGHT:
+                    self.edgeWeight(*edge, self.weight(entry))
+                else:
+                    entry.configure(bg=self.ERROR_HIGHLIGHT)
                 self.operationMutex.release()
                 self.enableButtons()
-            entry.bind('<KeyRelease>', edgeWeightChange)
+            entry.bind('<KeyRelease>', edgeWeightChange, '+')
+            entry.bind('<FocusIn>', lambda event:
+                       event.widget.select_range(0, END), '+')
+            entry.bind('<FocusOut>', lambda event:
+                       self.weight(event.widget, self.edgeWeight(*edge)) or
+                       event.widget.configure(bg=color), '+')
         else:
             entry = Button(self.adjMatrixFrame, bg=color,
                            text='', font=self.ADJACENCY_MATRIX_FONT,
