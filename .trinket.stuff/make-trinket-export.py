@@ -19,7 +19,8 @@ showVisualizations(
 
 if __name__ == '__main__':
    mustHave = ['VisualizationApp.py']
-   replacements = [('▶', '=left_arrow='), ('▢', 'W'), ('✓', 'X'), ('ø', '!')]
+   replacements = [('▶', '=left_arrow='), ('▢', 'W'), ('✓', 'X'), ('ø', '!'),
+                   ('∞', 'inf')]
    parser = argparse.ArgumentParser(
       description=__doc__,
       formatter_class=argparse.ArgumentDefaultsHelpFormatter)

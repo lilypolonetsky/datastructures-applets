@@ -12,6 +12,16 @@ except ModuleNotFoundError:
 
 V = vector
 
+def replaceInfinity(formatSpec, *values, **kwargs):
+    newValues = ('∞' if val == math.inf else '-∞' if val == - math.inf else val
+                 for val in values)
+    for key in kwargs:
+        if kwargs[key] == math.inf:
+            kwargs[key] = '∞'
+        elif kwargs[key] == - math.inf:
+            kwargs[key] = '-∞'
+    return formatSpec.format(*newValues, **kwargs)
+    
 class WeightedGraph(Graph):
     EDGE_PRIORITY_QUEUE_COLOR = 'misty rose'
     
@@ -562,7 +572,8 @@ def shortestPath(self, start={startVal}, end={endVal}):
                 costsNextVertArrow = self.createLabeledArrow(
                     nextVertNoneCoords, 'nextVert', **nextVertArrowConfig)
                 costLabel = self.canvas.create_text(
-                    *costLabelCoords, anchor=E, text='cost = {}'.format(cost),
+                    *costLabelCoords, anchor=E,
+                    text=replaceInfinity('cost = {}', cost),
                     tags=SPtags, fill=self.VARIABLE_COLOR,
                     font=self.VARIABLE_FONT)
                 items = (costLabel, *nextVertArrow, *costsNextVertArrow)
@@ -576,7 +587,7 @@ def shortestPath(self, start={startVal}, end={endVal}):
                                  arrowCoords + arrowCoords,
                                  sleepTime=wait / 10)
                 self.canvas.itemConfig(costLabel,
-                                       text='cost = {}'.format(cost))
+                                       text=replaceInfinity('cost = {}', cost))
 
             self.highlightCode('vertex in costs', callEnviron, wait=wait)
             for costIndex in range(len(costs)):
@@ -625,7 +636,7 @@ def shortestPath(self, start={startVal}, end={endVal}):
                         sleepTime=wait / 10)
                     self.dispose(callEnviron, costCopy)
                     self.canvas.itemConfig(
-                        costLabel, text='cost = {}'.format(cost))
+                        costLabel, text=replaceInfinity('cost = {}', cost))
 
                 self.highlightCode('vertex in costs', callEnviron, wait=wait)
 
