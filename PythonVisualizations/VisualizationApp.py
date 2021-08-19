@@ -79,7 +79,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def __init__(  # Constructor
             self,
             maxArgWidth=3,    # Maximum length/width of text arguments
-            hoverDelay=500,  # Milliseconds to wait before showing hints
+            hoverDelay=500,   # Milliseconds to wait before showing hints
             **kwargs):
         super().__init__(**kwargs)
 
@@ -94,9 +94,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
         self.debugRequested = False
-        self.tw = None
+        self.tw, self.entryHint = None, None
         self.createPlayControlImages()
         self.setUpControlPanel()
+        self.window.bind('<Unmap>', self.clearHintHandler(), '+')
  
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window, bg=self.DEFAULT_BG)
@@ -305,19 +306,22 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         entry.bind('<Enter>', self.makeArmHintHandler(entry))
         entry.bind('<Leave>', self.makeDisarmHandler(entry))
         entry.bind('<KeyRelease>', self.makeDisarmHandler(entry), '+')
+        entry.bind('<FocusIn>', self.clearHintHandler(), '+')
         return entry
 
     def setHint(self, widget, hintText=None):
         
         # creates a toplevel window
         if not self.tw:
+            # Make floating window in front of this app without window controls
             self.tw = Toplevel()
             self.entryHint = None
-        # Leaves only the label and removes the app window
-        self.tw.overrideredirect(True)
+            if not sys.platform.startswith('win'):
+                self.tw.transient(self.controlPanel)
+            self.tw.overrideredirect(True)
         
-        if hintText is None:    # Default hint is description of all arguments and goes next to textEntry
-            x = widget.winfo_rootx() + 10
+        if hintText is None:    # Default hint is description of all arguments
+            x = widget.winfo_rootx() + 10 # and goes next to textEntry widget
             y = widget.winfo_rooty() + 20
             hintText = '^ Click to enter {}'.format(
                 ',\n'.join([
@@ -325,7 +329,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                                 getattr(entry, 'helpTexts', set()))
                     for entry in self.textEntries]))
         else:
-            x = widget.winfo_pointerx() + 10
+            x = widget.winfo_pointerx() + 10 # Goes next to mouse pointer
             y = widget.winfo_pointery() + 5
 
         self.tw.geometry("+%d+%d" % (x, y))
@@ -344,11 +348,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 self.entryHint = None
             else:
                 self.entryHint.pack()
-        if self.entryHint:
-            for entry in self.textEntries:      # Clear hint when entries get focus
-                if not entry.bind('<FocusIn>'): # if handler not already set up 
-                    entry.bind('<FocusIn>', 
-                            self.clearHintHandler(self.entryHint, entry))
         
     def makeArmHintHandler(self, widget, helpText=None):
         def handler(event):
@@ -367,7 +366,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             setattr(widget, 'timeout_ID', None)
             if self.tw:
                 self.tw.destroy()
-                self.tw = None
+                self.tw, self.entryHint = None, None
         return Dhandler
 
     def makeTimer(self, widget, delay=300, attrName='timeout_ID'):
@@ -376,13 +375,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             widget, attrName,
             widget.after(delay, lambda: setattr(widget, attrName, None)))
 
-    def clearHintHandler(self, hintLabel, textEntry=None):
-        'Clear the hint text and set focus to textEntry, if provided'
+    def clearHintHandler(self):
         def Chandler(event):
-            if (event.widget == hintLabel and textEntry): textEntry.focus_set()
             if self.tw:
                 self.tw.destroy()
-                self.tw = None
+                self.tw, self.entryHint = None, None
         return Chandler
     
     def recordModifierKeyState(self, event=None):
