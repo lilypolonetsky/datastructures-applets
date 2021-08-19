@@ -767,7 +767,9 @@ def shortestPath(self, start={startVal}, end={endVal}):
                                     color=self.canvas.itemConfig(
                                         self.vertices[adjVertex].items[0],
                                         'fill'))))
-                            localVars += (costs.items()[-1], *costs[-1].items)
+                            newItems = (costs.items()[-1], *costs[-1].items)
+                            callEnviron |= set(newItems)
+                            localVars += newItems
                             faded += (Scrim.FADED_OUTLINE,
                                       *((Scrim.FADED_FILL,) *
                                         len(costs[-1].items)))
