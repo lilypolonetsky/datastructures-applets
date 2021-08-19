@@ -79,7 +79,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
     def __init__(  # Constructor
             self,
             maxArgWidth=3,    # Maximum length/width of text arguments
-            hoverDelay=3000,  # Milliseconds to wait before showing hints
+            hoverDelay=500,   # Milliseconds to wait before showing hints
             **kwargs):
         super().__init__(**kwargs)
 
@@ -94,8 +94,10 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
         self.debugRequested = False
+        self.tw, self.entryHint = None, None
         self.createPlayControlImages()
         self.setUpControlPanel()
+        self.window.bind('<Unmap>', self.clearHintHandler(), '+')
  
     def setUpControlPanel(self):  # Set up control panel structure
         self.controlPanel = Frame(self.window, bg=self.DEFAULT_BG)
@@ -225,6 +227,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         setattr(button, 'required_args', numArguments)
         setattr(button, 'mutex', mutex)
 
+
         # Placement
         withArgs, withoutArgs = self.getOperations()
         if numArguments:
@@ -272,8 +275,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
         self.configureOperationsSeparator(withArgs, withoutArgs)
         if helpText:
-            button.bind('<Enter>', self.makeArmHintHandler(button, helpText))
-            button.bind('<Leave>', self.makeDisarmHandler(button))
+            button.bind('<Enter>', self.makeArmHintHandler(button, helpText)) #equivalent of ttp 'enter'
+            button.bind('<Leave>', self.makeDisarmHandler(button)) #equivalent of ttp 'close'
             button.bind('<Button>', self.makeDisarmHandler(button), '+')
         self.opButtons.append(button)
         return button
@@ -305,41 +308,48 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         entry.bind('<Enter>', self.makeArmHintHandler(entry))
         entry.bind('<Leave>', self.makeDisarmHandler(entry))
         entry.bind('<KeyRelease>', self.makeDisarmHandler(entry), '+')
+        entry.bind('<FocusIn>', self.clearHintHandler(), '+')
         return entry
 
-    def setHint(self, hintText=None):
+    def setHint(self, widget, hintText=None):
+        
+        # creates a toplevel window
+        if not self.tw:
+            # Make floating window in front of this app without window controls
+            self.tw = Toplevel()
+            self.entryHint = None
+            if not sys.platform.startswith('win'):
+                self.tw.transient(self.controlPanel)
+            self.tw.overrideredirect(True)
+        
         if hintText is None:    # Default hint is description of all arguments
-            hintText = 'Click to enter {}'.format(
+            x = widget.winfo_rootx() + 10 # and goes next to textEntry widget
+            y = widget.winfo_rooty() + 20
+            hintText = '^ Click to enter {}'.format(
                 ',\n'.join([
                     ' or '.join(hint for hint in 
                                 getattr(entry, 'helpTexts', set()))
                     for entry in self.textEntries]))
+        else:
+            x = widget.winfo_pointerx() + 10 # Goes next to mouse pointer
+            y = widget.winfo_pointery() + 5
+
+        self.tw.geometry("+%d+%d" % (x, y))
+
         if self.entryHint is None: # Create hint if not present
             self.entryHint = Label(
-                self.operations, text=hintText,
+                self.tw, text=hintText,
                 font=self.HINT_FONT, fg=self.HINT_FG, bg=self.HINT_BG)
-            self.entryHint.bind(
-                '<Button>', # Clear the hint when label clicked
-                clearHintHandler(self.entryHint, self.textEntries[0]))
-            self.entryHint.bind(
-                '<Shift-Button>', # Extend hint activation delay
-                self.extendHintActivationHandler())
-            lastRow = max(int(op.grid_info()['row'])
-                          for op in self.operations.grid_slaves()
-                          if (isinstance(op, (self.buttonTypes, Frame))))
-            self.entryHint.grid(column=self.argsColumn,
-                                row=max(len(self.textEntries) + 1, lastRow))
-
+            self.entryHint.pack()
         else:                      # Update hint text if already present
             self.entryHint['text'] = hintText
             if hintText == '':
-                self.entryHint.grid_remove()
+                if self.tw:
+                    self.tw.destroy()
+                    self.tw = None
+                self.entryHint = None
             else:
-                self.entryHint.grid()
-        for entry in self.textEntries:      # Clear hint when entries get focus
-            if not entry.bind('<FocusIn>'): # if handler not already set up 
-                entry.bind('<FocusIn>', 
-                           clearHintHandler(self.entryHint, entry))
+                self.entryHint.pack()
         
     def makeArmHintHandler(self, widget, helpText=None):
         def handler(event):
@@ -348,8 +358,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             setattr(widget, 'timeout_ID',
                     widget.after(
                         self.HOVER_DELAY, 
-                        lambda: self.setHint(hint) or
-                        setattr(widget, 'timeout_ID', None)))
+                        lambda: self.setHint(widget, hint) or setattr(widget, 'timeout_ID', None)))
         return handler
 
     def makeDisarmHandler(self, widget):
@@ -357,6 +366,9 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if event.widget == widget and getattr(widget, 'timeout_ID', None):
                 widget.after_cancel(getattr(widget, 'timeout_ID'))
             setattr(widget, 'timeout_ID', None)
+            if self.tw:
+                self.tw.destroy()
+                self.tw, self.entryHint = None, None
         return Dhandler
 
     def makeTimer(self, widget, delay=300, attrName='timeout_ID'):
@@ -365,12 +377,12 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 widget.after(delay, lambda: setattr(widget, attrName, None)))
         return getattr(widget, attrName)
 
-    def extendHintActivationHandler(self):
-        def Ehandler(event):
-            self.HOVER_DELAY += self.HOVER_DELAY
-            msg = 'Show hints after {} seconds'.format(self.HOVER_DELAY / 1000)
-            self.setHint(msg)
-        return Ehandler
+    def clearHintHandler(self):
+        def Chandler(event):
+            if self.tw:
+                self.tw.destroy()
+                self.tw, self.entryHint = None, None
+        return Chandler
     
     def recordModifierKeyState(self, event=None):
         if event and event.type in (EventType.ButtonPress, EventType.KeyPress):
@@ -515,7 +527,6 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if str(val):
                 self.textEntries[index].insert(0, str(val))
             self.setArgumentHighlight(index)
-            self.setHint('')
             self.argumentChanged()
 
     def setArguments(self, *values):
@@ -1023,6 +1034,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             widgetState(self.stepButton, NORMAL)
 
     def stopAnimations(self):  # Stop animation of a call on the call stack
+        
         # Calls from stack level 2+ only stop animation for their level
         # At lowest level, animation stops and play & stop buttons are disabled
         if len(self.callStack) <= 1:
@@ -1034,15 +1046,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
 
-    def runVisualization(self):
-        if self.textEntries:  # Make initial hint if there are text entry areas
-            self.setHint()
+    def runVisualization(self): #override of runVisualization that populates default hint
+        if (len(self.textEntries) > 0):
+            widget = self.textEntries[0]
+            setattr(widget, 'timeout_ID',
+                    widget.after(
+                        self.HOVER_DELAY, 
+                        lambda: self.setHint(widget) or setattr(widget, 'timeout_ID', None)))
         self.window.mainloop()
-        
-# Tk widget utilities
-
-def clearHintHandler(hintLabel, textEntry=None):
-    'Clear the hint text and set focus to textEntry, if provided'
-    return lambda event: (
-        textEntry.focus_set() if event.widget == hintLabel and textEntry
-        else 0) or hintLabel.config(text='') or hintLabel.grid_remove()

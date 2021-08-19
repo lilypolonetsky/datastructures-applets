@@ -116,7 +116,10 @@ class GraphBase(VisualizationApp):
             self.adjacencyMatrixPanel, bg=self.ADJACENCY_MATRIX_BG)
         self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
 
-        self.adjacencyMatrixPanel.transient(self.window)
+        if not (isinstance(self.window, Toplevel) and
+                sys.platform.startswith('win')):
+            # Using the controlPanel rather than the top level window helps
+            self.adjacencyMatrixPanel.transient(self.controlPanel)
         self.adjacencyMatrixPanel.overrideredirect(True)
         if hasattr(self.window, 'title'):  # If top window is exposed
             self.positionAdjacencyMatrix(anchor=anchor)

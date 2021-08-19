@@ -25,7 +25,7 @@ class OrderedArray(SortingBase):
             self.list = [drawnValue(val) for val in sorted(values)]
        
         self.display()
-
+        
         self.buttons = self.makeButtons()
 
     # ARRAY FUNCTIONALITY
