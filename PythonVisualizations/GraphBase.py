@@ -58,7 +58,7 @@ class GraphBase(VisualizationApp):
         self.createAdjacencyMatrixPanel()
         self.buttons = self.makeButtons()
         self.newGraph()
-        self.window.bind('<Configure>', self.reconfigureHandler())
+        self.window.bind('<Configure>', self.reconfigureHandler(), '+')
         mapHandler = self.mapHandler()
         for event in ('<Map>', '<Unmap>'):
             self.window.bind(event, mapHandler, '+')
@@ -159,6 +159,17 @@ class GraphBase(VisualizationApp):
         if anchor is None: anchor = self.adjacencyMatrixAnchor
         self.adjacencyMatrixAnchor = anchor
         self.window.update_idletasks()
+        if self.DEBUG:
+            print('Repositioning adjacency matrix',
+                  'panel {} state = {}'.format(
+                      self.adjacencyMatrixPanel,
+                      self.adjacencyMatrixPanel.state()),
+                  'App window {} state = {}'.format(
+                      self.window, self.window.state()))
+        if (self.window.state() == NORMAL and
+            sys.platform.startswith('win') or
+            self.adjacencyMatrixPanel.state() != NORMAL):
+            self.adjacencyMatrixPanel.deiconify()
         shown = (
             self.adjMatrixFrame
             if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves()
