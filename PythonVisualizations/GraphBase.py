@@ -61,7 +61,7 @@ class GraphBase(VisualizationApp):
         self.window.bind('<Configure>', self.reconfigureHandler())
         mapHandler = self.mapHandler()
         for event in ('<Map>', '<Unmap>'):
-            self.window.bind(event, mapHandler)
+            self.window.bind(event, mapHandler, '+')
     
     def __str__(self):
         verts = self.nVertices()
@@ -80,6 +80,11 @@ class GraphBase(VisualizationApp):
     def mapHandler(self):
         def map_handler(event):
             if event.widget == self.window:
+                if self.DEBUG:
+                    print('{} event on {}'.format(event.type, self.window),
+                          'Adjacency matrix panel = {} state = {}'.format(
+                        self.adjacencyMatrixPanel,
+                        self.adjacencyMatrixPanel.state()))
                 if event.type == EventType.Map:
                     self.adjacencyMatrixPanel.deiconify()
                     self.positionAdjacencyMatrix()
@@ -116,7 +121,7 @@ class GraphBase(VisualizationApp):
             self.adjacencyMatrixPanel, bg=self.ADJACENCY_MATRIX_BG)
         self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
 
-        if not (isinstance(self.window, Toplevel) and
+        if not (isinstance(self.window, (Tk, Toplevel)) and
                 sys.platform.startswith('win')):
             # Using the controlPanel rather than the top level window helps
             self.adjacencyMatrixPanel.transient(self.controlPanel)
@@ -125,6 +130,9 @@ class GraphBase(VisualizationApp):
             self.positionAdjacencyMatrix(anchor=anchor)
         else:                              # otherwise hide until it is exposed
             self.adjacencyMatrixAnchor = anchor
+            if self.DEBUG:
+                print('Withdrawing adjacency matrix until {} exposed'.format(
+                    self.window))
             self.adjacencyMatrixPanel.withdraw()
 
     def createAdjacencyMatrixControlImages(self, height=None):
@@ -179,6 +187,11 @@ class GraphBase(VisualizationApp):
         # val attribute is the vertex label pair
         self.edges = {}
 
+        if self.DEBUG:
+            for event in ('Expose', 'Visibility', 'Configure', 'Enter',
+                          'Leave', 'Button'):
+                self.window.bind(
+                    '<{}>'.format(event), genericEventHandler(), '+')
         for cell in self.adjMatrixFrame.grid_slaves():
             cell.grid_forget()
         self.adjMatrix00 = Frame(self.adjMatrixFrame, bg='white')
