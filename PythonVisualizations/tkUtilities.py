@@ -102,6 +102,16 @@ def filterDict(d, filter=lambda key: True):
 SHIFT, CAPS_LOCK, CTRL, ALT = 0x01, 0x02, 0x04, 0x08
 # Mouse button constants
 MOUSE_BUTTON_1, MOUSE_BUTTON_2, MOUSE_BUTTON_3 = 0x0100, 0x0200, 0x0400
+class Modifier(Enum):
+    Shift = SHIFT
+    Caps_Lock = CAPS_LOCK
+    Control = CTRL
+    Left_Alt = ALT
+    Num_Lock = 0x010
+    Right_Alt = 0x080
+    Mouse_B1 = MOUSE_BUTTON_1
+    Mouse_B2 = MOUSE_BUTTON_2
+    Mouse_B3 = MOUSE_BUTTON_3
 
 # Window geometry specification strings
 geomPattern = re.compile(r'(\d+)[\sXx]+(\d+)([+-])(-?\d+)([+-])(-?\d+)')
@@ -197,6 +207,26 @@ def buttonImage(btn, image=None):
         btn.image = image  # and this puts the aclual image in the attribute
         return image
 
+def genericEventHandler(to=sys.stdout, verbose=0):
+    levels = [(),
+              ('num', 'state'),
+              ('char', 'keycode', 'keysym'),
+              ('width', 'height'),
+              ('x', 'y', 'x_root', 'y_root'),
+              ('serial', 'time')]
+    def genericHandler(event):
+        if to:
+            print('{} event on {}:'.format(event.type, event.widget),
+                  ', '.join('{} = {!r}'.format(attr, getattr(event, attr))
+                            for i in range(min(len(levels), verbose) + 1)
+                            for attr in levels[i]),
+                  file=to)
+            if event.state and isinstance(event.state, int):
+                print('Modifiers: {}'.format(
+                    ', '.join([mod.name for mod in Modifier
+                               if event.state & mod.value])), file=to)
+    return genericHandler
+    
 class Scrim(Canvas):
     '''Enhanced Tk Canvas widget with more convenience methods.
     '''
@@ -375,8 +405,19 @@ def getPhotoImage(filename, size, cache=True, path=None):
     return __tk_image_cache__['PhotoImage'][id(image), size]
     
 if __name__ == '__main__':
-    import random, glob, os
+    import random, glob, os, argparse
 
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        '-d', '--debug', default=False, action='store_true',
+        help='Show debugging information.')
+    parser.add_argument(
+        '-v', '--verbose', action='count', default=0,
+        help='Add verbose comments')
+    args = parser.parse_args()
+    
     for dims in range(2, 4):
         print('=' * 70)
         p1 = tuple(c for c in range(1, dims + 1))
@@ -421,6 +462,18 @@ if __name__ == '__main__':
     tk = Tk()
     scrim = Scrim(tk, width=800, height=400)
     scrim.pack(side=TOP, expand=TRUE, fill=BOTH)
+    excludeEvents = (
+        EventType.Keymap, EventType.GraphicsExpose, EventType.NoExpose,
+        EventType.CirculateRequest, EventType.SelectionClear,
+        EventType.SelectionRequest, EventType.Selection,
+        EventType.ClientMessage, EventType.Mapping, EventType.VirtualEvent)
+    if args.debug:
+        for event in EventType:
+            if event not in excludeEvents:
+                if args.verbose > 0:
+                    print('Binding {} events on scrim'.format(event.name))
+                scrim.bind('<{}>'.format(event.name), 
+                           genericEventHandler(verbose=args.verbose), '+')
     tkButton = Button(tk, text='Tk Button')
     ttkButton = ttk.Button(tk, text='Ttk Button', state=DISABLED)
     tkButton.pack(side=LEFT, expand=TRUE)
@@ -466,7 +519,7 @@ if __name__ == '__main__':
         scrim.itemConfig(
             geometry, text='widgetGeometry(tk) = {}'.format(
                 widgetGeometry(tk)))
-    tk.bind('<Configure>', updateGeometry)
+    tk.bind('<Configure>', updateGeometry, '+')
     updateGeometry()
             
     message = scrim.create_text(
@@ -543,4 +596,3 @@ if __name__ == '__main__':
         btn.pack(side=LEFT, expand=TRUE)
 
     tk.mainloop()
-        
