@@ -166,10 +166,20 @@ class GraphBase(VisualizationApp):
                       self.adjacencyMatrixPanel.state()),
                   'App window {} state = {}'.format(
                       self.window, self.window.state()))
-        if (self.window.state() == NORMAL and
-            sys.platform.startswith('win') or
-            self.adjacencyMatrixPanel.state() != NORMAL):
-            self.adjacencyMatrixPanel.deiconify()
+        if self.window.state() == NORMAL:
+            if not (hasattr(self.adjacencyMatrixPanel, 'trans_parent') and
+                    self.adjacencyMatrixPanel.winfo_geometry().endswith(
+                        '+0+0')):
+                if self.DEBUG:
+                    print('Setting trans_parent of adj mat panel',
+                          self.adjacencyMatrixPanel, 'with geometry',
+                          self.adjacencyMatrixPanel.winfo_geometry())
+                self.adjacencyMatrixPanel.transient(self.controlPanel)
+                setattr(self.adjacencyMatrixPanel, 'trans_parent',
+                        self.controlPanel)
+            if (sys.platform.startswith('win') or
+                self.adjacencyMatrixPanel.state() != NORMAL): 
+                self.adjacencyMatrixPanel.deiconify()
         shown = (
             self.adjMatrixFrame
             if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves()
