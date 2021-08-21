@@ -1307,30 +1307,6 @@ def degree(self, n={nVal}):
             
 if __name__ == '__main__':
     graph = Graph(weighted=False)
-    edgePattern = re.compile(r'(\w+)-(\w+)')
-
-    edges = []
-    for arg in sys.argv[1:]:
-        edgeMatch = edgePattern.fullmatch(arg)
-        if len(arg) > 1 and arg[0] == '-':
-            if arg == '-d':
-                graph.DEBUG = True
-            elif arg == '-b':
-                graph.bidirectionalEdges.set(1)
-            elif arg == '-B':
-                graph.bidirectionalEdges.set(0)
-            elif arg[1:].isdigit():
-                graph.setArgument(arg[1:])
-                graph.randomFillButton.invoke()
-                graph.setArgument(
-                    chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
-        elif edgeMatch and all(edgeMatch.group(i) in sys.argv[1:] 
-                               for i in (1, 2)):
-            edges.append((edgeMatch.group(1), edgeMatch.group(2)))
-        else:
-            graph.setArgument(arg)
-            graph.newVertexButton.invoke()
-    for fromVert, toVert in edges:
-        graph.createEdge(fromVert, toVert, 1)
+    graph.process_command_line_arguments(sys.argv[1:])
         
     graph.runVisualization()

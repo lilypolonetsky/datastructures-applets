@@ -52,7 +52,7 @@ boxes and use the soft keyboard to enter values.
 
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", 
-        adjustForTrinket=False, seed='3.14159', verbose=0):
+        adjustForTrinket=False, seed='3.14159', verbose=0, debug=False):
     if len(classes) == 0:
         print('No matching classes to visualize', file=sys.stderr)
         return
@@ -109,6 +109,7 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
             appNumber += 1
             try:
                 vizApp = app(window=pane)
+                vizApp.DEBUG = debug
                 name = getattr(vizApp, 'title', app.__name__)
                 pane.bind('<Map>', oneTimeShowHintHandler(vizApp), '+')
 
@@ -170,6 +171,9 @@ if __name__ == '__main__':
         help='Random number generator seed.  Set to empty string to skip '
         'seeding.')
     parser.add_argument(
+        '-d', '--debug', default=False, action='store_true',
+        help='Show debugging information.')
+    parser.add_argument(
         '-v', '--verbose', action='count', default=0,
         help='Add verbose comments')
     args = parser.parse_args()
@@ -190,5 +194,5 @@ if __name__ == '__main__':
         args.files = list(dirs)
     showVisualizations(findVisualizations(args.files, args.verbose),
                        start=args.start, title=args.title, verbose=args.verbose,
-                       adjustForTrinket=args.warn_for_trinket,
+                       adjustForTrinket=args.warn_for_trinket, debug=args.debug,
                        seed=args.seed)

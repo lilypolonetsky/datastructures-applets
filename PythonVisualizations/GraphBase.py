@@ -58,10 +58,10 @@ class GraphBase(VisualizationApp):
         self.createAdjacencyMatrixPanel()
         self.buttons = self.makeButtons()
         self.newGraph()
-        self.window.bind('<Configure>', self.reconfigureHandler())
+        self.window.bind('<Configure>', self.reconfigureHandler(), '+')
         mapHandler = self.mapHandler()
         for event in ('<Map>', '<Unmap>'):
-            self.window.bind(event, mapHandler)
+            self.window.bind(event, mapHandler, '+')
     
     def __str__(self):
         verts = self.nVertices()
@@ -80,6 +80,11 @@ class GraphBase(VisualizationApp):
     def mapHandler(self):
         def map_handler(event):
             if event.widget == self.window:
+                if self.DEBUG:
+                    print('{} event on {}'.format(event.type, self.window),
+                          'Adjacency matrix panel = {} state = {}'.format(
+                        self.adjacencyMatrixPanel,
+                        self.adjacencyMatrixPanel.state()))
                 if event.type == EventType.Map:
                     self.adjacencyMatrixPanel.deiconify()
                     self.positionAdjacencyMatrix()
@@ -116,7 +121,7 @@ class GraphBase(VisualizationApp):
             self.adjacencyMatrixPanel, bg=self.ADJACENCY_MATRIX_BG)
         self.adjMatrixFrame.pack(side=TOP, expand=FALSE, fill=None)
 
-        if not (isinstance(self.window, Toplevel) and
+        if not (isinstance(self.window, (Tk, Toplevel)) and
                 sys.platform.startswith('win')):
             # Using the controlPanel rather than the top level window helps
             self.adjacencyMatrixPanel.transient(self.controlPanel)
@@ -125,6 +130,9 @@ class GraphBase(VisualizationApp):
             self.positionAdjacencyMatrix(anchor=anchor)
         else:                              # otherwise hide until it is exposed
             self.adjacencyMatrixAnchor = anchor
+            if self.DEBUG:
+                print('Withdrawing adjacency matrix until {} exposed'.format(
+                    self.window))
             self.adjacencyMatrixPanel.withdraw()
 
     def createAdjacencyMatrixControlImages(self, height=None):
@@ -151,6 +159,27 @@ class GraphBase(VisualizationApp):
         if anchor is None: anchor = self.adjacencyMatrixAnchor
         self.adjacencyMatrixAnchor = anchor
         self.window.update_idletasks()
+        if self.DEBUG:
+            print('Repositioning adjacency matrix',
+                  'panel {} state = {}'.format(
+                      self.adjacencyMatrixPanel,
+                      self.adjacencyMatrixPanel.state()),
+                  'App window {} state = {}'.format(
+                      self.window, self.window.state()))
+        if self.window.state() == NORMAL:
+            if not (hasattr(self.adjacencyMatrixPanel, 'trans_parent') and
+                    self.adjacencyMatrixPanel.winfo_geometry().endswith(
+                        '+0+0')):
+                if self.DEBUG:
+                    print('Setting trans_parent of adj mat panel',
+                          self.adjacencyMatrixPanel, 'with geometry',
+                          self.adjacencyMatrixPanel.winfo_geometry())
+                self.adjacencyMatrixPanel.transient(self.controlPanel)
+                setattr(self.adjacencyMatrixPanel, 'trans_parent',
+                        self.controlPanel)
+            if (sys.platform.startswith('win') or
+                self.adjacencyMatrixPanel.state() != NORMAL): 
+                self.adjacencyMatrixPanel.deiconify()
         shown = (
             self.adjMatrixFrame
             if self.adjMatrixFrame in self.adjacencyMatrixPanel.pack_slaves()
@@ -179,6 +208,11 @@ class GraphBase(VisualizationApp):
         # val attribute is the vertex label pair
         self.edges = {}
 
+        if self.DEBUG:
+            for event in ('Expose', 'Visibility', 'Configure', 'Enter',
+                          'Leave', 'Button'):
+                self.window.bind(
+                    '<{}>'.format(event), genericEventHandler(), '+')
         for cell in self.adjMatrixFrame.grid_slaves():
             cell.grid_forget()
         self.adjMatrix00 = Frame(self.adjMatrixFrame, bg='white')
@@ -1114,33 +1148,56 @@ class GraphBase(VisualizationApp):
                 self.MAX_VERTICES - self.nVertices()))
             self.setArgumentHighlight(0, self.ERROR_HIGHLIGHT)
 
-if __name__ == '__main__':
-    graph = GraphBase(weighted=any(':' in arg for arg in sys.argv[1:]))
-    edgePattern = re.compile(r'(\w+)-(\w+)(:([1-9][0-9]?))?')
+    def process_command_line_arguments(self, argv):
+        edgePattern = re.compile(r'(\w+)-(\w+)(:([1-9][0-9]?))?')
 
-    edges = []
-    for arg in sys.argv[1:]:
-        edgeMatch = edgePattern.fullmatch(arg)
-        if len(arg) > 1 and arg[0] == '-':
-            if arg == '-d':
-                graph.DEBUG = True
-            elif arg == '-b':
-                graph.bidirectionalEdges.set(1)
-            elif arg == '-B':
-                graph.bidirectionalEdges.set(0)
-            elif arg[1:].isdigit():
-                graph.setArgument(arg[1:])
-                graph.randomFillButton.invoke()
-                graph.setArgument(
-                    chr(ord(graph.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
-        elif edgeMatch and all(edgeMatch.group(i) in sys.argv[1:] 
-                               for i in (1, 2)):
-            edges.append((edgeMatch.group(1), edgeMatch.group(2),
-                          int(edgeMatch.group(4)) if edgeMatch.group(4) else 1))
-        else:
-            graph.setArgument(arg)
-            graph.newVertexButton.invoke()
-    for fromVert, toVert, weight in edges:
-        graph.createEdge(fromVert, toVert, weight)
-        
+        edges = []
+        for arg in argv:
+            edgeMatch = edgePattern.fullmatch(arg)
+            if len(arg) > 1 and arg[0] == '-':
+                if arg == '-d':
+                    self.DEBUG = True
+                elif arg == '-b':
+                    self.bidirectionalEdges.set(1)
+                elif arg == '-B':
+                    self.bidirectionalEdges.set(0)
+                elif arg[1:].isdigit():
+                    self.setArgument(arg[1:])
+                    self.randomFillButton.invoke()
+                    self.setArgument(
+                        chr(ord(self.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
+                elif arg in ('-TuralaMST', '-TuralaSP'):  # textbook examples
+                    for vert in ('Bl', 'Ce', 'Da', 'Gr', 'Ka', 'Na'):
+                        self.setArgument(vert)
+                        self.newVertexButton.invoke()
+                    for edge in (
+                            ('Bl-Ce:31', 'Bl-Da:24', 'Ce-Da:35', 'Ce-Gr:49',
+                             'Ce-Na:87', 'Ce-Ka:38', 'Da-Gr:41', 'Da-Ka:52',
+                             'Gr-Ka:25', 'Gr-Na:46', 'Ka-Na:43')
+                            if arg == '-TuralaMST' else
+                            ('Bl-Ce:22', 'Bl-Da:16', 'Ce-Da:29', 'Ce-Gr:34',
+                             'Ce-Na:65', 'Ce-Ka:26', 'Da-Gr:28', 'Da-Ka:24',
+                             'Gr-Ka:25', 'Gr-Na:30', 'Ka-Na:36')):
+                        edgeMatch = edgePattern.fullmatch(edge)
+                        self.createEdge(edgeMatch.group(1), edgeMatch.group(2),
+                                         int(edgeMatch.group(4)))
+            elif edgeMatch and all(
+                    edgeMatch.group(i) in argv for i in (1, 2)):
+                edges.append((edgeMatch.group(1), edgeMatch.group(2),
+                              int(edgeMatch.group(4)) if edgeMatch.group(4)
+                              else 1))
+            elif len(arg) > 0:
+                self.setArgument(arg)
+                self.newVertexButton.invoke()
+        for fromVert, toVert, weight in edges:
+            self.createEdge(fromVert, toVert, weight if self.weighted else 1)
+        if self.nVertices() > 0:  # Vertices created on the command line may
+            self.enableButtons()  # cause buttons to be in bad state
+
+if __name__ == '__main__':
+    argv = sys.argv[1:]
+    graph = GraphBase(weighted=any(':' in arg for arg in argv) or
+                      set(argv) ^ set(('-TuralaMST', '-TuralaSP')))
+    graph.process_command_line_arguments(sys.argv[1:])
+    
     graph.runVisualization() # runAllVisualizations ignore
