@@ -66,9 +66,13 @@ class RedBlackTree(BinaryTreeBase):
             x, y, key, tag, color=color, parent=parent, radius=radius,
             **kwargs)
         self.canvas.itemConfig(items[1], tags=(tag, 'shape'))
+        flipHandler = self.flipColor(key)
+        rotateHandler = self.rotateNode(key)
         for item in (redBlackLabel, *items[1:]):
-            self.canvas.tag_bind(item, '<Button-1>', self.flipColor(key))
-            self.canvas.tag_bind(item, '<Double-Button-1>', self.rotateNode(key))
+            self.canvas.tag_bind(item, '<Button-1>', flipHandler)
+            for button in range(1, 4):
+                self.canvas.tag_bind(item, '<Double-Button-{}>'.format(button),
+                                     rotateHandler)
         return items + (redBlackLabel,)
 
     def createNode(self, key, *args, ringColor=None, **kwargs):
@@ -146,7 +150,8 @@ class RedBlackTree(BinaryTreeBase):
 
     def rotateNode(self, key):
         def rotateHandler(event):
-            turn = 'left' if event.state & SHIFT else 'right'
+            turn = 'left' if event.state & SHIFT or (
+                isinstance(event.num, int) and event.num != 1) else 'right'
             if self.DEBUG:
                 print('Rotate Node', turn, 'event', event.serial, event.time)
             if (key, event.serial) == self.lastRotateEvent[:2]:
