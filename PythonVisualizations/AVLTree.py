@@ -1071,7 +1071,7 @@ def __balanceRight(self, node={nodeKey}):
             helpText='Delete item from tree')
         randomFillButton = self.addOperation(
             "Random Fill", self.clickRandomFill, numArguments=1,
-            validationCmd= vcmd, argHelpText=['nuber of items'],
+            validationCmd= vcmd, argHelpText=['number of items'],
             helpText='Fill tree with N random items')
         newTreeButton = self.addOperation(
             "New Tree", self.newTree,

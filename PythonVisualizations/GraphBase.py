@@ -1064,7 +1064,7 @@ class GraphBase(VisualizationApp):
             helpText='Create a new vertex with a label')
         self.randomFillButton = self.addOperation(
             "Random Fill", self.clickRandomFill, numArguments=1, mutex=False,
-            validationCmd=vcmd, argHelpText=['# vertices'], 
+            validationCmd=vcmd, argHelpText=['number of vertices'], 
             helpText='Fill with N random vertices')
         self.deleteVertexButton = self.addOperation(
             "Delete Vertex", self.clickDeleteVertex, numArguments=1,
