@@ -1329,12 +1329,20 @@ def traverse(self):
         self.traverseExample(start=self.startMode())
 
 if __name__ == '__main__':
-    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
-    HEAP = Heap()
+    numericArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    fill, makeHeap = 0, False
+    if len(sys.argv) - 1 > len(numericArgs):
+        for arg in sys.argv[1:]:
+            if arg[0] in '-+' and arg[1:].isdigit():
+                fill = min(Heap.MAX_SIZE, int(arg[1:]))
+                makeHeap = arg[0] == '+'
+    heap = Heap()
     try:
-        for arg in numArgs:
-            HEAP.setArgument(str(arg))
-            HEAP.insertButton.invoke()
+        if fill > 0:
+            heap.randomFill(fill, makeHeap=makeHeap)
+        for arg in numericArgs:
+            heap.setArgument(str(arg))
+            heap.insertButton.invoke()
     except UserStop:
-        HEAP.cleanUp()
-    HEAP.runVisualization()
+        heap.cleanUp()
+    heap.runVisualization()
