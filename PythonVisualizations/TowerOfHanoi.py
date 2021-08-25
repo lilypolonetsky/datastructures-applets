@@ -566,7 +566,7 @@ def solve(self, nDisks={nDisks}, start={start}, goal={goal}, spare={spare}):
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         self.newButton = self.addOperation(
             "New", self.clickNew, numArguments=1, validationCmd=vcmd,
-            argHelpText=['Number of disks'], 
+            argHelpText=['number of disks'], 
             helpText='Create a new puzzle of N disks')
         self.solveButton = self.addOperation(
             "Solve", self.clickSolve, helpText='Solve the puzzle')
