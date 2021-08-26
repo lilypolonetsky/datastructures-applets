@@ -25,7 +25,7 @@ class Heap(BinaryTreeBase):
     def __init__(self, heapSize=2, valMax=99, title="Heap", **kwargs):
         self.maxLevel = int(math.ceil(math.log(self.MAX_SIZE, 2)))
         self.arrayCopyDelta = (2 * self.CELL_WIDTH, 0)
-        self.siftDelta = (3 * self.CELL_WIDTH, 0)
+        self.siftDelta = (3 * self.CELL_WIDTH // 2, - self.CELL_WIDTH * 3 // 4)
         canvasDims = (800, 400)
         padY = 0
         gap = 5
@@ -111,11 +111,10 @@ def insert(self, item={val}):
 
         # Place it in the array
         self.highlightCode('self._arr[self._nItems] = item', callEnviron)
-        toPositions = (self.cellCoords(self.nItems), 
-                       self.cellCenter(self.nItems),
-                       self.nodeCenter(self.nItems))
-        self.moveItemsTo(cellPair + (nodeKey,), toPositions, 
-                         sleepTime=wait / 10)
+        moveTo = (self.cellCoords(self.nItems), 
+                  self.cellCenter(self.nItems),
+                  self.nodeCenter(self.nItems))
+        self.moveItemsTo(cellPair + (nodeKey,), moveTo, sleepTime=wait / 10)
     
         # Fill in the array cell and tree node
         d = drawnValue(val, *cellPair)
@@ -237,8 +236,9 @@ def _siftUp(self, i={i}):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
 
         iIndex = self.createArrayIndex(i, name='i', level=-1)
+        iNodeConfig = {'orientation': -150, 'anchor': SE, 'level': 2}
         iNodeIndex = self.createArrow(
-            i, label='i', orientation=-30, color=self.VARIABLE_COLOR)
+            i, label='i', color=self.VARIABLE_COLOR, **iNodeConfig)
         callEnviron |= set(iIndex + iNodeIndex)
         self.highlightCode('i <= 0', callEnviron, wait=wait)
         if i <= 0:
@@ -314,13 +314,13 @@ def _siftUp(self, i={i}):
                 self.highlightCode('i = parent', callEnviron)
                 delta = (0, self.cellCenter(parent)[1] - self.cellCenter(i)[1])
                 toMove = iIndex + copyItem + (itemLabel,)
-                toPositions = tuple(V(self.canvas.coords(t)) + V(delta * 2)
-                                    for t in toMove)
+                moveTo = tuple(V(self.canvas.coords(t)) + V(delta * 2)
+                               for t in toMove)
                 delta = V(parentNode.center) - V(node.center)
                 toMove += iNodeIndex + nodeCopy
-                toPositions += tuple(V(self.canvas.coords(t)) + V(delta * 2)
-                                     for t in (iNodeIndex + nodeCopy))
-                self.moveItemsTo(toMove, toPositions, sleepTime=wait / 10)
+                moveTo += tuple(V(self.canvas.coords(t)) + V(delta * 2)
+                                for t in (iNodeIndex + nodeCopy))
+                self.moveItemsTo(toMove, moveTo, sleepTime=wait / 10)
                 i = parent
                 node = self.getNode(i)
             else:
@@ -373,8 +373,9 @@ def _siftDown(self, i={i}):
         callEnviron = self.createCallEnvironment(code=code.format(**locals()))
         
         iIndex = self.createArrayIndex(i, name='i', level=-1)
+        iNodeConfig = {'orientation': -150, 'anchor': SE, 'level': 2}
         iNodeIndex = self.createArrow(
-            i, label='i', orientation=-30, color=self.VARIABLE_COLOR)
+            i, label='i', color=self.VARIABLE_COLOR, **iNodeConfig)
         callEnviron |= set(iIndex + iNodeIndex)
         iNode = self.getNode(i)
 
@@ -494,13 +495,13 @@ def _siftDown(self, i={i}):
                 # Advance i to max child, move original item along with i Index
                 delta = (0, self.cellCenter(maxi)[1] - self.cellCenter(i)[1])
                 toMove = iIndex + itemCopy + (itemLabel,)
-                toPositions = tuple(V(self.canvas.coords(t)) + V(delta * 2)
-                                    for t in toMove)
+                moveTo = tuple(V(self.canvas.coords(t)) + V(delta * 2)
+                               for t in toMove)
                 delta = V(maxNode.center) - V(iNode.center)
                 toMove += iNodeIndex + nodeCopy
-                toPositions += tuple(V(self.canvas.coords(t)) + V(delta * 2)
-                                     for t in (iNodeIndex + nodeCopy))
-                self.moveItemsTo(toMove, toPositions, sleepTime=wait / 10)
+                moveTo += tuple(V(self.canvas.coords(t)) + V(delta * 2)
+                                for t in (iNodeIndex + nodeCopy))
+                self.moveItemsTo(toMove, moveTo, sleepTime=wait / 10)
                 i = maxi
                 iNode = self.getNode(i)
                  
@@ -557,8 +558,9 @@ def siftDown(array, j={j}, N={N}, key=identity):
 
         if code:
             jIndex = self.createArrayIndex(j, name='j', level=-1)
+            jNodeConfig = {'orientation': -150, 'anchor': SE, 'level': 2}
             jNodeIndex = self.createArrow(
-                j, label='j', orientation=-30, color=self.VARIABLE_COLOR)
+                j, label='j', color=self.VARIABLE_COLOR, **jNodeConfig)
             callEnviron |= set(jIndex + jNodeIndex)
         jNode = self.getNode(j)
         if jNode is None:
@@ -705,14 +707,14 @@ def siftDown(array, j={j}, N={N}, key=identity):
                 # Advance j to max child, move original item along with j Index
                 delta = (0, self.cellCenter(maxi)[1] - self.cellCenter(j)[1])
                 toMove = itemCopy + ((itemLabel, *jIndex) if code else ())
-                toPositions = tuple(V(self.canvas.coords(t)) + V(delta * 2)
-                                    for t in toMove)
+                moveTo = tuple(V(self.canvas.coords(t)) + V(delta * 2)
+                               for t in toMove)
                 delta = V(maxNode.center) - V(jNode.center)
                 nodesToMove = nodeCopy + (jNodeIndex if code else ())
                 toMove += nodesToMove
-                toPositions += tuple(V(self.canvas.coords(t)) + V(delta * 2)
-                                     for t in nodesToMove)
-                self.moveItemsTo(toMove, toPositions, sleepTime=wait / 10)
+                moveTo += tuple(V(self.canvas.coords(t)) + V(delta * 2)
+                                for t in nodesToMove)
+                self.moveItemsTo(toMove, moveTo, sleepTime=wait / 10)
                 j = maxi
                 jNode = self.getNode(j)
                  
