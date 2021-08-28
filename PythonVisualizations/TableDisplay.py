@@ -55,7 +55,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
         if not isinstance(visualizationApp, Visualization):
             raise ValueError('Table only works with Visualization objects')
-        super().__init__(args)
+        super().__init__(*args)
         self.app = visualizationApp
         app = visualizationApp
         self.x0, self.y0 = origin
@@ -191,7 +191,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         gap = (-1 if level < 0 else 1) * (
             self.cellBorderWidth + self.labeledArrowOffset +
             (abs(self.indicesFont[1]) if self.indicesFont and level > 0 else 0))
-        side = 0 if level > 0 else 2
+        side = 2 if level < 0 else 0
         tip = (cell[side] - gap, center[1]) if self.vertical else (
             center[0], cell[side + 1] - gap)
         Vdelta = V(
@@ -226,7 +226,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return result
 
     def createLabeledArrow(
-            self, labeledArrowIndexOrCoords, label, color=None, font=None,
+            self, labeledArrowIndexOrCoords, label='', color=None, font=None,
             width=1, anchor=None, tags=('arrow',), see=(), **kwargs):
         if color is None: color = self.labeledArrowColor
         if font is None: font = self.labeledArrowFont
@@ -238,7 +238,8 @@ class Table(list):     # Display a table (array/list) in a visualization app
         arrow = self.app.canvas.create_line(
             *coords[0], arrow=LAST, fill=color, width=width, tags=tags)
         text = self.app.canvas.create_text(
-            *coords[1], anchor=anchor, text=label, fill=color, tags=tags)
+            *coords[1], anchor=anchor, text=label, font=font, fill=color,
+            tags=tags)
         if see:
             self.app.scrollToSee(
                 (arrow, text) +
