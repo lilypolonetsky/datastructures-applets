@@ -1412,7 +1412,8 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
                         callEnviron, itemCoords, sleepTime=wait / 10)
                 
                     self.highlightCode(childLoopIter, callEnviron, wait=wait)
-                    colors = self.canvas.itemsColor(localVars)
+                    colors = self.canvas.fadeItems(localVars)
+                self.canvas.restoreItems(localVars, colors)
 
             self.highlightCode('traverseType == "in"', callEnviron, wait=wait)
             if traverseType == "in":
@@ -1557,9 +1558,21 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
             
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
+    numericArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    fill = 0
+    if len(sys.argv) - 1 > len(numericArgs):
+        for arg in sys.argv[1:]:
+            if arg[0] in '-+' and arg[1:].isdigit():
+                fill = min(Tree234.valMax, int(arg[1:]))
+
     tree = Tree234()
-    for arg in sys.argv[1:]:
-        tree.setArgument(arg)
-        tree.insertButton.invoke()
+    try:
+        if fill:
+            tree.randomFill(fill)
+        for arg in numericArgs:
+            tree.setArgument(str(arg))
+            tree.insertButton.invoke()
+    except UserStop:
+        tree.cleanUp()
 
     tree.runVisualization()
