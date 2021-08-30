@@ -1412,7 +1412,8 @@ def __traverse(self, node={nodeStr}, traverseType="{traverseType}"):
                         callEnviron, itemCoords, sleepTime=wait / 10)
                 
                     self.highlightCode(childLoopIter, callEnviron, wait=wait)
-                    colors = self.canvas.itemsColor(localVars)
+                    colors = self.canvas.fadeItems(localVars)
+                self.canvas.restoreItems(localVars, colors)
 
             self.highlightCode('traverseType == "in"', callEnviron, wait=wait)
             if traverseType == "in":
