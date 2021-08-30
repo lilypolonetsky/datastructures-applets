@@ -368,7 +368,7 @@ class BinaryTreeBase(VisualizationApp):
             tags=tags)
         return (arrow, label)
 
-    def indexCoords(self, node, level, font=None, orientation=-90):
+    def indexCoords(self, node, level, font=None, orientation=-90, **kwargs):
         '''Compute coordinates of an arrow pointing at either an existing
         node or an index to cell in the array of nodes, as well as the
         anchor coordinates of label at the arrow's base.
