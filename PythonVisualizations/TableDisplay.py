@@ -55,7 +55,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
         if not isinstance(visualizationApp, Visualization):
             raise ValueError('Table only works with Visualization objects')
-        super().__init__(*args)
+        super().__init__(args)
         self.app = visualizationApp
         app = visualizationApp
         self.x0, self.y0 = origin

@@ -42,7 +42,7 @@ class Heap(BinaryTreeBase):
              canvasDims[0] - gap, outputBoxCoords[1] - gap))
         self.heapSize = heapSize
         self._arr = Table(
-            self, (self.ARRAY_X0, self.ARRAY_Y0), [None] * heapSize,
+            self, (self.ARRAY_X0, self.ARRAY_Y0), *([None] * heapSize),
             cellWidth=self.CELL_WIDTH, cellHeight=self.CELL_HEIGHT,
             label='_arr', labelFont=self.VARIABLE_FONT,
             labelColor=self.CELL_BORDER_COLOR, vertical=True,
