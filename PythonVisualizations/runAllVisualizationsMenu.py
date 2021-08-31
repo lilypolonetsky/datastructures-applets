@@ -59,6 +59,7 @@ touch screen device, you may not be allowed to click on text entry
 boxes and use the soft keyboard to enter values.
 '''
 
+DEBUG = False
 appWindows = []
 userSelectedWindow = None
 chosenStyle = ('bold',)
@@ -66,7 +67,7 @@ chosenStyle = ('bold',)
 def raiseAppWindowHandler(appWindow, menubutton, menu, adjustForTrinket=False):
     def handler():
         global userSelectedWindow
-        appWindow.grid(row=1, column=0)
+        appWindow.grid(row=1, column=0, sticky=(N, E, W, S))
         userSelectedWindow = appWindow
         for i, a in enumerate(appWindows):
             if a.winfo_ismapped() and a is not appWindow:
@@ -99,9 +100,27 @@ def makeDisarmMenuHandler(menubar, menu):
     return handler
 
 def resizeHandler(event):
-    if event.widget in appWindows:
-        print('Resize of application window', event.widget, 'to',
-              event.widget.winfo_width(), 'x', event.widget.winfo_height())
+    vizApp = event.widget in appWindows
+    width, height = event.widget.winfo_width(), event.widget.winfo_height()
+    if vizApp:
+        kind = 'appplication window ' + getattr(event.widget, 'appTitle')
+    else:
+        kind = 'top' if isinstance(event.widget, Tk) else 'internal'
+    if DEBUG and (kind == 'top' or vizApp):
+        print('Resize of', kind, event.widget, 'from', width, 'x', height, 'to',
+              event.width, 'x', event.height)
+    if (kind == 'top' and not(width == event.width and height == event.height)
+        and event.width > 1 and event.height > 1):
+        topPartHeight = 0
+        for w in event.widget.grid_slaves(row=0, column=0):
+            topPartHeight = max(topPartHeight, w.winfo_height())
+        if DEBUG:
+            print('Scheduling resize of window leaving', topPartHeight,
+                  'at top')
+        event.widget.after(
+            50, lambda:
+            event.widget.columnconfigure(0, minsize=event.width) or
+            event.widget.rowconfigure(1, minsize=event.height - topPartHeight))
 
 def genericEventHandler(event):
     if event.widget in appWindows:
@@ -113,6 +132,8 @@ def genericEventHandler(event):
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", 
         adjustForTrinket=False, seed='3.14159', verbose=0, debug=False):
+    global DEBUG
+    DEBUG = debug
     if len(classes) == 0:
         print('No matching classes to visualize', file=sys.stderr)
         return
@@ -126,7 +147,7 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     if adjustForTrinket:
         VAP.MIN_CODE_CHARACTER_HEIGHT = 9
     restoreMenu = Canvas(top, height=MIN_MENUBAR_HEIGHT, bg='pink')
-    restoreMenu.grid(row=0, column=0, sticky=(E, W, N, S))
+    restoreMenu.grid(row=0, column=0, sticky=(N, E, W, S))
     menubutton = Menubutton(top, text='Select Visualization',
                             font=MENU_FONT)
     menubutton.grid(row=0, column=0)
@@ -143,11 +164,12 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     loading = ttk.Label(intro, text='\nLoading ...', 
                         font=INTRO_FONT + ('italic',))
     loading.grid(row=nextline, column=0)
+    setattr(intro, 'appTitle', 'Introduction')
     appWindows.append(intro)
     intro.grid(row=1, column=0)
     top.rowconfigure(1, minsize=600)
     top.columnconfigure(0, minsize=VAP.DEFAULT_CANVAS_WIDTH)
-    # top.bind('<Configure>', resizeHandler)
+    top.bind('<Configure>', resizeHandler, '+')
     
     menu = Menu(menubutton, tearoff=0)
     menu.add_command(label='Introduction', 
@@ -184,13 +206,13 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
             pane = ttk.Frame(top)
             loading['text'] = '\nLoading module {} of {} modules...'.format(
                 len(appWindows), len(classes))
-            appWindows.append(pane)
             try:
                 vizApp = app(window=pane)
                 vizApp.DEBUG = debug
                 appTitle = getattr(vizApp, 'title', app.__name__)
                 name = folder + ': ' + appTitle
                 setattr(pane, 'appTitle', appTitle)
+                appWindows.append(pane)
                 pane.bind('<Map>', oneTimeShowHintHandler(vizApp), '+')
             except Exception as e:
                 name = app.__name__ + ' *'
@@ -201,11 +223,12 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
 
             if start and start.lower() in (
                     getattr(vizApp, 'title', app.__name__).lower(),
-                    app.__name__.lower()):
+                    app.__name__.lower()) and pane == appWindows[-1]:
                startAppWindow = pane
                
                pane.grid(row=1, column=0, sticky=(N, E, W, S))
                menu.entryconfigure(0, font=MENU_FONT)
+               menubutton.grid_remove()
                
             menu.add_command(
                 label=name, 
