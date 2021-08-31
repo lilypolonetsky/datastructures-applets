@@ -109,8 +109,7 @@ def resizeHandler(event):
     if DEBUG and (kind == 'top' or vizApp):
         print('Resize of', kind, event.widget, 'from', width, 'x', height, 'to',
               event.width, 'x', event.height)
-    if (kind == 'top' and not(width == event.width and height == event.height)
-        and event.width > 1 and event.height > 1):
+    if (kind == 'top' and event.width > 1 and event.height > 1):
         topPartHeight = 0
         for w in event.widget.grid_slaves(row=0, column=0):
             topPartHeight = max(topPartHeight, w.winfo_height())
