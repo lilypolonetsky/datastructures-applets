@@ -222,6 +222,7 @@ class GraphBase(VisualizationApp):
         self.nextID = 1
         self.display()
         self.setArgument(self.nextVertexLabel())
+        self.positionAdjacencyMatrix()
         
     def display(self):
         self.canvas.delete("all")
