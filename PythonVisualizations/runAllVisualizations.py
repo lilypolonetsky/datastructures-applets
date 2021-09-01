@@ -29,10 +29,10 @@ PREFERRED_ARRANGEMENT = [
      ['LinkedList', 'OrderedList', 'TowerOfHanoi', 'Mergesort',
       'AdvancedArraySort']],
     ['Chapters 8-11',
-     ['BinaryTree','Tree234', 'AVLTree', 'RedBlackTree', 'Quadtree']],
+     ['BinaryTree','Tree234', 'AVLTree', 'RedBlackTree',
+      'HashTableOpenAddressing', 'HashTableChaining']],
     ['Chapters 12-16',
-     ['HashTableOpenAddressing', 'HashTableChaining', 'Heap', 
-      'Graph', 'WeightedGraph', 'BloomFilter', 'SkipList']],
+     ['Quadtree', 'Heap', 'Graph', 'WeightedGraph', 'BloomFilter', 'SkipList']],
     ]
     
 TAB_FONT = ('Calibri', -16)
