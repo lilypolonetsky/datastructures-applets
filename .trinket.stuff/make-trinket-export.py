@@ -4,7 +4,7 @@ __doc__ = """Make a version of the python-visualizations that's easy to
 export to trinket.io
 """
 
-import argparse, sys, os, glob, shutil, re
+import argparse, sys, os, glob, shutil, re, subprocess
 
 specialContent = {
    'main.py': '''
@@ -12,7 +12,7 @@ from runAllVisualizationsMenu import *
 
 showVisualizations(
     findVisualizations('.'),
-    title='Algorithm Visualizations',
+    title='Algorithm Visualizations', version={version!r},
     adjustForTrinket=True)
 '''
    }
@@ -78,7 +78,7 @@ if __name__ == '__main__':
    files = glob.glob('*.py') + glob.glob('*.png')
    for filename in files:
       if filename in specialContent:
-         print('Skipping export of {}'.fomrat(filename))
+         print('Skipping export of {}'.format(filename))
          continue
 
       if any(regex.match(filename) for regex in exclude):
@@ -112,11 +112,18 @@ if __name__ == '__main__':
             print('Copying {} verbatim'.format(filename))
          shutil.copyfile(filename, os.path.join(outdir, filename))
 
+   result = subprocess.run(['git', 'show', '--format=format:%t %an %ad %n%s'],
+                           capture_output=True, encoding='ascii')
+   config = {'version': '\n'.join(result.stdout.split('\n')[:2])
+             if result and result.returncode == 0 and result.stdout else ''}
+   if verbose > 0:
+      print('Version info: {version}'.format(**config))
+      
    for filename in specialContent:
       if verbose > 0:
          print('Creating {}'.format(filename))
       with open(os.path.join(outdir, filename), 'w') as outfile:
-         outfile.write(specialContent[filename])
+         outfile.write(specialContent[filename].format(**config))
          outfile.close()
          
    print('Created export in {}'.format(outdir))

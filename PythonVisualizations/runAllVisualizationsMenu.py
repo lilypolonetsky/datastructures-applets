@@ -20,9 +20,11 @@ try:
     from allVisualizationsCommon import *
     import VisualizationApp
     VAP = VisualizationApp.VisualizationApp
+    from tkUtilities import *
 except ModuleNotFoundError:
     from .allVisualizationsCommon import *
     from .VisualizationApp import VisualizationApp as VAP
+    from .tkUtilities import *
 
 PREFERRED_ARRANGEMENT = [
     ['Chapter 2', ['Array', 'OrderedArray']],
@@ -129,7 +131,7 @@ def genericEventHandler(event):
             event.type, appTitle, event.widget))
         
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
-        classes, start=None, title="Algorithm Visualizations", 
+        classes, start=None, title="Algorithm Visualizations", version=None,
         adjustForTrinket=False, seed='3.14159', verbose=0, debug=False):
     global DEBUG
     DEBUG = debug
@@ -241,7 +243,15 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
             appWindow.winfo_ismapped()):
             appWindow.grid_remove()
 
-    loading.destroy()
+    if version:          # Hidden handler to show version info
+        for button in range(1, 4):
+            intro.bind('<Double-Button-{}>'.format(button),
+                       lambda event:
+                       (event.state & CTRL or
+                        (isinstance(event.num, int) and event.num != 1)) and
+                       loading.configure(text=version))
+                   
+    loading['text'] = ''
     if verbose > 1:
         print('Top geometry:', top.winfo_geometry(),
               'Menubutton geometry:', menubutton.winfo_geometry(),
