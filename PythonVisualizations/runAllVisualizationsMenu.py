@@ -74,7 +74,7 @@ def raiseAppWindowHandler(appWindow, menubutton, menu, adjustForTrinket=False):
                 a.grid_remove()
             menu.entryconfigure(
                 i, font=MENU_FONT + (chosenStyle if a is appWindow else ()))
-        if appWindow != appWindows[0] and not adjustForTrinket:
+        if appWindow != appWindows[0]: # and not adjustForTrinket:
             menubutton.grid_remove()
     return handler
 
