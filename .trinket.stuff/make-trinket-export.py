@@ -112,7 +112,7 @@ if __name__ == '__main__':
             print('Copying {} verbatim'.format(filename))
          shutil.copyfile(filename, os.path.join(outdir, filename))
 
-   result = subprocess.run(['git', 'show', '--format=format:%t %an %ad %n%s'],
+   result = subprocess.run(['git', 'show', '--format=format:%h %an %ad %n%s'],
                            capture_output=True, encoding='ascii')
    config = {'version': '\n'.join(result.stdout.split('\n')[:2])
              if result and result.returncode == 0 and result.stdout else ''}
