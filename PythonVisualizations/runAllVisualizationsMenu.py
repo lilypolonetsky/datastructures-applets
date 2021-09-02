@@ -49,8 +49,8 @@ MENU_FONT = ('Helvetica', -12)
 
 desktopInstructions = '''
 Select a visualization from the menu at the top to see the different
-data structures.  Place cursor near top edge to restore visualization
-selection menu.  Resizing the window does not alter the visualization.  
+data structures.  Place cursor near top edge to restore the
+visualization selection menu.
 '''
 
 trinketInstructions = '''
