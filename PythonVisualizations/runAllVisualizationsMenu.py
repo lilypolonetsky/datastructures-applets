@@ -48,17 +48,16 @@ INTRO_FONT = ('Helvetica', -16)
 MENU_FONT = ('Helvetica', -12)
 
 desktopInstructions = '''
-Select a visualization from the menu at the top to see the
-different data structures.  Place cursor near top edge to restore
-visualization selection menu.  Resizing the window does not alter
-the visualization.
+Select a visualization from the menu at the top to see the different
+data structures.  Place cursor near top edge to restore visualization
+selection menu.  Resizing the window does not alter the visualization.  
 '''
 
 trinketInstructions = '''
-Select a visualization from the menu at the top to see the
-different data structures.  If you are viewing this in a browser on a
-touch screen device, you may not be allowed to click on text entry
-boxes and use the soft keyboard to enter values.
+Select a visualization from the menu at the top to see the different
+data structures.  If you are viewing this on a touch screen device, you may
+not be allowed to tap on text entry boxes and use the soft keyboard to
+enter values.
 '''
 
 DEBUG = False
@@ -66,10 +65,11 @@ appWindows = []
 userSelectedWindow = None
 chosenStyle = ('bold',)
 
-def raiseAppWindowHandler(appWindow, menubutton, menu, adjustForTrinket=False):
+def raiseAppWindowHandler(appWindow, menubutton, menu, adjustForTrinket=False,
+                          sticky=(N, E, W, S)):
     def handler():
         global userSelectedWindow
-        appWindow.grid(row=1, column=0, sticky=(N, E, W, S))
+        appWindow.grid(row=1, column=0, sticky=sticky)
         userSelectedWindow = appWindow
         for i, a in enumerate(appWindows):
             if a.winfo_ismapped() and a is not appWindow:
@@ -111,7 +111,7 @@ def resizeHandler(event):
     if DEBUG and (kind == 'top' or vizApp):
         print('Resize of', kind, event.widget, 'from', width, 'x', height, 'to',
               event.width, 'x', event.height)
-    if (kind == 'top' and event.width > 1 and event.height > 1):
+    if kind == 'top' and event.width > 1 and event.height > 1:
         topPartHeight = 0
         for w in event.widget.grid_slaves(row=0, column=0):
             topPartHeight = max(topPartHeight, w.winfo_height())
@@ -132,7 +132,8 @@ def genericEventHandler(event):
         
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", version=None,
-        adjustForTrinket=False, seed='3.14159', verbose=0, debug=False):
+        adjustForTrinket=False, seed='3.14159', verbose=0, debug=False,
+        theme='alt'):
     global DEBUG
     DEBUG = debug
     if len(classes) == 0:
@@ -141,9 +142,15 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     if seed and len(seed) > 0:
         random.seed(seed)
     top = Tk()
+    ttkStyle = ttk.Style()
+    if theme:
+        if debug:
+            print('Starting theme:', ttkStyle.theme_use(), 'among',
+                  ttkStyle.theme_names())
+        ttkStyle.theme_use(theme)
+        if debug:
+            print('Set theme to', ttkStyle.theme_use())    
     top.title(title)
-    ttk.Style().configure(
-        'TFrame', bg=getattr(VAP, 'DEFAULT_BG', 'white'))
 
     if adjustForTrinket:
         VAP.MIN_CODE_CHARACTER_HEIGHT = 9
@@ -155,30 +162,33 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     restoreMenu.bind('<Enter>', makeArmMenuHandler(restoreMenu, menubutton))
     restoreMenu.bind('<Leave>', makeDisarmMenuHandler(restoreMenu, menubutton))
     
-    intro = ttk.Frame(top, padding=abs(INTRO_FONT[1])*3)
+    padBy = abs(INTRO_FONT[1]) * 3
+    labelStyleName='Intro.TLabel'
+    intro = Frame(top, padx=padBy, pady=padBy)
     nextline = makeIntro(
         intro_msg.format(
             customInstructions=(trinketInstructions if adjustForTrinket else 
                                 desktopInstructions).strip()),
-        intro, URLfg=None if adjustForTrinket else 'blue',
+        intro, styleName=labelStyleName,
+        URLfg=None if adjustForTrinket else 'blue',
         URLfont=None if adjustForTrinket else INTRO_FONT + ('underline',) )
     loading = ttk.Label(intro, text='\nLoading ...', 
-                        font=INTRO_FONT + ('italic',))
+                        font=INTRO_FONT + ('italic',), style=labelStyleName)
     loading.grid(row=nextline, column=0)
     setattr(intro, 'appTitle', 'Introduction')
     appWindows.append(intro)
-    intro.grid(row=1, column=0)
+    top.bind('<Configure>', resizeHandler, '+')
     top.rowconfigure(1, minsize=600)
     top.columnconfigure(0, minsize=VAP.DEFAULT_CANVAS_WIDTH)
-    top.bind('<Configure>', resizeHandler, '+')
+    intro.grid(row=1, column=0)
     
     menu = Menu(menubutton, tearoff=0)
     menu.add_command(label='Introduction', 
                      command=raiseAppWindowHandler(intro, menubutton, menu,
-                                                   adjustForTrinket),
+                                                   adjustForTrinket, sticky=()),
                      font=MENU_FONT + chosenStyle)
     menubutton['menu'] = menu
-
+    
     classes_dict = dict((app.__name__, app) for app in classes)
     ordered_classes = [
         classes_dict[app] for folder, apps in PREFERRED_ARRANGEMENT
