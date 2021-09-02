@@ -133,7 +133,7 @@ def genericEventHandler(event):
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", version=None,
         adjustForTrinket=False, seed='3.14159', verbose=0, debug=False,
-        theme='alt'):
+        theme='alt', introBG='white'):
     global DEBUG
     DEBUG = debug
     if len(classes) == 0:
@@ -164,12 +164,12 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     
     padBy = abs(INTRO_FONT[1]) * 3
     labelStyleName='Intro.TLabel'
-    intro = Frame(top, padx=padBy, pady=padBy)
+    intro = Frame(top, padx=padBy, pady=padBy, bg=introBG)
     nextline = makeIntro(
         intro_msg.format(
             customInstructions=(trinketInstructions if adjustForTrinket else 
                                 desktopInstructions).strip()),
-        intro, styleName=labelStyleName,
+        intro, styleName=labelStyleName, bg=introBG,
         URLfg=None if adjustForTrinket else 'blue',
         URLfont=None if adjustForTrinket else INTRO_FONT + ('underline',) )
     loading = ttk.Label(intro, text='\nLoading ...', 
