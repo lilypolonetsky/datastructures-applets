@@ -55,7 +55,8 @@ visualization selection menu.
 
 trinketInstructions = '''
 Select a visualization from the menu at the top to see the different
-data structures.  If you are viewing this on a touch screen device, you may
+data structures.  Place cursor near top edge to restore the visualization
+selection menu.  If you are viewing this on a touch screen device, you may
 not be allowed to tap on text entry boxes and use the soft keyboard to
 enter values.
 '''

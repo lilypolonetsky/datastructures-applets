@@ -46,8 +46,8 @@ different data structures.
 trinketInstructions = '''
 Select a chapter and a visualization from the tabs at the top to see the
 different data structures.  If you are viewing this in a browser on a
-touch screen device, you may not be allowed to click on text entry
-boxes and use the soft keyboard to enter values.
+touch screen device, you may not be allowed to tap on text entry boxes
+and use the soft keyboard to enter values.
 '''
 
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
