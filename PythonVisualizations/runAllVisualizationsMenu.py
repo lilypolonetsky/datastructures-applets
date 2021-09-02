@@ -164,6 +164,7 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
     
     padBy = abs(INTRO_FONT[1]) * 3
     labelStyleName='Intro.TLabel'
+    top['bg'] = introBG
     intro = Frame(top, padx=padBy, pady=padBy, bg=introBG)
     nextline = makeIntro(
         intro_msg.format(
