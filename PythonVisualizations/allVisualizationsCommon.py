@@ -115,7 +115,7 @@ understanding of how computers organize and manipulate data efficiently.
 {customInstructions}
 
 Exceptional students in the Computer Science Department of Stern College
-at Yeshiva University helped develop these visualizations.
+for Women at Yeshiva University helped develop these visualizations.
 https://www.yu.edu/stern/ug/computer-science
 """
 
