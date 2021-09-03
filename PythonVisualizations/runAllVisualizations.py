@@ -10,16 +10,17 @@ recognized modules.  The rest are added in alphabetical order.
 
 import argparse, sys, re, webbrowser, os, glob, random
 from importlib import *
-from tkinter import *
 from tkinter import ttk
 
 try:
     from allVisualizationsCommon import *
     import VisualizationApp
     VAP = VisualizationApp.VisualizationApp
+    from tkUtilities import *
 except ModuleNotFoundError:
     from .allVisualizationsCommon import *
     from .VisualizationApp import VisualizationApp as VAP
+    from .tkUtilities import *
 
 PREFERRED_ARRANGEMENT = [
     ['Chapters 1-4',
@@ -52,27 +53,49 @@ and use the soft keyboard to enter values.
 
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", 
-        adjustForTrinket=False, seed='3.14159', verbose=0, debug=False):
+        adjustForTrinket=False, seed='3.14159', verbose=0, debug=False,
+        theme='alt', introBG='white'):
     if len(classes) == 0:
         print('No matching classes to visualize', file=sys.stderr)
         return
     if seed and len(seed) > 0:
         random.seed(seed)
     top = Tk()
+    ttkStyle = ttk.Style()
+    if theme:
+        if debug:
+            print('Starting theme:', ttkStyle.theme_use(), 'among',
+                  ttkStyle.theme_names())
+        ttkStyle.theme_use(theme)
+        if debug:
+            print('Set theme to', ttkStyle.theme_use())    
     top.title(title)
+
+    padBy = abs(INTRO_FONT[1]) * 3
+    labelStyleName='Intro.TLabel'
+    top['bg'] = introBG
+    frameStyleName='Intro.TFrame'
+    ttkStyle.configure(frameStyleName, bg=introBG)
     notebook = ttk.Notebook(top)
     notebookStyle = ttk.Style(notebook)
-    intro = ttk.Frame(notebook, padding=abs(INTRO_FONT[1])*3)
+    intro = Frame(top, padx=padBy, pady=padBy, bg=introBG)
+    introCenter = Frame(intro, bg=introBG)
     nextline = makeIntro(
         intro_msg.format(
             customInstructions=(trinketInstructions if adjustForTrinket else 
                                 desktopInstructions).strip()),
-        intro, URLfg=None if adjustForTrinket else 'blue',
+        introCenter, styleName=labelStyleName, bg=introBG,
+        URLfg=None if adjustForTrinket else 'blue',
         URLfont=None if adjustForTrinket else INTRO_FONT + ('underline',) )
-    loading = ttk.Label(intro, text='\nLoading ...', 
-                        font=INTRO_FONT + ('italic',))
+    loading = ttk.Label(introCenter, text='\nLoading ...', 
+                        font=INTRO_FONT + ('italic',), style=labelStyleName)
     loading.grid(row=nextline, column=0)
+    introCenter.grid(row=0, column=0)
     notebook.add(intro, state=NORMAL, text='Introduction')
+    intro.bind('<Map>', mapHandler(introCenter, padBy, debug=debug), '+')
+    if debug:
+        fields = set(('width', 'height'))
+        intro.bind('<Configure>', genericEventHandler(fields=fields), '+')
     notebook.pack(expand=True, fill=BOTH)
     notebook.wait_visibility(top)
                
@@ -125,26 +148,29 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
                 notebook.select(group)
                 group.select(pane)
     loading.destroy()
-    nPadding = notebookStyle.configure('TNotebook').get('padding', [0] * 4)
-    iPadding = intro.config('padding')[-1][0]
-    iPadding = int(iPadding if isinstance(iPadding, str) else iPadding.string)
-    intro.bind('<Configure>', 
-               resizeIntro(intro, nPadding[0] + nPadding[2] + iPadding))
+    resizeIntro(intro, padBy)
     top.mainloop()
 
+def mapHandler(introCenter, padding, debug=False):
+    def mHandler(event):
+        intro = event.widget
+        if debug:
+            x, y, width, height = intro.grid_bbox(column=0, row=0)
+            print('Map event on', event.widget,
+                  'current width =', event.widget.winfo_width())
+            print('Intro widget size =', intro.winfo_width(), 'x',
+                  intro.winfo_height(),
+                  '\ncolumn 0 configuration =', intro.columnconfigure(0))
+            print('IntroCenter size =', introCenter.winfo_width(), 'x',
+                  introCenter.winfo_height())
+            print('Intro padding', padding)
+            print('Grid (0, 0) starts at', (x, y), 'with size', (width, height))
+        resizeIntro(intro, padding)
+    return mHandler
+
 def resizeIntro(intro, padding):
-    def handler(event):
-        # print('Widget', event.widget, 'width =', event.widget.winfo_width())
-        # print('Intro widget width =', intro.winfo_width(),
-        #       ' padding =', intro.config('padding')[-1], 
-        #       ' column 0 configuration =', intro.columnconfigure(0))
-        # print('Notebook padding', padding)
-        newsize = intro.winfo_width() - padding
-        # print('Desired column minsize', newsize)
-        newsize = min(780, newsize)
-        # print('Set column minsize to', newsize)
-        intro.columnconfigure(0, minsize=newsize)
-    return handler
+    intro.columnconfigure(0, minsize=intro.winfo_width() - padding * 2)
+    intro.rowconfigure(0, minsize=intro.winfo_height() - padding * 2)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
