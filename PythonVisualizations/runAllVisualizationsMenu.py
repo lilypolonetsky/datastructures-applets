@@ -123,13 +123,6 @@ def resizeHandler(event):
             50, lambda:
             event.widget.columnconfigure(0, minsize=event.width) or
             event.widget.rowconfigure(1, minsize=event.height - topPartHeight))
-
-def genericEventHandler(event):
-    if event.widget in appWindows:
-        appTitle = getattr(event.widget, 'appTitle', '')
-        if appTitle: appTitle += ' '
-        print('{} event on {}application window {}'.format(
-            event.type, appTitle, event.widget))
         
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         classes, start=None, title="Algorithm Visualizations", version=None,
