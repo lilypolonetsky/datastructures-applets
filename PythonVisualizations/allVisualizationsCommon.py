@@ -109,14 +109,13 @@ intro_msg = """
 Welcome to the algorithm visualizations for the book:
 Data Structures and Algorithms in Python
 
-Please use these visualization tools along with the book to improve
-your understanding of how computers organize and manipulate data
-efficiently.
+Please use these visualization tools along with the book to improve your
+understanding of how computers organize and manipulate data efficiently.
 
 {customInstructions}
 
-Exceptional students in the Computer Science Department of
-Stern College at Yeshiva University developed these visualizations.
+Exceptional students in the Computer Science Department of Stern College
+at Yeshiva University helped develop these visualizations.
 https://www.yu.edu/stern/ug/computer-science
 """
 
@@ -126,8 +125,9 @@ def openURL(URL):         # Make a callback function to open an URL
 INTRO_FONT = ('Helvetica', -16)
 
 def makeIntro(
-        mesg, container, font=INTRO_FONT, URLfg='blue', 
-        URLfont=INTRO_FONT + ('underline',), row=0, column=0):
+        mesg, container, font=INTRO_FONT, URLfg='blue', bg='white',
+        URLfont=INTRO_FONT + ('underline',), row=0, column=0,
+        styleName='Intro.TLabel'):
     '''Make introduction screen as a sequence of labels for each line of a
     a message.  The labels are stacked, centered inside a container
     widget.  URLs are converted to a label within a frame that has a
@@ -135,6 +135,9 @@ def makeIntro(
     Increment row for each line added and return the grid row for the
     next row of the container.
     '''
+    
+    ttkStyle = ttk.Style(container)
+    ttkStyle.configure(styleName, background=bg)
     for line in mesg.split('\n'):
         URLs = ([m for m in URL_pattern.finditer(line)] if URLfg and URLfont 
                 else [])
@@ -145,24 +148,24 @@ def makeIntro(
             for match in URLs:
                 if match.start() > last:
                     label = ttk.Label(URLframe, text=line[last:match.start()],
-                                      font=font)
+                                      font=font, style=styleName)
                     label.grid(row=0, column=col)
                     col += 1
                 link = ttk.Label(
                     URLframe, text=match.group(), font=URLfont,
-                    foreground=URLfg)
+                    foreground=URLfg, style=styleName)
                 link.grid(row=0, column=col)
                 col += 1
                 link.bind('<Button-1>', openURL(match.group()))
                 last = match.end()
             if last < len(line):
-                label = ttk.Label(URLframe, text=line[last:], 
-                                  font=font)
+                label = ttk.Label(URLframe, text=line[last:], font=font,
+                                  style=styleName)
                 label.grid(row=0, column=col)
                 col += 1
             URLframe.grid(row=row, column=column)
         else:
-            label = ttk.Label(container, text=line, font=font)
+            label = ttk.Label(container, text=line, font=font, style=styleName)
             label.grid(row=row, column=column)
         row += 1
     return row
