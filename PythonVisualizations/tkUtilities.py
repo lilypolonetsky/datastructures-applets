@@ -207,19 +207,15 @@ def buttonImage(btn, image=None):
         btn.image = image  # and this puts the aclual image in the attribute
         return image
 
-def genericEventHandler(to=sys.stdout, verbose=0):
-    levels = [(),
-              ('num', 'state'),
-              ('char', 'keycode', 'keysym'),
-              ('width', 'height'),
-              ('x', 'y', 'x_root', 'y_root'),
-              ('serial', 'time')]
+def genericEventHandler(
+        to=sys.stdout, fields={'num', 'state', 'char', 'keycode', 'keysym',
+                               'width', 'height', 'x', 'y', 'x_root', 'y_root',
+                               'serial', 'time'}):
     def genericHandler(event):
         if to:
             print('{} event on {}:'.format(event.type, event.widget),
                   ', '.join('{} = {!r}'.format(attr, getattr(event, attr))
-                            for i in range(min(len(levels), verbose) + 1)
-                            for attr in levels[i]),
+                            for attr in fields),
                   file=to)
             if event.state and isinstance(event.state, int):
                 print('Modifiers: {}'.format(
