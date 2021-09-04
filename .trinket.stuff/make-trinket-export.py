@@ -113,8 +113,8 @@ if __name__ == '__main__':
          shutil.copyfile(filename, os.path.join(outdir, filename))
 
    result = subprocess.run(['git', 'show', '--format=format:%h %an %ad %n%s'],
-                           capture_output=True, encoding='ascii')
-   config = {'version': '\n'.join(result.stdout.split('\n')[:2])
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+   config = {'version': '\n'.join(result.stdout.decode().split('\n')[:2])
              if result and result.returncode == 0 and result.stdout else ''}
    if verbose > 0:
       print('Version info: {version}'.format(**config))
