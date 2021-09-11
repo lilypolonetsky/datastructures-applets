@@ -801,8 +801,10 @@ def minimumSpanningTree(self, n={nVal}):
 
             self.highlightCode('vMap[vertex] = tree.nVertices()', callEnviron,
                                wait=wait)
-            vMapArrow = self.createVMapArrow(vMap, len(treeVerts), vertex,
-                                             see=True)
+            vMapIndex = 1 + self.nVertices() + len(treeVerts)
+            vMapIndices = vMap.items()[vMapIndex:vMapIndex + 1]
+            vMapArrow = self.createVMapArrow(
+                vMap, len(treeVerts), vertex, see=vMapIndices)
             vMap[vertex] = drawnValue(len(treeVerts), *vMapArrow)
             callEnviron |= set(vMapArrow)
             localVars += vMapArrow
