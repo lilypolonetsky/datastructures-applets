@@ -627,7 +627,7 @@ class Visualization(object):  # Base class for Python visualizations
         self.canvas.yview_moveto(newY[0])
 
     def scrollSettingsToSee(
-            self, itemsOrBBoxes, expand=True, firstPriority=True):
+            self, itemsOrBBoxes, expand=True, firstPriority=True, debug=False):
         '''Find the scroll settings needed to see the given canvas items (int
         or string) or bounding boxes (sequence of 4 coordinates) or
         coordinate list.  The union of the bounding boxes of the items
@@ -649,27 +649,42 @@ class Visualization(object):  # Base class for Python visualizations
                   or isinstance(item, (list, tuple))]
         BBox = BBoxUnion(*BBoxes)
         visibleCanvas = self.visibleCanvas()
+        if debug:
+            print(('Request to scroll.  Current visible: {visibleCanvas} '
+                   'Bounding box to see: {BBox}').format(**locals()))
         if expand and not BBoxEmpty(BBox) and (
                 not BBoxContains(self.canvasBounds, BBox)):
+            if debug:
+                print(
+                    'Expanding canvas bounds from', self.canvasBounds, end=' ')
             self.setCanvasBounds(BBox)
-        canvasDims = widgetDimensions(self.canvas)
+            if debug:
+                print('to', self.canvasBounds)
+        canvasDims = BBoxSize(visibleCanvas)
         canvasBounds = self.canvasBounds
         visibleCanvasFraction = self.visibleCanvasFraction()
         xPos = list(self.canvasHScroll.get())
         yPos = list(self.canvasVScroll.get())
-        keep, step = len(BBoxes), len(BBoxes) // 2
-        while step > 0:
-            if (BBox[2] - BBox[0], BBox[3] - BBox[1]) <= canvasDims:
-                if keep == len(BBoxes): break
-                keep += step if firstPriority else -step
+        keep, step, tried = len(BBoxes), len(BBoxes) // 2, set()
+        while keep > 0:
+            seen = keep in tried
+            tried.add(keep)
+            if BBoxSize(BBox) <= canvasDims:
+                if keep == len(BBoxes) or seen: break
+                keep += step
             else:
-                keep -= step if firstPriority else -step
-            step = step // 2
+                keep -= step
+            step = max(1, step // 2)
             BBox = BBoxUnion(*(BBoxes[:keep] if firstPriority else
                                BBoxes[-keep:]))
+        if debug and 1 < len(BBoxes) and keep < len(BBoxes):
+            print(('Reduced requested bounding box to {} keeping {} {} of {} '
+                   'boxes so size is {} and canvas is {}').format(
+                       BBox, 'first' if firstPriority else 'last',
+                       keep, len(BBoxes), BBoxSize(BBox), canvasDims))
 
         # When bounding box could fit on canvas, determine scrollbar positions
-        if (BBox[2] - BBox[0], BBox[3] - BBox[1]) <= canvasDims:
+        if BBoxSize(BBox) <= canvasDims:
             for pos, XorY in ((xPos, 0), (yPos, 1)):
                 lo = max(canvasBounds[XorY],
                          min(visibleCanvas[XorY], BBox[XorY]))
@@ -681,8 +696,15 @@ class Visualization(object):  # Base class for Python visualizations
                          hi - canvasDims[XorY]) - canvasBounds[XorY]) / (
                              canvasBounds[2 + XorY] - canvasBounds[XorY])
                     pos[1] = pos[0] + visibleCanvasFraction[XorY]
-        else:
-            pass  # Here for debugging only
+            if debug:
+                if xPos != list(self.canvasHScroll.get()):
+                    print('Changing horizontal scroll from {} to {}'.format(
+                        self.canvasHScroll.get(), xPos))
+                if yPos != list(self.canvasVScroll.get()):
+                    print('Changing vertical scroll from {} to {}'.format(
+                        self.canvasVScroll.get(), yPos))
+        elif debug:
+            print('Unable to reduce bounding box to fit within', canvasDims)
         
         return tuple(xPos), tuple(yPos)
         
@@ -745,8 +767,11 @@ class UserStop(Exception):   # Exception thrown when user stops animation
 
 if __name__ == '__main__':
     import random
-        
-    app = Visualization(title='Visualization test')
+
+    grid = '-grid' in sys.argv[1:]
+    
+    app = Visualization(title='Visualization test',
+                        canvasBounds=(0, 0, 1000, 500) if grid else None)
 
     centerText = app.canvas.create_text(
         app.targetCanvasWidth // 2, app.targetCanvasHeight // 2,
@@ -779,11 +804,88 @@ if __name__ == '__main__':
                                     N, color, vertColor, bg, gap))
 
     makeLineWithBBox()
+
+    
     app.startAnimations()
     for anchor in Scrim.anchorVectors:
         app.canvas.changeAnchor(anchor, centerText)
         app.canvas.itemConfig(
             centerText, text='Center of the canvas ({})'.format(anchor))
         app.wait(0.1)
+
+    if grid:
+        app.canvas.itemConfig(centerText, text='')
+        spans = [app.canvas.create_line(
+            10 if dim else 0, 0 if dim else 10,
+            10 if dim else 20, 20 if dim else 10, fill='blue', arrow=BOTH,
+            width=1, arrowshape=(16, 20, 6), tags='span') for dim in (0, 1)]
+        extremes = [app.canvas.create_text(
+            8 if dim else end * 10 + 5, end * 10 + 5 if dim else 8,
+            anchor = E if dim else S, text='', fill='blue', tags='span')
+                    for dim in (0, 1) for end in (0, 1)]
+        app.canvas.tag_lower('span')
+        
+        def updateCanvasSpans(event=None):
+            viz = app.visibleCanvas()
+            mid = BBoxCenter(viz)
+            gap = 40
+            for dim in (0, 1):
+                app.canvas.coords(
+                    spans[dim],
+                    mid[1 - dim] if dim else viz[dim],
+                    viz[dim] if dim else mid[1 - dim],
+                    mid[1 - dim] if dim else viz[dim + 2],
+                    viz[dim + 2] if dim else mid[1 - dim])
+                for end in (0, 1):
+                    coord = viz[end * 2 + dim]
+                    item = extremes[2 * dim + end]
+                    app.canvas.coords(
+                        item,
+                        mid[1 - dim] - 2 if dim else coord - (end*2 - 1) * gap,
+                        coord - (end*2 - 1) * gap if dim else mid[1 - dim] - 2)
+                    app.canvas.itemConfig(item, text=str(coord))
+
+        app.window.bind('<Configure>', updateCanvasSpans)
+        updateCanvasSpans()
+        
+        canvasSize = BBoxSize(app.canvasBounds)
+        ticsize = 8
+        color = 'red'
+        axes, tics, labels, lastLabel = [], [], [], []
+        for dim in (0, 1):
+            mid = canvasSize[1 - dim] // 2
+            axes.append(app.canvas.create_line(
+                mid if dim else app.canvasBounds[dim],
+                app.canvasBounds[dim] if dim else mid,
+                mid if dim else app.canvasBounds[dim + 2],
+                app.canvasBounds[dim + 2] if dim else mid, fill=color, width=1))
+            for a in range(0, canvasSize[dim] + 1, 40):
+                tics.append(app.canvas.create_line(
+                    mid - ticsize if dim else a,
+                    a if dim else mid - ticsize,
+                    mid + ticsize if dim else a,
+                    a if dim else mid + ticsize, fill=color, width=1))
+                labels.append(app.canvas.create_text(
+                    mid - ticsize * 2 if dim else a,
+                    a if dim else mid - ticsize * 2,
+                    anchor=E if dim else S, text=str(a), fill=color))
+            lastLabel.append(len(labels) - 1)
+                
+        LRScrollBtnBG = app.canvas.create_rectangle(
+            canvasSize[0] // 2 + 40, canvasSize[1] // 2 + 40,
+            canvasSize[0] // 2 + 140, canvasSize[1] // 2 + 60,
+            fill='sky blue', width=1)
+        LRScrollBtn = app.canvas.create_text(
+            canvasSize[0] // 2 + 90, canvasSize[1] // 2 + 50,
+            text='Scroll Right')
+        def toggleScroll(event=None):
+            text = app.canvas.itemConfig(LRScrollBtn, 'text')
+            right = text.endswith('ight')
+            app.canvas.itemConfig(
+                LRScrollBtn, text='Scroll Left' if right else 'Scroll Right')
+            app.scrollToSee([labels[lastLabel[0] if right else 0]],
+                            expand=False, debug=True)
+        for item in (LRScrollBtnBG, LRScrollBtn):
+            app.canvas.tag_bind(item, '<Button-1>', toggleScroll)
 
     app.runVisualization()
