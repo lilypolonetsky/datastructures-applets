@@ -449,10 +449,11 @@ class Tree234(BinaryTreeBase):
         return (left, bottom - abs(font[1]) * 2,
                 left + N * spacing + padding, bottom)
         
-    def upperRightNodeCoords(self, level=1):
+    def traverseTypeCoords(self):
         child3 = self.childCoords((self.ROOT_X0, self.ROOT_Y0), 3, 1)
-        return (child3[0], 
-                self.ROOT_Y0 + self.CIRCLE_SIZE * self.scale * (2.5 * level - 1))
+        return (
+            self.ROOT_X0 + self.CIRCLE_SIZE * self.scale * self.maxLinks * 3,
+            self.ROOT_Y0)
 
     insertCode = '''
 def insert(self, key={key}, value):
@@ -1238,16 +1239,16 @@ for key, data in tree.traverse("{traverseType}"):
 '''
     
     def traverseExample(
-            self, traverseType, code=traverseExampleCode, start=True):
-        wait = 0.1
+            self, traverseType, code=traverseExampleCode, start=True,
+            wait=0.1, debug=False):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=wait / 10, 
             startAnimations=start)
 
         traverseTypeText = self.canvas.create_text(
-            *self.upperRightNodeCoords(),
+            *self.traverseTypeCoords(),
             text='traverseType: "{}"'.format(traverseType),
-            anchor=E, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+            anchor=W, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(traverseTypeText)
         
         outBoxCoords = self.outputBoxCoords(font=self.outputFont)
@@ -1259,8 +1260,8 @@ for key, data in tree.traverse("{traverseType}"):
             font=self.outputFont)
         callEnviron.add(outputText)
         self.scrollToSee(
-            (outputText, traverseTypeText, outputBox), expand=True,
-            sleepTime=0)
+            (traverseTypeText, outputText, outputBox), expand=True,
+            sleepTime=0, debug=debug)
         
         iteratorCall = 'key, data in tree.traverse("{traverseType}")'.format(
             **locals())
