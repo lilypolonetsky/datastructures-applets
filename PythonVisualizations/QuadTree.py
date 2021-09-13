@@ -1,7 +1,11 @@
-import random
 from tkinter import *
-from VisualizationApp import *
 
+try:
+    from coordinates import *
+    from VisualizationApp import *
+except ModuleNotFoundError:
+    from .coordinates import *
+    from .VisualizationApp import *
 
 class Node(object):
     def __init__(self, x, y, d):
@@ -24,7 +28,8 @@ class PointQuadtree(VisualizationApp):
     CIRCLE_DIMEN = 8
     CANVAS_COLOR = 'LightSkyBlue1'
 
-    def __init__(self, maxArgWidth = MAX_ARG_WIDTH, title="Point Quad Tree", **kwargs):
+    def __init__(self, maxArgWidth=MAX_ARG_WIDTH, title="Point Quadtree",
+                 **kwargs):
         super().__init__(title=title, maxArgWidth = maxArgWidth, **kwargs)
         self.__root = None
         self.buttons = self.makeButtons()
@@ -238,15 +243,18 @@ class PointQuadtree(VisualizationApp):
         return x, y, d
 
     def makeButtons(self):
-        vcmd = (self.window.register(numericValidate),
-                '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         insertButton = self.addOperation(
-            "Insert", lambda: self.clickInsert(), numArguments=3)#,
-            #validationCmd=vcmd)
-        newQuadTree = self.addOperation("New", lambda: self.new(), numArguments = 0)
-        showTreeCheckbutton = self.addOperation("Show Tree", lambda: self.graphLineDisplay(), buttonType = Checkbutton)
-        return[insertButton, newQuadTree, showTreeCheckbutton]
+            'Insert', lambda: self.clickInsert(), numArguments=3,
+            argHelpText=('X coordinate', 'Y coordinate', 'Label'),
+            helpText='Insert an item into the quadtree')
+        newQuadtree = self.addOperation(
+            'New', lambda: self.new(), helpText='Create new, empty quadtree')
+        showTreeCheckbutton = self.addOperation(
+            'Show Boundaries',
+            lambda: self.graphLineDisplay(), buttonType = Checkbutton,
+            helpText='Toggle display of quadrant boundaries')
+        return[insertButton, newQuadtree, showTreeCheckbutton]
 
 if __name__ == '__main__':
-    quadTree = PointQuadtree()
-    quadTree.runVisualization()
+    quadtree = PointQuadtree()
+    quadtree.runVisualization()
