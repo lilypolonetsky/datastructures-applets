@@ -1,10 +1,11 @@
 import math
 import random
-from time import sleep
 from tkinter import *
 try:
+    from tkUtilities import *
     from VisualizationApp import *
 except ModuleNotFoundError:
+    from .tkUtilities import *
     from .VisualizationApp import *
 
 class Link():
@@ -19,11 +20,10 @@ class Link():
         self.text    = None 
         self.y       = None    # x and y coords represent 
         self.x       = None    # the bottom left corner 
-        
             
 class SkipList(VisualizationApp):
     
-    def __init__(self, maxKeys=20, title="Skip List", **kwargs):
+    def __init__(self, maxKeys=20, valMax=99, title="Skip List", **kwargs):
         
         # VisualizationApp code
         kwargs['title'] = title
@@ -46,40 +46,39 @@ class SkipList(VisualizationApp):
         self.arrowX2 = lambda to: to.x
         self.arrowY2 = lambda to, i: to.y - self.CELL_HEIGHT*i - self.ARROW_Y1 
         # The - 2 takes into acount the header and end
-        self.maxInserts = lambda : ((self.widgetDimensions(self.canvas)[0] // self.LINK_WIDTH) - 2)
+        self.maxInserts = lambda : ((widgetDimensions(self.canvas)[0] //
+                                     self.LINK_WIDTH) - 2)
         self.__numLinks = 0
         
         # Skip List code
+        self.valMax = valMax
         self.__level = 0  
         self.__maxLevel = math.ceil(math.log2(maxKeys))
         self.__header = Link(self.__maxLevel, None) 
-        self.__end = Link(self.__maxLevel, None)        
+        self.__end = Link(self.__maxLevel, None)
+        self.setupHeaderAndEnd()
 
-        self.fill(5)        
-
-    def insert(self, insertKey):
-        
+    def insert(self, insertKey, wait=0.01):
         if self.__numLinks == self.maxInserts(): return False
         
-        self.startAnimations()
         callEnviron = self.createCallEnvironment()
         
         update = [None] * self.__maxLevel
         x = self.__header
         
-        self.highlightNode(x)   
+        self.highlightNode(x, wait=wait)
         
         # start at the top level and work downward
         for i in range(self.__level-1, -1, -1): 
             
             # move as far forward as possible at level i
-            self.highlightArrow(x, i)
+            self.highlightArrow(x, i, wait=wait)
             
             while x.forward[i] and x.forward[i].key < insertKey:                
-                self.highlightNode(x.forward[i])
-                self.unHighlightNode(x)
-                self.unHighlightArrow(x, i)
-                self.highlightArrow(x.forward[i], i)
+                self.highlightNode(x.forward[i], wait=wait)
+                self.unHighlightNode(x, wait=wait)
+                self.unHighlightArrow(x, i, wait=wait)
+                self.highlightArrow(x.forward[i], i, wait=wait)
 
                 x = x.forward[i]
             
@@ -87,13 +86,13 @@ class SkipList(VisualizationApp):
                 
             # don't allow duplicates
             if x.forward[i] and insertKey == x.forward[i].key:
-                self.unHighlightNode(x)
+                self.unHighlightNode(x, wait=wait)
                 self.cleanUp(callEnviron)
                 return False 
             
             update[i] = x     
         
-        self.unHighlightNode(x)
+        self.unHighlightNode(x, wait=wait)
         
         newLevel = self.__randomLevel()  # select a level for this node
         if newLevel > self.__level:  
@@ -107,9 +106,10 @@ class SkipList(VisualizationApp):
         # Draw arrows
         for i in range(newLevel):
             x.forward[i] = update[i].forward[i]
-            self.drawArrow(x, i, update[i].forward[i], highlight="blue")
+            self.drawArrow(
+                x, i, update[i].forward[i], highlight="blue", wait=wait)
             update[i].forward[i] = x
-            self.rePositionArrow(update[i], i, x, highlight="red")
+            self.rePositionArrow(update[i], i, x, highlight="red", wait=wait)
         
         # Complete draw of the Link onto canvas if animation
         self.completeDraw(x, update)
@@ -120,80 +120,80 @@ class SkipList(VisualizationApp):
         self.cleanUp(callEnviron) 
         return True
     
-     
-    def search(self, key):
-        self.startAnimations()
+    def search(self, key, wait=0.01):
         callEnviron = self.createCallEnvironment()
         
         x = self.__header
         
-        self.highlightNode(x)   
+        self.highlightNode(x, wait=wait)
         
         # start at the top level and work downward
         for i in range(self.__level-1, -1, -1): 
             
             # move as far forward as possible at level i
-            self.highlightArrow(x, i)
+            self.highlightArrow(x, i, wait=wait)
             
             while x.forward[i] and x.forward[i].key < key:                
-                self.highlightNode(x.forward[i])
-                self.unHighlightNode(x)
-                self.unHighlightArrow(x, i)
-                self.highlightArrow(x.forward[i], i)
+                self.highlightNode(x.forward[i], wait=wait)
+                self.unHighlightNode(x, wait=wait)
+                self.unHighlightArrow(x, i, wait=wait)
+                self.highlightArrow(x.forward[i], i, wait=wait)
 
                 x = x.forward[i]
                 
             # don't allow duplicates
             if x.forward[i] and key == x.forward[i].key:
-                self.highlightNode(x.forward[i], color="blue")
-                self.unHighlightNode(x)
-                self.unHighlightArrow(x, i)
+                self.highlightNode(x.forward[i], color="blue", wait=wait)
+                self.unHighlightNode(x, wait=wait)
+                self.unHighlightArrow(x, i, wait=wait)
                 self.blink(x.forward[i], "blue")
                 self.cleanUp(callEnviron)
                 return True 
            
-            self.unHighlightArrow(x, i)
+            self.unHighlightArrow(x, i, wait=wait)
         
-        self.unHighlightNode(x) 
+        self.unHighlightNode(x, wait=wait)
         
         # Finish animation
         self.cleanUp(callEnviron)
         return False
     
-    def delete(self, key):
-        self.startAnimations()
+    def delete(self, key, wait=0.01):
         callEnviron = self.createCallEnvironment()  
         
         found = False
         x = self.__header
         
-        self.highlightNode(x)    
+        self.highlightNode(x, wait=wait)
         # start at the top level and work downward
         for i in range(self.__level-1, -1, -1):
             # move as far forward as possible at level i
-            self.highlightArrow(x, i)
+            self.highlightArrow(x, i, wait=wait)
             while x.forward[i] and x.forward[i].key < key:
-                self.highlightNode(x.forward[i])
-                self.unHighlightNode(x)
-                self.unHighlightArrow(x, i)
-                self.highlightArrow(x.forward[i], i)
+                self.highlightNode(x.forward[i], wait=wait)
+                self.unHighlightNode(x, wait=wait)
+                self.unHighlightArrow(x, i, wait=wait)
+                self.highlightArrow(x.forward[i], i, wait=wait)
 
                 x = x.forward[i]
                 
             # if found
             if x.forward[i] and key == x.forward[i].key:
                 if not found:
-                    self.highlightNode(x.forward[i], arrows=True, color="blue")
-                    self.moveNodeVertically(x.forward[i], direction="down")
+                    self.highlightNode(
+                        x.forward[i], arrows=True, color="blue", wait=wait)
+                    self.moveNodeVertically(
+                        x.forward[i], direction="down", wait=wait)
                     found = x.forward[i]
                 
                 # Note this is not to=x.forward[i].forward[i] because we have already reset forward
-                self.rePositionArrow(x, i, x.forward[i].forward[i], highlight="red") 
+                self.rePositionArrow(
+                    x, i, x.forward[i].forward[i], highlight="red", wait=wait) 
                 x.forward[i] = x.forward[i].forward[i]
             
-            if not found: self.unHighlightArrow(x, i)
+            if not found: self.unHighlightArrow(x, i, wait=wait)
             
-        self.unHighlightNode(x)
+        self.unHighlightNode(x, wait=wait)
         if found: self.deleteVisualNode(found)
         if found: self.__numLinks -= 1
         
@@ -203,14 +203,11 @@ class SkipList(VisualizationApp):
         return found != False
         
     def fill(self, num):
-        self.startAnimations()
         callEnviron = self.createCallEnvironment()
         
         if num > self.maxInserts(): num = self.maxInserts()
         self.__numLinks = 0
         
-        self.setAnimationState(False)
-
         self.__header.forward = [None] * self.__maxLevel
         self.__level = 0
         self.wipeCanvas()   
@@ -220,8 +217,8 @@ class SkipList(VisualizationApp):
             # Ensure fills up to num,
             # even if same random num 2x+
             while True:
-                r = random.randint(1, 99)
-                if self.insert(r): break
+                r = random.randrange(self.valMax)
+                if self.insert(r, wait=0): break
                 
         # Finish animation
         self.cleanUp(callEnviron) 
@@ -260,9 +257,9 @@ class SkipList(VisualizationApp):
             coords = (x1, n.y - self.CELL_HEIGHT*i,\
                       x2, n.y - self.CELL_HEIGHT*(i+1))
             n.rects[i] = self.canvas.create_rectangle(coords)
-            self.drawArrow(n, i) 
+            self.drawArrow(n, i, wait=0)
     
-    def createVisualNode(self, n, update):
+    def createVisualNode(self, n, update, wait=0.01):
         # Complete update. 
         # As of now it is only set up to level
         for i in range (self.__level, self.__maxLevel):
@@ -270,16 +267,16 @@ class SkipList(VisualizationApp):
         
         self.setNodeCoords(n, update[0])
         self.moveLinksAfter(n, update, direction="right")
-        self.drawNode(n)
+        self.drawNode(n, wait=wait)
            
-    def drawNode(self, n):     
+    def drawNode(self, n, wait=0.01):
         # create visual structure
         coords = (n.x, n.y, \
                   n.x + self.CELL_WIDTH, n.y - self.CELL_HEIGHT*n.levels)
         n.rect = self.canvas.create_rectangle(coords)
         coords = (n.x + self.CELL_WIDTH/2, \
                   n.y - (self.CELL_HEIGHT*n.levels)/2)
-        n.text = self.canvas.create_text(coords, text=str(n.key))
+        n.text = self.canvas.create_text(*coords, text=str(n.key))
         
         x1 = n.x + self.CELL_WIDTH
         x2 = n.x + self.CELL_WIDTH*2
@@ -289,30 +286,31 @@ class SkipList(VisualizationApp):
                 x2, n.y - self.CELL_HEIGHT*(i+1))
             n.rects[i] = self.canvas.create_rectangle(coords)          
                      
-        self.wait(0.01)
+        self.wait(wait)
 
     # Creates an arrow
     # If animation, draws in a shooting-out motion
-    def drawArrow(self, n, i=0, to=None, highlight="black"):
+    def drawArrow(self, n, i=0, to=None, highlight="black", wait=0.01):
         
         if not to: to = self.__end
         
-        if not self.isAnimated(): highlight ="black"
+        if wait == 0 or not self.isAnimated(): highlight ="black"
         
         x = self.arrowX1(n)
         y = self.arrowY1(n, i)
         coords = (x, y, x, y)
-        n.arrows[i] = self.canvas.create_line(coords, arrow="last", fill=highlight) 
-        self.rePositionArrow(n, i, to, highlight)      
+        n.arrows[i] = self.canvas.create_line(
+            coords, arrow="last", fill=highlight) 
+        self.rePositionArrow(n, i, to, highlight, wait=wait)
     
     # This can only move in one x direc and one y direc at a time (for now)
-    def rePositionArrow(self, n, i=0, to=None, highlight="black"):
+    def rePositionArrow(self, n, i=0, to=None, highlight="black", wait=0.002):
 
         if not to: to = self.__end
         
         # vars not totally appropriately named,
         # but a dx represents how much
-        # arrow will grow per sleepTime,
+        # arrow will grow per wait time,
         # not total distance
         dx1 = dy1 = dx2 = dy2 = 0   
         # total distance to be changed
@@ -355,14 +353,15 @@ class SkipList(VisualizationApp):
             dx2 *= dif
         d = abs(d)
         
-        self.highlightArrow(n, i, color=highlight)
+        self.highlightArrow(n, i, color=highlight, wait=wait)
             
         for move in range(abs(int(d))):
             x1, y1, x2, y2 = self.canvas.coords(n.arrows[i])
             coords = (x1 + dx1, y1 + dy1, x2 + dx2, y2 + dy2)
             self.canvas.coords(n.arrows[i], coords)
-            
-            self.wait(0.002)           
+
+            if wait > 0:
+                self.wait(wait)           
     
     # Fill the update array
     def fillUpdate(self, key):
@@ -382,7 +381,7 @@ class SkipList(VisualizationApp):
     # move-chain will start,
     # but we need it to determine levels
     # direction: right or left
-    def moveLinksAfter(self, n, update, direction="right"):
+    def moveLinksAfter(self, n, update, direction="right", wait=0.001):
         
         # animation. less move_x -> smoother animation
         if self.isAnimated(): move_x = 1
@@ -436,18 +435,18 @@ class SkipList(VisualizationApp):
                 coords = (x1, y1, x2 - abs(move_x)*count, y2)    
                 self.canvas.coords(update[i].arrows[i], coords)     
                 
-            self.wait(0.001)
+            self.wait(wait)
         
     def moveLink(self, link, x=0, y=0):
         shapes = [link.rect, link.text] + link.rects + link.arrows
         self.moveShapes(shapes, x, y)
     
-    # Move over a collection of shapes/canvas items        
+    # Move over a collection of shapes/canvas items
     def moveShapes(self, shapes, x=0, y=0):
         for shape in shapes:
             self.canvas.move(shape, x, y)        
         
-    def completeDraw(self, n, update):
+    def completeDraw(self, n, update, wait=0.01):
         
         # MOVE EVERYTHING UPWARDS ONLY IF BENEATH Y
         # Returns if inserted at end or no animation
@@ -455,13 +454,13 @@ class SkipList(VisualizationApp):
         # Currently not neccessary,
         # but neccessary in prev versions
         if n.y != self.INIT_Y: 
-            self.moveNodeVertically(n, update, direction="up")
+            self.moveNodeVertically(n, update, direction="up", wait=wait)
             
         for i in range(n.levels):
-            self.unHighlightArrow(n, i)
-            self.unHighlightArrow(update[i], i)
+            self.unHighlightArrow(n, i, wait=wait)
+            self.unHighlightArrow(update[i], i, wait=wait)
     
-    def moveNodeVertically(self, n, update=None, direction="up"):
+    def moveNodeVertically(self, n, update=None, direction="up", wait=0.001):
         
         if not update: 
             update = self.fillUpdate(n.key)
@@ -475,7 +474,7 @@ class SkipList(VisualizationApp):
             lower = self.CELL_HEIGHT*n.levels
             move_y = 1
         
-        self.wait(0.1)
+        self.wait(wait)
         
         for dy in range(upper, lower, move_y):
      
@@ -494,11 +493,11 @@ class SkipList(VisualizationApp):
                 self.canvas.coords(n.arrows[i], coords)
                 x1, y1, x2, y2 = self.canvas.coords(update[i].arrows[i])
                 coords = (x1, y1, x2, y2 + move_y)
-                self.canvas.coords(update[i].arrows[i], coords)                  
+                self.canvas.coords(update[i].arrows[i], coords)
              
-            self.wait(0.001)
+            self.wait(wait)
                         
-    def deleteVisualNode(self, n):
+    def deleteVisualNode(self, n, wait=0.2):
         
         update = self.fillUpdate(n.key)
         
@@ -508,7 +507,7 @@ class SkipList(VisualizationApp):
             self.canvas.delete(n.rects[i])
             self.canvas.delete(n.arrows[i])
         
-        self.wait(0.2)
+        self.wait(wait)
         self.moveLinksAfter(n, update, direction="left")
         
         for i in range(n.levels):
@@ -543,7 +542,7 @@ class SkipList(VisualizationApp):
     
     # Option to highlight out-arrows
     # of node
-    def highlightNode(self, n, arrows=False, color="red", sleepTime=0.01):
+    def highlightNode(self, n, arrows=False, color="red", wait=0.01):
         if not self.isAnimated(): return
         if not n.key: objects = n.rects  # header check
         else: objects = [n.rect] + n.rects
@@ -552,14 +551,16 @@ class SkipList(VisualizationApp):
         if arrows:
             for arrow in n.arrows:
                 self.canvas.itemconfig(arrow, fill=color)
-        self.wait(sleepTime)        
+        if wait > 0:
+            self.wait(wait)        
         
-    def highlightArrow(self, n, i, color="red", sleepTime=0.01):
+    def highlightArrow(self, n, i, color="red", wait=0.01):
         if self.isAnimated():
             self.canvas.itemconfig(n.arrows[i], fill=color)
-            self.wait(sleepTime)
+            if wait > 0:
+                self.wait(wait)
       
-    def unHighlightNode(self, n, arrows=False, sleepTime=0.0):
+    def unHighlightNode(self, n, arrows=False, wait=0.0):
         if n.key: objects = [n.rect] + n.rects
         else: objects = n.rects
         for item in objects:
@@ -567,26 +568,27 @@ class SkipList(VisualizationApp):
         if arrows:
             for arrow in n.arrows:
                 self.canvas.itemconfig(arrow, fill="black")
-
-        self.wait(sleepTime)     
+        if wait > 0:
+            self.wait(wait)
         
-    def unHighlightArrow(self, n, i, sleepTime=0.0):
+    def unHighlightArrow(self, n, i, wait=0.0):
         self.canvas.itemconfig(n.arrows[i], fill="black")  
-        self.wait(sleepTime)  
+        if wait > 0:
+            self.wait(wait)
     
     # Disapear and reapear border
     # in blinking motion
-    def blink(self, n, color="blue"):
+    def blink(self, n, color="blue", wait=0.2):
         items = [n.rect] + n.rects
         for item in items:
             self.canvas.itemconfig(item, outline=color)        
         for w in [0, 1, 0, 1]:
             for item in items:
                 self.canvas.itemconfig(item, width=w)
-            self.wait(0.4)
+            self.wait(wait)
         for item in items:
             self.canvas.itemconfig(item, outline="black")
-        self.wait(0.0)       
+        self.wait(0)
             
         ########################
         ## Control Panel Code ##
@@ -597,16 +599,21 @@ class SkipList(VisualizationApp):
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
         searchButton = self.addOperation(
             "Search", lambda: self.clickSearch(), numArguments=1,
-            validationCmd=vcmd, helpText="Click to enter number")
+            argHelpText=['key'],
+            validationCmd=vcmd, helpText="Search for an item by its key")
         insertButton = self.addOperation(
             "Insert", lambda: self.clickInsert(), numArguments=1,
-            validationCmd=vcmd)        
+            argHelpText=['key'],
+            validationCmd=vcmd, helpText='Insert an item with a particular key')
         deleteButton = self.addOperation(
             "Delete", lambda: self.clickDelete(), numArguments=1,
-            validationCmd=vcmd)
+            argHelpText=['key'],
+            validationCmd=vcmd, helpText='Delete an item by its key')
         fillButton = self.addOperation(
-            "Fill", lambda: self.clickFill(), numArguments=1, 
-            validationCmd=vcmd)
+            "Erase & Fill", lambda: self.clickFill(), numArguments=1, 
+            validationCmd=vcmd, 
+            argHelpText=['# of keys'],
+            helpText='Clear list and fill with N random items')
         # this makes the play, pause, and stop buttons 
         self.addAnimationButtons()
         return [searchButton, insertButton, deleteButton, fillButton]  
@@ -672,25 +679,20 @@ class SkipList(VisualizationApp):
         self.clearArgument()
         
     def isAnimated(self):
-        return self.animationState == self.RUNNING or self.animationState == self.PAUSED
-
-    def setAnimationState(self, animate):
-        if animate: self.animationState = self.RUNNING
-        else: self.animationState = self.STOPPED
-    
-    # The super() method freezes
-    # if STOP is pressed
-    # Adjusted so completes
-    # task, but without animation
-    def wait(self, sleepTime):    # Sleep for a user-adjusted period
-        if self.animationState and sleepTime >= 0:
-            self.canvas.update()
-            sleep(self.speed(sleepTime))     
+        return not self.animationsStopped()
     
     #####################
     ## End Of SKIPLIST ##
     #####################
 
 if __name__ == '__main__':
+    random.seed(3.14159)    # Use fixed seed for testing consistency
     s = SkipList()
+    try:
+        for arg in sys.argv[1:]:
+            if arg.isdigit():
+                s.insert(int(arg))
+                s.cleanUp()
+    except UserStop:
+        s.cleanUp()
     s.runVisualization()
