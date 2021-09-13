@@ -531,7 +531,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
     def setArguments(self, *values):
         for index in range(min(len(values), len(self.textEntries))):
-            self.setArgument(str(values[index], index))
+            self.setArgument(str(values[index]), index)
         self.argumentChanged()
 
     def setArgumentHighlight(self, index=0, color=ENTRY_BG):
