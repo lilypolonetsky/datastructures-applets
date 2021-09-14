@@ -66,8 +66,10 @@ class PointQuadtree(VisualizationApp):
     #assigns a key according to node counter
     def createNode(self, event):
         x, y = event.x, event.y
-        self.setArguments(str(x), str(y), ("P" + str(self.COUNTER)))
-        self.clickInsert()
+        while self._findNodeLabeled('P{}'.format(self.COUNTER)):
+            self.COUNTER += 1
+        self.setArguments(str(x), str(y), 'P{}'.format(self.COUNTER))
+        self.insertButton.invoke()
 
     #Assigns the designated graph-line coordinates to each node
     #If show graph checkbutton is clicked- draws the appropriate
@@ -165,7 +167,7 @@ class PointQuadtree(VisualizationApp):
             self.points.append(oval)
             node.dataObjects = [text]
 
-            self.COUNTER +=1 #keeps track of number of nodes inserted
+            self.COUNTER += 1 #keeps track of number of nodes inserted
 
             handler = lambda e: self.setArguments(str(x), str(y), str(d))
             self.canvas.tag_bind(oval, '<Button>', handler)
@@ -182,7 +184,7 @@ class PointQuadtree(VisualizationApp):
             n.countSpaces+= 25
             text  = self.canvas.create_text((x-15 + n.countSpaces), y - 12, fill = self.TEXT_COLOR,  text = key, font = self.TEXT_FONT)
             n.dataObjects.append(text), n.dataObjects.append(comma)
-            self.COUNTER +=1
+            self.COUNTER += 1
             self.cleanUp(callEnviron)
             return n
 
@@ -214,24 +216,27 @@ class PointQuadtree(VisualizationApp):
         self.nodes = []
         self.direction = None
         self.parent = None
-        self.COUNTER = 1
+        self.COUNTER = 0
         self.__root = None
         self.display()
+
+    def _findNodeLabeled(self, label):
+        for i in self.nodes:
+            for j in i.data:
+                if label == j: return i
 
     #does not allow a data point to be re-used
     def clickInsert(self):
         val = self.validArgument()
         if isinstance(val, tuple):
             x, y, d = val
-            for i in self.nodes:
-                for j in i.data:
-                    if d == j:
-                        self.setMessage("Node with the label {} already exists"
-                                        .format(d))
-                        self.setArgumentHighlight(2, self.ERROR_HIGHLIGHT)
-                        return
+            if self._findNodeLabeled(d):
+                self.setMessage(
+                    'Point labeled {} already in quadtree'.format(d))
+                self.setArgumentHighlight(2, self.ERROR_HIGHLIGHT)
+                return
             self.insert(x, y, d, start=self.startMode())
-            msg = "Value {} inserted".format(d)
+            msg = "Point {} inserted".format(d)
             self.clearArguments()
         else:
             msg = val
@@ -262,7 +267,7 @@ class PointQuadtree(VisualizationApp):
     def makeButtons(self):
         vcmd = (self.window.register(
             makeFilterValidate(self.maxArgWidth)), '%P')
-        insertButton = self.addOperation(
+        self.insertButton = self.addOperation(
             'Insert', lambda: self.clickInsert(), numArguments=3,
             argHelpText=('X coordinate', 'Y coordinate', 'Label'),
             helpText='Insert an item into the quadtree', validationCmd=vcmd)
@@ -274,7 +279,7 @@ class PointQuadtree(VisualizationApp):
             variable=self.showBoundaries,
             helpText='Toggle display of quadrant boundaries')
         self.addAnimationButtons()
-        return[insertButton, newQuadtree, showBoundariesCheckbutton]
+        return [self.insertButton, newQuadtree, showBoundariesCheckbutton]
 
 if __name__ == '__main__':
     quadtree = PointQuadtree()
