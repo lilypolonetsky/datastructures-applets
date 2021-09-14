@@ -1,10 +1,10 @@
 from tkinter import *
 
 try:
-    from coordinates import *
+    from tkUtilities import *
     from VisualizationApp import *
 except ModuleNotFoundError:
-    from .coordinates import *
+    from .tkUtilities import *
     from .VisualizationApp import *
 
 class Node(object):
@@ -26,24 +26,36 @@ class PointQuadtree(VisualizationApp):
     ROOT_OUTLINE = 'yellow'
     TEXT_FONT = ("Helvetica", '10')
     CIRCLE_DIMEN = 8
-    CANVAS_COLOR = 'LightSkyBlue1'
+    BUFFER_ZONE = (-10, -10, 50, 0)
+    POINT_REGION_COLOR = 'LightSkyBlue1'
 
     def __init__(self, maxArgWidth=MAX_ARG_WIDTH, title="Point Quadtree",
-                 **kwargs):
+                 pointRegion=None, **kwargs):
+        if 'canvasBounds' not in kwargs:
+            kwargs['canvasBounds'] = (0, 0, kwargs.get('canvasWidth', 800),
+                                      kwargs.get('canvasHeight', 400))
         super().__init__(title=title, maxArgWidth = maxArgWidth, **kwargs)
-        self.__root = None
+        if pointRegion is None:
+            pointRegion = V(self.canvasBounds) - V(self.BUFFER_ZONE)
+        self.pointRegion = pointRegion
+        self.showBoundaries = IntVar()
+        self.showBoundaries.set(1)
         self.buttons = self.makeButtons()
-        self.points = []
-        self.nodes = []
-        self.lines = []
-        self.COUNTER = 1
         self.direction = None #used in the draw lines function
         self.parent = None    #allows for creating coords of intersecting lines with recursion
         self.showTree = False
         self.rootOutline = None
-        self.canvas['background'] = self.CANVAS_COLOR
-        self.canvas.bind('<Button>', self.setXY)
-        self.canvas.bind('<Double-Button-1>', self.createNode)
+        self.new()
+
+    def display(self):
+        self.canvas.delete('all')
+        self.pointRegionRectangle = self.canvas.create_rectangle(
+            *self.pointRegion, fill=self.POINT_REGION_COLOR, width=0,
+            outline='')
+        
+        self.canvas.tag_bind(self.pointRegionRectangle, '<Button>', self.setXY)
+        self.canvas.tag_bind(self.pointRegionRectangle, '<Double-Button-1>',
+                             self.createNode)
 
     #fills the x,y coordinates upon single canvas  mouse click
     def setXY(self, event):
@@ -192,15 +204,7 @@ class PointQuadtree(VisualizationApp):
     #clears canvas, and deletes all the nodes
     #with accompanying data and lines
     def new(self):
-        for i in self.points:
-            self.canvas.delete(i)
-        for i in self.nodes:
-            for j in i.dataObjects:
-                self.canvas.delete(j)
-            i.dataObjects = []
-        for i in self.lines:
-            self.canvas.delete(i)
-        self.canvas.delete(self.rootOutline)
+        self.canvas.delete('all')
         self.points = []
         self.lines= []
         self.nodes = []
@@ -208,39 +212,48 @@ class PointQuadtree(VisualizationApp):
         self.parent = None
         self.COUNTER = 1
         self.__root = None
+        self.display()
 
     #does not allow a data point to be re-used
     def clickInsert(self):
         val = self.validArgument()
         if isinstance(val, tuple):
-            x, y, d= val
+            x, y, d = val
             for i in self.nodes:
                 for j in i.data:
-                    if d== j:
-                        self.setMessage("Node with the data {} already exists".format(d))
+                    if d == j:
+                        self.setMessage("Node with the label {} already exists"
+                                        .format(d))
+                        self.setArgumentHighlight(2, self.ERROR_HIGHLIGHT)
                         return
             self.insert(x,y,d)
             msg = "Value {} inserted".format(d)
+            self.clearArguments()
         else:
             msg = val
         self.setMessage(msg)
-        for i in range(len(self.textEntries)):
-            self.clearArgument(index = i)
 
     #allows only numbers for coords that are within canvas size
     #everything aside from commas and spaces for data
     def validArgument(self):
-        x, y,d = self.getArguments()
-        if not(x) or not x.isdigit():
-            return "Please insert valid x coordinate"
-        elif not(y) or not y.isdigit():
-            return "Please insert valid y coordinate"
-        elif int(x)> int(self.canvas.winfo_width()) or int(y)>int(self.canvas.winfo_height()):
-            return "Coordinates must be within canvas coordinates"
-        elif len(str(d))>4: "Length of data cannot exceed four characters"
-        elif "," in str(d) or " " in str(d):
-            return "Data may not include commas or spaces"
-        return x, y, d
+        x, y, d = self.getArguments()
+        msg = ''
+        if not (x.isdigit() and y.isdigit() and
+                BBoxContains(self.pointRegion, (int(x), int(y)))):
+            msg = "({}, {}) does not lie within {}".format(
+                x, y, self.pointRegion)
+            for argIndex in (0, 1):
+                self.setArgumentHighlight(argIndex, self.ERROR_HIGHLIGHT)
+        if not (0 < len(d) and len(d) <= self.maxArgWidth):
+            if msg: msg += '\n'
+            msg += 'Label must be between 1 and {} characters'.format(
+                self.maxArgWidth)
+            self.setArgumentHighlight(2, self.ERROR_HIGHLIGHT)
+        if "," in d or " " in d:
+            if msg: msg += '\n'
+            msg += 'Label may not include commas or spaces'
+            self.setArgumentHighlight(2, self.ERROR_HIGHLIGHT)
+        return msg if msg else (x, y, d)
 
     def makeButtons(self):
         insertButton = self.addOperation(
@@ -251,7 +264,8 @@ class PointQuadtree(VisualizationApp):
             'New', lambda: self.new(), helpText='Create new, empty quadtree')
         showTreeCheckbutton = self.addOperation(
             'Show Boundaries',
-            lambda: self.graphLineDisplay(), buttonType = Checkbutton,
+            lambda: self.graphLineDisplay(), buttonType=Checkbutton,
+            variable=self.showBoundaries,
             helpText='Toggle display of quadrant boundaries')
         return[insertButton, newQuadtree, showTreeCheckbutton]
 
