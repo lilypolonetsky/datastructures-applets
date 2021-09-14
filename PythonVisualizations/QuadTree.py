@@ -127,8 +127,10 @@ class PointQuadtree(VisualizationApp):
 
 
     #wrapper method for insert
-    def insert(self, x, y, d):
+    def insert(self, x, y, d, start=True):
+        callEnviron = self.createCallEnvironment(startAnimations=start)
         self.__root = self.__insert(self.__root, x, y, d)
+        self.cleanUp(callEnviron)
 
     #creates a new node if none at designated coords
     #otherwise adds data to existing coordinate
@@ -168,6 +170,7 @@ class PointQuadtree(VisualizationApp):
             handler = lambda e: self.setArguments(str(x), str(y), str(d))
             self.canvas.tag_bind(oval, '<Button>', handler)
 
+            self.cleanUp(callEnviron)
             return node
 
         # if the point to be inserted is identical to the current node,
@@ -180,6 +183,7 @@ class PointQuadtree(VisualizationApp):
             text  = self.canvas.create_text((x-15 + n.countSpaces), y - 12, fill = self.TEXT_COLOR,  text = key, font = self.TEXT_FONT)
             n.dataObjects.append(text), n.dataObjects.append(comma)
             self.COUNTER +=1
+            self.cleanUp(callEnviron)
             return n
 
 
@@ -226,7 +230,7 @@ class PointQuadtree(VisualizationApp):
                                         .format(d))
                         self.setArgumentHighlight(2, self.ERROR_HIGHLIGHT)
                         return
-            self.insert(x,y,d)
+            self.insert(x, y, d, start=self.startMode())
             msg = "Value {} inserted".format(d)
             self.clearArguments()
         else:
@@ -256,18 +260,21 @@ class PointQuadtree(VisualizationApp):
         return msg if msg else (x, y, d)
 
     def makeButtons(self):
+        vcmd = (self.window.register(
+            makeFilterValidate(self.maxArgWidth)), '%P')
         insertButton = self.addOperation(
             'Insert', lambda: self.clickInsert(), numArguments=3,
             argHelpText=('X coordinate', 'Y coordinate', 'Label'),
-            helpText='Insert an item into the quadtree')
+            helpText='Insert an item into the quadtree', validationCmd=vcmd)
         newQuadtree = self.addOperation(
             'New', lambda: self.new(), helpText='Create new, empty quadtree')
-        showTreeCheckbutton = self.addOperation(
+        showBoundariesCheckbutton = self.addOperation(
             'Show Boundaries',
             lambda: self.graphLineDisplay(), buttonType=Checkbutton,
             variable=self.showBoundaries,
             helpText='Toggle display of quadrant boundaries')
-        return[insertButton, newQuadtree, showTreeCheckbutton]
+        self.addAnimationButtons()
+        return[insertButton, newQuadtree, showBoundariesCheckbutton]
 
 if __name__ == '__main__':
     quadtree = PointQuadtree()
