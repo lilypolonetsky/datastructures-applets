@@ -232,7 +232,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         withArgs, withoutArgs = self.getOperations()
         if numArguments:
             while len(self.textEntries) < numArguments:  # Build argument entry
-                textEntry = self.makeArgumentEntry(validationCmd)
+                textEntry = self.createArgumentEntry(validationCmd)
                 self.textEntries.append(textEntry)
                 textEntry.grid(
                     column=self.argsColumn, row=len(self.textEntries), padx=8)
@@ -293,7 +293,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             self.opSeparator.grid_configure(
                 rowspan=max(nRows, self.entryHintRow if self.entryHint else 1))
         
-    def makeArgumentEntry(self, validationCmd):
+    def createArgumentEntry(self, validationCmd):
         entry = Entry(
             self.operations, width=self.maxArgWidth * 5 // 4, bg=self.ENTRY_BG,
             validate='key', validatecommand=validationCmd, 
@@ -531,7 +531,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
     def setArguments(self, *values):
         for index in range(min(len(values), len(self.textEntries))):
-            self.setArgument(str(values[index], index))
+            self.setArgument(str(values[index]), index)
         self.argumentChanged()
 
     def setArgumentHighlight(self, index=0, color=ENTRY_BG):
@@ -549,7 +549,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
         for i, entry in enumerate(self.textEntries):
             if widget == entry:  # For the entry widget that changed,
-                self.setArgumentHighlight(i) # clean any error highlight
+                self.setArgumentHighlight(i) # clear any error highlight
             
     def setMessage(self, val=''):
         self.messageText.set(val)
@@ -1019,7 +1019,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.startAnimations(state=Animation.STEP)
 
     def startAnimations(self, enableStops=True, state=None):
-        self.animationState = state if state is not None else (
+        self.animationState = state if state in set(Animation) else (
             self.animationState if self.animationState in (Animation.RUNNING,
                                                            Animation.STEP)
             else Animation.RUNNING)
