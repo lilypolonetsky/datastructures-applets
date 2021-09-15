@@ -170,7 +170,7 @@ class PointQuadtree(VisualizationApp):
             items += (self.canvas.create_oval(
                 nX - ring, nY - ring, nX + ring, nY + ring,
                 outline=self.ROOT_OUTLINE, width=3),)
-            self.canvas.tag_lower(items[-1])          
+            self.canvas.tag_lower(items[-1], 'boundary')
 
         self.canvas.tag_bind(
             items[2], '<Button-1>',
