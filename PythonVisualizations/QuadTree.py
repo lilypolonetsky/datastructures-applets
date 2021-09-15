@@ -2,22 +2,39 @@ from tkinter import *
 
 try:
     from tkUtilities import *
+    from drawnValue import *
     from VisualizationApp import *
 except ModuleNotFoundError:
     from .tkUtilities import *
+    from .drawnValue import *
     from .VisualizationApp import *
 
-class Node(object):
-    def __init__(self, x, y, d):
-        self.x = x
-        self.y = y
-        self.data = [d] # might be more than one data at this coord
-        self.dataObjects = [] #keeps track of text objects
-        self.NE = self.SE = self.SW = self.NW = None
-        self.countSpaces = 0
-        #used for drawing intersecting lines
-        self.horizontal_line = None
-        self.vertical_line = None
+class Node(drawnValue):
+    fields = ('x', 'y', 'data', 'NE', 'SE', 'SW', 'NW', 'BBox')
+    findex = dict((field, i) for i, field in enumerate(fields))
+    def __init__(self, x, y, d, BBox):
+        super().__init__((x, y, [d], None, None, None, None, BBox))
+
+    def __getitem__(self, key): # Implement positIonal access
+        if isinstance(key, int):
+            if 0 <= key and key < len(Node.findex):
+                return self.val[key]
+            raise IndexError
+        elif isinstance(key, str) and key in Node.findex:
+            return self.val[Node.findex[key]]
+
+    def __getattr__(self, name):
+        if name in Node.findex:
+            return self.val[Node.findex[name]]
+        else:
+            return super().__getattr__(name)
+
+    def __setattr__(self, name, val):
+        if name in Node.findex:
+            fi = Node.findex[name]
+            self.val = self.val[:fi] + (val, ) + self.val[fi+1:]
+        else:
+            return super().__setattr__(name, val)
 
 class PointQuadtree(VisualizationApp):
     MAX_ARG_WIDTH = 4
@@ -25,9 +42,10 @@ class PointQuadtree(VisualizationApp):
     TEXT_COLOR = 'red'
     ROOT_OUTLINE = 'yellow'
     TEXT_FONT = ("Helvetica", '10')
-    CIRCLE_DIMEN = 8
-    BUFFER_ZONE = (-10, -10, 50, 0)
-    POINT_REGION_COLOR = 'LightSkyBlue1'
+    CIRCLE_RADIUS = 4
+    BUFFER_ZONE = (-10, -20, 50, 0)
+    POINT_REGION_COLOR = 'cyan'
+    POINT_COLOR = 'black'
 
     def __init__(self, maxArgWidth=MAX_ARG_WIDTH, title="Point Quadtree",
                  pointRegion=None, **kwargs):
@@ -41,12 +59,26 @@ class PointQuadtree(VisualizationApp):
         self.showBoundaries = IntVar()
         self.showBoundaries.set(1)
         self.buttons = self.makeButtons()
-        self.direction = None #used in the draw lines function
-        self.parent = None    #allows for creating coords of intersecting lines with recursion
-        self.showTree = False
-        self.rootOutline = None
         self.new()
 
+    def canvasCoords(self, userX, userY):
+        return self.pointRegion[0] + userX, self.pointRegion[3] - userY
+    
+    def userCoords(self, canvasX, canvasY):
+        return canvasX - self.pointRegion[0], self.pointRegion[3] - canvasY
+
+    def canvasBBox(self, userBBox):
+        return (self.pointRegion[0] + userBBox[0],
+                self.pointRegion[3] - userBBox[3],
+                self.pointRegion[0] + userBBox[2],
+                self.pointRegion[3] - userBBox[1])
+    
+    def userBBox(self, canvasBBox):
+        return (canvasBBox[0] - self.pointRegion[0],
+                self.pointRegion[3] - canvasBBox[3],
+                canvasBBox[2] - self.pointRegion[0],
+                self.pointRegion[3] - canvasBBox[1])
+    
     def display(self):
         self.canvas.delete('all')
         self.pointRegionRectangle = self.canvas.create_rectangle(
@@ -59,153 +91,95 @@ class PointQuadtree(VisualizationApp):
 
     #fills the x,y coordinates upon single canvas  mouse click
     def setXY(self, event):
-        x, y = event.x, event.y
+        x, y = self.userCoords(event.x, event.y)
         self.setArguments(str(x), str(y))
 
     #creates new node in coordinates of double canvas mouse click
-    #assigns a key according to node counter
     def createNode(self, event):
-        x, y = event.x, event.y
-        while self._findNodeLabeled('P{}'.format(self.COUNTER)):
-            self.COUNTER += 1
-        self.setArguments(str(x), str(y), 'P{}'.format(self.COUNTER))
+        x, y = self.userCoords(event.x, event.y)
+        n = sum(len(n.data) for n in self.nodes)
+        while self._findNodeLabeled('P{}'.format(n)): n += 1
+        self.setArguments(str(x), str(y), 'P{}'.format(n))
         self.insertButton.invoke()
-
-    #Assigns the designated graph-line coordinates to each node
-    #If show graph checkbutton is clicked- draws the appropriate
-    #horizontal and vertical lines
-    def drawLine(self, n, parent, direction):
-        if not self.direction:
-            n.horizontal_line =2, n.y, self.canvas.winfo_width(), n.y
-            n.vertical_line = n.x, 2, n.x, self.canvas.winfo_height()
-            
-        else:
-            p_Hx0, p_Hy0, p_Hx1, p_Hy1 = parent.horizontal_line
-            p_Vx0, p_Vy0, p_Vx1, p_Vy1 = parent.vertical_line
-            S_vertical_line = n.x, parent.y, n.x, p_Vy1
-            N_vertical_line = n.x, p_Vy0, n.x, parent.y
-            W_horizontal_line = p_Hx0, n.y, parent.x, n.y
-            E_horizontal_line = parent.x, n.y, p_Hx1 , n.y
-            if self.direction == NE:
-                n.horizontal_line = E_horizontal_line
-                n.vertical_line = N_vertical_line
-            elif self.direction== NW:
-                n.horizontal_line = W_horizontal_line
-                n.vertical_line = N_vertical_line
-            elif self.direction == SW:
-                n.horizontal_line = W_horizontal_line
-                n.vertical_line = S_vertical_line
-            elif self.direction == SE:
-                n.horizontal_line = E_horizontal_line
-                n.vertical_line = S_vertical_line
-            self.direction = None
-        if self.showTree == False: return
-        return self.canvas.create_line(n.horizontal_line, fill = self.LINE_COLOR), self.canvas.create_line(n.vertical_line, fill = self.LINE_COLOR)
-
-    #Switches the showTree attribute
-    #deletes all the lines and root highlight if showTree is off
-    #Otherwise draws all the lines at appropriate coordinates and the root highlight
-    def graphLineDisplay(self):
-        if self.showTree == True:
-            self.showTree= False
-            for i in self.lines: self.canvas.delete(i)
-            self.lines = []
-            self.canvas.delete(self.rootOutline)
-
-        else:
-            self.showTree= True
-            for i in self.nodes:
-                if i == self.__root:
-                    self.rootOutline = self.canvas.create_oval((i.x - self.CIRCLE_DIMEN//2-2,
-                                                                i.y- self.CIRCLE_DIMEN//2-2,
-                                             i.x + self.CIRCLE_DIMEN//2+2,
-                                             i.y + self.CIRCLE_DIMEN//2 +2),
-                                            outline = self.ROOT_OUTLINE, width = 3)
-                    self.canvas.lift(self.rootOutline)
-                horiz = self.canvas.create_line(i.horizontal_line, fill = self.LINE_COLOR)
-                vert = self.canvas.create_line(i.vertical_line, fill = self.LINE_COLOR)
-                self.canvas.lower(horiz), self.canvas.lower(vert)
-                self.lines.append(horiz), self.lines.append(vert)
-
 
     #wrapper method for insert
     def insert(self, x, y, d, start=True):
         callEnviron = self.createCallEnvironment(startAnimations=start)
-        self.__root = self.__insert(self.__root, x, y, d)
+        self.__root = self.__insert(self.__root, x, y, d,
+                                    self.userBBox(self.pointRegion))
         self.cleanUp(callEnviron)
 
     #creates a new node if none at designated coords
     #otherwise adds data to existing coordinate
-    def __insert(self, n, x, y, d):
+    def __insert(self, n, x, y, d, bbox):
         callEnviron = self.createCallEnvironment()
-        # return a new Node if we've reached None
+
         x = int(x)
         y = int(y)
 
-        if not n:
-            node = Node(x, y, d)
-            self.nodes.append(node)
-            node.countSpaces = 1
-
-
-            if self.showTree == True:
-                hor, ver = self.drawLine(node,self.parent, self.direction)
-                self.lines.append(hor), self.lines.append(ver)
-                if not self.__root: self.rootOutline = self.canvas.create_oval(
-                (x - self.CIRCLE_DIMEN//2-2,
-                y- self.CIRCLE_DIMEN//2-2, x + self.CIRCLE_DIMEN//2+2,
-                y + self.CIRCLE_DIMEN//2 +2),
-                outline = self.ROOT_OUTLINE, width = 3)
-
-            else: self.drawLine(node,self.parent, self.direction)
-
-            oval = self.canvas.create_oval(x - self.CIRCLE_DIMEN//2,
-                                           y- self.CIRCLE_DIMEN//2,
-                                           x + self.CIRCLE_DIMEN//2,
-                                           y + self.CIRCLE_DIMEN//2, fill = "BLACK")
-            text  = self.canvas.create_text(x-15, y - 12, text = d, fill = self.TEXT_COLOR, font = self.TEXT_FONT)
-            self.points.append(oval)
-            node.dataObjects = [text]
-
-            self.COUNTER += 1 #keeps track of number of nodes inserted
-
-            handler = lambda e: self.setArguments(str(x), str(y), str(d))
-            self.canvas.tag_bind(oval, '<Button>', handler)
-
-            self.cleanUp(callEnviron)
-            return node
+        if not n:        # return a new Node if we've reached an empty leaf
+            n = Node(x, y, d, bbox)
+            self.nodes.append(n)
+            n.items = self.createPointItems(n, self.__root is None)
+            if self.__root is None:
+                self.__root = n
 
         # if the point to be inserted is identical to the current node,
-        # add the data to the list of data, but don't recurse any further
-        if n.x == x and n.y == y:
+        # add the data to the list of data
+        elif n.x == x and n.y == y:
             n.data.append(d)
-            key = d
-            comma = self.canvas.create_text((x-3 + n.countSpaces), y - 12, fill = self.TEXT_COLOR,  text = ",", font = self.TEXT_FONT)
-            n.countSpaces+= 25
-            text  = self.canvas.create_text((x-15 + n.countSpaces), y - 12, fill = self.TEXT_COLOR,  text = key, font = self.TEXT_FONT)
-            n.dataObjects.append(text), n.dataObjects.append(comma)
-            self.COUNTER += 1
-            self.cleanUp(callEnviron)
-            return n
+            self.canvas.itemConfig(n.items[3], text=', '.join(n.data))
 
-
-        # recurse down into the appropriate quadrant
-        self.parent = n
-        if   x >= n.x and y >= n.y:
-            self.direction = SE
-            n.SE = self.__insert(n.SE, x, y, d)
-        elif x >= n.x and y <  n.y:
-            self.direction = NE
-            n.NE = self.__insert(n.NE, x, y, d)
-        elif x <  n.x and y >= n.y:
-            self.direction = SW
-            n.SW = self.__insert(n.SW, x, y, d)
+        elif x >= n.x and y > n.y: # Otherwise, find correct quadrant
+            n.NE = self.__insert(n.NE, x, y, d,
+                                 (n.x, n.y, n.BBox[2], n.BBox[3]))
+        elif x > n.x and y <=  n.y:
+            n.SE = self.__insert(n.SE, x, y, d,
+                                 (n.x, n.BBox[1], n.BBox[2], n.y))
+        elif x <= n.x and y <  n.y:
+            n.SW = self.__insert(n.SW, x, y, d,
+                                 (n.BBox[0], n.BBox[1], n.x, n.y))
         else:
-            self.direction = NW
-            n.NW = self.__insert(n.NW, x, y, d)
+            n.NW = self.__insert(n.NW, x, y, d,
+                                 (n.BBox[0], n.y, n.x, n.BBox[3]))
 
         self.cleanUp(callEnviron)
         return n
+
+    def createPointItems(self, node, isRoot=False):
+        R = self.CIRCLE_RADIUS
+        ring = self.CIRCLE_RADIUS + 2
+        nX, nY = self.canvasCoords(node.x, node.y)
+        bbox = self.canvasBBox(node.BBox)
+        items = (
+            self.canvas.create_line(
+                nX, bbox[1], nX, bbox[3],
+                fill=self.LINE_COLOR, tags=('boundary', 'vertical')),
+            self.canvas.create_line(
+                bbox[0], nY, bbox[2], nY,
+                fill=self.LINE_COLOR, tags=('boundary', 'horizontal')),
+            self.canvas.create_oval(
+                nX - R, nY - R, nX + R, nY + R,
+                fill=self.POINT_COLOR, tags=('point',)),
+            self.canvas.create_text(
+                nX - R * 3, nY - R * 2, text=', '.join(node.data),
+                anchor=SW, fill=self.TEXT_COLOR, font=self.TEXT_FONT,
+                tags=('point', 'label')))
+        self.canvas.tag_lower('boundary', 'point')
+        if isRoot:
+            items += (self.canvas.create_oval(
+                nX - ring, nY - ring, nX + ring, nY + ring,
+                outline=self.ROOT_OUTLINE, width=3),)
+            self.canvas.tag_lower(items[-1])          
+
+        self.canvas.tag_bind(
+            items[2], '<Button-1>',
+            lambda e: self.setArguments(str(node.x), str(node.y),
+                                        node.data[0] if node.data else ''))
+        for item in items[:2]:
+            self.canvas.tag_bind(item, '<Button>', self.setXY)
+            self.canvas.tag_bind(item, '<Double-Button-1>', self.createNode)
+        return items
 
     #clears canvas, and deletes all the nodes
     #with accompanying data and lines
@@ -216,7 +190,6 @@ class PointQuadtree(VisualizationApp):
         self.nodes = []
         self.direction = None
         self.parent = None
-        self.COUNTER = 0
         self.__root = None
         self.display()
 
@@ -242,15 +215,19 @@ class PointQuadtree(VisualizationApp):
             msg = val
         self.setMessage(msg)
 
+    def changeBoundaryDisplay(self):
+        self.canvas.itemConfig(
+            'boundary', state=NORMAL if self.showBoundaries.get() else HIDDEN)
+        
     #allows only numbers for coords that are within canvas size
     #everything aside from commas and spaces for data
     def validArgument(self):
         x, y, d = self.getArguments()
         msg = ''
+        bbox = self.userBBox(self.pointRegion)
         if not (x.isdigit() and y.isdigit() and
-                BBoxContains(self.pointRegion, (int(x), int(y)))):
-            msg = "({}, {}) does not lie within {}".format(
-                x, y, self.pointRegion)
+                BBoxContains(bbox, (int(x), int(y)))):
+            msg = "({}, {}) does not lie within {}".format(x, y, bbox)
             for argIndex in (0, 1):
                 self.setArgumentHighlight(argIndex, self.ERROR_HIGHLIGHT)
         if not (0 < len(d) and len(d) <= self.maxArgWidth):
@@ -275,7 +252,7 @@ class PointQuadtree(VisualizationApp):
             'New', lambda: self.new(), helpText='Create new, empty quadtree')
         showBoundariesCheckbutton = self.addOperation(
             'Show Boundaries',
-            lambda: self.graphLineDisplay(), buttonType=Checkbutton,
+            lambda: self.changeBoundaryDisplay(), buttonType=Checkbutton,
             variable=self.showBoundaries,
             helpText='Toggle display of quadrant boundaries')
         self.addAnimationButtons()
