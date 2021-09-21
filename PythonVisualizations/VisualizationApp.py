@@ -712,16 +712,18 @@ class VisualizationApp(Visualization): # Base class for visualization apps
             if debug:
                 print('Timer ID set to', getattr(ct, resize_ID, None))
             ct['width'] = desired
-
-    def highlightCode(self, fragments, callEnviron, wait=0, color=None):
+    
+    def highlightCode(
+            self, fragments, callEnviron, wait=0, color=None, returnValue=None):
         '''Highlight a code fragment for a particular call environment.
         Multiple fragments can be highlighted.  Each fragment can be
         either a string of code, or a (string, int) tuple where the int
         is 1 for the first instance of the string, 2 for the second, etc.
+        Return's the given returnValue for use in Boolean expressions.
         '''
         codeBlock = self.getCodeHighlightBlock(callEnviron)
         if self.codeText is None or codeBlock is None: 
-            return        # This should only happen when code is hidden
+            return returnValue   # This should only happen when code is hidden
         if color is None:
             color = self.CODE_HIGHLIGHT
         if isinstance(fragments, (list, tuple)):
@@ -755,6 +757,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 ', '.join(tags), ', '.join(codeBlock.cache.keys())))
         if wait > 0 or self.animationsStepping(): # Optionally weit for a time
             self.wait(wait)                       # or pause at a step
+        return returnValue
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
