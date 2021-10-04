@@ -371,6 +371,58 @@ class Scrim(Canvas):
     def getItemFont(self, item):
         return parseTkFont(self.itemConfig(item, 'font'))
 
+    def create_hashed_rectangle(
+            self, x0, y0, x1, y1, angle=45, spacing=10, **kwargs):
+        '''Create a hashed rectangle by drawing a polygon of parallel
+        lines separarted by spacing pixels.  Color can be specified
+        by either the fill or outline keyword argument.  Other keyword
+        arguments have the same effect as for create_polygon.'''
+        color = kwargs.get('outline', kwargs.get('fill', 'black'))
+        kwargs['fill'] = ''
+        kwargs['outline'] = color
+        angle = angle % 180
+        Arad = math.radians(angle)
+        tanA = math.tan(Arad)
+        cosA, sinA = math.cos(Arad), math.sin(Arad)
+        BBox = (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+        size = BBoxSize(BBox)
+        spacing = max(1, spacing)
+        steps = math.ceil(V(size).dot(V(abs(sinA), abs(cosA))) / spacing)
+        points = [(BBox[i], BBox[j])
+                  for i, j in ((0, 1), (0, 3), (2, 3), (2, 1), (0, 1))]
+        gap = spacing / max(abs(cosA), abs(sinA))
+        for a in range(steps):
+            odd = a % 2 == 1
+            if 45 < angle and angle <= 135:
+                xlo = BBox[0] + a * gap - max(0, size[1] / tanA)
+                xhi = xlo + size[1] / tanA
+                ylo = BBox[1] + max(0, xlo - BBox[2], BBox[0] - xlo) * abs(tanA)
+                yhi = BBox[3] - max(0, xhi - BBox[2], BBox[0] - xhi) * abs(tanA)
+            else:
+                ylo = BBox[1] + a * gap - max(0, size[0] * tanA)
+                yhi = ylo + size[0] * tanA
+                xlo = BBox[0] + max(0, ylo - BBox[3], BBox[1] - ylo) / abs(tanA)
+                xhi = BBox[2] - max(0, yhi - BBox[3], BBox[1] - yhi) / abs(tanA)
+            p1 = (min(BBox[2], max(BBox[0], xlo if odd else xhi)),
+                  min(BBox[3], max(BBox[1], ylo if odd else yhi)))
+            p2 = (min(BBox[2], max(BBox[0], xhi if odd else xlo)),
+                  min(BBox[3], max(BBox[1], yhi if odd else ylo)))
+            dx, dy = V(p1) - V(points[-1])
+            if dx * dy != 0:  # If next point spans a corner, include corner
+                cornerX = BBox[0 if min(p1[0], points[-1][0]) == BBox[0] else 2]
+                cornerY = BBox[1 if min(p1[1], points[-1][1]) == BBox[1] else 3]
+                points.append((cornerX, cornerY))
+            points.append(p1)
+            points.append(p2)
+
+        # Ensure last point is on outer boundary connected to first point
+        if points[0][0] != points[-1][0] and points[0][1] != points[-1][1]:
+            if points[1][0] == points[-1][0] or points[1][1] == points[-1][1]:
+                points.append(points[1])
+            else:
+                points.append(points[3])
+        return self.create_polygon(*flat(*points), **kwargs)
+
 # Tk image utilities
 __tk_image_cache__ = {'Img': {}, 'PhotoImage': {}, 'debug': False}
 
@@ -552,24 +604,45 @@ if __name__ == '__main__':
 
         return groupButtonPress
     
+    def hashedRectRotator(rect, bbox, angle=10, spacing=10,
+                          deltaAngle=10, deltaSpacing=0):
+        def rotateHashedRectangle(event=None):
+            config = scrim.itemConfig(rect)
+            newRect = scrim.create_hashed_rectangle(
+                *bbox, angle=angle + deltaAngle, spacing=spacing + deltaSpacing,
+                **config)
+            scrim.delete(rect)
+            scrim.tag_bind(newRect, '<Button-1>',
+                           hashedRectRotator(newRect, bbox, angle + deltaAngle,
+                                             spacing + deltaSpacing,
+                                             deltaAngle, deltaSpacing))
+        return rotateHashedRectangle
+    
     tags = []
+    shapeCreators = [scrim.create_arc, scrim.create_oval,
+                     scrim.create_hashed_rectangle]
+    
     for x0, y0 in (
             (50, 20), (100, 90), (180, 110), (240, 110), (300, 130), (380, 150)):
         g = len(tags)
         tag = 'group{:02d}'.format(g)
-        shape = [scrim.create_arc, scrim.create_oval, scrim.create_rectangle][
-            g % 3]
+        shape = shapeCreators[g % len(shapeCreators)]
         kwargs = (
-            {'start': 30, 'extent': 200} if shape == scrim.create_arc else {})
+            {'start': 30, 'extent': 200} if shape == scrim.create_arc else
+            {'angle': g * 9, 'spacing': g * 4}
+            if shape == scrim.create_hashed_rectangle else {})
+        bbox = (x0 + g * 10, y0 + 50, x0 + 100 + g * 10, y0 + 200 - g * 10)
         shapeItem = shape(
-            x0 + g * 10, y0 + 50,
-            x0 + 100 + g * 10, y0 + 200 - g * 10,
-            fill=palette[(g + 0) % nc], activefill=palette[(g + 1) % nc],
+            *bbox, fill=palette[(g + 0) % nc], activefill=palette[(g + 1) % nc],
             disabledfill=palette[(g + 2) % nc],
             outline=palette[(g + 3) % nc], activeoutline=palette[(g + 4) % nc], 
             disabledoutline=palette[(g + 5) % nc],
             width=1, activewidth=3, disabledwidth=5, disableddash=(5, 5),
             tags=tag, **kwargs)
+        if shape == scrim.create_hashed_rectangle:
+            scrim.tag_bind(shapeItem, '<Button-1>',
+                           hashedRectRotator(shapeItem, bbox, **kwargs))
+            
         g = (g + 1) % nc
         if palette[g] == '': g += 1
         line = scrim.create_line(
