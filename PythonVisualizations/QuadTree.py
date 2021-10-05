@@ -1,4 +1,6 @@
 from tkinter import *
+from math import *
+import re, random
 
 try:
     from tkUtilities import *
@@ -8,10 +10,132 @@ except ModuleNotFoundError:
     from .tkUtilities import *
     from .drawnValue import *
     from .VisualizationApp import *
+    
+def euclideanDistance(x1, y1, x2, y2):
+    dx = x1 - x2
+    dy = y1 - y2
+    return (dx*dx + dy*dy) ** 0.5
+
+class Bounds(object): 
+    def __init__(self, left = -inf, right  = inf, 
+                       top  =  inf, bottom = -inf):
+        Bounds.adjust(self, left, right, top, bottom)
+        
+    # mutator to initialize/change bounds in existing object
+    def adjust(self, left, right, top, bottom):
+        self._l = left
+        self._r = right
+        self._t = top
+        self._b = bottom        
+        
+    # return a new Bounds, where some of the 
+    # current boundaries have been adjusted
+    def adjusted(self, left = None, right = None, 
+                       top = None,  bottom = None):
+  
+        if left   == None: left   = self._l
+        if right  == None: right  = self._r
+        if top    == None: top    = self._t
+        if bottom == None: bottom = self._b
+        
+        return Bounds(left, right, top, bottom)
+    
+    # return True if bounds of the rectangles intersect.
+    # Two rectangles don't intersect if one is totally to 
+    # the left of or above the other. So we negate to 
+    # determine if they do intersect.    
+    def intersects(self, other):
+        return not (
+            # check if self's box is to left or right of other
+            self._r < other._l  or  self._l > other._r or 
+            
+            # check if self's box is above or below other
+            self._b > other._t  or  self._t < other._b)  
+    
+    # return True if the bounds of self fall within other
+    def within(self, other):
+        return (self._r < other._r and 
+                self._l > other._l and
+                self._t < other._t and
+                self._b > other._b)
+
+    def __str__(self):
+        return '<left:{:3.1f}, right:{:3.1f}, bottom:{:3.1f}, top:{:3.1f}>'.format(
+            self._l, self._r, self._b, self._t)
+
+# A bounding box that surrounds a search circle.
+# Properly handles distorted circles resulting 
+# from geographic coordinates.
+class CircleBounds(Bounds):
+    def __deltas(self, a, b, r, func=euclideanDistance):
+        # default is infinite bounds, in case r is inf
+        deltaA = deltaB = inf
+        
+        if r != inf:
+            # for cartesian coordinates, the edges of the bounding 
+            # box are r away from the center of the search circle.
+            if func == euclideanDistance: deltaA = deltaB = r
+            
+            else: # geographic coordinates
+                # The width of the bounding box is determined by
+                # the width of the distorted circle at its widest
+                # point.  
+                alpha = r / RADIUS_OF_EARTH
+                gamma = radians(90 - abs(b)) # b is latitude
+            
+                # if the circle itself crosses the pole then 
+                # alpha >= gamma, so we leave deltaA as inf,
+                # effectively treating the width as if it were inf 
+                if alpha < gamma: 
+                    # the circle doesn't cross a pole, so get
+                    # longitude angle from center of circle at 
+                    # the circle's widest width calculated using
+                    # a spherical right triangle identity. 
+                    deltaA = degrees(asin(sin(alpha) / sin(gamma))) #d_long
+            
+                # latitude angle directly above/below the 
+                # center of the circle. This works since above
+                # or below is directly on a meridian. 
+                deltaB = degrees(alpha)    # d_lat
+                
+        return deltaA, deltaB
+
+    # create the bounding box that surrounds the search
+    # circle at a,b,r using the specified distance func
+    def __init__(self, a, b, r, func=euclideanDistance):
+        # remember the circle's parameters for later
+        self.__a, self.__b, self._r = a, b, r       
+        self.__func = func
+
+        # get the width/height of the bounding box
+        deltaA, deltaB = self.__deltas(a, b, r, func)
+                
+        # initialize the superclass's rectangular bounds
+        super().__init__(a - deltaA,  # left
+                         a + deltaA,  # right
+                         b + deltaB,  # top
+                         b - deltaB)  # bottom
+    
+    # if the circle's radius changed, mutate its bounds    
+    def adjust(self, r):
+        if r != self._r:
+            self._r = r
+            
+            # new dimensions of bounding box
+            deltaA, deltaB = \
+                self.__deltas(self.__a, self.__b, r, self.__func)
+            
+            # update the box
+            super().adjust(self.__a - deltaA,  # left
+                           self.__a + deltaA,  # right
+                           self.__b + deltaB,  # top
+                           self.__b - deltaB)  # bottom    
 
 class Node(drawnValue):
     fields = ('x', 'y', 'data', 'NE', 'SE', 'SW', 'NW', 'BBox')
     findex = dict((field, i) for i, field in enumerate(fields))
+    findex['a'] = findex['x']
+    findex['b'] = findex['y']
     def __init__(self, x, y, data, BBox):
         super().__init__((x, y, [data], None, None, None, None, BBox))
 
@@ -46,12 +170,20 @@ class PointQuadtree(VisualizationApp):
     ROOT_OUTLINE = 'yellow'
     TEXT_FONT = ("Helvetica", '10')
     CIRCLE_RADIUS = 4
-    BUFFER_ZONE = (-10, -20, 50, 0)
+    BUFFER_ZONE = (-10, -60, 50, 5)
     POINT_REGION_COLOR = 'cyan'
     POINT_COLOR = 'black'
     CROSSHAIR_SIZE = 15
     CROSSHAIR_COLOR = 'blue'
     CROSSHAIR_FONT = (VisualizationApp.VARIABLE_FONT[0], -10)
+    QUERY_POINT_COLOR = 'red'
+    MEASURE_COLOR = 'lime green'
+    BOUNDS_CONFIG = {'outline': 'honeydew4', 'angle': 40, 'spacing': 20,
+                     'dash': (10, 8, 2, 8)}
+    C_BOUNDS_CONFIG = {'outline': 'orange red', 'angle': 80, 'spacing': 20,
+                       'dash': (10, 8, 2, 8)}
+    NEW_BOUNDS_CONFIG = {'outline': 'dark violet', 'angle': 120, 'spacing': 20,
+                       'dash': (10, 8, 2, 8)}
 
     def __init__(self, maxArgWidth=MAX_ARG_WIDTH, title="Point Quadtree",
                  pointRegion=None, **kwargs):
@@ -64,11 +196,13 @@ class PointQuadtree(VisualizationApp):
         self.pointRegion = pointRegion
         self.showBoundaries = IntVar()
         self.showBoundaries.set(1)
-        self.buttons = self.makeButtons()
+        self.makeButtons()
         self.new()
 
     def canvasCoords(self, userX, userY):
-        return self.pointRegion[0] + userX, self.pointRegion[3] - userY
+        dims = widgetDimensions(self.canvas)
+        return (max(0, min(dims[0], self.pointRegion[0] + userX)),
+                max(0, min(dims[1], self.pointRegion[3] - userY)))
     
     def userCoords(self, canvasX, canvasY):
         return canvasX - self.pointRegion[0], self.pointRegion[3] - canvasY
@@ -131,6 +265,15 @@ class PointQuadtree(VisualizationApp):
         base = V(tip) - Vdelta
         return base + tip, base
 
+    def noneCoords(self):
+        return self.pointRegion[2], self.pointRegion[3] - self.pointRegion[1]
+
+    def variableTextCoords(self, gap=3, left=True, line=1):
+        visible = self.visibleCanvas()
+        return (visible[0] + gap if left else visible[2] - gap,
+                self.pointRegion[1] - gap -
+                (line - 1) * abs(self.VARIABLE_FONT[1]))
+    
     #fills the x,y coordinates upon single canvas  mouse click
     def setXY(self, event):
         x, y = self.userCoords(event.x, event.y)
@@ -162,7 +305,30 @@ class PointQuadtree(VisualizationApp):
         bText = self.canvas.create_text(
             *bCoords, text=bLabel, anchor=E, font=font, fill=color)
         return (vert, horiz, aText, bText)
-        
+
+    def queryPointCoords(self, a, b):
+        x, y = self.canvasCoords(a, b)
+        return ((x, y - self.CIRCLE_RADIUS), (x + self.CIRCLE_RADIUS, y),
+                (x, y + self.CIRCLE_RADIUS), (x - self.CIRCLE_RADIUS, y))
+
+    def createQueryPointItems(
+            self, polyCoords, color=QUERY_POINT_COLOR, label='a, b',
+            tags='query', font=None):
+        if font is None: font = (self.VARIABLE_FONT[0], self.TEXT_FONT[1])
+        polygon = self.canvas.create_polygon(*polyCoords, fill=color, width=0,
+                                             tags=tags)
+        text = self.canvas.create_text(
+            polyCoords[1][0], polyCoords[0][1], anchor=SW, text=label,
+            fill=color, font=font, tags=tags)
+        return polygon, text
+
+    def createMeasure(
+            self, x0, y0, x1, y1, color=MEASURE_COLOR, width=2, tags='measure'):
+        measure = self.canvas.create_line(
+            *self.canvasCoords(x0, y0), *self.canvasCoords(x1, y1),
+            width=width, arrow=BOTH, fill=color)
+        return measure
+    
     insertCode = '''
 def insert(self, a={x}, b={y}, data={data!r}):
    self.__root = self.__insert(self.__root, a, b, data)   
@@ -172,7 +338,7 @@ def insert(self, a={x}, b={y}, data={data!r}):
     def insert(self, x, y, data, start=True, code=insertCode, wait=0.1):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start,
-            sleepTime=wait / 10)
+            sleepTime=wait / 10 if code else 0)
 
         if code:
             crosshair = self.createCrosshairItems(*self.crosshairCoords(x, y))
@@ -180,13 +346,14 @@ def insert(self, a={x}, b={y}, data={data!r}):
             self.highlightCode(
                 'self.__root = self.__insert(self.__root, a, b, data)',
                 callEnviron)
-        self.__root = self.__insert(self.__root, x, y, data,
-                                    self.userBBox(self.pointRegion), wait=wait)
+        self.__root = self.__insert(
+            self.__root, x, y, data, self.userBBox(self.pointRegion),
+            wait=wait if code else 0, code=self._insertCode if code else '')
         self.canvas.itemConfig('root', state=NORMAL)
         if code:
             self.dispose(callEnviron, *crosshair)
             self.highlightCode([], callEnviron)
-        self.cleanUp(callEnviron, sleepTime=wait / 10)
+        self.cleanUp(callEnviron, sleepTime=wait / 10 if code else 0)
 
     _insertCode = '''
 def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
@@ -256,7 +423,7 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
                                callEnviron)
             colors = self.canvas.fadeItems(nArrow)
             n.NE = self.__insert(n.NE, x, y, data,
-                                 (n.x, n.y, n.BBox[2], n.BBox[3]))
+                                 (n.x, n.y, n.BBox[2], n.BBox[3]), code, wait)
             self.canvas.restoreItems(nArrow, colors)
         elif (self.highlightCode('a >  n.a', callEnviron, wait=wait,
                                  returnValue=x > n.x) and
@@ -266,7 +433,7 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
                                callEnviron)
             colors = self.canvas.fadeItems(nArrow)
             n.SE = self.__insert(n.SE, x, y, data,
-                                 (n.x, n.BBox[1], n.BBox[2], n.y))
+                                 (n.x, n.BBox[1], n.BBox[2], n.y), code, wait)
             self.canvas.restoreItems(nArrow, colors)
         elif (self.highlightCode('a <= n.a', callEnviron, wait=wait,
                                  returnValue=x <= n.x) and
@@ -276,14 +443,14 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
                                callEnviron)
             colors = self.canvas.fadeItems(nArrow)
             n.SW = self.__insert(n.SW, x, y, data,
-                                 (n.BBox[0], n.BBox[1], n.x, n.y))
+                                 (n.BBox[0], n.BBox[1], n.x, n.y), code, wait)
             self.canvas.restoreItems(nArrow, colors)
         else:
             self.highlightCode('n.NW = self.__insert(n.NW, a, b, data)',
                                callEnviron)
             colors = self.canvas.fadeItems(nArrow)
             n.NW = self.__insert(n.NW, x, y, data,
-                                 (n.BBox[0], n.y, n.x, n.BBox[3]))
+                                 (n.BBox[0], n.y, n.x, n.BBox[3]), code, wait)
             self.canvas.restoreItems(nArrow, colors)
             
         self.highlightCode(('return n', 2), callEnviron)
@@ -326,6 +493,28 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
             self.canvas.tag_bind(item, '<Button>', self.setXY)
             self.canvas.tag_bind(item, '<Double-Button-1>', self.createNode)
         return items
+
+    def randomFill(self, nPoints=1, label=None):
+        gap = 5
+        regionSize = V(BBoxSize(self.pointRegion)) - V((gap * 2, gap * 2))
+        for i in range(nPoints):
+            if label and label.startswith('P') and label[1:].isdigit():
+                n = int(label[1:])
+            else:
+                n = sum(len(n.data) for n in self.nodes)
+                label = 'P{}'.format(n)
+            while self._findNodeLabeled(label):
+                n += 1
+                label = 'P{}'.format(n)
+
+            x = random.randrange(gap, gap + regionSize[0])
+            y = random.randrange(gap, gap + regionSize[1])
+            nearest = self.findNearest(x, y, code='', wait=0)
+            while nearest and nearest[3] < self.CIRCLE_RADIUS * 3:
+                x = random.randrange(gap, gap + regionSize[0])
+                y = random.randrange(gap, gap + regionSize[1])
+                nearest = self.findNearest(x, y, code='', wait=0)
+            self.insert(x, y, label, code='', wait=0)
 
     #clears canvas, and deletes all the nodes
     #with accompanying data and lines
@@ -434,8 +623,388 @@ def __find(self, n={nVal}, a={x}, b={y}):
             
         self.cleanUp(callEnviron, sleepTime=wait / 10)
         return result
+
+    _nearPointCode = '''
+def __nearPoint(self, n={nVal}, a={x}, b={y}):
+   if not n: return None
+ 
+   if a == n.a and b == n.b: return n
+
+   if   a >= n.a and b >  n.b:
+      ans = self.__nearPoint(n.NE, a, b)
+   elif a >  n.a and b <= n.b:
+      ans = self.__nearPoint(n.SE, a, b)
+   elif a <= n.a and b <  n.b: 
+      ans = self.__nearPoint(n.SW, a, b)
+   else:
+      ans = self.__nearPoint(n.NW, a, b)   
+
+   return ans if ans else n
+'''
+    _lastReferenceToN = re.compile(r'else (n)')
+    
+    def _nearPoint(self, n, x, y, code=_nearPointCode, wait=0.1):
+        nVal = str(n)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=wait / 10)
+        localVars = ()
+        if code:
+            nArrow = self.createLabeledArrow(
+                n if n else self.noneCoords(), 'n', orientation=135)
+            callEnviron |= set(nArrow)
+            localVars += nArrow
+
+        shortCircuit = False
+        self.highlightCode('not n', callEnviron, wait=wait)
+        if not n:
+            self.highlightCode('return None', callEnviron)
+            ans = None
+            shortCircuit = True
+
+        elif (self.highlightCode('a == n.a', callEnviron, wait=wait,
+                                 returnValue=n.x == x) and
+              self.highlightCode('b == n.b', callEnviron, wait=wait,
+                                 returnValue=n.y == y)):
+            self.highlightCode('return n', callEnviron, wait=wait)
+            ans = n
+            shortCircuit = True
+
+        elif (self.highlightCode('a >= n.a', callEnviron, wait=wait,
+                                 returnValue=x >= n.x) and
+              self.highlightCode('b >  n.b', callEnviron, wait=wait,
+                                 returnValue=y > n.y)):
+            self.highlightCode(
+                'ans = self.__nearPoint(n.NE, a, b)', callEnviron)
+            colors = self.canvas.fadeItems(localVars)
+            ans = self._nearPoint(n.NE, x, y, code=code, wait=wait)
+            self.canvas.restoreItems(localVars, colors)
+        elif (self.highlightCode('a >  n.a', callEnviron, wait=wait,
+                                 returnValue=x > n.x) and
+              self.highlightCode('b <= n.b', callEnviron, wait=wait,
+                                 returnValue=y <=  n.y)):
+            self.highlightCode(
+                'ans = self.__nearPoint(n.SE, a, b)', callEnviron)
+            colors = self.canvas.fadeItems(localVars)
+            ans = self._nearPoint(n.SE, x, y, code=code, wait=wait)
+            self.canvas.restoreItems(localVars, colors)
+        elif (self.highlightCode('a <= n.a', callEnviron, wait=wait,
+                                 returnValue=x <= n.x) and
+              self.highlightCode('b <  n.b', callEnviron, wait=wait,
+                                 returnValue=y <  n.y)):
+            self.highlightCode(
+                'ans = self.__nearPoint(n.SW, a, b)', callEnviron)
+            colors = self.canvas.fadeItems(localVars)
+            ans = self._nearPoint(n.SW, x, y, code=code, wait=wait)
+            self.canvas.restoreItems(localVars, colors)
+        else:
+            self.highlightCode(
+                'ans = self.__nearPoint(n.NW, a, b)', callEnviron)
+            colors = self.canvas.fadeItems(localVars)
+            ans = self._nearPoint(n.NW, x, y, code=code, wait=wait)
+            self.canvas.restoreItems(localVars, colors)
+
+        if not shortCircuit:
+            ansArrow = self.createLabeledArrow(
+                ans if ans else self.noneCoords(), 'ans', orientation=-135)
+            callEnviron |= set(ansArrow)
+            self.highlightCode(('ans', 6), callEnviron, wait=wait)
+            self.highlightCode((('return ', 3),
+                                ('ans', 5) if ans else self._lastReferenceToN),
+                               callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
+        return ans if ans else n
         
-    #does not allow a data point to be re-used
+    _nearestCode = '''
+def __nearest(self, n={nVal},
+       a={x}, b={y}, dist={dist:3.1f},
+       cand={cand}, bounds={bounds}):
+   if not n or dist == 0: return cand, dist
+ 
+   fn = self.__distance
+   newDist  = fn(a, b, n.a, n.b)
+   if newDist < dist:
+      cand = n  
+      dist = newDist
+ 
+   cBounds = CircleBounds(a, b, dist, fn)
+
+   newB = bounds.adjusted(left = n.a, top = n.b)
+   if cBounds.intersects(newB): 
+      cand, dist = self.__nearest(
+         n.SE, a, b, dist, cand, newB)
+      cBounds.adjust(dist)
+
+   newB = bounds.adjusted(left = n.a, bottom = n.b)
+   if cBounds.intersects(newB): 
+      cand, dist = self.__nearest(
+         n.NE, a, b, dist, cand, newB) 
+      cBounds.adjust(dist)
+          
+   newB = bounds.adjusted(right = n.a, top = n.b)  
+   if cBounds.intersects(newB): 
+      cand, dist = self.__nearest(
+         n.SW, a, b, dist, cand, newB)
+      cBounds.adjust(dist)
+   
+   newB = bounds.adjusted(right = n.a, bottom = n.b)
+   if cBounds.intersects(newB): 
+      cand, dist = self.__nearest(
+         n.NW, a, b, dist, cand, newB) 
+
+   return cand, dist
+'''
+    
+    def _nearest(
+            self, n, x, y, dist, cand, bounds, code=_nearestCode, wait=0.1):
+        nVal = str(n)
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), sleepTime=wait / 10)
+
+        candArrowConfig = {'orientation': -135}
+        localVars, faded = (), ()
+        if code:
+            nArrow = self.createLabeledArrow(
+                n if n else self.noneCoords(), 'n', orientation=135)
+            distance = self.canvas.create_text(
+                *self.variableTextCoords(), anchor=SW, font=self.VARIABLE_FONT,
+                text='dist = {:3.1f}'.format(dist), fill=self.VARIABLE_COLOR)
+            candArrow = self.createLabeledArrow(
+                cand if cand else self.noneCoords(), 'cand', **candArrowConfig)
+            boundsText = self.canvas.create_text(
+                *self.variableTextCoords(left=False), anchor=SE,
+                text='bounds = {}'.format(bounds), font=self.VARIABLE_FONT,
+                fill=self.BOUNDS_CONFIG['outline'], tags=('bounds', 'text'))
+            boundsRect = self.canvas.create_hashed_rectangle(
+                *self.canvasCoords(bounds._l, bounds._b),
+                *self.canvasCoords(bounds._r, bounds._t),
+                tags=('bounds', 'rect'),  **self.BOUNDS_CONFIG)
+            localVars += nArrow + candArrow + (distance, boundsText, boundsRect)
+            faded += (Scrim.FADED_FILL,) * (len(localVars) - 1) + (
+                Scrim.FADED_OUTLINE,)
+            callEnviron |= set(localVars)
+        
+        if (self.highlightCode('not n', callEnviron, wait=wait,
+                               returnValue=not n) or
+            self.highlightCode('dist == 0', callEnviron, wait=wait,
+                               returnValue=dist == 0)):
+            self.highlightCode('return cand, dist', callEnviron)
+            self.cleanUp(callEnviron, sleepTime=wait / 10)
+            return cand, dist
+
+        self.highlightCode('fn = self.__distance', callEnviron, wait=wait)
+        if code:
+            measure = self.createMeasure(x, y, n.a, n.b)
+            callEnviron.add(measure)
+        self.highlightCode('newDist  = fn(a, b, n.a, n.b)', callEnviron,
+                           wait=wait)
+        newDist = euclideanDistance(x, y, n.a, n.b)
+        if code:
+            self.dispose(callEnviron, measure)
+            newDistText = self.canvas.create_text(
+                *self.variableTextCoords(line=2), anchor=SW,
+                font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR,
+                text='newDist = {:3.1f}'.format(newDist))
+            localVars += (newDistText,)
+            faded += (Scrim.FADED_FILL,)
+            callEnviron.add(newDistText)
+
+        if self.highlightCode('newDist < dist', callEnviron, wait=wait,
+                              returnValue=newDist < dist):
+            cand = n
+            dist = newDist
+            if code:
+                self.highlightCode('cand = n', callEnviron)
+                self.moveItemsTo(
+                    candArrow, self.labeledArrowCoords(n, **candArrowConfig),
+                    sleepTime=wait / 10)
+                self.highlightCode('dist = newDist', callEnviron, wait=wait)
+                self.canvas.itemConfig(
+                    distance, text='dist = {:3.1f}'.format(dist))
+        
+        self.highlightCode('cBounds = CircleBounds(a, b, dist, fn)',
+                           callEnviron, wait=wait)
+        cBounds = CircleBounds(x, y, dist)
+        if code:
+            cBoundsText = self.canvas.create_text(
+                *self.variableTextCoords(left=False, line=2), anchor=SE,
+                text='cBounds = {}'.format(cBounds), tags=('cbounds', 'text'),
+                fill=self.C_BOUNDS_CONFIG['outline'], font=self.VARIABLE_FONT)
+            cBoundsRect = self.canvas.create_hashed_rectangle(
+                *self.canvasCoords(cBounds._l, cBounds._b),
+                *self.canvasCoords(cBounds._r, cBounds._t),
+                tags=('cbounds', 'rect'), **self.C_BOUNDS_CONFIG)
+            localVars += (cBoundsText,)
+            faded += (Scrim.FADED_FILL,)
+            callEnviron |= set((cBoundsText, cBoundsRect))
+
+        newBoundsText, newBoundsRect = None, None
+        quadrants = {'SE': {'left': n.a, 'top': n.b},
+                     'NE': {'left': n.a, 'bottom': n.b},
+                     'SW': {'right': n.a, 'top': n.b},
+                     'NW': {'right': n.a, 'bottom': n.b}}
+        count = 0
+        for quadrant in quadrants:
+            adjustment = quadrants[quadrant]
+            self.highlightCode(
+                'newB = bounds.adjusted({} = n.a, {} = n.b)'.format(
+                    *adjustment.keys()), callEnviron, wait=wait)
+            newB = bounds.adjusted(**adjustment)
+            count += 1
+            if code:
+                if newBoundsText is None:
+                    newBoundsText = self.canvas.create_text(
+                        *self.variableTextCoords(left=False, line=3), anchor=SE,
+                        text='newB = {}'.format(newB), tags=('newB', 'text'),
+                        fill=self.NEW_BOUNDS_CONFIG['outline'],
+                        font=self.VARIABLE_FONT)
+                    newBoundsRect = self.canvas.create_hashed_rectangle(
+                        *self.canvasCoords(newB._l, newB._b),
+                        *self.canvasCoords(newB._r, newB._t),
+                        tags=('newB', 'rect'), **self.NEW_BOUNDS_CONFIG)
+                    localVars += (newBoundsText,)
+                    faded += (Scrim.FADED_FILL,)
+                    callEnviron |= set((newBoundsText, newBoundsRect))
+                else:
+                    self.canvas.itemConfig(newBoundsText,
+                                           text='newB = {}'.format(newB))
+                    self.dispose(callEnviron, newBoundsRect)
+                    newBoundsRect = self.canvas.create_hashed_rectangle(
+                        *self.canvasCoords(newB._l, newB._b),
+                        *self.canvasCoords(newB._r, newB._t),
+                        tags=('newB', 'rect'), **self.NEW_BOUNDS_CONFIG)
+                    callEnviron.add(newBoundsRect)
+
+                if self.highlightCode(
+                        ('cBounds.intersects(newB)', count), callEnviron,
+                        wait=wait, returnValue=cBounds.intersects(newB)):
+                    self.highlightCode(
+                        (('cand, dist = self.__nearest(', count),
+                         re.compile(' *n.{}, a, b, dist, cand, newB.'.format(
+                             quadrant))),
+                        callEnviron)
+                    lvars = localVars + (cBoundsRect, newBoundsRect)
+                    colors = self.canvas.fadeItems(
+                        lvars, faded + (Scrim.FADED_OUTLINE,) * 2)
+                    nextCand, nextDist = self._nearest(
+                        getattr(n, quadrant), x, y, dist, cand, newB)
+                    self.canvas.restoreItems(lvars, colors)
+                    distanceChanged = nextDist != dist
+                    if distanceChanged:
+                        dist = nextDist
+                        if code:
+                            self.canvas.itemConfig(
+                                distance, text='dist = {:3.1f}'.format(dist))
+                    if nextCand is not cand:
+                        cand = nextCand
+                        if code:
+                            self.moveItemsTo(
+                                candArrow,
+                                self.labeledArrowCoords(n, **candArrowConfig),
+                                sleepTime=wait / 10)
+
+                    if quadrant == 'NW':
+                        continue
+                    self.highlightCode(('cBounds.adjust(dist)', count),
+                                       callEnviron, wait=wait)
+                    if distanceChanged:
+                        cBounds.adjust(dist)
+                        if code:
+                            self.dispose(callEnviron, cBoundsRect)
+                            cBoundsRect = self.canvas.create_hashed_rectangle(
+                                *self.canvasCoords(cBounds._l, cBounds._b),
+                                *self.canvasCoords(cBounds._r, cBounds._t),
+                                tags=('cbounds', 'rect'),
+                                **self.C_BOUNDS_CONFIG)
+                            callEnviron.add(cBoundsRect)
+        
+        self.highlightCode(('return cand, dist', 2), callEnviron)
+        self.cleanUp(callEnviron, sleepTime=wait / 10)
+        return cand, dist
+
+    findNearestCode = '''
+def findNearest(self, a={x}, b={y}):
+   if not self.__root: return None
+
+   ans  = self.__nearPoint(self.__root, a, b)
+   dist = self.__distance(a, b, ans.a, ans.b)
+
+   bounds =  Bounds()
+   ans, dist = self.__nearest(
+      self.__root, a, b, dist, ans, bounds)
+
+   return ans.a, ans.b, ans.data, dist
+'''
+    _nearestCallPattern = re.compile(r'ans, dist =.*\n.* ans, bounds\)')
+    
+    def findNearest(self, x, y, start=True, code=findNearestCode, wait=0.1):
+        callEnviron = self.createCallEnvironment(
+            code=code.format(**locals()), startAnimations=start,
+            sleepTime=wait / 10)
+
+        if code:
+            queryPoint = self.createQueryPointItems(self.queryPointCoords(x, y))
+            callEnviron |= set(queryPoint)
+        localVars, faded = (), ()
+        self.highlightCode('not self.__root', callEnviron)
+
+        if not self.__root:
+            self.highlightCode('return None', callEnviron)
+            result = None
+        else:
+            self.highlightCode('ans  = self.__nearPoint(self.__root, a, b)',
+                               callEnviron)
+            ans = self._nearPoint(
+                self.__root, x, y, code=self._nearPointCode if code else '',
+                wait=wait if code else 0)
+            if code:
+                ansArrow = self.createLabeledArrow(ans, 'ans', orientation=-135)
+                measure = self.createMeasure(x, y, ans.a, ans.b)
+                callEnviron |= set((measure, *ansArrow))
+                localVars += ansArrow
+                faded += (Scrim.FADED_FILL,) * len(ansArrow)
+
+            self.highlightCode('dist = self.__distance(a, b, ans.a, ans.b)',
+                               callEnviron, wait)
+            dist = euclideanDistance(x, y, ans.a, ans.b)
+            if code:
+                distance = self.canvas.create_text(
+                    *self.variableTextCoords(), font=self.VARIABLE_FONT,
+                    text='dist = {:3.1f}'.format(dist), anchor=SW,
+                    fill=self.VARIABLE_COLOR)
+                callEnviron.add(distance)
+                localVars += (distance,)
+                faded += (Scrim.FADED_FILL,)
+                self.dispose(callEnviron, measure)
+
+            self.highlightCode('bounds =  Bounds()', callEnviron, wait=wait)
+            bounds = Bounds()
+            if code:
+                boundsText = self.canvas.create_text(
+                    *self.variableTextCoords(left=False), anchor=SE,
+                    text='bounds = {}'.format(bounds), tags=('bounds', 'text'),
+                    font=self.VARIABLE_FONT, fill=self.BOUNDS_CONFIG['outline'])
+                boundsRect = self.canvas.create_hashed_rectangle(
+                    *self.canvasCoords(bounds._l, bounds._b),
+                    *self.canvasCoords(bounds._r, bounds._t),
+                    tags=('bounds', 'rect'), **self.BOUNDS_CONFIG)
+                callEnviron |= set((boundsText, boundsRect))
+                localVars += (boundsText, boundsRect)
+                faded += (Scrim.FADED_FILL, Scrim.FADED_OUTLINE) 
+
+            self.highlightCode(self._nearestCallPattern, callEnviron)
+            colors = self.canvas.fadeItems(localVars, faded)
+            ans, dist = self._nearest(self.__root, x, y, dist, ans, bounds,
+                                      code=self._nearestCode if code else '',
+                                      wait=wait if code else 0)
+            self.canvas.restoreItems(localVars, colors)
+            
+            self.highlightCode('return ans.a, ans.b, ans.data, dist',
+                               callEnviron, wait=wait)
+            result = (ans.a, ans.b, ans.data[0], dist)
+            
+        self.cleanUp(callEnviron)
+        return result
+    
     def clickInsert(self):
         val = self.validArgument()
         if isinstance(val, tuple):
@@ -456,10 +1025,34 @@ def __find(self, n={nVal}, a={x}, b={y}):
     def clickFindExact(self):
         val = self.validArgument(nArgs=2)
         if isinstance(val, tuple):
-            x, y, d = val
+            x, y, _ = val
             result = self.findExact(int(x), int(y), start=self.startMode())
             msg = ('Found {!r} at ({}, {})'.format(result, x, y) if result else
                    'No point at ({}, {})'.format(x, y))
+            self.clearArguments()
+        else:
+            msg = val
+        self.setMessage(msg)
+        
+    def clickFindNearest(self):
+        val = self.validArgument(nArgs=2)
+        if isinstance(val, tuple):
+            x, y, _ = val
+            result = self.findNearest(int(x), int(y), start=self.startMode())
+            msg = ('Distance to {!r} at ({}, {}) is {:3.1f}'.format(
+                result[2], result[0], result[1], result[3]) if result else
+                   'No point found')
+            self.clearArguments()
+        else:
+            msg = val
+        self.setMessage(msg)
+
+    def clickRandomFill(self):
+        val = self.validArgument(nArgs=1)
+        if isinstance(val, tuple):
+            n, _, _ = val
+            result = self.randomFill(int(n))
+            msg = 'Added {} point{}'.format(result, '' if result == 1 else 's')
             self.clearArguments()
         else:
             msg = val
@@ -469,15 +1062,17 @@ def __find(self, n={nVal}, a={x}, b={y}):
         self.canvas.itemConfig(
             'boundary', state=NORMAL if self.showBoundaries.get() else HIDDEN)
         
-    #allows only numbers for coords that are within canvas size
+    #allows only numbers for coords that are within the point region
     #everything aside from commas and spaces for data
     def validArgument(self, nArgs=3):
         x, y, d = self.getArguments()
         msg = ''
         bbox = self.userBBox(self.pointRegion)
-        if not (x.isdigit() and y.isdigit() and
+        if nArgs == 1 and not x.isdigit():
+            msg = 'Number of points must be an integer'
+        if nArgs > 1 and not (x.isdigit() and y.isdigit() and
                 BBoxContains(bbox, (int(x), int(y)))):
-            msg = "({}, {}) does not lie within {}".format(x, y, bbox)
+            msg = '({}, {}) does not lie within {}'.format(x, y, bbox)
             for argIndex in (0, 1):
                 self.setArgumentHighlight(argIndex, self.ERROR_HIGHLIGHT)
         if nArgs > 2 and not (0 < len(d) and len(d) <= self.maxArgWidth):
@@ -502,6 +1097,15 @@ def __find(self, n={nVal}, a={x}, b={y}):
             'Find Exact', lambda: self.clickFindExact(), numArguments=2,
             argHelpText=('X coordinate', 'Y coordinate'),
             helpText='Find an item at a particular point', validationCmd=vcmd)
+        self.findNearestButton = self.addOperation(
+            'Find Nearest', lambda: self.clickFindNearest(), numArguments=2,
+            argHelpText=('X coordinate', 'Y coordinate'),
+            helpText='Find the nearest item to a particular point',
+            validationCmd=vcmd)
+        self.randomFillButton = self.addOperation(
+            'Random Fill', lambda: self.clickRandomFill(), numArguments=1,
+            argHelpText=('# of points',),
+            helpText='Add N points in random positions', validationCmd=vcmd)
         newQuadtree = self.addOperation(
             'New', lambda: self.new(), helpText='Create new, empty quadtree')
         showBoundariesCheckbutton = self.addOperation(
@@ -510,8 +1114,30 @@ def __find(self, n={nVal}, a={x}, b={y}):
             variable=self.showBoundaries,
             helpText='Toggle display of quadrant boundaries')
         self.addAnimationButtons()
-        return [self.insertButton, newQuadtree, showBoundariesCheckbutton]
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(
+        description='Visualize basic point quadtree operations',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        '-d', '--debug', default=False, action='store_true',
+        help='Show debugging information.')
+    parser.add_argument(
+        '-r', '--random', default=None, type=int, metavar='N',
+        help='Fill with N random points.')
+    parser.add_argument(
+        '-s', '--seed', default=None, 
+        help='Seed the random generator with a string')
+    args = parser.parse_args()
+
+    if args.seed:
+        random.seed(args.seed)
+    
     quadtree = PointQuadtree()
+    quadtree.DEBUG = args.debug
+    
+    if args.random:
+        quadtree.randomFill(args.random)
+
     quadtree.runVisualization()
