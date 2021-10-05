@@ -838,17 +838,18 @@ def __nearest(self, n={nVal},
             callEnviron |= set((cBoundsText, cBoundsRect))
 
         newBoundsText, newBoundsRect = None, None
-        quadrants = {'SE': {'left': n.a, 'top': n.b},
-                     'NE': {'left': n.a, 'bottom': n.b},
-                     'SW': {'right': n.a, 'top': n.b},
-                     'NW': {'right': n.a, 'bottom': n.b}}
+        quadrants = {'SE': (('left', n.a), ('top', n.b)),
+                     'NE': (('left', n.a), ('bottom', n.b)),
+                     'SW': (('right', n.a), ('top', n.b)),
+                     'NW': (('right', n.a), ('bottom', n.b))}
         count = 0
         for quadrant in quadrants:
             adjustment = quadrants[quadrant]
+            keys = [e[0] for e in adjustment]
             self.highlightCode(
-                'newB = bounds.adjusted({} = n.a, {} = n.b)'.format(
-                    *adjustment.keys()), callEnviron, wait=wait)
-            newB = bounds.adjusted(**adjustment)
+                'newB = bounds.adjusted({} = n.a, {} = n.b)'.format(*keys),
+                callEnviron, wait=wait)
+            newB = bounds.adjusted(**dict(adjustment))
             count += 1
             if code:
                 if newBoundsText is None:
