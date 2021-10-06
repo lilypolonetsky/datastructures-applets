@@ -33,7 +33,8 @@ PREFERRED_ARRANGEMENT = [
      ['BinaryTree','Tree234', 'AVLTree', 'RedBlackTree',
       'HashTableOpenAddressing', 'HashTableChaining']],
     ['Chapters 12-16',
-     ['Quadtree', 'Heap', 'Graph', 'WeightedGraph', 'BloomFilter', 'SkipList']],
+     ['PointQuadtree', 'Heap', 'Graph', 'WeightedGraph', 'BloomFilter',
+      'SkipList']],
     ]
     
 TAB_FONT = ('Calibri', -16)

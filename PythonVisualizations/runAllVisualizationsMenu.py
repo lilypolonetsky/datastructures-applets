@@ -37,7 +37,7 @@ PREFERRED_ARRANGEMENT = [
     ['Chapter 9', ['Tree234']],
     ['Chapter 10', ['AVLTree', 'RedBlackTree']],
     ['Chapter 11', ['HashTableOpenAddressing', 'HashTableChaining']],
-    ['Chapter 12', ['Quadtree']],
+    ['Chapter 12', ['PointQuadtree']],
     ['Chapter 13', ['Heap']],
     ['Chapter 14', ['Graph']],
     ['Chapter 15', ['WeightedGraph']],
