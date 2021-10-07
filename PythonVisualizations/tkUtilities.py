@@ -239,19 +239,26 @@ class Scrim(Canvas):
         elif len(kwargs) == 0 and isinstance(config, tuple):
             config = config[-1]
         return config
+    
+    def copyItemAttributes(   # Copy attributes from one canvas item to another
+            self, fromItem, toItem, *attributes):
+        kwargs = dict((attrib, self.itemConfig(fromItem, attrib))
+                      for attrib in attributes)
+        self.itemConfig(toItem, **kwargs)
 
-    def copyItem(           # Make a copy of an item in the canvas
-            self, canvasitem, includeBindings=True):
+    def copyItem(self, canvasitem, includeBindings=True):
+        'Make a copy of an item in the canvas'
         creator = getattr(self,  # Get canvas creation function for type
                           'create_{}'.format(self.type(canvasitem)))
         newItem = creator(*self.coords(canvasitem),
                           **self.itemConfig(canvasitem))
         if includeBindings:  # Copy event handlers if requested
-            for eventType in self.tag_bind(canvasitem):
-                self.tag_bind(
-                    newItem, eventType,
-                    self.tag_bind(canvasitem, eventType))
+            self.copyItemHandlers(canvasitem, newItem)
         return newItem
+
+    def copyItemHandlers(self, fromItem, toItem):
+        for eventType in self.tag_bind(fromItem):
+            self.tag_bind(toItem, eventType, self.tag_bind(fromItem, eventType))
 
     anchorVectors = {
         NW: (-1, -1), N: (0, -1), NE: (1, -1),
@@ -277,12 +284,6 @@ class Scrim(Canvas):
         if len(args) == 0 and result:
             return tuple(result)
         return result
-    
-    def copyItemAttributes(   # Copy attributes from one canvas item to another
-            self, fromItem, toItem, *attributes):
-        kwargs = dict((attrib, self.itemConfig(fromItem, attrib))
-                      for attrib in attributes)
-        self.itemConfig(toItem, **kwargs)
 
     FADED_COLORS = {
         'fill': 'bisque', 'outline': 'bisque',
