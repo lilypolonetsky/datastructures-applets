@@ -815,7 +815,7 @@ def __nearest(self, n={nVal},
             if code:
                 self.highlightCode('cand = n', callEnviron)
                 self.moveItemsTo(
-                    candArrow, self.labeledArrowCoords(n, **candArrowConfig),
+                    candArrow, self.labeledArrowCoords(cand, **candArrowConfig),
                     sleepTime=wait / 10)
                 self.highlightCode('dist = newDist', callEnviron, wait=wait)
                 self.canvas.itemConfig(
@@ -900,7 +900,7 @@ def __nearest(self, n={nVal},
                         if code:
                             self.moveItemsTo(
                                 candArrow,
-                                self.labeledArrowCoords(n, **candArrowConfig),
+                                self.labeledArrowCoords(cand, **candArrowConfig),
                                 sleepTime=wait / 10)
 
                     if quadrant == 'NW':
@@ -957,8 +957,9 @@ def findNearest(self, a={x}, b={y}):
             ans = self._nearPoint(
                 self.__root, x, y, code=self._nearPointCode if code else '',
                 wait=wait if code else 0)
+            ansArrowConfig = {'orientation': -135}
             if code:
-                ansArrow = self.createLabeledArrow(ans, 'ans', orientation=-135)
+                ansArrow = self.createLabeledArrow(ans, 'ans', **ansArrowConfig)
                 measure = self.createMeasure(x, y, ans.a, ans.b)
                 callEnviron |= set((measure, *ansArrow))
                 localVars += ansArrow
@@ -994,10 +995,22 @@ def findNearest(self, a={x}, b={y}):
 
             self.highlightCode(self._nearestCallPattern, callEnviron)
             colors = self.canvas.fadeItems(localVars, faded)
-            ans, dist = self._nearest(self.__root, x, y, dist, ans, bounds,
-                                      code=self._nearestCode if code else '',
-                                      wait=wait if code else 0)
+            newAns, newDist = self._nearest(
+                self.__root, x, y, dist, ans, bounds, wait=wait if code else 0,
+                code=self._nearestCode if code else '')
             self.canvas.restoreItems(localVars, colors)
+            if newDist != dist:
+                dist = newDist
+                if code:
+                    self.canvas.itemConfig(distance,
+                                           text='dist = {:3.1f}'.format(dist))
+            if newAns != ans:
+                ans = newAns
+                if code:
+                    self.moveItemsTo(
+                        ansArrow,
+                        self.labeledArrowCoords(newAns, **ansArrowConfig),
+                        sleepTime=wait / 10)
             
             self.highlightCode('return ans.a, ans.b, ans.data, dist',
                                callEnviron, wait=wait)
