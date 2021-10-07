@@ -274,10 +274,10 @@ class PointQuadtree(VisualizationApp):
                 self.pointRegion[1] - gap -
                 (line - 1) * abs(self.VARIABLE_FONT[1]))
     
-    #fills the x,y coordinates upon single canvas  mouse click
+    #fills the x,y coordinates and clears the item label entry
     def setXY(self, event):
         x, y = self.userCoords(event.x, event.y)
-        self.setArguments(str(x), str(y))
+        self.setArguments(str(x), str(y), '')
 
     #creates new node in coordinates of double canvas mouse click
     def createNode(self, event):
@@ -320,6 +320,8 @@ class PointQuadtree(VisualizationApp):
         text = self.canvas.create_text(
             polyCoords[1][0], polyCoords[0][1], anchor=SW, text=label,
             fill=color, font=font, tags=tags)
+        for item in (polygon, text):
+            self.canvas.copyItemHandlers(self.pointRegionRectangle, item)
         return polygon, text
 
     def createMeasure(
@@ -327,6 +329,7 @@ class PointQuadtree(VisualizationApp):
         measure = self.canvas.create_line(
             *self.canvasCoords(x0, y0), *self.canvasCoords(x1, y1),
             width=width, arrow=BOTH, fill=color)
+        self.canvas.copyItemHandlers(self.pointRegionRectangle, measure)
         return measure
     
     insertCode = '''
@@ -490,8 +493,7 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
             lambda e: self.setArguments(str(node.x), str(node.y),
                                         node.data[0] if node.data else ''))
         for item in items[:2]:
-            self.canvas.tag_bind(item, '<Button>', self.setXY)
-            self.canvas.tag_bind(item, '<Double-Button-1>', self.createNode)
+            self.canvas.copyItemHandlers(self.pointRegionRectangle, item)
         return items
 
     def randomFill(self, nPoints=1, label=None):
@@ -778,6 +780,7 @@ def __nearest(self, n={nVal},
                 *self.canvasCoords(bounds._l, bounds._b),
                 *self.canvasCoords(bounds._r, bounds._t),
                 tags=('bounds', 'rect'),  **self.BOUNDS_CONFIG)
+            self.canvas.copyItemHandlers(self.pointRegionRectangle, boundsRect)
             localVars += nArrow + candArrow + (distance, boundsText, boundsRect)
             faded += (Scrim.FADED_FILL,) * (len(localVars) - 1) + (
                 Scrim.FADED_OUTLINE,)
@@ -833,6 +836,7 @@ def __nearest(self, n={nVal},
                 *self.canvasCoords(cBounds._l, cBounds._b),
                 *self.canvasCoords(cBounds._r, cBounds._t),
                 tags=('cbounds', 'rect'), **self.C_BOUNDS_CONFIG)
+            self.canvas.copyItemHandlers(self.pointRegionRectangle, cBoundsRect)
             localVars += (cBoundsText,)
             faded += (Scrim.FADED_FILL,)
             callEnviron |= set((cBoundsText, cBoundsRect))
@@ -862,6 +866,8 @@ def __nearest(self, n={nVal},
                         *self.canvasCoords(newB._l, newB._b),
                         *self.canvasCoords(newB._r, newB._t),
                         tags=('newB', 'rect'), **self.NEW_BOUNDS_CONFIG)
+                    self.canvas.copyItemHandlers(self.pointRegionRectangle,
+                                                 newBoundsRect)
                     localVars += (newBoundsText,)
                     faded += (Scrim.FADED_FILL,)
                     callEnviron |= set((newBoundsText, newBoundsRect))
@@ -873,6 +879,8 @@ def __nearest(self, n={nVal},
                         *self.canvasCoords(newB._l, newB._b),
                         *self.canvasCoords(newB._r, newB._t),
                         tags=('newB', 'rect'), **self.NEW_BOUNDS_CONFIG)
+                    self.canvas.copyItemHandlers(self.pointRegionRectangle,
+                                                 newBoundsRect)
                     callEnviron.add(newBoundsRect)
 
                 if self.highlightCode(
@@ -916,6 +924,8 @@ def __nearest(self, n={nVal},
                                 *self.canvasCoords(cBounds._r, cBounds._t),
                                 tags=('cbounds', 'rect'),
                                 **self.C_BOUNDS_CONFIG)
+                            self.canvas.copyItemHandlers(
+                                self.pointRegionRectangle, cBoundsRect)
                             callEnviron.add(cBoundsRect)
         
         self.highlightCode(('return cand, dist', 2), callEnviron)
@@ -989,6 +999,8 @@ def findNearest(self, a={x}, b={y}):
                     *self.canvasCoords(bounds._l, bounds._b),
                     *self.canvasCoords(bounds._r, bounds._t),
                     tags=('bounds', 'rect'), **self.BOUNDS_CONFIG)
+                self.canvas.copyItemHandlers(self.pointRegionRectangle,
+                                             boundsRect)
                 callEnviron |= set((boundsText, boundsRect))
                 localVars += (boundsText, boundsRect)
                 faded += (Scrim.FADED_FILL, Scrim.FADED_OUTLINE) 
