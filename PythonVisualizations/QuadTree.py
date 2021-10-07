@@ -187,12 +187,9 @@ class PointQuadtree(VisualizationApp):
 
     def __init__(self, maxArgWidth=MAX_ARG_WIDTH, title="Point Quadtree",
                  pointRegion=None, **kwargs):
-        if 'canvasBounds' not in kwargs:
-            kwargs['canvasBounds'] = (0, 0, kwargs.get('canvasWidth', 800),
-                                      kwargs.get('canvasHeight', 400))
         super().__init__(title=title, maxArgWidth = maxArgWidth, **kwargs)
         if pointRegion is None:
-            pointRegion = V(self.canvasBounds) - V(self.BUFFER_ZONE)
+            pointRegion = V((0, 0, 800, 400)) - V(self.BUFFER_ZONE)
         self.pointRegion = pointRegion
         self.showBoundaries = IntVar()
         self.showBoundaries.set(1)
