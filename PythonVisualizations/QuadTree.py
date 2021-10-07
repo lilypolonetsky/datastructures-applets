@@ -1131,12 +1131,16 @@ def findNearest(self, a={x}, b={y}):
             helpText='Add N points in random positions', validationCmd=vcmd)
         newQuadtree = self.addOperation(
             'New', lambda: self.new(), helpText='Create new, empty quadtree')
-        showBoundariesCheckbutton = self.addOperation(
+        self.showBoundariesCheckbutton = self.addOperation(
             'Show Boundaries',
             lambda: self.updateBoundaryDisplay(), buttonType=Checkbutton,
-            variable=self.showBoundaries,
+            variable=self.showBoundaries, cleanUpBefore=False, mutex=False,
             helpText='Toggle display of quadrant boundaries')
         self.addAnimationButtons()
+
+    def enableButtons(self, enable=True):
+        super().enableButtons(enable)
+        widgetState(self.showBoundariesCheckbutton, NORMAL)
 
 if __name__ == '__main__':
     import argparse
