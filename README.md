@@ -9,5 +9,6 @@ Interactive exploration of the algorithms along with analysis in the text deepen
 
 The implementation is in Python using its interface to Tk (tkinter) to animate the operations.
 
-Exceptional students in the Computer Science Department of Stern College at Yeshiva University developed many of these visualizations.
+Exceptional students in the Computer Science Department of Stern College for Women at Yeshiva University helped develop these visualizations.
 https://www.yu.edu/stern/ug/computer-science
+
