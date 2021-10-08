@@ -1,4 +1,6 @@
-__doc__ = "Program to show algorithm visualizations in a single application."
+__doc__ = '''
+Program to show data structure visualizations in a single application.
+'''
 
 import sys, os
 
