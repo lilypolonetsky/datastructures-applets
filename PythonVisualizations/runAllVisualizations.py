@@ -1,5 +1,5 @@
 __doc__ = """ 
-Program to show algorithm visualizations in a tabbed Tk notebook
+Program to show data structure visualizations in a tabbed Tk notebook
 presentation form.  This program loads all the visualization modules
 in the current directory that contain subclasses of VisualizationApp.
 It and instantiates each one in a separate tab.  When the user clicks
@@ -8,7 +8,7 @@ order for the modules (by class name) controls the order of the
 recognized modules.  The rest are added in alphabetical order. 
 """
 
-import argparse, sys, re, webbrowser, os, glob, random
+import argparse, sys, os, random
 from importlib import *
 from tkinter import ttk
 
@@ -53,7 +53,7 @@ and use the soft keyboard to enter values.
 '''
 
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
-        classes, start=None, title="Algorithm Visualizations", 
+        classes, start=None, title="Datastructure Visualizations", 
         adjustForTrinket=False, seed='3.14159', verbose=0, debug=False,
         theme='alt', introBG='white'):
     if len(classes) == 0:
@@ -187,7 +187,7 @@ if __name__ == '__main__':
         help='Starting visualization.  '
         'Should match one of the visualization module titles or class name.')
     parser.add_argument(
-        '-t', '--title',  default='Algorithm Visualizations',
+        '-t', '--title',  default='Datastructure Visualizations',
         help='Title for top level window')
     parser.add_argument(
         '-w', '--warn-for-trinket', default=False, action='store_true',

@@ -11,7 +11,7 @@ with a prefix 'folder' name.  The rest are added in alphabetical
 order in a folder called 'Other'.
 """
 
-import argparse, sys, re, webbrowser, os, glob, random
+import argparse, sys, os, random
 from importlib import *
 from tkinter import *
 from tkinter import ttk
@@ -125,7 +125,7 @@ def resizeHandler(event):
             event.widget.rowconfigure(1, minsize=event.height - topPartHeight))
         
 def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
-        classes, start=None, title="Algorithm Visualizations", version=None,
+        classes, start=None, title="Datastructure Visualizations", version=None,
         adjustForTrinket=False, seed='3.14159', verbose=0, debug=False,
         theme='alt', introBG='white'):
     global DEBUG
@@ -279,7 +279,7 @@ if __name__ == '__main__':
         help='Starting visualization.  '
         'Should match one of the visualization module titles or class name.')
     parser.add_argument(
-        '-t', '--title',  default='Algorithm Visualizations',
+        '-t', '--title',  default='Datastructure Visualizations',
         help='Title for top level window')
     parser.add_argument(
         '-w', '--warn-for-trinket', default=False, action='store_true',
