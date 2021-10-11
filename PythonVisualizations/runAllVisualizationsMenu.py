@@ -124,7 +124,7 @@ def resizeHandler(event):
             event.widget.columnconfigure(0, minsize=event.width) or
             event.widget.rowconfigure(1, minsize=event.height - topPartHeight))
         
-def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
+def showVisualizations(   # Display a set of VisualizationApps in pulldown menu
         classes, start=None, title="Datastructure Visualizations", version=None,
         adjustForTrinket=False, seed='3.14159', verbose=0, debug=False,
         theme='alt', introBG='white'):
