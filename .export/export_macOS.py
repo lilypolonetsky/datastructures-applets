@@ -6,7 +6,7 @@ files are stored.
 '''
 
 import PyInstaller.__main__
-import sys, glob, os, shutil, argparse
+import sys, glob, os, shutil, argparse, subprocess
 
 parser = argparse.ArgumentParser(
    description=__doc__,
@@ -18,11 +18,22 @@ parser.add_argument(
    '-i', '--icon', default='design/Datastructure-Visualizations-icon.icns',
    help='Path to icon file (relative to directory with visualizaion apps)')
 parser.add_argument(
+   '-I', '--ID', default='com.shakumant.dev.{name}',
+   help='Bundle ID for macOS.  Can contain {name} string to be replaced with'
+   'the base name of the executable.')
+parser.add_argument(
+   '--disk-image', default='{name}.dmg',
+   help='Disk image (dmg) name.  Can contain {name} string to be replaced with'
+   'the base name of the executable.')
+parser.add_argument(
    '-k', '--keep', default=False, action='store_true',
    help='Keep executable source code file created for export.')
 parser.add_argument(
    '-b', '--backup', default='.bak',
    help='File extension for backups of last export')
+parser.add_argument(
+   '-d', '--distribution', default='dist',
+   help='Name of export distribution directory')
 parser.add_argument(
    '-v', '--verbose', action='count', default=0,
    help='Add verbose comments')
@@ -41,6 +52,7 @@ pngfiles = set(glob.glob('*.png'))
 appName = args.name
 iconFilename = args.icon
 iconfiles = set(glob.glob(iconFilename))
+dmgFilename = args.disk_image.format(name=appName)
 for files, name in (
       (pyfiles, 'Python'), (pngfiles, 'PNG'), (iconfiles, 'Icon')):
    if len(files) == 0:
@@ -89,7 +101,8 @@ with open(appFilename, 'w') as appFile:
 if args.verbose > 0:
    print('Created application file in', appFilename)
 
-for item in ('build', 'dist', appName + '.spec'):
+for item in (
+      'build', args.distribution, appName, appName + '.spec', dmgFilename):
    if os.path.exists(item):
       if os.path.exists(item + args.backup):
          if args.verbose > 0:
@@ -107,13 +120,25 @@ if args.verbose > 0:
       
 PyInstaller.__main__.run([
    appFilename, *data_args,
-   '--name', appName,
-   '--windowed',
-   '--osx-bundle-identifier', 'com.shakumant.dev.{}'.format(appName),
+   '--name', appName, '--distpath', args.distribution, '--windowed',
+   '--osx-bundle-identifier', args.ID.format(name=appName),
    '--icon', iconFilename
 ])
+os.rename(os.path.join(args.distribution, appName), appName)
+if args.verbose > 1:
+   print('Moved command line application {} from {}/ to .'.format(
+      appName, args.distribution))
 if args.verbose > 0:
-   print('Exported application to dist/')
+   print('Exported application to {}/'.format(args.distribution))
+if dmgFilename:
+   result = subprocess.run(
+      ['hdiutil', 'create', '-srcfolder', args.distribution,
+       '-volname', appName, '-format', 'UDZO', dmgFilename],
+      capture_output=True, check=True)
+   if args.verbose > 1:
+      print(result.stdout)
+   elif args.verbose > 0:
+      print('Created disk image', dmgFilename)
 
 if not args.keep:
    os.remove(appFilename)
