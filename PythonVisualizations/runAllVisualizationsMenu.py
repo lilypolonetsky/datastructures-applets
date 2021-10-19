@@ -150,8 +150,7 @@ def showVisualizations(   # Display a set of VisualizationApps in pulldown menu
         VAP.MIN_CODE_CHARACTER_HEIGHT = 9
     restoreMenu = Canvas(top, height=MIN_MENUBAR_HEIGHT, bg='pink')
     restoreMenu.grid(row=0, column=0, sticky=(N, E, W, S))
-    menubutton = Menubutton(top, text='Select Visualization',
-                            font=MENU_FONT)
+    menubutton = Menubutton(top, text='Select Visualization', font=MENU_FONT)
     menubutton.grid(row=0, column=0)
     restoreMenu.bind('<Enter>', makeArmMenuHandler(restoreMenu, menubutton))
     restoreMenu.bind('<Leave>', makeDisarmMenuHandler(restoreMenu, menubutton))
@@ -248,14 +247,26 @@ def showVisualizations(   # Display a set of VisualizationApps in pulldown menu
             appWindow.winfo_ismapped()):
             appWindow.grid_remove()
 
-    if version:          # Hidden handler to show version info
-        for button in range(1, 4):
-            intro.bind('<Double-Button-{}>'.format(button),
-                       lambda event:
-                       (event.state & CTRL or
-                        (isinstance(event.num, int) and event.num != 1)) and
-                       loading.configure(text=version))
-                   
+    if version:
+        if isinstance(version, str):  # Hidden handler to show version info
+            for button in range(1, 4):
+                intro.bind('<Double-Button-{}>'.format(button),
+                           lambda event:
+                           (event.state & CTRL or
+                            (isinstance(event.num, int) and event.num != 1)) and
+                           loading.configure(text=version))
+        elif isinstance(version, (tuple, list)):
+            spacer = ttk.Label(intro, text=' ', font=INTRO_FONT,
+                               style=labelStyleName)
+            version = ttk.Label(intro, text='version {}.{}'.format(*version),
+                                font=(INTRO_FONT[0], 2 - abs(INTRO_FONT[1])),
+                                style=labelStyleName)
+            spacer.grid(row=nextline + 1, column=0)
+            version.grid(row=nextline + 2, column=0)
+        else:
+            raise ValueError('Version must be string or tuple/list, not {}'
+                             .format(type(version)))
+            
     loading['text'] = ''
     if verbose > 1:
         print('Top geometry:', top.winfo_geometry(),
@@ -286,6 +297,8 @@ if __name__ == '__main__':
         help='Adjust settings and warn users about limitations of use on '
         'Trinket.io')
     parser.add_argument(
+        '--version', help='Version string or tuple to display on introduction')
+    parser.add_argument(
         '--seed', default='3.14159',
         help='Random number generator seed.  Set to empty string to skip '
         'seeding.')
@@ -311,7 +324,11 @@ if __name__ == '__main__':
             print('No files provided.  Unique directories to search:', dirs,
                   'with search order:', list(dirs))
         args.files = list(dirs)
+
+    if (args.version and args.version.startswith('(') and
+        args.version.endswith(')')):
+        args.version = eval(args.version)
     showVisualizations(findVisualizations(args.files, args.verbose),
                        start=args.start, title=args.title, verbose=args.verbose,
                        adjustForTrinket=args.warn_for_trinket, debug=args.debug,
-                       seed=args.seed)
+                       seed=args.seed, version=args.version)
