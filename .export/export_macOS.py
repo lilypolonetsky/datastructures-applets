@@ -6,7 +6,8 @@ files are stored.
 '''
 
 import PyInstaller.__main__
-import sys, glob, os, shutil, argparse, subprocess
+import sys, glob, os, shutil, argparse, subprocess, json
+from subprocess import CompletedProcess
 
 parser = argparse.ArgumentParser(
    description=__doc__,
@@ -18,13 +19,22 @@ parser.add_argument(
    '-i', '--icon', default='design/Datastructure-Visualizations-icon.icns',
    help='Path to icon file (relative to directory with visualizaion apps)')
 parser.add_argument(
+   '--version-file', default='.version',
+   help='Name of JSON file containing the major and minor version numbers')
+parser.add_argument(
+   '-u', '--upgrade', choices=['major', 'minor'],
+   help='Advance the major or minor version number read from the version file')
+parser.add_argument(
    '-I', '--ID', default='com.shakumant.dev.{name}',
    help='Bundle ID for macOS.  Can contain {name} string to be replaced with'
    'the base name of the executable.')
 parser.add_argument(
-   '--disk-image', default='{name}.dmg',
+   '--disk-image', default='{name}{version}.dmg',
    help='Disk image (dmg) name.  Can contain {name} string to be replaced with'
-   'the base name of the executable.')
+   'the base name of the executable and {version} in _major_minor format. ')
+parser.add_argument(
+   '--sign-identity', default='Mac Developer',
+   help='Signer identity (common name of codesign certificate)')
 parser.add_argument(
    '-k', '--keep', default=False, action='store_true',
    help='Keep executable source code file created for export.')
@@ -42,7 +52,23 @@ args = parser.parse_args()
 if not hasattr(sys, 'path'): sys.path = []
 sys.path.append('.')
 
-args.verbose = 1
+if os.path.exists(args.version_file):
+   with open(args.version_file, 'r') as vFile:
+      version = json.load(vFile)
+else:
+   version = (1, 0)
+if args.verbose > 0:
+   print('Version read from {}'.format(args.version_file)
+         if os.path.exists(args.version_file) else 'Version',
+         'is {}.{}'.format(*version))
+
+if args.upgrade:
+   if args.upgrade == 'major':
+      version = (version[0] + 1, 0)
+   else:
+      version = (version[0], version[1] + 1)
+   print('Upgraded version is', '{}.{}'.format(*version))
+
 pyfiles = set(glob.glob('*.py'))
 toRemove = set(('runAllVisualizations.py', 'runAllVisualizationsMenu.py'))
 pyfiles -= toRemove
@@ -52,7 +78,8 @@ pngfiles = set(glob.glob('*.png'))
 appName = args.name
 iconFilename = args.icon
 iconfiles = set(glob.glob(iconFilename))
-dmgFilename = args.disk_image.format(name=appName)
+dmgFilename = args.disk_image.format(name=appName,
+                                     version='_{:02d}_{:02d}'.format(*version))
 for files, name in (
       (pyfiles, 'Python'), (pngfiles, 'PNG'), (iconfiles, 'Icon')):
    if len(files) == 0:
@@ -74,6 +101,7 @@ if any(len(s) == 0 for s in (visualizations, pngfiles, iconfiles)):
 iconFilename = os.path.abspath(iconFilename)
 
 if args.verbose > 0:
+   print('Verbosity level:', args.verbose)
    print('Found {} python file{}'.format(
       len(pyfiles), '' if len(pyfiles) == 1 else 's'))
    if args.verbose > 1:
@@ -93,9 +121,9 @@ with open(appFilename, 'w') as appFile:
          if line.startswith("if __name__ == '__main__':"):
             print('import {}'.format(', '.join(
                viz.__module__ for viz in visualizations)), file=appFile)
-            print('showVisualizations(({}))'.format(', '.join(
+            print('showVisualizations(({}), version={})'.format(', '.join(
                '{}.{}'.format(viz.__module__, viz.__name__)
-               for viz in visualizations)), file=appFile)
+               for viz in visualizations), version), file=appFile)
             break
          print(line, file=appFile, end='')
 if args.verbose > 0:
@@ -113,7 +141,7 @@ for item in (
                os.remove(item + args.backup)
       os.rename(item, item + args.backup)
          
-if args.verbose > 0:
+if args.verbose > 1:
    print('PyInstaller arguments:')
    for arg in data_args:
       print(' ', arg, end='' if arg.startswith('-') else '\n')
@@ -131,15 +159,28 @@ if args.verbose > 1:
 if args.verbose > 0:
    print('Exported application to {}/'.format(args.distribution))
 if dmgFilename:
-   result = subprocess.run(
+   hdiutil_result = subprocess.run(
       ['hdiutil', 'create', '-srcfolder', args.distribution,
        '-volname', appName, '-format', 'UDZO', dmgFilename],
       capture_output=True, check=True)
+   codesign_result = subprocess.run(
+      ['codesign', '-s', args.sign_identity, '-v', dmgFilename],
+      capture_output=True, check=True
+   ) if args.sign_identity else CompletedProcess((), 0)
    if args.verbose > 1:
-      print(result.stdout)
-   elif args.verbose > 0:
+      for msg in (hdiutil_result.stdout, hdiutil_result.stderr,
+                  codesign_result.stdout, codesign_result.stderr):
+         if msg:
+            print(msg.decode())
+   if args.verbose > 0:
       print('Created disk image', dmgFilename)
 
+if args.version_file:
+   with open(args.version_file, 'w') as vFile:
+      json.dump(version, vFile)
+   if args.verbose > 1:
+      print('Wrote version {}.{} to {}'.format(*version, args.version_file))
+   
 if not args.keep:
    os.remove(appFilename)
 elif args.verbose > 0:
