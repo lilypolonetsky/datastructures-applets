@@ -347,9 +347,8 @@ class BloomFilter(HashBase):
 
     def clickShowInserts(self):
         self.canvas.itemconfigure(
-            self.insertedKeys, 
-            fill=self.INSERTED_COLOR if self.showInserts.get() else 
-            self.INSERTED_BG)
+            self.insertedKeys,
+            state=NORMAL if self.showInserts.get() else HIDDEN)
         
     def makeButtons(self):
         vcmd = (self.window.register(
@@ -371,16 +370,20 @@ class BloomFilter(HashBase):
         self.showHashing.set(1)
         showHashingButton = self.addOperation(
             "Animate hashing", self.clickShowHashing, buttonType=Checkbutton,
-            variable=self.showHashing, 
+            variable=self.showHashing, cleanUpBefore=False,
             helpText='Show/hide animation during hashing')
         self.showInserts = IntVar()
         self.showInserts.set(1)
-        showInsertsButton = self.addOperation(
+        self.showInsertsButton = self.addOperation(
             "Show inserted", self.clickShowInserts, buttonType=Checkbutton,
-            variable=self.showInserts, cleanUpBefore=False,
+            variable=self.showInserts, cleanUpBefore=False, mutex=False,
             helpText='Show/hide list of inserted keys')
         self.addAnimationButtons()
-        return [findButton, insertButton, newButton, showInsertsButton]
+        return [findButton, insertButton, newButton, self.showInsertsButton]
+
+    def enableButtons(self, enable=True):
+        super().enableButtons(enable=enable)
+        widgetState(self.showInsertsButton, NORMAL)
     
 def makeFilterValidate(maxWidth, exclude=''):
     "Register this with one parameter: %P"
