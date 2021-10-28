@@ -5,11 +5,13 @@ try:
     from tkUtilities import *
     from drawnValue import *
     from VisualizationApp import *
+    from OutputBox import *
 except ModuleNotFoundError:
     from .coordinates import *
     from .tkUtilities import *
     from .drawnValue import *
     from .VisualizationApp import *
+    from .OutputBox import *
 
 V = vector
 
@@ -31,7 +33,6 @@ class InfixCalculator(VisualizationApp):
     OUTPUT_BOX_Y0 = 350
     OUTPUT_BOX_WIDTH = 210
     OUTPUT_BOX_HEIGHT = 30
-    OUTPUT_BOX_BG = VisualizationApp.OPERATIONS_BG
     TR_STACK_X0 = INPUT_BOX_X0
     TR_STACK_Y0 = 380
     TR_QUEUE_X0 = 280
@@ -180,32 +181,11 @@ class InfixCalculator(VisualizationApp):
             text=inputString, anchor=W, font=self.VALUE_FONT,
             fill=self.VALUE_COLOR)
 
-        # Operator prececedence table
-        tableTitle = "Operator Precedence"
-        self.canvas.create_text(
-            self.PRECEDENCE_X0, self.PRECEDENCE_Y0, text=tableTitle,
-            anchor=W, font=self.VARIABLE_FONT, fill='black')
-        nLevels = len(self.operators)
-        x0, y0 = self.PRECEDENCE_X0, self.PRECEDENCE_Y0 
-        dY = self.PRECEDENCE_SPACING
-        width = textWidth(self.VARIABLE_FONT, tableTitle)
-        for j, operatorString in enumerate(self.operators):
-            self.canvas.create_rectangle(
-                x0,         y0 + int((nLevels - j - 0.5) * dY),
-                x0 + width, y0 + int((nLevels - j + 0.5) * dY),
-                fill=drawnValue.palette[j], outline='', width=0)
-            self.canvas.create_text(
-                x0 + width // 2, y0 + (nLevels - j) * dY,
-                text='  '.join(c for c in operatorString),
-                font=self.VARIABLE_FONT, fill='black')
+        self.createOperatorPrecedenceTable(
+            self.PRECEDENCE_X0, self.PRECEDENCE_Y0, self.PRECEDENCE_SPACING)
             
         outBoxCoords = self.outputBoxCoords()
-        self.outputBox = self.canvas.create_rectangle(
-            *outBoxCoords, fill=self.OUTPUT_BOX_BG, width=1, outline='black')
-        self.outputLabel = self.canvas.create_text(
-            (outBoxCoords[0] + outBoxCoords[2]) // 2, outBoxCoords[1] - 10,
-            text='Output', anchor=S, font=self.VARIABLE_FONT, 
-            fill=self.VARIABLE_COLOR)
+        self.outputBox = OutputBox(self, outBoxCoords, label='Output')
         
         # No structures yet
         self.TRstackTopIndex = None
@@ -215,6 +195,29 @@ class InfixCalculator(VisualizationApp):
         self.postfixLabel = None
         self.postfixInputString = None
 
+    def createOperatorPrecedenceTable(
+            self, x0=PRECEDENCE_X0, y0=PRECEDENCE_Y0, dY=PRECEDENCE_SPACING,
+            title="Operator Precedence", font=None, operatorColor='black',
+            precedenceColor='gray20', titleColor='black'):
+        if font is None: font = self.VARIABLE_FONT
+        self.canvas.create_text(
+            x0, y0, text=title, anchor=W, font=font, fill=titleColor)
+        nLevels = len(self.operators)
+        width = textWidth(font, title)
+        for j, operatorString in enumerate(self.operators):
+            self.canvas.create_rectangle(
+                x0,         y0 + int((nLevels - j - 0.5) * dY),
+                x0 + width, y0 + int((nLevels - j + 0.5) * dY),
+                fill=drawnValue.palette[j], outline='', width=0)
+            self.canvas.create_text(
+                x0 + width // 2, y0 + (nLevels - j) * dY,
+                text='  '.join(c for c in operatorString),
+                font=font, fill=operatorColor)
+            self.canvas.create_text(
+                x0 + abs(font[1]) // 3, y0 + (nLevels - j) * dY,
+                text=str(self.precedence(operatorString[0])), anchor=W,
+                font=font, fill=precedenceColor)
+        
     def createTranslateStructues(self, callEnviron):
         colors = [[dValue and dValue.val and dValue.color(self.canvas) 
                    for dValue in struct]
@@ -394,7 +397,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
         env['ARRAY_SIZE'] = self.ARRAY_SIZE
         callEnviron = self.createCallEnvironment(
             code=code.format(**env), startAnimations=start)
-        wait=0.1
+        wait = 0.1
         errorValue = 'Error!'
         hlColor = self.CODE_HIGHLIGHT
         self.canvas.itemConfig(self.infixInputString, text=infixExpression)
@@ -499,14 +502,11 @@ def PostfixEvaluate(formula={infixExpression!r}):
                         attempts += 1
                         result = (errorValue
                                   if L is errorValue or R is errorValue else
-                                  str(L|R if check('|') else
-                                      L&R if check('&') else
-                                      L+R if check('+') else
-                                      L-R if check('-') else
-                                      L*R if check('*') else
-                                      L/R if check('/') else
-                                      L%R if check('%') else
-                                      L^R if check('^') else None))
+                                  L|R if check('|') else L&R if check('&') else
+                                  L+R if check('+') else L-R if check('-') else
+                                  L*R if check('*') else L/R if check('/') else
+                                  L%R if check('%') else L^R if check('^') else
+                                  None)
                     except Exception as e:
                         self.setMessage(e)
                         hlColor = self.EXCEPTION_HIGHLIGHT
@@ -525,8 +525,13 @@ def PostfixEvaluate(formula={infixExpression!r}):
                 self.moveItemsTo(
                     (left, right), (operatorCoords, operatorCoords), 
                     sleepTime=0.01)
+                resultString = (
+                    '{:3.5f}'.format(result) if isinstance(result, float)
+                    else str(result))
+                if isinstance(result, float) and '.' in resultString:
+                    resultString = resultString.rstrip('0.')
                 tokenItem = self.canvas.create_text(
-                    *operatorCoords, text=result, font=self.VALUE_FONT,
+                    *operatorCoords, text=resultString, font=self.VALUE_FONT,
                     fill=self.VALUE_COLOR)
                 for displayString, coords in zip(
                         (left, operator, right),
@@ -547,14 +552,12 @@ def PostfixEvaluate(formula={infixExpression!r}):
             self.highlightCode(('token', 2), callEnviron, wait=wait, 
                                color=hlColor)
 
-        outputBox = self.outputBoxCoords()
         self.canvas.itemConfig(precValue, text='')
         self.canvas.itemConfig(operator, text='')
-        self.canvas.coords(operator, *BBoxCenter(outputBox))
         self.highlightCode('return s.pop()', callEnviron, color=hlColor)
         try:
-            dValue = self.popToken(callEnviron, arrayID=self.EVstackID,
-                                   toString=operator)
+            dValue = self.popToken(callEnviron, arrayID=self.EVstackID)
+            self.outputBox.setToText(dValue.items, sleepTime=wait / 10)
         except:
             hlColor = self.EXCEPTION_HIGHLIGHT
             self.highlightCode('return s.pop()', callEnviron, color=hlColor)
@@ -844,7 +847,7 @@ def PostfixTranslate(formula={infixExpression!r}):
         self.moveItemsBy(
             self.indices[arrayID], (0, - self.CELL_HEIGHT), sleepTime=0.01)
 
-    def popToken(self, callEnviron, arrayID=0, toString=0):
+    def popToken(self, callEnviron, arrayID=0, toString=0, sleepTime=0.01):
         '''Pop a drawnValue record from an array structure and optionally
         move a copy of its value text to a toString'''
         index = len(self.structures[arrayID]) - 1
@@ -857,17 +860,14 @@ def PostfixTranslate(formula={infixExpression!r}):
                 text += ' '
             copyItem = self.canvas.copyItem(top.items[1])
             callEnviron.add(copyItem)
-            for item in top.items:
-                self.canvas.delete(item)
-                callEnviron.discard(item)
+            self.dispose(callEnviron, *top.items)
             toCoords = V(self.canvas.coords(toString)) + V(
                 textWidth(self.VALUE_FONT, text + top.val) // 2, 0)
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
             self.canvas.itemConfig(toString, text=text + top.val)
-            self.canvas.delete(copyItem)
-            callEnviron.discard(copyItem)
+            self.dispose(callEnviron, copyItem)
         self.moveItemsBy(
-            self.indices[arrayID], (0, self.CELL_HEIGHT), sleepTime=0.01)
+            self.indices[arrayID], (0, self.CELL_HEIGHT), sleepTime=sleepTime)
         return top
     
     def insertToken(self, token, callEnviron, color=None):
