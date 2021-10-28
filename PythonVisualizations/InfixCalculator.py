@@ -180,24 +180,8 @@ class InfixCalculator(VisualizationApp):
             text=inputString, anchor=W, font=self.VALUE_FONT,
             fill=self.VALUE_COLOR)
 
-        # Operator prececedence table
-        tableTitle = "Operator Precedence"
-        self.canvas.create_text(
-            self.PRECEDENCE_X0, self.PRECEDENCE_Y0, text=tableTitle,
-            anchor=W, font=self.VARIABLE_FONT, fill='black')
-        nLevels = len(self.operators)
-        x0, y0 = self.PRECEDENCE_X0, self.PRECEDENCE_Y0 
-        dY = self.PRECEDENCE_SPACING
-        width = textWidth(self.VARIABLE_FONT, tableTitle)
-        for j, operatorString in enumerate(self.operators):
-            self.canvas.create_rectangle(
-                x0,         y0 + int((nLevels - j - 0.5) * dY),
-                x0 + width, y0 + int((nLevels - j + 0.5) * dY),
-                fill=drawnValue.palette[j], outline='', width=0)
-            self.canvas.create_text(
-                x0 + width // 2, y0 + (nLevels - j) * dY,
-                text='  '.join(c for c in operatorString),
-                font=self.VARIABLE_FONT, fill='black')
+        self.createOperatorPrecedenceTable(
+            self.PRECEDENCE_X0, self.PRECEDENCE_Y0, self.PRECEDENCE_SPACING)
             
         outBoxCoords = self.outputBoxCoords()
         self.outputBox = self.canvas.create_rectangle(
@@ -215,6 +199,29 @@ class InfixCalculator(VisualizationApp):
         self.postfixLabel = None
         self.postfixInputString = None
 
+    def createOperatorPrecedenceTable(
+            self, x0=PRECEDENCE_X0, y0=PRECEDENCE_Y0, dY=PRECEDENCE_SPACING,
+            title="Operator Precedence", font=None, operatorColor='black',
+            precedenceColor='gray20', titleColor='black'):
+        if font is None: font = self.VARIABLE_FONT
+        self.canvas.create_text(
+            x0, y0, text=title, anchor=W, font=font, fill=titleColor)
+        nLevels = len(self.operators)
+        width = textWidth(font, title)
+        for j, operatorString in enumerate(self.operators):
+            self.canvas.create_rectangle(
+                x0,         y0 + int((nLevels - j - 0.5) * dY),
+                x0 + width, y0 + int((nLevels - j + 0.5) * dY),
+                fill=drawnValue.palette[j], outline='', width=0)
+            self.canvas.create_text(
+                x0 + width // 2, y0 + (nLevels - j) * dY,
+                text='  '.join(c for c in operatorString),
+                font=font, fill=operatorColor)
+            self.canvas.create_text(
+                x0 + abs(font[1]) // 3, y0 + (nLevels - j) * dY,
+                text=str(self.precedence(operatorString[0])), anchor=W,
+                font=font, fill=precedenceColor)
+        
     def createTranslateStructues(self, callEnviron):
         colors = [[dValue and dValue.val and dValue.color(self.canvas) 
                    for dValue in struct]
