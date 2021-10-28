@@ -5,11 +5,13 @@ try:
     from tkUtilities import *
     from drawnValue import *
     from VisualizationApp import *
+    from OutputBox import *
 except ModuleNotFoundError:
     from .coordinates import *
     from .tkUtilities import *
     from .drawnValue import *
     from .VisualizationApp import *
+    from .OutputBox import *
 
 V = vector
 
@@ -31,7 +33,6 @@ class InfixCalculator(VisualizationApp):
     OUTPUT_BOX_Y0 = 350
     OUTPUT_BOX_WIDTH = 210
     OUTPUT_BOX_HEIGHT = 30
-    OUTPUT_BOX_BG = VisualizationApp.OPERATIONS_BG
     TR_STACK_X0 = INPUT_BOX_X0
     TR_STACK_Y0 = 380
     TR_QUEUE_X0 = 280
@@ -184,12 +185,7 @@ class InfixCalculator(VisualizationApp):
             self.PRECEDENCE_X0, self.PRECEDENCE_Y0, self.PRECEDENCE_SPACING)
             
         outBoxCoords = self.outputBoxCoords()
-        self.outputBox = self.canvas.create_rectangle(
-            *outBoxCoords, fill=self.OUTPUT_BOX_BG, width=1, outline='black')
-        self.outputLabel = self.canvas.create_text(
-            (outBoxCoords[0] + outBoxCoords[2]) // 2, outBoxCoords[1] - 10,
-            text='Output', anchor=S, font=self.VARIABLE_FONT, 
-            fill=self.VARIABLE_COLOR)
+        self.outputBox = OutputBox(self, outBoxCoords, label='Output')
         
         # No structures yet
         self.TRstackTopIndex = None
@@ -401,7 +397,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
         env['ARRAY_SIZE'] = self.ARRAY_SIZE
         callEnviron = self.createCallEnvironment(
             code=code.format(**env), startAnimations=start)
-        wait=0.1
+        wait = 0.1
         errorValue = 'Error!'
         hlColor = self.CODE_HIGHLIGHT
         self.canvas.itemConfig(self.infixInputString, text=infixExpression)
@@ -554,14 +550,12 @@ def PostfixEvaluate(formula={infixExpression!r}):
             self.highlightCode(('token', 2), callEnviron, wait=wait, 
                                color=hlColor)
 
-        outputBox = self.outputBoxCoords()
         self.canvas.itemConfig(precValue, text='')
         self.canvas.itemConfig(operator, text='')
-        self.canvas.coords(operator, *BBoxCenter(outputBox))
         self.highlightCode('return s.pop()', callEnviron, color=hlColor)
         try:
-            dValue = self.popToken(callEnviron, arrayID=self.EVstackID,
-                                   toString=operator)
+            dValue = self.popToken(callEnviron, arrayID=self.EVstackID)
+            self.outputBox.appendText(dValue.items[1], sleepTime=wait / 10)
         except:
             hlColor = self.EXCEPTION_HIGHLIGHT
             self.highlightCode('return s.pop()', callEnviron, color=hlColor)
@@ -851,7 +845,7 @@ def PostfixTranslate(formula={infixExpression!r}):
         self.moveItemsBy(
             self.indices[arrayID], (0, - self.CELL_HEIGHT), sleepTime=0.01)
 
-    def popToken(self, callEnviron, arrayID=0, toString=0):
+    def popToken(self, callEnviron, arrayID=0, toString=0, sleepTime=0.01):
         '''Pop a drawnValue record from an array structure and optionally
         move a copy of its value text to a toString'''
         index = len(self.structures[arrayID]) - 1
@@ -864,17 +858,14 @@ def PostfixTranslate(formula={infixExpression!r}):
                 text += ' '
             copyItem = self.canvas.copyItem(top.items[1])
             callEnviron.add(copyItem)
-            for item in top.items:
-                self.canvas.delete(item)
-                callEnviron.discard(item)
+            self.dispose(callEnviron, *top.items)
             toCoords = V(self.canvas.coords(toString)) + V(
                 textWidth(self.VALUE_FONT, text + top.val) // 2, 0)
             self.moveItemsTo(copyItem, toCoords, sleepTime=0.01)
             self.canvas.itemConfig(toString, text=text + top.val)
-            self.canvas.delete(copyItem)
-            callEnviron.discard(copyItem)
+            self.dispose(callEnviron, copyItem)
         self.moveItemsBy(
-            self.indices[arrayID], (0, self.CELL_HEIGHT), sleepTime=0.01)
+            self.indices[arrayID], (0, self.CELL_HEIGHT), sleepTime=sleepTime)
         return top
     
     def insertToken(self, token, callEnviron, color=None):
