@@ -557,8 +557,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
         self.highlightCode('return s.pop()', callEnviron, color=hlColor)
         try:
             dValue = self.popToken(callEnviron, arrayID=self.EVstackID)
-            self.dispose(callEnviron, dValue.items[0])
-            self.outputBox.appendText(dValue.items[1], sleepTime=wait / 10)
+            self.outputBox.setToText(dValue.items, sleepTime=wait / 10)
         except:
             hlColor = self.EXCEPTION_HIGHLIGHT
             self.highlightCode('return s.pop()', callEnviron, color=hlColor)
