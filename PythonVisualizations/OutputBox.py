@@ -202,7 +202,7 @@ class OutputBox(object):
         '''Move a tuple of items to the output box (animating if sleepTime is
         non-zero), then set the output box text to the text in the
         first text item.  Optionally set the background color of the
-        output box to the specified color (strin) or to the fill color
+        output box to the specified color (string) or to the fill color
         of the first non- text item among the items if color is True.
         If coords are provided, there should be coordinates for each
         of the items that place them within the output box.
