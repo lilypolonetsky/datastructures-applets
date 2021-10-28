@@ -22,6 +22,8 @@ class OutputBox(object):
     Visualization app's canvas.  Position defaults to being centered at the
     bottom of the canvas.
     '''
+    TEXT_ANCHOR = NW
+    
     def __init__(  # Constructor
             self,
             visualizationApp,            # Visualization app for display
@@ -92,8 +94,9 @@ class OutputBox(object):
             *self.bbox, fill=self.background, width=self.borderWidth,
             outline=self.borderColor, tags=self.tags)
         self.outputText = self.app.canvas.create_text(
-            *(V(self.bbox[:2]) + V(self.outputOffset)), anchor=NW, text='',
-            fill=self.outputColor, font=self.outputFont, tags=self.tags)
+            *(V(self.bbox[:2]) + V(self.outputOffset)), anchor=self.TEXT_ANCHOR,
+            text='', fill=self.outputColor, font=self.outputFont,
+            tags=self.tags)
         for event, handler in self.eventHandlers:
             if (callable(handler) and hasattr(OutputBox, handler.__name__)
                 and callable(getattr(self, handler.__name__)())):
@@ -138,12 +141,19 @@ class OutputBox(object):
              center[1])
         return x, y
     
-    def endCoords(self):
-        'Get coordinates where current output text ends for next append'
+    def endCoords(self, spacer=''):
+        '''Get coordinates where current output text ends for next append.
+        Add the spacer string if the last line has some characters but doesn't
+        already end with it.
+        '''
         lines = self.text().split('\n')
         upperLeft = self.app.canvas_coords(self.outputText)
         return V(upperLeft) + V(
-            textWidth(self.outputFont, lines[-1]) if lines else 0,
+            textWidth(
+                self.outputFont,
+                lines[-1] +
+                (spacer if lines[-1] and not lines[-1].endswith(spacer) else '')
+            ) if lines else 0,
             (len(lines) - 1) * self.lineHeight)
 
     def appendText(
@@ -177,9 +187,9 @@ class OutputBox(object):
         animate = isinstance(textOrItem, int) and sleepTime
         if animate:
             self.app.canvas.tag_raise(textOrItem, self.outputBox)
-            self.app.canvas.changeAnchor(W, textOrItem)
+            self.app.canvas.changeAnchor(self.TEXT_ANCHOR, textOrItem)
             self.app.moveItemsTo(
-                textOrItem, self.endCoords(), sleepTime=sleepTime, 
+                textOrItem, self.endCoords(separator), sleepTime=sleepTime, 
                 startFont=self.app.canvas.getItemFont(textOrItem),
                 endFont=self.outputFont, see=see, expand=expand)
         self.app.canvas_itemConfig(self.outputText, text='\n'.join(lines))
@@ -269,8 +279,18 @@ class OutputBox(object):
         
 if __name__ == '__main__':
     from drawnValue import *
-    import random, sys
+    import random, sys, argparse
     
+    parser = argparse.ArgumentParser(
+        description='Test ' + __file__,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument(
+        'label', nargs='*', help='Label(s) to draw.')
+    parser.add_argument(
+        '-s', '--sleep-time', default=0.01, type=float,
+        help='Sleep time for animation.')
+    args = parser.parse_args()
+
     app = Visualization(title='OutputBox test', canvasBounds=(0, 0, 800, 400))
 
     app.startAnimations()
@@ -315,12 +335,15 @@ if __name__ == '__main__':
         app.wait(0.1)
         
     region = (50, 50, 750, 300)
+    anchors = (NW, N, NE, E, SE, S, SW, W, CENTER)
     items = [app.canvas.create_text(
         random.randrange(region[0], region[2]),
-        random.randrange(region[1], region[3]), text=txt,
-        font=('Helvetica', -12), fill='blue')
-             for txt in sys.argv[1:] +
-             (OutputBox.__doc__ + ' ' + OutputBox.appendText.__doc__).split()]
+        random.randrange(region[1], region[3]), text=txt, fill='blue',
+        anchor=anchors[i % len(anchors)], font=('Helvetica', -12))
+             for i, txt in enumerate(
+                     args.label +
+                     (OutputBox.__doc__ + ' ' + OutputBox.appendText.__doc__)
+                     .split())]
     print('Created {} word items'.format(len(items)))
 
     outbox2 = OutputBox(
@@ -328,7 +351,7 @@ if __name__ == '__main__':
         nCharacters=35, nLines=7, see=True)
     print('Appending word items to output box 2')
     for item in items:
-        outbox2.appendText(item, sleepTime=0.01, see=outbox2.items(),
+        outbox2.appendText(item, sleepTime=args.sleep_time, see=outbox2.items(),
                            expand=True)
         app.wait(0.01)
 
