@@ -502,14 +502,11 @@ def PostfixEvaluate(formula={infixExpression!r}):
                         attempts += 1
                         result = (errorValue
                                   if L is errorValue or R is errorValue else
-                                  str(L|R if check('|') else
-                                      L&R if check('&') else
-                                      L+R if check('+') else
-                                      L-R if check('-') else
-                                      L*R if check('*') else
-                                      L/R if check('/') else
-                                      L%R if check('%') else
-                                      L^R if check('^') else None))
+                                  L|R if check('|') else L&R if check('&') else
+                                  L+R if check('+') else L-R if check('-') else
+                                  L*R if check('*') else L/R if check('/') else
+                                  L%R if check('%') else L^R if check('^') else
+                                  None)
                     except Exception as e:
                         self.setMessage(e)
                         hlColor = self.EXCEPTION_HIGHLIGHT
@@ -528,8 +525,13 @@ def PostfixEvaluate(formula={infixExpression!r}):
                 self.moveItemsTo(
                     (left, right), (operatorCoords, operatorCoords), 
                     sleepTime=0.01)
+                resultString = (
+                    '{:3.5f}'.format(result) if isinstance(result, float)
+                    else str(result))
+                if isinstance(result, float) and '.' in resultString:
+                    resultString = resultString.rstrip('0.')
                 tokenItem = self.canvas.create_text(
-                    *operatorCoords, text=result, font=self.VALUE_FONT,
+                    *operatorCoords, text=resultString, font=self.VALUE_FONT,
                     fill=self.VALUE_COLOR)
                 for displayString, coords in zip(
                         (left, operator, right),
@@ -555,6 +557,7 @@ def PostfixEvaluate(formula={infixExpression!r}):
         self.highlightCode('return s.pop()', callEnviron, color=hlColor)
         try:
             dValue = self.popToken(callEnviron, arrayID=self.EVstackID)
+            self.dispose(callEnviron, dValue.items[0])
             self.outputBox.appendText(dValue.items[1], sleepTime=wait / 10)
         except:
             hlColor = self.EXCEPTION_HIGHLIGHT
