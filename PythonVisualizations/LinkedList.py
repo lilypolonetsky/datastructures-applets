@@ -5,11 +5,13 @@ try:
     from coordinates import *
     from tkUtilities import *
     from VisualizationApp import *
+    from OutputBox import *
 except ModuleNotFoundError:
     from .drawnValue import *
     from .coordinates import *
     from .tkUtilities import *
     from .VisualizationApp import *
+    from .OutputBox import *
 
 V = vector
 
@@ -249,29 +251,27 @@ class LinkedList(VisualizationApp):
                 anchor=SW if pos >= 0 else E)
         return (arrow, name) if name else (arrow,)
 
-    def outputData(self, posOrNode=1, callEnviron=None):
+    def outputData(self, posOrNode=1, callEnviron=None, copy=True, wait=0.1):
         localEnviron = callEnviron or self.createCallEnvironment()
 
         outputBoxCoords = self.outputBoxCoords(full=False)
-        localEnviron.add(self.createOutputBox(full=False))
-        
-        textX = (outputBoxCoords[0] + outputBoxCoords[2]) // 2
-        textY = (outputBoxCoords[1] + outputBoxCoords[3]) // 2
+        for item in self.createOutputBox(full=False):
+            localEnviron.add(item)
+        localEnviron |= set(self.createOutputBox(full=False))
 
-        if isinstance(posOrNode, int):
-            valCoords = self.cellText(posOrNode)
-            val = self.list[posOrNode - 1].key
-        elif isinstance(posOrNode, Node):
-            valCoords = self.canvas.coords(posOrNode.value)
-            val = posOrNode.key
-        firstText = self.canvas.create_text(
-            *valCoords, text=val, font=self.VALUE_FONT, fill=self.VALUE_COLOR)
-        localEnviron.add(firstText)
-        self.moveItemsTo(firstText, (textX, textY), sleepTime = 0.05)
+        node = (posOrNode if isinstance(posOrNode, Node)
+                else self.list[posOrNode - 1])
+        toMove = (node.cell, node.value)
+        if copy:
+            toMove = tuple(self.canvas.copyItem(item) for item in toMove)
+            localEnviron |= set(toMove)
+        self.outputBox.setToText(
+            toMove, sleepTime=wait / 10,
+            color=self.canvas.itemConfig(toMove[0], 'fill'))
 
         if localEnviron != callEnviron:
             self.cleanUp(localEnviron)
-        return val
+        return node.key
 
     def outputBoxCoords(self, full=False):
         return (self.LL_X0 // 5, self.LL_Y0 // 5,
@@ -285,8 +285,8 @@ class LinkedList(VisualizationApp):
         return oBox[0] - pad, (oBox[1] + oBox[3]) // 2
     
     def createOutputBox(self, full=False):
-        return self.canvas.create_rectangle(
-            *self.outputBoxCoords(full), fill = self.OPERATIONS_BG)
+        self.outputBox = OutputBox(self, self.outputBoxCoords(full))
+        return self.outputBox.items()
     
     firstCode = """
 def first(self):
@@ -380,7 +380,8 @@ def deleteFirst(self):
             addCoords=nextLinkCoords)
 
         self.highlightCode('return first.getData()', callEnviron)
-        self.outputData(first, callEnviron)
+        self.dispose(callEnviron, first.dot, first.nextPointer)
+        self.outputData(first, callEnviron, copy=False)
         
         self.cleanUp(callEnviron)
         return firstKey
@@ -399,7 +400,7 @@ def traverse(self, func=print):
         wait = 0.1
 
         outputBoxCoords = self.outputBoxCoords(full=True)
-        callEnviron.add(self.createOutputBox(full=True))
+        callEnviron |= set(self.createOutputBox(full=True))
         outputFont = ('Courier', -18)
         outX = outputBoxCoords[0] + abs(outputFont[1])
         outY = outputBoxCoords[1] + abs(outputFont[1])
@@ -415,14 +416,9 @@ def traverse(self, func=print):
         self.highlightCode('link is not None', callEnviron, wait=wait)
         while link <= len(self.list):
             self.highlightCode('func(link.getData())', callEnviron)
-            linkText = text=self.list[link - 1].key
-            tx = textWidth(outputFont, linkText)
-            textItem = self.canvas.create_text(
-                *(V(self.cellText(link)) - V((tx / 2, sepY / 2))),
-                text=linkText, font=outputFont, anchor=W)
-            callEnviron.add(textItem)
-            self.moveItemsTo(textItem, (outX, outY), sleepTime = 0.05)
-            outX += tx + sepX
+            node = self.list[link - 1]
+            self.outputBox.appendText(
+                self.canvas.copyItem(node.value), sleepTime=wait / 10)
             
             self.highlightCode('link = link.getNext()', callEnviron)
             link += 1
@@ -727,8 +723,8 @@ def search(self, goal={goal!r}, key=identity):
 
         self.highlightCode('link is not None', callEnviron, wait=wait)
         if link is not None:
-            self.highlightCode('return link.getData()', callEnviron)
             callEnviron.add(self.createFoundHighlight(link))
+            self.highlightCode('return link.getData()', callEnviron)
             self.canvas.delete(goalText)
             callEnviron.discard(goalText)
             self.outputData(link, callEnviron)
