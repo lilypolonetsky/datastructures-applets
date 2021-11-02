@@ -505,14 +505,14 @@ def delete(self, goal={goal!r}, key=identity):
 """
 
     # Delete a link from the linked list by finding a matching goal key
-    def delete(self, goal, code=deleteCode, start=True):
+    def delete(self, goal, code=deleteCode, start=True, wait=0.1):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
-        wait = 0.1
 
-        callEnviron.add(self.canvas.create_text(
+        goalText = self.canvas.create_text(
             *self.outputLabelCoords(), text='goal = {}'.format(goal), 
-            anchor=W, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
+            anchor=W, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        callEnviron.add(goalText)
 
         # check if empty
         self.highlightCode('self.isEmpty()', callEnviron, wait=wait)
@@ -562,13 +562,13 @@ def delete(self, goal={goal!r}, key=identity):
                 nextPointer = node.nextPointer
                 toMove = (self.first if updateFirst else
                           self.list[previous - 1].nextPointer,
-                          *linkIndex, foundHighlight, node.cell, node.value)
+                          *linkIndex, node.cell, node.value, foundHighlight)
                 self.canvas.changeAnchor(E, linkIndex[1])
                 toCoords = (self.nextLinkCoords(previous,
                                                 d=2 if nextPointer else 0),
                             self.indexCoords(-1), self.indexLabelCoords(-1),
-                            self.cellCoords(-1), self.cellCoords(-1),
-                            self.cellText(-1))
+                            self.cellCoords(-1), self.cellText(-1),
+                            self.cellCoords(-1))
                 self.dispose(callEnviron, node.dot, node.nextPointer)
                 self.canvas.tag_raise(self.first)
                 self.moveItemsLinearly(toMove, toCoords, sleepTime=wait / 10)
@@ -587,8 +587,8 @@ def delete(self, goal={goal!r}, key=identity):
                     
                 self.highlightCode('return link.getData()', callEnviron,
                                    wait=wait)
+                self.dispose(callEnviron, foundHighlight, goalText)
                 self.outputData(node, callEnviron, copy=False)
-                self.dispose(callEnviron, foundHighlight)
                 self.cleanUp(callEnviron)
                 return node.key
 
@@ -817,8 +817,11 @@ def search(self, goal={goal!r}, key=identity):
    
 if __name__ == '__main__':
     ll = LinkedList()
-    for arg in reversed(sys.argv[1:]):
-        ll.setArgument(arg)
-        ll.insertButton.invoke()
+    try:
+        for arg in sys.argv[1:]:
+            if len(arg) > ll.maxArgWidth: arg = arg[:ll.maxArgWidth]
+            ll.insert(arg)
+    except UserStop:
+        pass
     ll.cleanUp()
     ll.runVisualization()
