@@ -172,10 +172,9 @@ def delete(self, goal={goal!r}):
 """
 
     # Delete a link from the linked list by finding a matching goal key
-    def delete(self, goal, code=deleteCode, start=True):
+    def delete(self, goal, code=deleteCode, start=True, wait=0.1):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
-        wait = 0.1
 
         previous, column = 0, -1
         goalText = self.canvas.create_text(
@@ -241,41 +240,42 @@ def delete(self, goal={goal!r}):
                            wait=wait)
         toDelete = self.list[previous]
         toDeleteIndex = self.createIndex(previous + 1, 'toDelete')
+        callEnviron |= set(toDeleteIndex)
         
         # Prepare to update next pointer from previous
         self.highlightCode(
             'previous.setNext(previous.getNext().getNext())', callEnviron)
         updateFirst = previous == 0
-        nextPointer = self.list[previous].nextPointer
-        if nextPointer:
-            toMove = (self.first if updateFirst else
-                      self.list[previous - 1].nextPointer)
-            toCoords = self.nextLinkCoords(previous, d=2)
-            self.canvas.tag_raise(toMove)
-            self.moveItemsLinearly(toMove, toCoords, sleepTime=wait/2)
-        elif updateFirst:
-            self.canvas.delete(self.first)
-            self.first = None
-            self.wait(wait)
-        else:
-            self.canvas.delete(self.list[previous - 1].nextPointer)
-            self.list[previous - 1].nextPointer = None
-            self.wait(wait)
+        node = self.list[previous]
+        nextPointer = node.nextPointer
+        toMove = (self.first if updateFirst else
+                  self.list[previous - 1].nextPointer,
+                  *toDeleteIndex, node.cell, node.value, foundHighlight)
+        self.canvas.changeAnchor(E, toDeleteIndex[1])
+        toCoords = (self.nextLinkCoords(previous, d=2 if nextPointer else 0),
+                    self.indexCoords(-1), self.indexLabelCoords(-1),
+                    self.cellCoords(-1), self.cellText(-1), self.cellCoords(-1))
+        self.dispose(callEnviron, node.dot, node.nextPointer)
+        for item in toMove:
+            self.canvas.tag_raise(item)
+        self.moveItemsLinearly(toMove, toCoords, sleepTime=wait / 10)
+        self.dispose(callEnviron, goalText)
 
-        self.highlightCode('return toDelete.getData()', callEnviron)
-        self.canvas.delete(goalText)
-        callEnviron.discard(goalText)
-        self.outputData(previous + 1, callEnviron)
-            
-        # Remove Link with goal key and link index
-        self.moveItemsOffCanvas(
-            self.list[previous].items() + (foundHighlight,) + toDeleteIndex,
-            sleepTime=0.01)
-        callEnviron |= set(self.list[previous].items())
+        if nextPointer is None:
+            if updateFirst:
+                self.canvas.delete(self.first)
+                self.first = None
+            else:
+                self.canvas.delete(self.list[previous - 1].nextPointer)
+                self.list[previous - 1].nextPointer = None
         self.list[previous:previous + 1] = []
 
         # Reposition all remaining links
         self.restorePositions()
+
+        self.highlightCode('return toDelete.getData()', callEnviron)
+        self.dispose(callEnviron, foundHighlight)
+        self.outputData(node, callEnviron, copy=False)
                     
         self.cleanUp(callEnviron)
         return toDelete.key
@@ -372,57 +372,6 @@ def search(self, goal={goal!r}):
             self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
         return result
-            
-    def createFoundHighlight(self, pos): # Highlight the Link cell at pos
-        bbox = self.cellCoords(pos)
-        return self.canvas.create_rectangle(
-            *bbox, fill='', outline=self.FOUND_COLOR, width=4,
-            tags='found item')
-    
-    ### BUTTON FUNCTIONS##
-    def clickSearch(self):
-        val = self.getArgument()
-        result = self.search(val, start=self.startMode())
-        if result != None:
-            msg = "Found {}!".format(val)
-        else:
-            msg = "Value {} not found".format(val)
-        self.setMessage(msg)
-        self.clearArgument()
-    
-    def clickInsert(self):
-        val = self.getArgument()
-        if len(self) >= self.MAX_SIZE:
-            self.setMessage("Error! Linked List is already full.")
-            self.clearArgument()
-        else:  
-            self.insert(val, start=self.startMode())
-
-    def clickDelete(self):
-        empty = self.first is None  # check whether linked list is empty or not
-        val = self.getArgument()
-        result = self.delete(val, start=self.startMode())
-        self.setMessage(
-            'Error! Linked list is empty' if empty else
-            '"{}" was deleted'.format(val) if result else
-            'Value {} not found'.format(val))
-        if result:
-            self.clearArgument()        
-        
-    def clickDeleteFirst(self):
-        if self.deleteFirst(start=self.startMode()) is None:
-            self.setMessage('Error! Queue is empty')
-        
-    def clickNewLinkedList(self):
-        self.newLinkedList()
-    
-    def clickGetFirst(self):
-        first = self.firstData(start=self.startMode())
-        self.setMessage('Error! Queue is empty' if first is None else
-                        "The first link's data is {}".format(first))
-
-    def clickTraverse(self):
-        self.traverse(start=self.startMode())
     
     def makeButtons(self):
         vcmd = (self.window.register(self.validate),
@@ -455,18 +404,14 @@ def search(self, goal={goal!r}):
     
         return [searchButton, insertButton, deleteButton, deleteFirstButton,
                 newLinkedListButton, getFirstButton, traverseButton]
-            
-    ##allow letters or numbers to be typed in                  
-    def validate(self, action, index, value_if_allowed,
-                             prior_value, text, validation_type, trigger_type, widget_name):
-        return len(value_if_allowed)<= self.maxArgWidth
    
 if __name__ == '__main__':
     ll = OrderedList()
     try:
         for arg in sys.argv[1:]:
+            if len(arg) > ll.maxArgWidth: arg = arg[:ll.maxArgWidth]
             ll.insert(arg)
-            ll.cleanUp()
     except UserStop:
-        ll.cleanUp()
+        pass
+    ll.cleanUp()
     ll.runVisualization()

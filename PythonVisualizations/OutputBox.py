@@ -160,7 +160,7 @@ class OutputBox(object):
             self, textOrItem, separator=' ', sleepTime=0, deleteItem=True,
             see=(), expand=True):
         '''Append new text to output text.  Can provide text string or numeric
-        ID of canvas item to animate move to output position folloed
+        ID of canvas item to animate move to output position followed
         by optional deletion.  If there is already some current text,
         the separator string is appended to it before adding the new
         text.  If appending the new text would make the last line go
