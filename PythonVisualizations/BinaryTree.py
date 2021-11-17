@@ -295,7 +295,7 @@ def __promote_successor(self, node={nodeStr}):
             validationCmd=vcmd, argHelpText=['item'], 
             helpText='Delete item from tree')
         fillButton = self.addOperation(
-            "Erase & Random fill", lambda: self.clickFill(), numArguments=1,
+            "Erase & Random Fill", lambda: self.clickFill(), numArguments=1,
             validationCmd=vcmd, argHelpText=['number of items'], 
             helpText='Empty tree and fill it\nwith a number of random items')
 
