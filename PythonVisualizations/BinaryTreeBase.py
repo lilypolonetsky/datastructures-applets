@@ -259,7 +259,7 @@ class BinaryTreeBase(VisualizationApp):
     def createTreeObject(
             self, label="BinarySearchTree", offsetAngle=None, offset=None,
             color='powder blue', root='root', dotColor='red', fields=[], 
-            font=None):
+            font=None, scrollToSee=True):
         '''Create the tree object that points to the root of a tree.
         The object is represented with a filled rectangle holding a list
         of fields plus a final field with an arrow pointing to the root
@@ -292,6 +292,8 @@ class BinaryTreeBase(VisualizationApp):
         self.treeObject = (
             rect, arrow, rootLabel, oval, *fieldLabels, treeLabel)
         self.updateTreeObjectRootPointer(arrow=arrow, root=self.getRoot())
+        if scrollToSee:
+            self.scrollToSee(self.treeObject, sleepTime=0, steps=1)
         return self.treeObject
 
     def treeObjectFonts(self, font=None):
