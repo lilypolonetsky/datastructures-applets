@@ -73,7 +73,7 @@ class Tree234(BinaryTreeBase):
         super().__init__(
             title=title, CIRCLE_SIZE=self.CIRCLE_SIZE, RECT=canvasBounds,
             canvasBounds=canvasBounds, **kwargs)
-        self.ROOT_X0, self.ROOT_Y0 = 0, 0
+        self.ROOT_X0, self.ROOT_Y0 = 0, 25
         self.LEVEL_GAP = self.CIRCLE_SIZE * 8
         self.scale, self.fontScale = 1.0, abs(self.FONT_SIZE)
         self.buttons = self.makeButtons()
