@@ -64,6 +64,8 @@ class CodeHighlightBlock(object):
         when there are multiple copies.  Return the line.char position of the
         start and end of the fragment, similar to the indices used by the
         Tk text widget, but use 0-relative line numbers.
+        For regex fragments that have parenthesized groups, find the indices
+        of the last, non-empty group in the match.
         '''
         j = 0
         if isinstance(fragment, type(declarationPattern)):

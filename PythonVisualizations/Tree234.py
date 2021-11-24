@@ -1077,11 +1077,13 @@ def insertKeyValue(self={selfStr}, key={key}, data, subtree={subtreeStr}):
 def search(self, goal={goal}):
    node, p = self.__find(goal, self.__root, self, prepare=False)
    if node:
-      return (node.data[0]
-              if node.nKeys < 2 or goal < node.keys[1]
-              else node.data[1] if goal == node.keys[1]
-              else node.data[2])
+      return node.data[
+         0 if node.nKeys < 2 or
+         goal < node.keys[1] else 
+         1 if goal == node.keys[1]
+         else 2]
 '''
+    closeBracket = re.compile(r'2(\])$')
     
     def search(self, goal, code=searchCode, start=True):
         wait = 0.1
@@ -1116,18 +1118,21 @@ def search(self, goal={goal}):
 
         self.highlightCode(('node', 2), callEnviron, wait=wait)
         if node:
-            self.highlightCode('node.nKeys < 2', callEnviron, wait=wait)
-            if node.nKeys >= 2:
-                self.highlightCode('goal < node.keys[1]', callEnviron,
-                                   wait=wait)
-            if node.nKeys < 2 or goal < node.keys[1]:
-                self.highlightCode(('return', 'node.data[0]'), callEnviron)
-
-            elif self.highlightCode('goal == node.keys[1]', callEnviron,
-                                    wait=wait) or goal == node.keys[1]:
-                self.highlightCode(('return', 'node.data[1]'), callEnviron)
+            if self.highlightCode(
+                    'node.nKeys < 2', callEnviron, wait=wait,
+                    returnValue=node.nKeys < 2) or self.highlightCode(
+                        'goal < node.keys[1]', callEnviron, wait=wait,
+                        returnValue=goal < node.keys[1]):
+                self.highlightCode(('return node.data[', ' 0 ',
+                                    self.closeBracket), callEnviron)
+            elif self.highlightCode(
+                    'goal == node.keys[1]', callEnviron,
+                    wait=wait, returnValue=goal == node.keys[1]):
+                self.highlightCode(('return node.data[', ' 1 ',
+                                    self.closeBracket), callEnviron)
             else:
-                self.highlightCode(('return', 'node.data[2]'), callEnviron)
+                self.highlightCode(('return node.data[', (' 2', 2),
+                                    self.closeBracket), callEnviron)
         else:
             self.highlightCode((), callEnviron)
 
