@@ -450,13 +450,12 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
       if ignoreMissing:
          return
       raise Exception(
-         'Hash table does not contain key {brackets} so cannot delete'
-         .format(key))
+         'Cannot delete key {brackets} not found in hash table'.format(key))
    self.__table[i] = HashTable.__Deleted
    self.__nItems -= 1
 '''
 
-    hashDeleteException = re.compile(r'raise Exception.*\n.*\n.*key\)\)')
+    hashDeleteException = re.compile(r'raise Exception.*\n.*format\(key\)\)')
     
     def delete(self, key, ignoreMissing=False, code=deleteCode, start=True):
         wait = 0.1

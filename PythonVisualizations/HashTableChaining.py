@@ -459,8 +459,7 @@ def delete(self, key={key}, ignoreMissing={ignoreMissing}):
    if ignoreMissing:
       return False
    raise Exception(
-      'Hash table does not contain key {brackets} so cannot delete'
-      .format(key))
+      'Cannot delete key {bracket} not found in hash table'.format(key))
 '''
     
     def delete(self, key, ignoreMissing=False, code=deleteCode, start=True):
