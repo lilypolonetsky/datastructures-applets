@@ -1198,8 +1198,9 @@ def degree(self, n={nVal}):
                  *(V(self.vertexTable.cellCenter(row + 1)) + Voffset),
                  text='0', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
             for name, row in zip(('inb', 'outb'), (1, 4))]
-        callEnviron |= set(outVars[0] + outVars[1])
-        self.scrollToSee(flat(outVars), sleepTime=wait / 10)
+        allOutVars = flat(*outVars)
+        callEnviron |= set(allOutVars)
+        self.scrollToSee(allOutVars, sleepTime=wait / 10)
             
         self.highlightCode('j in self.vertices()', callEnviron, wait=wait)
         jArrowConfig = {'level': 2, 'anchor': SE}
