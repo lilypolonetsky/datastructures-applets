@@ -334,7 +334,7 @@ def insert(self, a={x}, b={y}, data={data!r}):
    self.__root = self.__insert(self.__root, a, b, data)   
 '''
     
-    #wrapper method for insert
+    #wrapper method for recursive insert
     def insert(self, x, y, data, start=True, code=insertCode, wait=0.1):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start,
@@ -346,7 +346,7 @@ def insert(self, a={x}, b={y}, data={data!r}):
             self.highlightCode(
                 'self.__root = self.__insert(self.__root, a, b, data)',
                 callEnviron)
-        self.__root = self.__insert(
+        self.__root, new = self.__insert(
             self.__root, x, y, data, self.userBBox(self.pointRegion),
             wait=wait if code else 0, code=self._insertCode if code else '')
         self.canvas.itemConfig('root', state=NORMAL)
@@ -354,6 +354,7 @@ def insert(self, a={x}, b={y}, data={data!r}):
             self.dispose(callEnviron, *crosshair)
             self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron, sleepTime=wait / 10 if code else 0)
+        return new
 
     _insertCode = '''
 def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
@@ -398,10 +399,10 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
                 self.__root = n
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             self.updateBoundaryDisplay()
-            return n
+            return n, True
 
         # if the point to be inserted is identical to the current node,
-        # add the data to the list of data
+        # replace its data and return False for the new node flag
         elif (self.highlightCode('n.a == a', callEnviron, wait=wait,
                                  returnValue=n.x == x) and
               self.highlightCode('n.b == b', callEnviron, wait=wait,
@@ -413,7 +414,7 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
             self.highlightCode('return n', callEnviron)
             self.cleanUp(callEnviron, sleepTime=wait / 10)
             self.updateBoundaryDisplay()
-            return n
+            return n, False
 
         elif (self.highlightCode('a >= n.a', callEnviron, wait=wait,
                                  returnValue=x >= n.x) and
@@ -422,8 +423,8 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
             self.highlightCode('n.NE = self.__insert(n.NE, a, b, data)',
                                callEnviron)
             colors = self.canvas.fadeItems(nArrow)
-            n.NE = self.__insert(n.NE, x, y, data,
-                                 (n.x, n.y, n.BBox[2], n.BBox[3]), code, wait)
+            n.NE, new = self.__insert(
+                n.NE, x, y, data, (n.x, n.y, n.BBox[2], n.BBox[3]), code, wait)
             self.canvas.restoreItems(nArrow, colors)
         elif (self.highlightCode('a >  n.a', callEnviron, wait=wait,
                                  returnValue=x > n.x) and
@@ -432,8 +433,8 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
             self.highlightCode('n.SE = self.__insert(n.SE, a, b, data)',
                                callEnviron)
             colors = self.canvas.fadeItems(nArrow)
-            n.SE = self.__insert(n.SE, x, y, data,
-                                 (n.x, n.BBox[1], n.BBox[2], n.y), code, wait)
+            n.SE, new = self.__insert(
+                n.SE, x, y, data, (n.x, n.BBox[1], n.BBox[2], n.y), code, wait)
             self.canvas.restoreItems(nArrow, colors)
         elif (self.highlightCode('a <= n.a', callEnviron, wait=wait,
                                  returnValue=x <= n.x) and
@@ -442,21 +443,21 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
             self.highlightCode('n.SW = self.__insert(n.SW, a, b, data)',
                                callEnviron)
             colors = self.canvas.fadeItems(nArrow)
-            n.SW = self.__insert(n.SW, x, y, data,
-                                 (n.BBox[0], n.BBox[1], n.x, n.y), code, wait)
+            n.SW, new = self.__insert(
+                n.SW, x, y, data, (n.BBox[0], n.BBox[1], n.x, n.y), code, wait)
             self.canvas.restoreItems(nArrow, colors)
         else:
             self.highlightCode('n.NW = self.__insert(n.NW, a, b, data)',
                                callEnviron)
             colors = self.canvas.fadeItems(nArrow)
-            n.NW = self.__insert(n.NW, x, y, data,
-                                 (n.BBox[0], n.y, n.x, n.BBox[3]), code, wait)
+            n.NW, new = self.__insert(
+                n.NW, x, y, data, (n.BBox[0], n.y, n.x, n.BBox[3]), code, wait)
             self.canvas.restoreItems(nArrow, colors)
             
         self.highlightCode(('return n', 2), callEnviron)
         self.cleanUp(callEnviron, sleepTime=wait / 10)
         self.updateBoundaryDisplay()
-        return n
+        return n, new
 
     def createPointItems(self, node, isRoot=False,
                          lineState=HIDDEN, rootRingState=HIDDEN):
@@ -496,6 +497,8 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
     def randomFill(self, nPoints=1, label=None):
         gap = 5
         regionSize = V(BBoxSize(self.pointRegion)) - V((gap * 2, gap * 2))
+        separation = self.CIRCLE_RADIUS * 3
+        added = 0
         for i in range(nPoints):
             if label and label.startswith('P') and label[1:].isdigit():
                 n = int(label[1:])
@@ -509,11 +512,16 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
             x = random.randrange(gap, gap + regionSize[0])
             y = random.randrange(gap, gap + regionSize[1])
             nearest = self.findNearest(x, y, code='', wait=0)
-            while nearest and nearest[3] < self.CIRCLE_RADIUS * 3:
+            tries = 0
+            while nearest and nearest[3] < separation and tries < 10:
                 x = random.randrange(gap, gap + regionSize[0])
                 y = random.randrange(gap, gap + regionSize[1])
                 nearest = self.findNearest(x, y, code='', wait=0)
-            self.insert(x, y, label, code='', wait=0)
+                tries += 1
+            if ((nearest is None or nearest[3] >= separation) and
+                self.insert(x, y, label, code='', wait=0)):
+                added += 1
+        return added
 
     #clears canvas, and deletes all the nodes
     #with accompanying data and lines
@@ -880,9 +888,10 @@ def __nearest(self, n={nVal},
                                                  newBoundsRect)
                     callEnviron.add(newBoundsRect)
 
-                if self.highlightCode(
-                        ('cBounds.intersects(newB)', count), callEnviron,
-                        wait=wait, returnValue=cBounds.intersects(newB)):
+            if self.highlightCode(
+                    ('cBounds.intersects(newB)', count), callEnviron,
+                    wait=wait, returnValue=cBounds.intersects(newB)):
+                if code:
                     self.highlightCode(
                         (('cand, dist = self.__nearest(', count),
                          re.compile(' *n.{}, a, b, dist, cand, newB.'.format(
@@ -891,39 +900,41 @@ def __nearest(self, n={nVal},
                     lvars = localVars + (cBoundsRect, newBoundsRect)
                     colors = self.canvas.fadeItems(
                         lvars, faded + (Scrim.FADED_OUTLINE,) * 2)
-                    nextCand, nextDist = self._nearest(
-                        getattr(n, quadrant), x, y, dist, cand, newB)
+                nextCand, nextDist = self._nearest(
+                    getattr(n, quadrant), x, y, dist, cand, newB, code=code,
+                    wait=wait)
+                if code:
                     self.canvas.restoreItems(lvars, colors)
-                    distanceChanged = nextDist != dist
-                    if distanceChanged:
-                        dist = nextDist
-                        if code:
-                            self.canvas.itemConfig(
-                                distance, text='dist = {:3.1f}'.format(dist))
-                    if nextCand is not cand:
-                        cand = nextCand
-                        if code:
-                            self.moveItemsTo(
-                                candArrow,
-                                self.labeledArrowCoords(cand, **candArrowConfig),
-                                sleepTime=wait / 10)
+                distanceChanged = nextDist != dist
+                if distanceChanged:
+                    dist = nextDist
+                    if code:
+                        self.canvas.itemConfig(
+                            distance, text='dist = {:3.1f}'.format(dist))
+                if nextCand is not cand:
+                    cand = nextCand
+                    if code:
+                        self.moveItemsTo(
+                            candArrow,
+                            self.labeledArrowCoords(cand, **candArrowConfig),
+                            sleepTime=wait / 10)
 
-                    if quadrant == 'NW':
-                        continue
-                    self.highlightCode(('cBounds.adjust(dist)', count),
-                                       callEnviron, wait=wait)
-                    if distanceChanged:
-                        cBounds.adjust(dist)
-                        if code:
-                            self.dispose(callEnviron, cBoundsRect)
-                            cBoundsRect = self.canvas.create_hashed_rectangle(
-                                *self.canvasCoords(cBounds._l, cBounds._b),
-                                *self.canvasCoords(cBounds._r, cBounds._t),
-                                tags=('cbounds', 'rect'),
-                                **self.C_BOUNDS_CONFIG)
-                            self.canvas.copyItemHandlers(
-                                self.pointRegionRectangle, cBoundsRect)
-                            callEnviron.add(cBoundsRect)
+                if quadrant == 'NW':
+                    continue
+                self.highlightCode(('cBounds.adjust(dist)', count),
+                                   callEnviron, wait=wait)
+                if distanceChanged:
+                    cBounds.adjust(dist)
+                    if code:
+                        self.dispose(callEnviron, cBoundsRect)
+                        cBoundsRect = self.canvas.create_hashed_rectangle(
+                            *self.canvasCoords(cBounds._l, cBounds._b),
+                            *self.canvasCoords(cBounds._r, cBounds._t),
+                            tags=('cbounds', 'rect'),
+                            **self.C_BOUNDS_CONFIG)
+                        self.canvas.copyItemHandlers(
+                            self.pointRegionRectangle, cBoundsRect)
+                        callEnviron.add(cBoundsRect)
         
         self.highlightCode(('return cand, dist', 2), callEnviron)
         self.cleanUp(callEnviron, sleepTime=wait / 10)
@@ -1028,6 +1039,18 @@ def findNearest(self, a={x}, b={y}):
         self.cleanUp(callEnviron)
         return result
     
+    traverseExampleCode = '''
+'''
+    
+    def traverseExample(self, code=traverseExampleCode, wait=0.1, start=True):
+        self.traverse(wait=wait)
+
+    traverseCode = '''
+'''
+    
+    def traverse(self, code=traverseCode, wait=0.1):
+        pass
+    
     def clickInsert(self):
         val = self.validArgument()
         if isinstance(val, tuple):
@@ -1037,9 +1060,8 @@ def findNearest(self, a={x}, b={y}):
                     'Point labeled {} already in quadtree'.format(d))
                 self.setArgumentHighlight(2, self.ERROR_HIGHLIGHT)
                 return
-            existing = self.findExact(int(x), int(y), code='')
-            self.insert(int(x), int(y), d, start=self.startMode())
-            msg = 'Point {} {}'.format(d, 'updated' if existing else 'inserted')
+            new = self.insert(int(x), int(y), d, start=self.startMode())
+            msg = 'Point {} {}'.format(d, 'inserted' if new else 'updated')
             self.clearArguments()
         else:
             msg = val
@@ -1129,8 +1151,11 @@ def findNearest(self, a={x}, b={y}):
             'Random Fill', lambda: self.clickRandomFill(), numArguments=1,
             argHelpText=('# of points',),
             helpText='Add N points in random positions', validationCmd=vcmd)
-        newQuadtree = self.addOperation(
+        self.addOperation(
             'New', lambda: self.new(), helpText='Create new, empty quadtree')
+        self.addOperation(
+            'Traverse', lambda: self.traverseExample(),
+            helpText='Traverse quadtree items')
         self.showBoundariesCheckbutton = self.addOperation(
             'Show Boundaries',
             lambda: self.updateBoundaryDisplay(), buttonType=Checkbutton,
