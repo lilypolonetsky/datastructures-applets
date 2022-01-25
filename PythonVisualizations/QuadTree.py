@@ -1111,6 +1111,7 @@ def findNearest(self, a={x}, b={y}):
     #everything aside from commas and spaces for data
     def validArgument(self, nArgs=3):
         x, y, d = self.getArguments()
+        x, y, d = x.strip(), y.strip(), d.strip()
         msg = ''
         bbox = self.userBBox(self.pointRegion)
         if nArgs == 1 and not x.isdigit():
