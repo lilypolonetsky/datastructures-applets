@@ -59,7 +59,7 @@ class BinaryTreeBase(VisualizationApp):
                ARROW_HEIGHT=None, MAX_LEVEL=None, **kwargs):
         """Build a VisualizationApp that will show a binary tree on part of the
         canvas within the rectangle bounded by RECT (X0, Y0, X1, Y1) which
-        defaults to (0, 0, canvas width, canvas height).
+        defaults to (0, 0, canvas_width, canvas_height - output_box_height).
         CIRCLE_SIZE is the radius of the circles used for each node in the tree.
         ARROW_HEIGHT is the length of a pointer arrow to point at a node.
         MAX_LEVEL is one more than the maximum node level allowed in the tree.
@@ -84,20 +84,24 @@ class BinaryTreeBase(VisualizationApp):
         return '<BinarySearchTree>'
 
     def setTreeSize(
-            self, rect=None, circleSize=None, arrowHeight=None, maxLevel=None):
+            self, rect=None, circleSize=None, arrowHeight=None, maxLevel=None,
+            outputFont=None):
         if circleSize is None:
             circleSize = getattr(self, 'CIRCLE_SIZE', 15)
         self.CIRCLE_SIZE = circleSize
         if arrowHeight is None:
             arrowHeight = getattr(self, 'ARROW_HEIGHT', 5)
         self.ARROW_HEIGHT = arrowHeight
+        if outputFont is None:
+            outputFont = getattr(self, 'outputFont', self.VALUE_FONT)
+        self.outputFont = outputFont
         if maxLevel is None:
             maxLevel = getattr(self, 'MAX_LEVEL', 5)
         self.MAX_LEVEL = maxLevel
         if rect is None:
             canvasDims = (self.targetCanvasWidth, self.targetCanvasHeight)
-            outputBoxCoords = self.outputBoxCoords(canvasDims=canvasDims)
-            rect = (0, 0, canvasDims[0], outputBoxCoords[1] - 1)
+            outputBoxHeight = self.outputBoxHeight()
+            rect = (0, 0, canvasDims[0], canvasDims[1] - outputBoxHeight - 1)
         self.RECT = rect
         X0, Y0, X1, Y1 = rect
         self.ROOT_X0 = (X0 + X1) // 2        # root's center
@@ -562,20 +566,29 @@ class BinaryTreeBase(VisualizationApp):
                 self.RECT[1] + self.CIRCLE_SIZE * (2.5 * level - 1))
 
     def outputBoxSpacing(self, font=None):
-        if font is None: font = self.VALUE_FONT
+        if font is None: font = getattr(self, 'outputFont', self.VALUE_FONT)
         return textWidth(font, ' ' + str(self.valMax))
+
+    def outputBoxHeight(self, circleSize=None, font=None, padding=6):
+        if font is None: font = getattr(self, 'outputFont', self.VALUE_FONT)
+        if circleSize is None: circleSize = getattr(self, 'CIRCLE_SIZE', 15)
+        return max(2 * circleSize, abs(font[1]) * 2 + padding)
     
     def outputBoxCoords(self, font=None, padding=6, N=None, canvasDims=None):
         '''Coordinates for an output box in lower right of canvas with enough
-        space to hold N values, defaulting to current tree size'''
+        space to hold N values, defaulting to current tree size, and center-
+        aligned with the tree root.
+        '''
         if N is None: N = max(1, getattr(self, 'size', 0))
-        if font is None: font = self.VALUE_FONT
+        if font is None: font = getattr(self, 'outputFont', self.VALUE_FONT)
         spacing = self.outputBoxSpacing(font)
         if canvasDims is None:
             canvasDims = widgetDimensions(self.canvas)
         width = max(2 * (self.CIRCLE_SIZE + padding), N * spacing + 2 * padding)
-        left = max(0, canvasDims[0] - width) // 2
-        height = max(2 * self.CIRCLE_SIZE, abs(font[1]) * 2 + padding)
+        center = getattr(self, 'ROOT_X0', canvasDims[0] // 2)
+        left = max(0,  center - width // 2)
+        height = self.outputBoxHeight(
+            circleSize=self.CIRCLE_SIZE, font=font, padding=padding)
         return (left, canvasDims[1] - height - padding,
                 left + width, canvasDims[1] - padding)
 
