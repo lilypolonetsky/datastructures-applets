@@ -6,7 +6,6 @@ try:
     from coordinates import *
     from BinaryTreeBase import *
     from TableDisplay import *
-    from OutputBox import *
 except ModuleNotFoundError:
     from .drawnValue import *
     from .coordinates import *
