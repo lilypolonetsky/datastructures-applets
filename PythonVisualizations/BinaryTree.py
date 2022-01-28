@@ -49,8 +49,8 @@ def delete(self, goal={goal}):
         parentIndex = self.createArrow(parent, label='parent', level=2)
         callEnviron |= set(nodeIndex + parentIndex)
 
-        self.highlightCode('node is not None', callEnviron, wait=wait)
-        if self.getNode(node):
+        if self.highlightCode('node is not None', callEnviron, wait=wait,
+                              returnValue=self.getNode(node)):
             self.highlightCode('return self.__delete(parent, node)',
                                callEnviron)
             localVars = parentIndex + nodeIndex
@@ -61,15 +61,12 @@ def delete(self, goal={goal}):
 
             outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
             outBox = self.createOutputBox(coords=outBoxCoords)
-            callEnviron.add(outBox)
+            callEnviron |= set(outBox.items())
             outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
 
-            self.canvas.tag_raise(deletedKeyAndData[1], outBox)
-            self.canvas.tag_lower(deletedKeyAndData[0], outBox)
-            self.moveItemsTo(
-                deletedKeyAndData, self.nodeItemCoords(outBoxCenter)[1:],
-                sleepTime=wait / 10)
-            self.canvas.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
+            result = self.canvas.itemConfig(deletedKeyAndData[1], 'text')
+            outBox.setToText(deletedKeyAndData, color=True, sleepTime=wait / 10)
+            callEnviron -= set(deletedKeyAndData)
 
             if self.getNode(node):
                 if node % 2 == 1:
@@ -78,11 +75,10 @@ def delete(self, goal={goal}):
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait / 10)
         else:
             self.highlightCode(('return', 2), callEnviron, wait=wait)
-            deletedKeyAndData = None
+            result = None
 
         self.cleanUp(callEnviron)
-        return (self.canvas.itemConfig(deletedKeyAndData[1], 'text')
-                if deletedKeyAndData else None)
+        return result
     
     __deleteCode = '''
 def __delete(self, parent={parentStr}, node={nodeStr}):
@@ -252,6 +248,7 @@ def __promote_successor(self, node={nodeStr}):
             successorKeyItem, self.nodeCenter(nodeIndex), sleepTime=wait / 10)
         self.canvas.copyItemAttributes(
             successorKeyItem, node.drawnValue.items[2], 'text')
+        node.setKey(successorKey)
 
         self.highlightCode('node.data = successor.data', callEnviron, wait=wait)
         self.moveItemsTo(

@@ -6,12 +6,16 @@ try:
     from coordinates import *
     from drawnValue import *
     from tkUtilities import *
+    from Signatures import *
     from VisualizationApp import *
+    from OutputBox import *
 except ModuleNotFoundError:
     from .coordinates import *
     from .drawnValue import *
     from .tkUtilities import *
+    from .Signatures import *
     from .VisualizationApp import *
+    from .OutputBox import *
 
 V = vector
 
@@ -592,9 +596,14 @@ class BinaryTreeBase(VisualizationApp):
         return (left, canvasDims[1] - height - padding,
                 left + width, canvasDims[1] - padding)
 
-    def createOutputBox(self, coords=None, font=None):
-        if coords is None: coords = self.outputBoxCoords(font=font)
-        return self.canvas.create_rectangle(*coords, fill=self.OPERATIONS_BG)
+    def createOutputBox(self, coords=None, font=None, **kwargs):
+        if coords is None:
+            config = dict((k, kwargs[k])
+                          for k in keywordParameters(outputBoxCoords)
+                          if k in kwargs)
+            config[font] = font
+            coords = self.outputBoxCoords(**config)
+        return OutputBox(self, coords, **kwargs)
         
     def cleanUp(self, *args, **kwargs):
         '''Customize cleanUp to restore nodes when call stack is empty'''
