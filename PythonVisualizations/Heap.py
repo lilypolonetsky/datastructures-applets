@@ -6,6 +6,7 @@ try:
     from coordinates import *
     from BinaryTreeBase import *
     from TableDisplay import *
+    from OutputBox import *
 except ModuleNotFoundError:
     from .drawnValue import *
     from .coordinates import *
@@ -905,9 +906,8 @@ def peek(self):
         # draw output box
         outBoxCoords = self.outputBoxCoords(N=1)
         outBoxCenter = BBoxCenter(outBoxCoords)
-        outputBox = self.canvas.create_rectangle(
-            *outBoxCoords, fill=self.OPERATIONS_BG)
-        callEnviron.add(outputBox)
+        outputBox = self.createOutputBox(outBoxCoords)
+        callEnviron |= set(outputBox.items())
 
         if self.nItems > 0:
             self.highlightCode(['return', 'self._arr[0]'], callEnviron)
@@ -918,14 +918,11 @@ def peek(self):
                                  self.getRoot().drawnValue.items[1:] +
                                  (self._arr[0].items[1],))
             callEnviron |= set(outputValues)
-            self.canvas.tag_lower(outputValues[0], outputBox)
-            self.moveItemsTo(
-                outputValues, 
-                self.nodeItemCoords(outBoxCenter)[1:] + (outBoxCenter,),
-                sleepTime=wait / 10,
-                startFont=self.VALUE_FONT, endFont=self.outputFont)
-            self.canvas.copyItemAttributes(outputValues[0], outputBox, 'fill')
-            self.dispose(callEnviron, outputValues[0], outputValues[1])
+            outputBox.setToText(
+                outputValues,
+                coords=self.nodeItemCoords(outBoxCenter)[1:] + (outBoxCenter,),
+                sleepTime=wait / 10, color=True)
+            callEnviron -= set(outputValues)
 
         else:
             self.highlightCode('return None', callEnviron)
@@ -965,25 +962,18 @@ def remove(self):
         rootNode = self.getRoot()
         outBoxCoords = self.outputBoxCoords(N=1)
         outBoxCenter = BBoxCenter(outBoxCoords)
-        outputBox = self.canvas.create_rectangle(
-            *outBoxCoords, fill=self.OPERATIONS_BG)
-        callEnviron.add(outputBox)
-        callEnviron.add(self.canvas.create_text(
-            outBoxCoords[0] - 10, outBoxCenter[1], text='root', anchor=E,
-            font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR))
+        outputBox = self.createOutputBox(
+            outBoxCoords, label='root', labelPosition=W, labelAnchor=E)
+        callEnviron |= set(outputBox.items())
         itemCopies = tuple(self.canvas.copyItem(item) for item in
                             rootNode.drawnValue.items[1:] + (root.items[1],))
         callEnviron |= set(itemCopies)
-        self.canvas.tag_lower(itemCopies[0], outputBox)
-        
-        self.moveItemsTo(
+        outputBox.setToText(
             itemCopies,
-            self.nodeItemCoords(outBoxCenter)[1:] + (outBoxCenter,),
-            sleepTime=wait / 10, startFont=self.VALUE_FONT,
-            endFont=self.outputFont)
-        self.canvas.copyItemAttributes(itemCopies[0], outputBox, 'fill')
-        self.dispose(callEnviron, itemCopies[0], itemCopies[1])
-
+            coords=self.nodeItemCoords(outBoxCenter)[1:] + (outBoxCenter,),
+            color=True, sleepTime=wait / 10)
+        callEnviron -= set(itemCopies)
+        
         isHeap = True
         itemsToMove = ()
         toRemove = set()
@@ -1073,12 +1063,9 @@ for item in heap.traverse():
         
         outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=self.nItems)
         outBoxCenter = BBoxCenter(outBoxCoords)
-        outputBox = self.createOutputBox(coords=outBoxCoords)
-        callEnviron.add(outputBox)
-        outputText = self.canvas.create_text(
-            outBoxCoords[0] + 5, outBoxCenter[1], text='', anchor=W, 
-            font=self.outputFont)
-        callEnviron.add(outputText)
+        outputBox = self.createOutputBox(
+            coords=outBoxCoords, outputOffset=(5, 10))
+        callEnviron |= set(outputBox.items())
         
         self.highlightCode('item in heap.traverse()', callEnviron, wait=wait)
         arrayIndex, treeIndex = None, None
@@ -1103,17 +1090,8 @@ for item in heap.traverse():
                                  (item.drawnValue.items[2],
                                   self._arr[i].items[1]))
             callEnviron |= set(outputValues)
-
-            currentText = self.canvas.itemConfig(outputText, 'text')
-            newText = (' ' if len(currentText) > 0 else '') + str(item.getKey())
-            textBBox = self.canvas.bbox(outputText)
-            newTextWidth = textWidth(self.outputFont, newText)
-            textCenter = (textBBox[2] + newTextWidth // 2, outBoxCenter[1])
-            self.moveItemsTo(
-                outputValues, (textCenter, textCenter), sleepTime=wait / 10, 
-                startFont=self.VALUE_FONT, endFont=self.outputFont)
-            self.canvas.itemConfig(outputText, text=currentText + newText)
-            self.dispose(callEnviron, *outputValues)
+            outputBox.appendText(outputValues, sleepTime=wait / 10)
+            callEnviron -= set(outputValues)
 
             self.highlightCode('item in heap.traverse()', callEnviron, wait=wait)
             colors = self.canvas.fadeItems(localVars)
