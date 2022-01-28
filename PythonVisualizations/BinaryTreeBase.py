@@ -1118,12 +1118,9 @@ for key, data in tree.traverse("{traverseType}"):
         
         outBoxCoords = self.outputBoxCoords(font=self.outputFont)
         outBoxMidY = (outBoxCoords[1] + outBoxCoords[3]) // 2
-        outputBox = self.createOutputBox(coords=outBoxCoords)
-        callEnviron.add(outputBox)
-        outputText = self.canvas.create_text(
-            outBoxCoords[0] + 5, outBoxMidY, text='', anchor=W, 
-            font=self.outputFont)
-        callEnviron.add(outputText)
+        outputBox = self.createOutputBox(
+            coords=outBoxCoords, outputOffset=(5, 10))
+        callEnviron |= set(outputBox.items())
         
         iteratorCall = 'key, data in tree.traverse("{traverseType}")'.format(
             **locals())
@@ -1147,17 +1144,7 @@ for key, data in tree.traverse("{traverseType}"):
             self.highlightCode('print(key)', callEnviron, wait=wait)
             keyItem = self.canvas.copyItem(items[2])
             callEnviron.add(keyItem)
-            currentText = self.canvas.itemConfig(outputText, 'text')
-            textBBox = self.canvas.bbox(outputText)
-            newTextWidth = textWidth(self.outputFont, ' ' + str(key))
-            self.moveItemsTo(
-                keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
-                sleepTime=wait / 10)
-            self.canvas.itemConfig(
-                outputText,
-                text=currentText + (' ' if len(currentText) > 0 else '') +
-                str(key))
-            self.canvas.delete(keyItem)
+            outputBox.appendText(keyItem, sleepTime=wait / 10)
             callEnviron.discard(keyItem)
 
             self.highlightCode(iteratorCall, callEnviron, wait=wait)
