@@ -62,7 +62,7 @@ def delete(self, goal={goal}):
             outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
             outBox = self.createOutputBox(coords=outBoxCoords)
             callEnviron |= set(outBox.items())
-            outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
+            outBoxCenter = BBoxCenter(outBoxCoords)
 
             result = self.canvas.itemConfig(deletedKeyAndData[1], 'text')
             outBox.setToText(deletedKeyAndData, color=True, sleepTime=wait / 10)
