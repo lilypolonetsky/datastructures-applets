@@ -443,11 +443,10 @@ class Tree234(BinaryTreeBase):
         if font is None: font = self.VALUE_FONT
         if scale is None: scale = getattr(self, 'scale', 1)
         spacing = self.outputBoxSpacing(font)
-        left = max(self.canvasBounds[0],
-                   self.ROOT_X0 - (N * spacing - padding) // 2)
-        bottom = self.ROOT_Y0 - 4 * self.CIRCLE_SIZE * scale - padding
-        return (left, bottom - abs(font[1]) * 2,
-                left + N * spacing + padding, bottom)
+        width = N * spacing + 2 * padding
+        left = max(self.canvasBounds[0], self.ROOT_X0 - width // 2)
+        bottom = self.ROOT_Y0 - 5 * self.CIRCLE_SIZE * scale - padding
+        return (left, bottom - abs(font[1]) * 2, left + width, bottom)
         
     def traverseTypeCoords(self):
         child3 = self.childCoords((self.ROOT_X0, self.ROOT_Y0), 3, 1)
@@ -1257,16 +1256,11 @@ for key, data in tree.traverse("{traverseType}"):
         callEnviron.add(traverseTypeText)
         
         outBoxCoords = self.outputBoxCoords(font=self.outputFont)
-        outBoxMidY = (outBoxCoords[1] + outBoxCoords[3]) // 2
+        outBoxCenter = BBoxCenter(outBoxCoords)
         outputBox = self.createOutputBox(coords=outBoxCoords)
-        callEnviron.add(outputBox)
-        outputText = self.canvas.create_text(
-            outBoxCoords[0] + 5, outBoxMidY, text='', anchor=W, 
-            font=self.outputFont)
-        callEnviron.add(outputText)
-        self.scrollToSee(
-            (traverseTypeText, outputText, outputBox), expand=True,
-            sleepTime=0, debug=debug)
+        callEnviron |= set(outputBox.items())
+        self.scrollToSee((traverseTypeText, *outputBox.items()), expand=True,
+                         sleepTime=0, debug=debug)
         
         iteratorCall = 'key, data in tree.traverse("{traverseType}")'.format(
             **locals())
@@ -1292,19 +1286,7 @@ for key, data in tree.traverse("{traverseType}"):
             self.highlightCode('print(key)', callEnviron, wait=wait)
             keyItem = self.canvas.copyItem(node.keyItems()[keyNum])
             callEnviron.add(keyItem)
-            keyItemFont = self.canvas.getItemFont(keyItem)
-            currentText = self.canvas.itemConfig(outputText, 'text')
-            textBBox = self.canvas.bbox(outputText)
-            newTextWidth = textWidth(self.outputFont, ' ' + str(key))
-            self.moveItemsTo(
-                keyItem, (textBBox[2] + newTextWidth // 2, outBoxMidY),
-                startFont=keyItemFont, endFont=self.outputFont, 
-                see=((outputBox,)), sleepTime=wait / 10)
-            self.canvas.itemConfig(
-                outputText,
-                text=currentText + (' ' if len(currentText) > 0 else '') +
-                str(key))
-            self.canvas.delete(keyItem)
+            outputBox.appendText(keyItem, sleepTime=wait / 10)
             callEnviron.discard(keyItem)
 
             self.highlightCode(iteratorCall, callEnviron, wait=wait)

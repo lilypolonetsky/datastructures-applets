@@ -584,20 +584,15 @@ class RedBlackTree(BinaryTreeBase):
             deletedKeyAndData = self.__delete(parent, node)
             callEnviron |= set(deletedKeyAndData)
             self.canvas.restoreItems(localVars, colors)
+            result = self.canvas.itemConfig(deletedKeyAndData[1], 'text')
 
             outBoxCoords = self.outputBoxCoords(font=self.outputFont, N=1)
             outBox = self.createOutputBox(coords=outBoxCoords)
-            callEnviron.add(outBox)
-            outBoxCenter = V(V(outBoxCoords[:2]) + V(outBoxCoords[2:])) // 2
+            callEnviron |= set(outBox.items())
+            outBoxCenter = BBoxCenter(outBoxCoords)
 
-            self.canvas.tag_raise(deletedKeyAndData[1], outBox)
-            for j in (2, 0):
-                self.canvas.tag_lower(deletedKeyAndData[j], outBox)
-            self.moveItemsTo(
-                deletedKeyAndData, self.nodeItemCoords(outBoxCenter)[1:],
-                sleepTime=wait / 10)
-            self.canvas.copyItemAttributes(deletedKeyAndData[0], outBox, 'fill')
-            self.dispose(callEnviron, deletedKeyAndData[0], deletedKeyAndData[2])
+            outBox.setToText(deletedKeyAndData, color=True, sleepTime=wait / 10)
+            callEnviron -= set(deletedKeyAndData)
 
             if self.getNode(node):
                 if node % 2 == 1:
@@ -605,12 +600,11 @@ class RedBlackTree(BinaryTreeBase):
                 self.moveItemsBy(
                     nodeIndex, (0, - self.LEVEL_GAP // 3), sleepTime=wait / 10)
         else:
-            deletedKeyAndData = None
+            result = None
 
         self.cleanUp(callEnviron)
-        return (self.canvas.itemConfig(deletedKeyAndData[1], 'text')
-                if deletedKeyAndData else None)
-    
+        return result
+
     def __delete(self, parent, node, level=1):
         'parent and node must be integer indices'
         wait = 0.1

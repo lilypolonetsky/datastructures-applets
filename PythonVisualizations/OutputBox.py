@@ -35,7 +35,7 @@ class OutputBox(object):
             label='',                    # Label (title) of output box
             labelPosition=N,             # Label position rel to bbox or coords
             labelAnchor=S,               # Label text anchor to relative pos
-            labelOffset=10,              # Spacing of label from cell 0
+            labelOffset=10,              # Spacing of label from bounding box
             labelFont=None,              # Label font & color default to
             labelColor=None,             # to variable font & color in app
             background='beige',          # Output box background color
@@ -157,18 +157,27 @@ class OutputBox(object):
             (len(lines) - 1) * self.lineHeight)
 
     def appendText(
-            self, textOrItem, separator=' ', sleepTime=0, deleteItem=True,
-            see=(), expand=True):
-        '''Append new text to output text.  Can provide text string or numeric
-        ID of canvas item to animate move to output position followed
-        by optional deletion.  If there is already some current text,
-        the separator string is appended to it before adding the new
-        text.  If appending the new text would make the last line go
-        past the right side of the box, the line is split at
-        separators until it fits.
+            self,
+            textOrItems: 'text string or canvas text item or item list',
+            separator: 'separator text' =' ',
+            sleepTime: 'animation delay' =0,
+            deleteItem: 'delete animated text items if true' =True,
+            see: 'additional items to keep visible for scroll' =(),
+            expand: 'expand scrolling region as needed if true' =True):
+        '''Append new text to output text.  Can provide text string, numeric
+        ID of canvas text item, or tuple/list of items to animate
+        moving to output position followed by optional deletion.  If
+        multiple text items are provided, they should all have the same
+        text and font.  If there is already some current text, the
+        separator string is appended to it before adding the new text.
+        If appending the new text would make the last line go past the
+        right side of the box, the line is split at separators until
+        it fits.
         '''
-        text = (textOrItem if isinstance(textOrItem, str) else
-                self.app.canvas_itemConfig(textOrItem, 'text'))
+        if isinstance(textOrItems, int): # Force single canvas text item
+            textOrItems = [textOrItems] # to be a list of one item
+        text = (textOrItems if isinstance(textOrItems, str) else
+                self.app.canvas_itemConfig(textOrItems[0], 'text'))
         current = self.text()
         newText = current + (separator if current else '') + text
         lines = newText.split('\n')
@@ -184,17 +193,20 @@ class OutputBox(object):
                 j -= 1
             lines[-1:] = [lines[-1][:separators[j][1]] + separators[j][0],
                           lines[-1][separators[j][2]:]]
-        animate = isinstance(textOrItem, int) and sleepTime
+        animate = isinstance(textOrItems, (list, tuple)) and sleepTime
         if animate:
-            self.app.canvas.tag_raise(textOrItem, self.outputBox)
-            self.app.canvas.changeAnchor(self.TEXT_ANCHOR, textOrItem)
+            for item in textOrItems:
+                self.app.canvas.tag_raise(item, self.outputBox)
+                self.app.canvas.changeAnchor(self.TEXT_ANCHOR, item)
+            coords = [self.endCoords(separator)] * len(textOrItems)
             self.app.moveItemsTo(
-                textOrItem, self.endCoords(separator), sleepTime=sleepTime, 
-                startFont=self.app.canvas.getItemFont(textOrItem),
+                textOrItems, coords, sleepTime=sleepTime, 
+                startFont=self.app.canvas.getItemFont(textOrItems[0]),
                 endFont=self.outputFont, see=see, expand=expand)
         self.app.canvas_itemConfig(self.outputText, text='\n'.join(lines))
         if animate and deleteItem:
-            self.app.canvas.delete(textOrItem)
+            for item in textOrItems:
+                self.app.canvas.delete(item)
 
     def setToText(
             self, items, coords=None, sleepTime=0, deleteItems=True,
@@ -203,7 +215,7 @@ class OutputBox(object):
         non-zero), then set the output box text to the text in the
         first text item.  Optionally set the background color of the
         output box to the specified color (string) or to the fill color
-        of the first non- text item among the items if color is True.
+        of the first non-text item among the items if color is True.
         If coords are provided, there should be coordinates for each
         of the items that place them within the output box.
         Otherwise, coords are calculated to move the first text item
@@ -287,6 +299,9 @@ if __name__ == '__main__':
     parser.add_argument(
         'label', nargs='*', help='Label(s) to draw.')
     parser.add_argument(
+        '-d', '--duplicate', nargs='*',
+        help='Duplicate label(s) to draw and simultaneously animate.')
+    parser.add_argument(
         '-s', '--sleep-time', default=0.01, type=float,
         help='Sleep time for animation.')
     args = parser.parse_args()
@@ -346,6 +361,20 @@ if __name__ == '__main__':
                      .split())]
     print('Created {} word items'.format(len(items)))
 
+    duplicate_items = [
+        (app.canvas.create_text(
+            random.randrange(region[0], region[2]),
+            random.randrange(region[1], region[3]), text=txt, fill='orange',
+            font=('Helvetica', -14)),
+         app.canvas.create_text(
+            random.randrange(region[0], region[2]),
+            random.randrange(region[1], region[3]), text=txt, fill='orange',
+            font=('Helvetica', -14)))
+        for i, txt in enumerate(args.duplicate)
+    ] if args.duplicate else []
+    print('Created {} pairs of duplicate word items'.format(
+        len(duplicate_items)))
+
     outbox2 = OutputBox(
         app, background='bisque', label='Multi', labelPosition=W, labelAnchor=E,
         nCharacters=35, nLines=7, see=True)
@@ -354,6 +383,12 @@ if __name__ == '__main__':
         outbox2.appendText(item, sleepTime=args.sleep_time, see=outbox2.items(),
                            expand=True)
         app.wait(0.01)
+
+    if duplicate_items:
+        print('Appending duplicate word items in pairs to output box 2')
+    for pair in duplicate_items:
+        outbox2.appendText(pair, sleepTime=args.sleep_time, see=outbox2.items(),
+                           expand=True)
 
     print('output box 2 contains:', outbox2)
         
