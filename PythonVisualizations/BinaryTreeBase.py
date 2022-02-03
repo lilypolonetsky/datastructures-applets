@@ -60,7 +60,7 @@ class BinaryTreeBase(VisualizationApp):
     FOUND_FONT = ('Helvetica', FONT_SIZE)
     nextColor = 0
     valMax = 99
-    STACK_CELL_MIN_SIZE = (25, 10)
+    STACK_CELL_MIN_SIZE = (50, 10)
     STACK_DEFAULT_SIZE = (100, None)
     NONE_DOT_RADIUS = 2
     NONE_DOT_COLOR = 'red'
@@ -130,16 +130,16 @@ class BinaryTreeBase(VisualizationApp):
         self.TREE_WIDTH = X1 - X0 - 2 * circleSize # max tree width
         self.LEVEL_GAP = (        # the vertical gap between levels
             Y1 - circleSize - self.ROOT_Y0) / max(1, self.MAX_LEVEL - 1)
-        maxItems = 2 ** self.MAX_LEVEL - 1
+        maxItems = max(1, 3 * self.MAX_LEVEL)
         height = Y1 + outputBoxHeight - Y0
-        self.STACK_FONT = (self.VALUE_FONT[0],
-                           -int(height / (maxItems + self.MAX_LEVEL * 3)))
+        self.STACK_FONT = (
+            self.VALUE_FONT[0],
+            max(-int(height * 0.7 / maxItems), self.VALUE_FONT[1]))
         self.STACK_CELL_SIZE = (
             max(self.STACK_CELL_MIN_SIZE[0], circleSize * 2),
-            max(self.STACK_CELL_MIN_SIZE[1],
-                height // (maxItems + self.MAX_LEVEL)))
+            max(self.STACK_CELL_MIN_SIZE[1], height // maxItems))
         self.STACK_0 = (X1 + min(self.stackWidth, 5),
-                        Y1 + outputBoxHeight - self.STACK_CELL_SIZE[1])
+                        Y1 + outputBoxHeight - 2 * self.STACK_CELL_SIZE[1])
     
     # --------- ACCESSOR METHODS ---------------------------
 
@@ -1253,7 +1253,7 @@ def traverse(self, traverseType="{traverseType}"):
             self, self.STACK_0,
             cellWidth=self.STACK_CELL_SIZE[0], cellBorderWidth=1,
             cellHeight=self.STACK_CELL_SIZE[1], vertical=True, direction=-1,
-            label='stack', labelPosition=E, labelAnchor=W,
+            label='stack',
             labelFont=self.VARIABLE_FONT, labelColor=self.VARIABLE_COLOR)
         callEnviron |= set(self.traverseStack.items())
 
@@ -1273,6 +1273,9 @@ def traverse(self, traverseType="{traverseType}"):
                     (center0[0], arrowCoords[1][1]), 'item', level=0,
                     **self.traverseItemConfig)
                 callEnviron |= set(itemArrow)
+                self.canvas_coords(itemArrow[1], *arrowCoords[1])
+                secondLabel = self.canvas.copyItem(itemArrow[1])
+                callEnviron.add(secondLabel)
             else:
                 self.moveItemsLinearly(
                     itemArrow, self.traverseItemArrowCoords(None),
@@ -1396,20 +1399,22 @@ def traverse(self, traverseType="{traverseType}"):
             wait: 'Total animation time' =0.1):
         top = self.traverseStack[-1]
         topCenter = BBoxCenter(self.canvas_coords(top.items[0]))
-        labelCoords = self.traverseItemLabelCoords()
+        labelCoords = V(self.traverseItemLabelCoords()) + V(
+            0, self.traverseStack.cellHeight)
         self.moveItemsBy(top.items, (0, labelCoords[1] - topCenter[1]),
                          sleepTime=wait / 10)
         return self.traverseStack.pop()
-        
 
     traverseItemConfig = {
-        'color': VisualizationApp.VARIABLE_COLOR, 'orientation': 0, 'anchor': W}
+        'color': VisualizationApp.VARIABLE_COLOR, 'orientation': -45,
+        'anchor': None}
     
     def traverseItemLabelCoords(self):
         if getattr(self, 'traverseStack', None) is None:
             raise Exception('Cannot call itemCoords before stack creation')
         labelCoords = self.traverseStack.labelCoords()
-        return labelCoords[0], self.RECT[1] + 10
+        traverseTypeCoords = self.upperRightNodeCoords()
+        return labelCoords[0], traverseTypeCoords[1]
 
     def traverseItemArrowCoords(self, item):
         if isinstance(item, Node):
