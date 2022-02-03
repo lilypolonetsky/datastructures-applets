@@ -138,7 +138,7 @@ class BinaryTreeBase(VisualizationApp):
         self.STACK_CELL_SIZE = (
             max(self.STACK_CELL_MIN_SIZE[0], circleSize * 2),
             max(self.STACK_CELL_MIN_SIZE[1], height // maxItems))
-        self.STACK_0 = (X1 + min(self.stackWidth, 5),
+        self.STACK_0 = (X1 + (self.stackWidth - self.STACK_CELL_SIZE[0]) // 2,
                         Y1 + outputBoxHeight - 2 * self.STACK_CELL_SIZE[1])
     
     # --------- ACCESSOR METHODS ---------------------------
