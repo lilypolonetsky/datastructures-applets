@@ -36,6 +36,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
             segmentGap=100,              # one row/column separated by gap
             label='',                    # Label (title) of table
             labelOffset=10,              # Spacing of label from cell 0
+            labelPosition=W,             # Label position relative to bbox
             labelAnchor=None,            # Label anchor, S for vertical else E
             labelFont=None,              # Label font & color default to
             labelColor=None,             # to variable font & color in app
@@ -69,10 +70,18 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.segmentLength = segmentLength
         self.segmentGap = segmentGap
         self.label = label
+        if labelPosition not in (N, E, W, S):
+            raise ValueError('Label position must be N, E, W, or S')
+        self.labelPosition = labelPosition
         self.labelOffset = labelOffset
-        self.labelAnchor = (((S if direction > 0 else N) if vertical else
-                             (E if direction > 0 else W)) if labelAnchor is None
-                            else labelAnchor)
+        self.labelAnchor = (
+            ((S if direction > 0 else N) if vertical else
+             (E if direction > 0 else W))
+            if labelAnchor is None and labelPosition is None else
+            (S if labelPosition is N else S if labelPosition is N else
+             W if labelPosition is E else E)
+            if labelAnchor is None
+            else labelAnchor)
         self.labelFont = app.VARIABLE_FONT if labelFont is None else labelFont
         self.labelColor = (
             app.VARIABLE_COLOR if labelColor is None else labelColor)
@@ -203,10 +212,11 @@ class Table(list):     # Display a table (array/list) in a visualization app
     def labelCoords(self):
         cell0 = self.cellCoords(0)
         center = BBoxCenter(cell0)
-        side = 0 if self.direction > 0 else 2
-        gap = self.labelOffset * self.direction
-        return (center[0] if self.vertical else cell0[side] - gap,
-                cell0[side + 1] - gap if self.vertical else center[1])
+        side = 0 if self.labelPosition in (N, W) else 2
+        gap = self.labelOffset * (1 if self.labelPosition in (N, W) else -1)
+        vertical = self.labelPosition in (N, S)
+        return (center[0] if vertical else cell0[side] - gap,
+                cell0[side + 1] - gap if vertical else center[1])
 
     arrayCellCenter = cellCenter
 
