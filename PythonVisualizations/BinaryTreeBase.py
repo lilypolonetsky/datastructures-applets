@@ -1258,7 +1258,9 @@ def traverse(self, traverseType="{traverseType}"):
         callEnviron |= set(self.traverseStack.items())
 
         self.highlightCode('stack.push(self.__root)', callEnviron, wait=wait)
-        self.stackPush(self.getRoot(), callEnviron, wait=wait)
+        root = self.getRoot()
+        self.stackPush(root, callEnviron, wait=wait,
+                       center=self.nodeCenter(0 if root else -1))
 
         itemArrow = None
         self.highlightCode('not stack.isEmpty()', callEnviron, wait=wait)
