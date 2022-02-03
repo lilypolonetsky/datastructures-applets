@@ -29,7 +29,8 @@ class Heap(BinaryTreeBase):
         self.arrayCopyDelta = (2 * self.CELL_WIDTH, 0)
         self.siftArrDelta = (3 * self.CELL_WIDTH, 0)
         self.siftDelta = (3 * self.CELL_WIDTH // 2, - self.CELL_WIDTH * 3 // 4)
-        canvasDims = (800, 400)
+        canvasDims = (kwargs.get('canvasWidth', 800),
+                      kwargs.get('canvasHeight', 400))
         padY = 0
         gap = 5
         self.outputFont = (self.VALUE_FONT[0], self.VALUE_FONT[1] * 9 // 10)
