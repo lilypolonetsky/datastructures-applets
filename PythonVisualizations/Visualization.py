@@ -128,8 +128,8 @@ class Visualization(object):  # Base class for Python visualizations
         default value.'''
         return self.canvas.itemConfig(canvasitem, *key, **kwargs)
 
-    def canvas_coords(self, tagOrID):
-        return self.canvas.coords(tagOrID)
+    def canvas_coords(self, tagOrID, *args):
+        return self.canvas.coords(tagOrID, *args)
 
     def copyCanvasItem(self, item, **kwargs):
         '''Deprecated.  Use Scrim.copyItem instead '''
