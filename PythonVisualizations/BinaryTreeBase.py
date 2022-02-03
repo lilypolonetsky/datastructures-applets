@@ -1,5 +1,5 @@
 from tkinter import *
-import random
+import random, re
 from enum import Enum
 
 try:
@@ -9,6 +9,7 @@ try:
     from Signatures import *
     from VisualizationApp import *
     from OutputBox import *
+    from TableDisplay import *
 except ModuleNotFoundError:
     from .coordinates import *
     from .drawnValue import *
@@ -16,6 +17,7 @@ except ModuleNotFoundError:
     from .Signatures import *
     from .VisualizationApp import *
     from .OutputBox import *
+    from .TableDisplay import *
 
 V = vector
 
@@ -58,8 +60,12 @@ class BinaryTreeBase(VisualizationApp):
     FOUND_FONT = ('Helvetica', FONT_SIZE)
     nextColor = 0
     valMax = 99
+    STACK_CELL_MIN_SIZE = (25, 10)
+    STACK_DEFAULT_SIZE = (100, None)
+    NONE_DOT_RADIUS = 2
+    NONE_DOT_COLOR = 'red'
 
-    def __init__(self, RECT=None, CIRCLE_SIZE=None, VAL_MAX=99, 
+    def __init__(self, RECT=None, CIRCLE_SIZE=None, VAL_MAX=valMax, 
                ARROW_HEIGHT=None, MAX_LEVEL=None, **kwargs):
         """Build a VisualizationApp that will show a binary tree on part of the
         canvas within the rectangle bounded by RECT (X0, Y0, X1, Y1) which
@@ -74,7 +80,8 @@ class BinaryTreeBase(VisualizationApp):
         self.valMax = VAL_MAX
 
         self.setTreeSize(RECT, circleSize=CIRCLE_SIZE,
-                         arrowHeight=ARROW_HEIGHT, maxLevel=MAX_LEVEL)
+                         arrowHeight=ARROW_HEIGHT, maxLevel=MAX_LEVEL,
+                         stackWidth=self.STACK_DEFAULT_SIZE[0])
 
         # tree will be stored in array
         # root will be index 0
@@ -88,8 +95,13 @@ class BinaryTreeBase(VisualizationApp):
         return '<BinarySearchTree>'
 
     def setTreeSize(
-            self, rect=None, circleSize=None, arrowHeight=None, maxLevel=None,
-            outputFont=None):
+            self,
+            rect: 'Canvas bounding box to display tree & stack' =None,
+            circleSize: 'Radius of tree nodes' =None,
+            arrowHeight: 'Height of arrows for node indices' =None,
+            stackWidth: 'Width of area to reserve for stack' =None,
+            maxLevel: 'One than maximum node level allowed' =None,
+            outputFont: 'Tk font used for node values' =None):
         if circleSize is None:
             circleSize = getattr(self, 'CIRCLE_SIZE', 15)
         self.CIRCLE_SIZE = circleSize
@@ -101,11 +113,15 @@ class BinaryTreeBase(VisualizationApp):
         self.outputFont = outputFont
         if maxLevel is None:
             maxLevel = getattr(self, 'MAX_LEVEL', 5)
-        self.MAX_LEVEL = maxLevel
+        self.MAX_LEVEL = max(1, maxLevel)
+        if stackWidth is None:
+            stackWidth = getattr(self, 'STACK_DEFAULT_SIZE', (0, 0))[0]
+        self.stackWidth = max(0, stackWidth)
+        outputBoxHeight = self.outputBoxHeight()
         if rect is None:
             canvasDims = (self.targetCanvasWidth, self.targetCanvasHeight)
-            outputBoxHeight = self.outputBoxHeight()
-            rect = (0, 0, canvasDims[0], canvasDims[1] - outputBoxHeight - 1)
+            rect = (0, 0, canvasDims[0] - stackWidth,
+                    canvasDims[1] - outputBoxHeight - 3)
         self.RECT = rect
         X0, Y0, X1, Y1 = rect
         self.ROOT_X0 = (X0 + X1) // 2        # root's center
@@ -113,7 +129,17 @@ class BinaryTreeBase(VisualizationApp):
             self.VARIABLE_FONT[1])
         self.TREE_WIDTH = X1 - X0 - 2 * circleSize # max tree width
         self.LEVEL_GAP = (        # the vertical gap between levels
-            Y1 - circleSize - self.ROOT_Y0) / max(1, maxLevel - 1)
+            Y1 - circleSize - self.ROOT_Y0) / max(1, self.MAX_LEVEL - 1)
+        maxItems = 2 ** self.MAX_LEVEL - 1
+        height = Y1 + outputBoxHeight - Y0
+        self.STACK_FONT = (self.VALUE_FONT[0],
+                           -int(height / (maxItems + self.MAX_LEVEL * 3)))
+        self.STACK_CELL_SIZE = (
+            max(self.STACK_CELL_MIN_SIZE[0], circleSize * 2),
+            max(self.STACK_CELL_MIN_SIZE[1],
+                height // (maxItems + self.MAX_LEVEL)))
+        self.STACK_0 = (X1 + min(self.stackWidth, 5),
+                        Y1 + outputBoxHeight - self.STACK_CELL_SIZE[1])
     
     # --------- ACCESSOR METHODS ---------------------------
 
@@ -361,14 +387,25 @@ class BinaryTreeBase(VisualizationApp):
                              V(root.center) - V(self.CIRCLE_SIZE, 0)))
         
     def createArrow(
-            self, node, label=None, level=1, color='red', width=1,
-            tags=['arrow'], font=None, orientation=-90, anchor=SW):
-        '''Create an arrow pointing at either an existing node or an index
-        to cell in the array of nodes.  Optionally give a text label.
+            self,
+            nodeOrCoords: 'Node, or node index, or node center coords',
+            label: 'Label name for arrow' =None,
+            level: 'Length of arrow, 1 is closest to center' =1,
+            color: 'Arrow and text label color' ='red',
+            width: 'Arrow width' =1,
+            tags: 'Canvas item tags' =['arrow'], 
+            font: 'Label font' =None,
+            orientation: 'Arrow orientation, 0 is horizontal' =-90,
+            anchor: 'Label text anchor relation to arrow base' =SW
+    ) -> '(arrow_item, label_item or None)':
+        '''Create an arrow pointing at either an existing node or the
+        center of a node located at the give coordinates.  Nodes can
+        be passed as either a Node object or an index in the array of nodes.
+        Optionally give a text label.
         '''
         if font is None: font = self.VARIABLE_FONT
         arrowCoords, labelCoords = self.indexCoords(
-            node, level, font, orientation)
+            nodeOrCoords, level, font, orientation)
         arrow = self.canvas.create_line(
             *arrowCoords, arrow="last", fill=color, width=width, tags=tags)
         if label is None:
@@ -378,33 +415,48 @@ class BinaryTreeBase(VisualizationApp):
             tags=tags)
         return (arrow, label)
 
-    def indexCoords(self, node, level, font=None, orientation=-90, **kwargs):
+    def indexCoords(
+            self,
+            nodeOrCoords: 'Node, or node index, or node center coords',
+            level: 'Length of arrow, 1 is closest to center, 0 -> no arrow' =1,
+            font: 'Label font' =None,
+            orientation: 'Arrow orientation, 0 is horizontal' =-90,
+            **kwargs
+    ) -> '(arrow_coords, label_anchor_coords)':
         '''Compute coordinates of an arrow pointing at either an existing
-        node or an index to cell in the array of nodes, as well as the
-        anchor coordinates of label at the arrow's base.
+        node or some canvas coordinates.  Nodes can either be a Node
+        object or an index to cell in the array of nodes.  Node index -1
+        refers to the binary tree object.
+        Return the arrow coordiantes (base + tip) and anchor coordinates of 
+        the label at the arrow's base.
         '''
         if font is None: font = self.VARIABLE_FONT
-        center = (node.center if isinstance(node, Node)
-                  else self.nodeCenter(node))
+        center = (nodeOrCoords.center if isinstance(nodeOrCoords, Node)
+                  else self.nodeCenter(nodeOrCoords)
+                  if isinstance(nodeOrCoords, int) else nodeOrCoords)
         tip = V(self.CIRCLE_SIZE, 0).rotate(orientation)
-        base = V(self.CIRCLE_SIZE + self.ARROW_HEIGHT + level * abs(font[1]),
-                 0).rotate(orientation)
+        base = V(self.CIRCLE_SIZE + (0 if level == 0 else self.ARROW_HEIGHT) +
+                 level * abs(font[1]), 0).rotate(orientation)
         return (V(center) + V(base)) + (V(center) + V(tip)), V(center) + V(base)
         
     def moveArrow(
-            self, arrow, node, level=1, numSteps=10, sleepTime=0.02, font=None,
-            orientation=-90):
+            self,
+            arrow: '(line_item, text_item)',
+            nodeOrCoords: 'Node, node index, or coordinates',
+            numSteps: 'Number of animation steps' =10,
+            sleepTime: 'Sleep time between steps' =0.02,
+            **kwargs: 'Keyword args for indexCoords'):
         '''Move an arrow to point at a node.  The node can be either a Node
         object, a coordinate pair, or an index to the nodes array where index
         -1 is the binary tree object.
         '''
-        if isinstance(node, (int, Node)):
-            newArrow, newLabel = self.indexCoords(node, level, font, orientation)
-        elif isinstance(node, tuple):
-            n0Arrow, n0Label = self.indexCoords(0, level, font, orientation)
+        if isinstance(nodeOrCoords, (int, Node)):
+            newArrow, newLabel = self.indexCoords(nodeOrCoords, **kwargs)
+        elif isinstance(nodeOrCoords, (list, tuple)):
+            n0Arrow, n0Label = self.indexCoords(0, **kwargs)
             center = self.nodeCenter(0)
-            newArrow = V(V(n0Arrow) - V(center * 2)) + V(node * 2)
-            newLabel = V(V(n0Label) - V(center)) + V(node)
+            newArrow = V(V(n0Arrow) - V(center * 2)) + V(nodeOrCoords * 2)
+            newLabel = V(V(n0Label) - V(center)) + V(nodeOrCoords)
         else:
             raise ValueError('Unrecognized node type: {}'.formt(type(node)))
 
@@ -1129,20 +1181,22 @@ for key, data in tree.traverse("{traverseType}"):
         dataIndex = None
         localVars = ()
         colors = self.canvas.fadeItems(localVars)
-        for node, key, items in self.traverse(traverseType):
+        for key, items in self.traverse(traverseType):
             self.canvas.restoreItems(localVars, colors)
+            nodeindex, _  = self._find(key, animation=False, code='')
             if dataIndex is None:
                 dataIndex = self.createArrow(
-                    node, 'key, data', orientation=-135)
+                    nodeindex, 'key, data', orientation=-135)
                 callEnviron |= set(dataIndex)
                 localVars += dataIndex
             else:
-                self.moveItemsTo(dataIndex, 
-                                 self.indexCoords(node, 1, orientation=-135),
-                                 sleepTime=wait / 10)
+                self.moveItemsTo(
+                    dataIndex, self.indexCoords(nodeindex, 1, orientation=-135),
+                    sleepTime=wait / 10)
 
             self.highlightCode('print(key)', callEnviron, wait=wait)
-            keyItem = self.canvas.copyItem(items[2])
+            keyItem = self.canvas.copyItem(
+                self.getNode(nodeindex).drawnValue.items[2])
             callEnviron.add(keyItem)
             outputBox.appendText(keyItem, sleepTime=wait / 10)
             callEnviron.discard(keyItem)
@@ -1158,169 +1212,210 @@ for key, data in tree.traverse("{traverseType}"):
         
     traverseCode = '''
 def traverse(self, traverseType="{traverseType}"):
-   if traverseType in ['pre', 'in', 'post']:
-      return self.__traverse(self.__root, traverseType)
+   if traverseType not in ['pre', 'in', 'post']:
+      raise ValueError(
+         "Unknown traversal type: " + str(traverseType))
+
+   stack = Stack()
+   stack.push(self.__root)
    
-   raise Exception("Unknown traversal type: " + str(traverseType))
+   while not stack.isEmpty():
+      item = stack.pop()
+      if isinstance(item, self.__Node):
+         if traverseType == 'post':
+            stack.push((item.key, item.data))
+         stack.push(item.rightChild)
+         if traverseType == 'in':
+            stack.push((item.key, item.data))
+         stack.push(item.leftChild)
+         if traverseType == 'pre':
+            stack.push((item.key, item.data))
+      elif item:
+         yield item
 '''
 
-    def traverse(self, traverseType='in', code=traverseCode):
-        wait = 0.1
+    def traverse(self, traverseType='in', code=traverseCode, wait=0.1):
         callEnviron = self.createCallEnvironment(
-            code=code.format(**locals()), sleepTime=wait / 10)
+            code=code.format(**locals()))
 
-        self.highlightCode("traverseType in ['pre', 'in', 'post']", callEnviron,
-                           wait=wait)
-        if traverseType in ['pre', 'in', 'post']:
+        if self.highlightCode("traverseType not in ['pre', 'in', 'post']",
+                              callEnviron, wait=wait,
+                              returnValue=traverseType not in
+                              ['pre', 'in', 'post']):
             self.highlightCode(
-                'return self.__traverse(self.__root, traverseType)',
-                callEnviron)
-            self.iteratorStack.append(callEnviron)
-            return self._traverse(self.getRoot(), traverseType)
+                re.compile(r'raise ValueError.*\n.*str\(traverseType\)\)'),
+                callEnviron, color=self.EXCEPTION_HIGHLIGHT)
+            self.cleanUp(callEnviron)
+            return
+        
+        self.highlightCode('stack = Stack()', callEnviron, wait=wait)
+        self.traverseStack = Table(
+            self, self.STACK_0,
+            cellWidth=self.STACK_CELL_SIZE[0], cellBorderWidth=1,
+            cellHeight=self.STACK_CELL_SIZE[1], vertical=True, direction=-1,
+            label='stack', labelPosition=E, labelAnchor=W,
+            labelFont=self.VARIABLE_FONT, labelColor=self.VARIABLE_COLOR)
+        callEnviron |= set(self.traverseStack.items())
+
+        self.highlightCode('stack.push(self.__root)', callEnviron, wait=wait)
+        self.stackPush(self.getRoot(), callEnviron, wait=wait)
+
+        itemArrow = None
+        self.highlightCode('not stack.isEmpty()', callEnviron, wait=wait)
+        while len(self.traverseStack) > 0:
+            self.highlightCode('item = stack.pop()', callEnviron, wait=wait)
+            if itemArrow is None:
+                arrowCoords = self.traverseItemArrowCoords(None)
+                center0 = BBoxCenter(self.traverseStack.cellCoords(0))
+                itemArrow = self.createArrow(
+                    (center0[0], arrowCoords[1][1]), 'item', level=0,
+                    **self.traverseItemConfig)
+                callEnviron |= set(itemArrow)
+            else:
+                self.moveItemsLinearly(
+                    itemArrow, self.traverseItemArrowCoords(None),
+                    sleepTime=0, steps=1)
+            
+            item = self.stackPop(callEnviron, wait=wait)
+            
+            if self.highlightCode(
+                    'isinstance(item, self.__Node)', callEnviron, wait=wait,
+                    returnValue=isinstance(item.val, Node)):
+                self.moveItemsLinearly(
+                    itemArrow, self.traverseItemArrowCoords(item.val),
+                    sleepTime=wait / 10)
+                if self.highlightCode(
+                        "traverseType == 'post'", callEnviron,
+                        wait=wait, returnValue=traverseType == 'post'):
+                    self.highlightCode(
+                        ('stack.push((item.key, item.data))', 1), callEnviron)
+                    self.stackPush(item, callEnviron, wait=wait)
+
+                self.highlightCode(
+                    'stack.push(item.rightChild)', callEnviron)
+                self.stackPush(
+                    self.getRightChild(item.val), callEnviron, wait=wait,
+                    center=self.nodeCenter(self.getRightChildIndex(item.val)))
+
+                if self.highlightCode(
+                        "traverseType == 'in'", callEnviron,
+                        wait=wait, returnValue=traverseType == 'in'):
+                    self.highlightCode(
+                        ('stack.push((item.key, item.data))', 2), callEnviron)
+                    self.stackPush(item, callEnviron, wait=wait)
+
+                self.highlightCode(
+                    'stack.push(item.leftChild)', callEnviron),
+                self.stackPush(
+                    self.getLeftChild(item.val), callEnviron, wait=wait,
+                    center=self.nodeCenter(self.getLeftChildIndex(item.val)))
+
+                if self.highlightCode(
+                        "traverseType == 'pre'", callEnviron,
+                        wait=wait, returnValue=traverseType == 'pre'):
+                    self.highlightCode(
+                        ('stack.push((item.key, item.data))', 3), callEnviron)
+                    self.stackPush(item, callEnviron, wait=wait)
+                
+            elif self.highlightCode(
+                    ('item', 11), callEnviron, wait=wait,
+                    returnValue=item.val is not None):
+                itemCoords = self.yieldCallEnvironment(
+                    callEnviron, sleepTime=wait / 10)
+                yield item.val, item.items
+                self.resumeCallEnvironment(
+                    callEnviron, itemCoords, sleepTime=wait / 10)
+                self.dispose(callEnviron, *item.items)
+                
+            else:
+                self.dispose(callEnviron, *item.items)
+                
+            self.highlightCode('not stack.isEmpty()', callEnviron, wait=wait)
+
+        self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron)
+
+    def stackPush(
+            self,
+            thing: 'A Node, tuple, or None to push on the traverse stack',
+            callEnviron: 'Call environment for traverse iterator',
+            center: 'Center of dot representing None at child center' =None,
+            wait: 'Total animation time' =0.1):
+        stackHeight = len(self.traverseStack)
+        cellCoords = self.traverseStack.cellCoords(stackHeight)
+        cellCenter = BBoxCenter(cellCoords)
+        cellSize = V(cellCoords[2:]) - V(cellCoords[:2])
+        halfCell = V(cellSize) // 2
+        startFont = endFont = None
+        if isinstance(thing, Node):
+            nodeItems = thing.drawnValue.items
+            center = thing.center
+            stackRect = self.canvas.create_rectangle(
+                *(V(center) - V(halfCell)),
+                *(V(V(center) + V(cellSize)) - V(halfCell)),
+                fill=self.canvas_itemConfig(nodeItems[1], 'fill'), outline='',
+                width=0)
+            keyCopy = self.canvas.copyItem(nodeItems[2])
+            startFont = self.getItemFont(nodeItems[2])
+            endFont = self.STACK_FONT
+            callEnviron.add(stackRect)
+            callEnviron.add(keyCopy)
+            toMove = (stackRect, keyCopy)
+            moveTo = (cellCoords, cellCenter)
+            
+        elif isinstance(thing, drawnValue):
+            toMove = thing.items
+            moveTo = ((cellCoords[0] + halfCell[0], *cellCoords[1:]),
+                      (cellCoords[0] + halfCell[0] // 2,
+                       (cellCoords[1] + cellCoords[3]) // 2))
+            key = thing.val.drawnValue.val
+            newText = self.canvas_itemConfig(thing.items[1], 'text') + ', '
+            self.canvas_itemConfig(thing.items[1], text=newText)
+            thing = key
             
         else:
-            self.highlightCode(
-                'raise Exception("Unknown traversal type: " + str(traverseType))',
-                callEnviron, color=self.EXCEPTION_HIGHLIGHT)
+            dotRadius = V((self.NONE_DOT_RADIUS, self.NONE_DOT_RADIUS))
+            noneDot = self.canvas.create_oval(
+                *(V(center) - dotRadius), *(V(center) + dotRadius),
+                fill=self.NONE_DOT_COLOR, outline='', width=0)
+            callEnviron.add(noneDot)
+            toMove = (noneDot,)
+            moveTo = (
+                (V(cellCenter) - dotRadius) + (V(cellCenter) + dotRadius),)
+            
+        self.moveItemsLinearly(toMove, moveTo, sleepTime=wait / 10,
+                               startFont=startFont, endFont=endFont)
+        self.traverseStack.append(drawnValue(thing, *toMove))
+        callEnviron |= set(self.traverseStack.items())
         
-        self.highlightCode([], callEnviron)
-        self.cleanUp(callEnviron, sleepTime=wait /10)
+    def stackPop(
+            self,
+            callEnviron: 'Call environment for traverse iterator',
+            wait: 'Total animation time' =0.1):
+        top = self.traverseStack[-1]
+        topCenter = BBoxCenter(self.canvas_coords(top.items[0]))
+        labelCoords = self.traverseItemLabelCoords()
+        self.moveItemsBy(top.items, (0, labelCoords[1] - topCenter[1]),
+                         sleepTime=wait / 10)
+        return self.traverseStack.pop()
         
-    _traverseCode = '''
-def __traverse(self, node={node}, traverseType="{traverseType}"):
-   if node is None:
-      return
-   if traverseType == "pre":
-      yield (node.key, node.data)
-   for childKey, childData in self.__traverse(
-         node.leftChild, traverseType):
-      yield (childKey, childData)
-   if traverseType == "in":
-      yield (node.key, node.data)
-   for childKey, childData in self.__traverse(
-         node.rightChild, traverseType):
-      yield (childKey, childData)
-   if traverseType == "post":
-      yield (node.key, node.data)
-'''
 
-    def _traverse(self, node, traverseType, code=_traverseCode):
-        kwargs = locals().copy()
-        nodeIndex = node if isinstance(node, int) else self.getIndex(node)
-        node = self.getNode(nodeIndex)
-        kwargs['node'] = node.getKey() if node else None
-        code = code.format(**kwargs)
-        wait = 0.1
-        callEnviron = self.createCallEnvironment(code=code, sleepTime=wait / 10)
-
-        nodeArrow = self.createArrow(nodeIndex, 'node')
-        callEnviron |= set(nodeArrow)
-
-        self.highlightCode('node is None', callEnviron, wait=wait)
-        if node is None:
-            self.highlightCode('return', callEnviron)
-            self.cleanUp(callEnviron, sleepTime=wait / 10)
-            return
-
-        self.highlightCode('traverseType == "pre"', callEnviron, wait=wait)
-        if traverseType == "pre":
-            self.highlightCode(
-                ('yield (node.key, node.data)', 1), callEnviron, wait=wait)
-            itemCoords = self.yieldCallEnvironment(
-                callEnviron, sleepTime=wait / 10)
-            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
-            self.resumeCallEnvironment(
-                callEnviron, itemCoords, sleepTime=wait / 10)
-
-        self.highlightCode(
-            ('childKey, childData in self.__traverse(\n         node.leftChild, traverseType)', 1),
-            callEnviron, wait=wait)
-        localVars = nodeArrow
-        childArrow = None
-        colors = self.canvas.fadeItems(localVars)
-        for childIndex, childKey, childData in self._traverse(
-                self.getLeftChildIndex(nodeIndex), traverseType):
-            self.canvas.restoreItems(localVars, colors)
-            if childArrow is None:
-                childArrow = self.createArrow(
-                    childIndex, 'childData', orientation=-115)
-                callEnviron |= set(childArrow)
-                localVars += childArrow
-                colors = self.canvas.itemsColor(localVars)
-            else:
-                self.moveItemsTo(
-                    childArrow, 
-                    self.indexCoords(childIndex, 1, orientation=-115),
-                    sleepTime=wait / 10)
-            self.highlightCode(
-                ('yield (childKey, childData)', 1), callEnviron, wait=wait)
-            itemCoords = self.yieldCallEnvironment(
-                callEnviron, sleepTime=wait / 10)
-            yield (childIndex, childKey, childData)
-            self.resumeCallEnvironment(
-                callEnviron, itemCoords, sleepTime=wait / 10)
-
-            self.highlightCode(
-                ('childKey, childData in self.__traverse(\n         node.leftChild, traverseType)', 1),
-                callEnviron, wait=wait)
-            colors = self.canvas.fadeItems(localVars)
-        self.canvas.restoreItems(localVars, colors)
-
-        self.highlightCode('traverseType == "in"', callEnviron, wait=wait)
-        if traverseType == "in":
-            self.highlightCode(
-                ('yield (node.key, node.data)', 2), callEnviron, wait=wait)
-            itemCoords = self.yieldCallEnvironment(
-                callEnviron, sleepTime=wait / 10)
-            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
-            self.resumeCallEnvironment(
-                callEnviron, itemCoords, sleepTime=wait / 10)
-
-        self.highlightCode(
-            ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
-            callEnviron, wait=wait)
-        colors = self.canvas.fadeItems(localVars)
-        for childIndex, childKey, childData in self._traverse(
-                self.getRightChildIndex(nodeIndex), traverseType):
-            self.canvas.restoreItems(localVars, colors)
-            if childArrow is None:
-                childArrow = self.createArrow(
-                    childIndex, 'childData', orientation=-115)
-                callEnviron |= set(childArrow)
-                localVars += childArrow
-                colors = self.canvas.itemsColor(localVars)
-            else:
-                self.moveItemsTo(
-                    childArrow, 
-                    self.indexCoords(childIndex, 1, orientation=-115),
-                    sleepTime=wait / 10)
-            self.highlightCode(
-                ('yield (childKey, childData)', 1), callEnviron, wait=wait)
-            itemCoords = self.yieldCallEnvironment(
-                callEnviron, sleepTime=wait / 10)
-            yield (childIndex, childKey, childData)
-            self.resumeCallEnvironment(
-                callEnviron, itemCoords, sleepTime=wait / 10)
-
-            self.highlightCode(
-                ('childKey, childData in self.__traverse(\n         node.rightChild, traverseType)', 1),
-                callEnviron, wait=wait)
-            colors = self.canvas.fadeItems(localVars)
-        self.canvas.restoreItems(localVars, colors)
-
-        self.highlightCode('traverseType == "post"', callEnviron, wait=wait)
-        if traverseType == "post":
-            self.highlightCode(
-                ('yield (node.key, node.data)', 3), callEnviron, wait=wait)
-            itemCoords = self.yieldCallEnvironment(
-                callEnviron, sleepTime=wait / 10)
-            yield (nodeIndex, node.drawnValue.val, node.drawnValue.items)
-            self.resumeCallEnvironment(
-                callEnviron, itemCoords, sleepTime=wait / 10)
-        
-        self.highlightCode([], callEnviron)
-        self.cleanUp(callEnviron, sleepTime=wait / 10)
+    traverseItemConfig = {
+        'color': VisualizationApp.VARIABLE_COLOR, 'orientation': 0, 'anchor': W}
     
+    def traverseItemLabelCoords(self):
+        if getattr(self, 'traverseStack', None) is None:
+            raise Exception('Cannot call itemCoords before stack creation')
+        labelCoords = self.traverseStack.labelCoords()
+        return labelCoords[0], self.RECT[1] + 10
+
+    def traverseItemArrowCoords(self, item):
+        if isinstance(item, Node):
+            return self.indexCoords(item, **self.traverseItemConfig)
+        elif item is None or isinstance(item, tuple):
+            labelCoords = self.traverseItemLabelCoords()
+            return labelCoords + labelCoords, labelCoords
+        
     def validArgument(self):
         entered_text = self.getArgument()
         if entered_text and entered_text.isdigit():
