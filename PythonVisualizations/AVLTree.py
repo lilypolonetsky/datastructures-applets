@@ -12,7 +12,7 @@ except ModuleNotFoundError:
 class AVLTree(BinaryTreeBase):
     def __init__(self, title="AVL Tree", **kwargs):
         super().__init__(title=title, **kwargs)
-        self.buttons = self.makeButtons()
+        self.makeButtons()
         self.display(treeLabel='AVLtree')
         self.HEIGHT_COLOR = 'orange'
 
@@ -1061,7 +1061,7 @@ def __balanceRight(self, node={nodeKey}):
             "Insert", self.clickInsert, numArguments=1,
             validationCmd=vcmd, argHelpText=['item'], 
             helpText='Insert item in tree')
-        searchButton = self.addOperation(
+        self.searchButton = self.addOperation(
             "Search", self.clickSearch, numArguments=1,
             validationCmd=vcmd, argHelpText=['item'], 
             helpText='Search for an item in tree')
@@ -1069,25 +1069,27 @@ def __balanceRight(self, node={nodeKey}):
             "Delete", self.clickDelete, numArguments=1,
             validationCmd=vcmd, argHelpText=['item'], 
             helpText='Delete item from tree')
-        randomFillButton = self.addOperation(
+        self.randomFillButton = self.addOperation(
             "Random Fill", self.clickRandomFill, numArguments=1,
             validationCmd= vcmd, argHelpText=['number of items'],
             helpText='Fill tree with N random items')
-        newTreeButton = self.addOperation(
+        self.newTreeButton = self.addOperation(
             "New Tree", self.newTree,
             helpText='Create an empty tree')
-        inOrderButton = self.addOperation(
+        self.inOrderButton = self.addOperation(
             "In-order Traverse", lambda: self.clickTraverse('in'), 
             helpText='Traverse tree in in-order')
         #this makes the pause, play and stop buttons 
         self.addAnimationButtons()
-        return [self.insertButton, searchButton, self.deleteButton,
-                randomFillButton, newTreeButton, inOrderButton]
 
 if __name__ == '__main__':
     random.seed(3.14159)  # Use fixed seed for testing consistency
     tree = AVLTree()
     for arg in sys.argv[1:]:
-        tree.setArgument(arg)
-        tree.insertButton.invoke()
+        if arg.isdigit():
+            tree.setArgument(arg)
+            tree.insertButton.invoke()
+        elif arg.startswith('-') and arg[1:].isdigit():
+            tree.setArgument(arg[1:])
+            tree.randomFillButton.invoke()
     tree.runVisualization()

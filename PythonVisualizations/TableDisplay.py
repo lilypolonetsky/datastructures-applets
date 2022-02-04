@@ -26,33 +26,34 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
     def __init__(  # Constructor
             self,
-            visualizationApp,            # Visualization app for display
-            origin,                      # Upper left corner point of cell 0
-            *args,                       # Initial elements in table
-            cellWidth=50, cellHeight=50, # Cell dimensions
-            vertical=False,              # Orientation
-            direction=1,                 # +1 means higher indices to right/down
-            segmentLength=None,          # Max number of consecutive cells in
-            segmentGap=100,              # one row/column separated by gap
-            label='',                    # Label (title) of table
-            labelOffset=10,              # Spacing of label from cell 0
-            labelAnchor=None,            # Label anchor, S for vertical else E
-            labelFont=None,              # Label font & color default to
-            labelColor=None,             # to variable font & color in app
-            cellBorderWidth=2,           # Thickness of cell border lines
-            cellBorderColor='black',     # Cell border color
-            cellBorderTags=('cell',),
-            indicesFont=None,            # If provided, draw numeric cell
-            indicesColor='gray60',       # indices using this font & color
-            indicesAnchor=None,          # offset to the left or above cells
-            indicesOffset=4,             # or to the right/below if anchor = W/N
-            indicesTags=('cell', 'cellIndex'),
-            eventHandlerPairs=(),        # (event, handler) pairs for indices
-            labeledArrowFont=None,       # Labeled arrow font and color default
-            labeledArrowColor=None,      # to variable font & color in app
-            labeledArrowOffset=4,        # Offset of arrow tip from cell
-            see=()):                     # Scroll to see table + any see items
-
+            visualizationApp: 'Visualization app for displaying table',
+            origin: 'Upper left corner point of cell 0',
+            *args: 'Initial elements in table (not used by Table)',
+            cellWidth: 'Table cell width' =50,
+            cellHeight: 'Table cell height' =50,
+            vertical: 'Use vertical orientation' =False,
+            direction: '+1 means higher indices to right/down, -1 otherwise' =1,
+            segmentLength: 'Max number of consecutive cells in one row' =None,
+            segmentGap: 'Row/column segments are separated by gap' =100,
+            label: 'Label (title) of table' ='',
+            labelOffset: 'Spacing of label from cell 0' =10,
+            labelPosition: 'Label position relative to bbox' =None,
+            labelAnchor: 'Label anchor, N/S for vertical else E/W' =None,
+            labelFont: 'Label font (default to variable font)' =None,
+            labelColor: 'Label color (default to variable color)' =None,
+            cellBorderWidth: 'Thickness of cell border lines' =2,
+            cellBorderColor: 'Cell border color' ='black',
+            cellBorderTags: 'Tags for cell border line items' =('cell',),
+            indicesFont: 'If provided, draw numeric cell indices' =None,
+            indicesColor: 'Color of indices if font provided' ='gray60',
+            indicesAnchor: 'Position indices to the relative to cells' =None,
+            indicesOffset: 'Offset of indices from cells' =4,
+            indicesTags: 'Tags for index text items' =('cell', 'cellIndex'),
+            eventHandlerPairs: '(event, handler) pairs for indices' =(),
+            labeledArrowFont: 'Labeled arrow font (default: app variable)' =None,
+            labeledArrowColor: 'Labeled arrow color (default: app variable)' =None,
+            labeledArrowOffset: 'Offset of arrow tip from cell' =4,
+            see: 'Scroll to see table + any see items' =() ):
         if not isinstance(visualizationApp, Visualization):
             raise ValueError('Table only works with Visualization objects')
         super().__init__(args)
@@ -69,10 +70,19 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.segmentLength = segmentLength
         self.segmentGap = segmentGap
         self.label = label
+        if labelAnchor is None:
+            labelAnchor = (
+                ((N if direction < 0 else S) if vertical else
+                 (W if direction < 0 else E))
+                if labelPosition is None else
+                (S if labelPosition is N else N if labelPosition is S else
+                 W if labelPosition is E else E))
+        if labelPosition is None:
+            labelPosition = (S if direction < 0 else N) if vertical else (
+                E if direction < 0 else W)
+        self.labelAnchor = labelAnchor
+        self.labelPosition = labelPosition
         self.labelOffset = labelOffset
-        self.labelAnchor = (((S if direction > 0 else N) if vertical else
-                             (E if direction > 0 else W)) if labelAnchor is None
-                            else labelAnchor)
         self.labelFont = app.VARIABLE_FONT if labelFont is None else labelFont
         self.labelColor = (
             app.VARIABLE_COLOR if labelColor is None else labelColor)
@@ -203,10 +213,11 @@ class Table(list):     # Display a table (array/list) in a visualization app
     def labelCoords(self):
         cell0 = self.cellCoords(0)
         center = BBoxCenter(cell0)
-        side = 0 if self.direction > 0 else 2
-        gap = self.labelOffset * self.direction
-        return (center[0] if self.vertical else cell0[side] - gap,
-                cell0[side + 1] - gap if self.vertical else center[1])
+        side = 0 if self.labelPosition in (N, W) else 2
+        gap = self.labelOffset * (1 if self.labelPosition in (N, W) else -1)
+        vertical = self.labelPosition in (N, S)
+        return (center[0] if vertical else cell0[side] - gap,
+                cell0[side + 1] - gap if vertical else center[1])
 
     arrayCellCenter = cellCenter
 
@@ -266,7 +277,7 @@ if __name__ == '__main__':
     from drawnValue import *
     app = Visualization(title='Table test', canvasBounds=(0, 0, 800, 400))
 
-    app.setArgument = lambda arg, argIndex: print(
+    app.setArgument = lambda arg, argIndex: print( # For clicks on indices
         'Set argument', argIndex, 'to {!r}'.format(arg))
 
     app.startAnimations()
@@ -309,11 +320,12 @@ if __name__ == '__main__':
             tbl[i] = drawnValue(
                 tbl[i],
                 app.canvas.create_rectangle(
-                    *coords[0], fill=drawnValue.palette[count],
+                    *coords[0],
+                    fill=drawnValue.palette[count % len(drawnValue.palette)],
                     outline='', width=0),
                 *(app.canvas.create_text(*coords[j + 1], text=str(v))
                   for j, v in enumerate(val)))
-            count = (count + 1) % len(drawnValue.palette)
+            count += 1
     print('Filled in', count, 'table cells')
     app.wait(1)
 
@@ -331,7 +343,8 @@ if __name__ == '__main__':
         app.canvas.itemConfig(jArrow[1], text=str(j))
 
     while table3[0].val > 15:
-        print('Popping first item,', table3[0].val, ', off', table3.label)
+        print('Popping first cell,', table3[0].val, ', off', table3.label,
+              'and moving remaining cells')
         app.moveItemsBy(table3[0].items, (-3 * len(table3), -table3.y0),
                         sleepTime=0.02)
         app.moveItemsTo(
@@ -340,19 +353,33 @@ if __name__ == '__main__':
                    for j in range(len(table3) - 1))), sleepTime=0.02,
             see=True, expand=True)
         table3.pop(0)
-    
+
+    table4 = Table(app, (600, 300), label='Booleans', labelPosition=E,
+                   vertical=True, cellHeight=25, cellWidth=70, see=True,
+                   cellBorderWidth=0)
+    print('Table for Boolean values "{}"'.format(table4.label),
+          'with label position', table4.labelPosition.upper(),
+          'and label anchor', table4.labelAnchor.upper())
+        
     j = -2
-    movedItems = []
     jArrow = table3.createLabeledArrow(j, 'j', **jArrowConfig)
-    
+
+    print('Removing booleans from', table3.label)
     while j < len(table3):
         if 0 <= j and isinstance(table3[j].val, bool):
+            boolToMove = table3[j]
             print('Deleting cell', j, 'of table', table3.label, 'item',
-                  table3[j].val)
-            movedItems.extend(table3[j].items)
-            app.moveItemsBy(movedItems, (table3.cellWidth, table3.cellHeight),
+                  boolToMove.val)
+            app.moveItemsBy(boolToMove.items,
+                            (table3.cellWidth, table3.cellHeight),
                             sleepTime=0.02, see=True, expand=True)
             del table3[j]
+            print('Adding deleeted cell to table', table4.label,
+                  'at position', len(table4))
+            app.moveItemsLinearly(
+                boolToMove.items, table4.cellAndCenters(len(table4)),
+                sleepTime=0.02, see=True, expand=True)
+            table4.append(boolToMove)
         else:
             j += 1
             app.moveItemsTo(
