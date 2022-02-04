@@ -1156,8 +1156,7 @@ for key, data in tree.traverse("{traverseType}"):
 '''
     
     def traverseExample(
-            self, traverseType, code=traverseExampleCode, start=True):
-        wait = 0.1
+            self, traverseType, code=traverseExampleCode, start=True, wait=0.1):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=wait / 10, 
             startAnimations=start)
