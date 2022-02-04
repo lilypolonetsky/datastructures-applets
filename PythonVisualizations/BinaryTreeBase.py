@@ -1151,7 +1151,7 @@ def insert(self, key={key}, data):
         return inserted
 
     traverseExampleCode = '''
-for key, data in tree.traverse("{traverseType}"):
+for key, data in tree.traverse({traverseType!r}):
    print(key)
 '''
     
@@ -1163,7 +1163,7 @@ for key, data in tree.traverse("{traverseType}"):
 
         traverseTypeText = self.canvas.create_text(
             *self.upperRightNodeCoords(),
-            text='traverseType: "{}"'.format(traverseType),
+            text='traverseType: {!r}'.format(traverseType),
             anchor=E, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(traverseTypeText)
         
@@ -1173,7 +1173,7 @@ for key, data in tree.traverse("{traverseType}"):
             coords=outBoxCoords, outputOffset=(5, 10))
         callEnviron |= set(outputBox.items())
         
-        iteratorCall = 'key, data in tree.traverse("{traverseType}")'.format(
+        iteratorCall = 'key, data in tree.traverse({traverseType!r})'.format(
             **locals())
         self.iteratorStack = []
         self.highlightCode(iteratorCall, callEnviron, wait=wait)
@@ -1210,7 +1210,7 @@ for key, data in tree.traverse("{traverseType}"):
         self.cleanUp(callEnviron)
         
     traverseCode = '''
-def traverse(self, traverseType="{traverseType}"):
+def traverse(self, traverseType={traverseType!r}):
    if traverseType not in ['pre', 'in', 'post']:
       raise ValueError(
          "Unknown traversal type: " + str(traverseType))
