@@ -640,7 +640,7 @@ class BinaryTreeBase(VisualizationApp):
         spacing = self.outputBoxSpacing(font)
         if canvasDims is None:
             canvasDims = widgetDimensions(self.canvas)
-        width = max(2 * (self.CIRCLE_SIZE + padding), N * spacing + 2 * padding)
+        width = max(2 * self.CIRCLE_SIZE, N * spacing) + 2 * padding
         center = getattr(self, 'ROOT_X0', canvasDims[0] // 2)
         left = max(0,  center - width // 2)
         height = self.outputBoxHeight(
