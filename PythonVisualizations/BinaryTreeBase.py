@@ -1362,10 +1362,9 @@ def traverse(self, traverseType={traverseType!r}):
             keyCopy = self.canvas.copyItem(nodeItems[2])
             startFont = self.getItemFont(nodeItems[2])
             endFont = self.STACK_FONT
-            callEnviron.add(stackRect)
-            callEnviron.add(keyCopy)
             toMove = (stackRect, keyCopy)
             moveTo = (cellCoords, cellCenter)
+            callEnviron |= set(toMove)
             
         elif isinstance(thing, drawnValue):
             toMove = thing.items
