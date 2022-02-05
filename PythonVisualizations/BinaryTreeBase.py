@@ -1324,6 +1324,7 @@ def traverse(self, traverseType={traverseType!r}):
             elif self.highlightCode(
                     ('item', 11), callEnviron, wait=wait,
                     returnValue=item.val is not None):
+                self.highlightCode('yield item', callEnviron, wait=wait)
                 itemCoords = self.yieldCallEnvironment(
                     callEnviron, sleepTime=wait / 10)
                 yield item.val, item.items
