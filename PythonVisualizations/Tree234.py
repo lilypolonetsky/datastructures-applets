@@ -458,7 +458,9 @@ class Tree234(BinaryTreeBase):
         if scale is None: scale = getattr(self, 'scale', 1)
         spacing = self.outputBoxSpacing(font)
         width = max(2 * self.CIRCLE_SIZE, N * spacing) + 2 * padding
-        left = max(self.canvasBounds[0], self.ROOT_X0 - width // 2)
+        rightBound = self.traverseTypeCoords()[0]
+        left = max(self.canvasBounds[0],
+                   min(self.ROOT_X0 - width // 2, rightBound - width))
         bottom = self.ROOT_Y0 - 5 * self.CIRCLE_SIZE * scale - padding
         return (left, bottom - abs(font[1]) * 2, left + width, bottom)
         
