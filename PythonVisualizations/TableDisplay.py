@@ -107,7 +107,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.drawLabel()
         self.drawCells(see)
 
-    def drawCells(self, see=()):
+    def drawCells(self, see=(), scale=None):
         while len(self.cells) > len(self):  # Remove any excess cells/indices
             self.app.canvas.delete(self.cells.pop())
             if len(self.indices) > len(self.cells):
@@ -117,8 +117,9 @@ class Table(list):     # Display a table (array/list) in a visualization app
                 j < len(self.cells) and
                 self.app.canvas.type(self.cells[j]) == 'rectangle') else
             self.app.canvas.create_rectangle(
-                *self.arrayCellCoords(j), fill='', outline=self.cellBorderColor,
-                width=self.cellBorderWidth, tags=self.cellBorderTags)
+                *self.arrayCellCoords(j, scale=scale), fill='',
+                outline=self.cellBorderColor, width=self.cellBorderWidth,
+                tags=self.cellBorderTags)
             for j in range(len(self))]
         if self.indicesFont and self.indicesColor: # Create any needed indices
             self.indices = [
@@ -126,7 +127,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
                     j < len(self.indices) and
                     self.app.canvas.type(self.indices[j]) == 'text') else
                 self.app.canvas.create_text(
-                    *self.arrayCellIndexCoords(j), text=str(j),
+                    *self.arrayCellIndexCoords(j, scale=scale), text=str(j),
                     anchor=self.indicesAnchor, font=self.indicesFont,
                     fill=self.indicesColor, tags=self.indicesTags)
                 for j in range(len(self))]
@@ -141,15 +142,16 @@ class Table(list):     # Display a table (array/list) in a visualization app
                 self.items() +
                 (tuple(see) if isinstance(see, (list, tuple, set)) else ()))
 
-    def drawLabel(self):
+    def drawLabel(self, scale=None):
         self.labelItem = self.app.canvas.create_text(
-            *self.labelCoords(), anchor=self.labelAnchor, text=self.label,
-            fill=self.labelColor, font=self.labelFont)
+            *self.labelCoords(scale=scale), anchor=self.labelAnchor,
+            text=self.label, fill=self.labelColor, font=self.labelFont)
 
     def items(self):       # Tuple of all canvas items being used
         return (self.labelItem, *self.cells, *self.indices)
     
-    def cellCoords(self, indexOrCoords):
+    def cellCoords(self, indexOrCoords, scale=None):
+        if scale is None: scale = getattr(self, 'scale', 1)
         coordsGiven = isinstance(indexOrCoords, (list, tuple))
         if not coordsGiven:
             if self.segmentLength:
@@ -161,31 +163,36 @@ class Table(list):     # Display a table (array/list) in a visualization app
             tuple(indexOrCoords) if coordsGiven else
             V(self.VOrigin + V(V((1, 0) if self.vertical else (0, 1)) * 
                                (row * self.segmentGap))) +
-            V( self.VBox * V(0 if self.vertical else col,
-                             col if self.vertical else 0)))
-        return upperLeft + (
-            V(V(upperLeft) + self.VBox) - V((self.cellBorderWidth,) * 2))
+            V(self.VBox * V(0 if self.vertical else col,
+                            col if self.vertical else 0)))
+        return V(upperLeft +
+                 (V(V(upperLeft) + self.VBox) - V((self.cellBorderWidth,) * 2))
+        ) * scale
 
-    def cellCenter(self, indexOrCoords):
-        return BBoxCenter(self.cellCoords(indexOrCoords))
+    def cellCenter(self, indexOrCoords, scale=None):
+        return BBoxCenter(self.cellCoords(indexOrCoords, scale=scale))
 
-    def cellAndCenters(self, indexOrCoords, rows=1):
+    def cellAndCenters(self, indexOrCoords, rows=1, scale=None):
         'Return the cell and center coords for a cell with N rows of text '
-        Vy = V(0, self.cellHeight // max(1, rows))
-        Vcenter = V(self.cellCenter(indexOrCoords))
+        if scale is None: scale = getattr(self, 'scale', 1)
+        Vy = V(0, self.cellHeight * scale // max(1, rows))
+        Vcenter = V(self.cellCenter(indexOrCoords, scale=scale))
         textCenters = tuple(Vcenter + V(Vy * (j - rows / 2 + 1/2))
                             for j in range(max(1, rows)))
         return (self.cellCoords(indexOrCoords), *textCenters)
     
-    def arrayCellCoords(self, indexOrCoords):
-        half = self.cellBorderWidth // 2
-        shift = (self.cellBorderWidth - half,) * 2 + (-half, ) * 2
-        return V(self.cellCoords(indexOrCoords)) - V(shift)
+    def arrayCellCoords(self, indexOrCoords, scale=None):
+        if scale is None: scale = getattr(self, 'scale', 1)
+        borderWidth = int(self.cellBorderWidth * scale)
+        half = borderWidth // 2
+        shift = (borderWidth - half,) * 2 + (-half, ) * 2
+        return V(self.cellCoords(indexOrCoords, scale=scale)) - V(shift)
 
-    def arrayCellIndexCoords(self, indexOrCoords):
-        cell = self.cellCoords(indexOrCoords)
+    def arrayCellIndexCoords(self, indexOrCoords, scale=None):
+        if scale is None: scale = getattr(self, 'scale', 1)
+        cell = self.cellCoords(indexOrCoords, scale=scale)
         center = BBoxCenter(cell)
-        gap = self.indicesOffset + self.cellBorderWidth
+        gap = (self.indicesOffset + self.cellBorderWidth) * scale
         if self.vertical:
             x = cell[0] - gap if E in self.indicesAnchor else cell[2] + gap
             y = center[1]
@@ -195,10 +202,11 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return (x, y)
 
     def labeledArrowCoords(
-            self, indexOrCoords, level=1, orientation=0, **kwargs):
-        cell = self.cellCoords(indexOrCoords)
+            self, indexOrCoords, level=1, orientation=0, scale=None, **kwargs):
+        if scale is None: scale = getattr(self, 'scale', 1)
+        cell = self.cellCoords(indexOrCoords, scale=scale)
         center = BBoxCenter(cell)
-        gap = (-1 if level < 0 else 1) * (
+        gap = (-scale if level < 0 else scale) * (
             self.cellBorderWidth + self.labeledArrowOffset +
             (abs(self.indicesFont[1]) if self.indicesFont and level > 0 else 0))
         side = 2 if level < 0 else 0
@@ -206,15 +214,17 @@ class Table(list):     # Display a table (array/list) in a visualization app
             center[0], cell[side + 1] - gap)
         Vdelta = V(
             V(V((-1, 0) if self.vertical else (0, -1)).rotate(orientation)) *
-            abs(self.labeledArrowFont[1]))
+            abs(scale * self.labeledArrowFont[1]))
         base = V(tip) + V(Vdelta * level)
         return base + tip, base
         
-    def labelCoords(self):
-        cell0 = self.cellCoords(0)
+    def labelCoords(self, scale=None):
+        if scale is None: scale = getattr(self, 'scale', 1)
+        cell0 = self.cellCoords(0, scale=scale)
         center = BBoxCenter(cell0)
         side = 0 if self.labelPosition in (N, W) else 2
-        gap = self.labelOffset * (1 if self.labelPosition in (N, W) else -1)
+        gap = self.labelOffset * (scale if self.labelPosition in (N, W)
+                                  else -scale)
         vertical = self.labelPosition in (N, S)
         return (center[0] if vertical else cell0[side] - gap,
                 cell0[side + 1] - gap if vertical else center[1])
@@ -238,10 +248,12 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
     def createLabeledArrow(
             self, labeledArrowIndexOrCoords, label='', color=None, font=None,
-            width=1, anchor=None, tags=('arrow',), see=(), **kwargs):
+            width=1, anchor=None, tags=('arrow',), see=(), scale=None,
+            **kwargs):
         if color is None: color = self.labeledArrowColor
         if font is None: font = self.labeledArrowFont
-        coords = (self.labeledArrowCoords(labeledArrowIndexOrCoords, **kwargs)
+        coords = (self.labeledArrowCoords(labeledArrowIndexOrCoords,
+                                          scale=scale, **kwargs)
                   if isinstance(labeledArrowIndexOrCoords, (int, float)) else
                   labeledArrowIndexOrCoords)
         if anchor is None: 
