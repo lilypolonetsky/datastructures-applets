@@ -205,9 +205,10 @@ class Visualization(object):  # Base class for Python visualizations
             self.canvas.xview_moveto(pos[0])
             self.canvas.yview_moveto(pos[1])
 
-    def scaleTextItem(self, item, scale):
+    def scaleTextItem(self, item, scale=None):
         if self.canvas.type(item) != 'text':
             return
+        if scale is None: scale = getattr(self, 'scale', 1)
         for tag in self.canvas.itemconfigure(item, 'tags')[-1].split():
             if tag.startswith('font='):
                 font = tag[5:].split('|')
