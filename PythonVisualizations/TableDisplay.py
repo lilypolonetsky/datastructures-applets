@@ -131,6 +131,8 @@ class Table(list):     # Display a table (array/list) in a visualization app
                     anchor=self.indicesAnchor, font=self.indicesFont,
                     fill=self.indicesColor, tags=self.indicesTags)
                 for j in range(len(self))]
+            for index in self.indices:
+                self.app.scaleTextItem(index, scale)
         for textItem in self.indices:
             for event, handler in self.eventHandlers:
                 if (callable(handler) and hasattr(Table, handler.__name__) and
@@ -146,6 +148,8 @@ class Table(list):     # Display a table (array/list) in a visualization app
         self.labelItem = self.app.canvas.create_text(
             *self.labelCoords(scale=scale), anchor=self.labelAnchor,
             text=self.label, fill=self.labelColor, font=self.labelFont)
+        self.app.scaleTextItem(self.labelItem, scale)
+        return self.labelItem
 
     def items(self):       # Tuple of all canvas items being used
         return (self.labelItem, *self.cells, *self.indices)
@@ -263,6 +267,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         text = self.app.canvas.create_text(
             *coords[1], anchor=anchor, text=label, font=font, fill=color,
             tags=tags)
+        self.app.scaleTextItem(text, scale)
         if see:
             self.app.scrollToSee(
                 (arrow, text) +
