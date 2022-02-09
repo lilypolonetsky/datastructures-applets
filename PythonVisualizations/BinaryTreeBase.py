@@ -640,7 +640,7 @@ class BinaryTreeBase(VisualizationApp):
         spacing = self.outputBoxSpacing(font)
         if canvasDims is None:
             canvasDims = widgetDimensions(self.canvas)
-        width = max(2 * (self.CIRCLE_SIZE + padding), N * spacing + 2 * padding)
+        width = max(2 * self.CIRCLE_SIZE, N * spacing) + 2 * padding
         center = getattr(self, 'ROOT_X0', canvasDims[0] // 2)
         left = max(0,  center - width // 2)
         height = self.outputBoxHeight(
@@ -653,9 +653,8 @@ class BinaryTreeBase(VisualizationApp):
             config = dict((k, kwargs[k])
                           for k in keywordParameters(outputBoxCoords)
                           if k in kwargs)
-            config[font] = font
-            coords = self.outputBoxCoords(**config)
-        return OutputBox(self, coords, **kwargs)
+            coords = self.outputBoxCoords(font=font, **config)
+        return OutputBox(self, coords, outputFont=font, **kwargs)
         
     def cleanUp(self, *args, **kwargs):
         '''Customize cleanUp to restore nodes when call stack is empty'''
@@ -1151,20 +1150,19 @@ def insert(self, key={key}, data):
         return inserted
 
     traverseExampleCode = '''
-for key, data in tree.traverse("{traverseType}"):
+for key, data in tree.traverse({traverseType!r}):
    print(key)
 '''
     
     def traverseExample(
-            self, traverseType, code=traverseExampleCode, start=True):
-        wait = 0.1
+            self, traverseType, code=traverseExampleCode, start=True, wait=0.1):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), sleepTime=wait / 10, 
             startAnimations=start)
 
         traverseTypeText = self.canvas.create_text(
             *self.upperRightNodeCoords(),
-            text='traverseType: "{}"'.format(traverseType),
+            text='traverseType: {!r}'.format(traverseType),
             anchor=E, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
         callEnviron.add(traverseTypeText)
         
@@ -1174,7 +1172,7 @@ for key, data in tree.traverse("{traverseType}"):
             coords=outBoxCoords, outputOffset=(5, 10))
         callEnviron |= set(outputBox.items())
         
-        iteratorCall = 'key, data in tree.traverse("{traverseType}")'.format(
+        iteratorCall = 'key, data in tree.traverse({traverseType!r})'.format(
             **locals())
         self.iteratorStack = []
         self.highlightCode(iteratorCall, callEnviron, wait=wait)
@@ -1211,7 +1209,7 @@ for key, data in tree.traverse("{traverseType}"):
         self.cleanUp(callEnviron)
         
     traverseCode = '''
-def traverse(self, traverseType="{traverseType}"):
+def traverse(self, traverseType={traverseType!r}):
    if traverseType not in ['pre', 'in', 'post']:
       raise ValueError(
          "Unknown traversal type: " + str(traverseType))
@@ -1325,6 +1323,7 @@ def traverse(self, traverseType="{traverseType}"):
             elif self.highlightCode(
                     ('item', 11), callEnviron, wait=wait,
                     returnValue=item.val is not None):
+                self.highlightCode('yield item', callEnviron, wait=wait)
                 itemCoords = self.yieldCallEnvironment(
                     callEnviron, sleepTime=wait / 10)
                 yield item.val, item.items
@@ -1363,10 +1362,9 @@ def traverse(self, traverseType="{traverseType}"):
             keyCopy = self.canvas.copyItem(nodeItems[2])
             startFont = self.getItemFont(nodeItems[2])
             endFont = self.STACK_FONT
-            callEnviron.add(stackRect)
-            callEnviron.add(keyCopy)
             toMove = (stackRect, keyCopy)
             moveTo = (cellCoords, cellCenter)
+            callEnviron |= set(toMove)
             
         elif isinstance(thing, drawnValue):
             toMove = thing.items
@@ -1481,3 +1479,13 @@ def traverse(self, traverseType="{traverseType}"):
                 if 0 <= i and self.nodes[parentIndex] is not None:
                     print(' but parent at {} contains {}'.format(
                         parentIndex, self.nodes[parentIndex]), **kwargs)
+
+if __name__ == '__main__':
+    import sys, random
+    random.seed(3.14159)  # Use fixed seed for testing consistency
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    tree = BinaryTreeBase()
+    if numArgs:
+        tree.fill(numArgs)
+
+    tree.runVisualization()
