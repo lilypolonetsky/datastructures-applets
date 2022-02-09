@@ -91,6 +91,7 @@ class VisualizationApp(Visualization): # Base class for visualization apps
 
         self.operationMutex = threading.Lock()
         self.pauseButton, self.stopButton, self.stepButton = None, None, None
+        self.stepPause = False
         self.lastHighlights = self.callStackHighlights()
         self.modifierKeyState = 0
         self.debugRequested = False
@@ -929,12 +930,14 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                             codeBlock[fragment])):
                         self.codeText.see(index)
             while self.lastHighlights != highlights and self.animationsStepping():
+                self.stepPause = True
                 self.window.update()
                 if self.destroyed:
                     sys.exit()
                 time.sleep(0.02)
                 if self.destroyed:
                     sys.exit()
+            self.stepPause = False
         self.lastHighlights = self.callStackHighlights()
         if sleepTime > 0:
             self.window.update()
@@ -1048,6 +1051,9 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                     widgetState(btn, DISABLED)
             self.argumentChanged()
         # Otherwise, let animation be stopped by a lower call
+        
+    def animationsPausedOrStepPaused(self):
+        return self.animationsPaused() or self.stepPause
 
     def runVisualization(self): #override of runVisualization that populates default hint
         if (len(self.textEntries) > 0):
