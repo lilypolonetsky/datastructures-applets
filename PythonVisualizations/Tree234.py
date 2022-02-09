@@ -1268,11 +1268,12 @@ for key, data in tree.traverse({traverseType!r}):
             *self.traverseTypeCoords(),
             text='traverseType: {!r}'.format(traverseType),
             anchor=E, font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
+        self.scaleTextItem(traverseTypeText, self.scale)
         callEnviron.add(traverseTypeText)
         
         outBoxCoords = self.outputBoxCoords(font=self.outputFont)
         outBoxCenter = BBoxCenter(outBoxCoords)
-        outputBox = self.createOutputBox(coords=outBoxCoords)
+        outputBox = self.createOutputBox(coords=outBoxCoords, font=self.outputFont)
         callEnviron |= set(outputBox.items())
         self.scrollToSee((traverseTypeText, *outputBox.items()), expand=True,
                          sleepTime=0, debug=debug)
@@ -1366,8 +1367,7 @@ def traverse(self, traverseType={traverseType!r}):
         
         self.highlightCode('stack = Stack()', callEnviron, wait=wait)
         traverseTypeCoords = self.traverseTypeCoords()
-        variableFont = (self.VARIABLE_FONT[0],
-                        int(self.VARIABLE_FONT[1] * self.scale))
+        variableFont = self.VARIABLE_FONT
         self.STACK_CELL_SIZE = (
             self.maxKeys * 2 * self.scale * self.CIRCLE_SIZE + 2,
             2 * self.scale * self.CIRCLE_SIZE + 2)
@@ -1430,6 +1430,7 @@ def traverse(self, traverseType={traverseType!r}):
                         *self.traverseTypeCoords(level=1), anchor=E,
                         text='last: {}'.format(last), font=variableFont,
                         fill=self.VARIABLE_COLOR)
+                    self.scaleTextItem(lastText, self.scale)
                     callEnviron.add(lastText)
                     self.scrollToSee((lastText,), sleepTime=wait / 10)
                 else:
@@ -1444,6 +1445,7 @@ def traverse(self, traverseType={traverseType!r}):
                         *self.traverseTypeCoords(level=2), anchor=E,
                         text='c: {}'.format(c), font=variableFont,
                         fill=self.VARIABLE_COLOR)
+                    self.scaleTextItem(cText, self.scale)
                     callEnviron.add(cText)
                     self.scrollToSee((lastText,), sleepTime=wait / 10)
                 else:
@@ -1661,12 +1663,19 @@ def traverse(self, traverseType={traverseType!r}):
         if any(x is None for x in 
                (self.canvasBounds, self.canvasHScroll, self.canvasVScroll)):
             return
+        
         def clickZoomHandler(event):
+            if self.animationsPausedOrStepPaused():
+                self.setMessage()
+            else:
+                self.setMessage('Pause animation to change zoom')
+                return
             fixPoint = (self.canvas.canvasx(event.x), 
                         self.canvas.canvasy(event.y))
             zoomOut = event.state & SHIFT or (
                 isinstance(event.num, int) and event.num != 1)
             self.zoom((1 / zoomBy) if zoomOut else zoomBy, fixPoint=fixPoint)
+            
         for button in range(1, 4):
             self.canvas.bind('<Double-Button-{}>'.format(button),
                              clickZoomHandler)
