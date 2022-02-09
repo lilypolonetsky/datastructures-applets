@@ -653,9 +653,8 @@ class BinaryTreeBase(VisualizationApp):
             config = dict((k, kwargs[k])
                           for k in keywordParameters(outputBoxCoords)
                           if k in kwargs)
-            config[font] = font
-            coords = self.outputBoxCoords(**config)
-        return OutputBox(self, coords, **kwargs)
+            coords = self.outputBoxCoords(font=font, **config)
+        return OutputBox(self, coords, outputFont=font, **kwargs)
         
     def cleanUp(self, *args, **kwargs):
         '''Customize cleanUp to restore nodes when call stack is empty'''
@@ -1480,3 +1479,13 @@ def traverse(self, traverseType={traverseType!r}):
                 if 0 <= i and self.nodes[parentIndex] is not None:
                     print(' but parent at {} contains {}'.format(
                         parentIndex, self.nodes[parentIndex]), **kwargs)
+
+if __name__ == '__main__':
+    import sys, random
+    random.seed(3.14159)  # Use fixed seed for testing consistency
+    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
+    tree = BinaryTreeBase()
+    if numArgs:
+        tree.fill(numArgs)
+
+    tree.runVisualization()
