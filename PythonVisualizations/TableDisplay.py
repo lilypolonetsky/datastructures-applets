@@ -155,7 +155,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return (self.labelItem, *self.cells, *self.indices)
     
     def cellCoords(self, indexOrCoords, scale=None):
-        if scale is None: scale = getattr(self, 'scale', 1)
+        if scale is None: scale = getattr(self.app, 'scale', 1)
         coordsGiven = isinstance(indexOrCoords, (list, tuple))
         if not coordsGiven:
             if self.segmentLength:
@@ -178,7 +178,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
     def cellAndCenters(self, indexOrCoords, rows=1, scale=None):
         'Return the cell and center coords for a cell with N rows of text '
-        if scale is None: scale = getattr(self, 'scale', 1)
+        if scale is None: scale = getattr(self.app, 'scale', 1)
         Vy = V(0, self.cellHeight * scale // max(1, rows))
         Vcenter = V(self.cellCenter(indexOrCoords, scale=scale))
         textCenters = tuple(Vcenter + V(Vy * (j - rows / 2 + 1/2))
@@ -186,14 +186,14 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return (self.cellCoords(indexOrCoords), *textCenters)
     
     def arrayCellCoords(self, indexOrCoords, scale=None):
-        if scale is None: scale = getattr(self, 'scale', 1)
+        if scale is None: scale = getattr(self.app, 'scale', 1)
         borderWidth = int(self.cellBorderWidth * scale)
         half = borderWidth // 2
         shift = (borderWidth - half,) * 2 + (-half, ) * 2
         return V(self.cellCoords(indexOrCoords, scale=scale)) - V(shift)
 
     def arrayCellIndexCoords(self, indexOrCoords, scale=None):
-        if scale is None: scale = getattr(self, 'scale', 1)
+        if scale is None: scale = getattr(self.app, 'scale', 1)
         cell = self.cellCoords(indexOrCoords, scale=scale)
         center = BBoxCenter(cell)
         gap = (self.indicesOffset + self.cellBorderWidth) * scale
@@ -207,7 +207,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
 
     def labeledArrowCoords(
             self, indexOrCoords, level=1, orientation=0, scale=None, **kwargs):
-        if scale is None: scale = getattr(self, 'scale', 1)
+        if scale is None: scale = getattr(self.app, 'scale', 1)
         cell = self.cellCoords(indexOrCoords, scale=scale)
         center = BBoxCenter(cell)
         gap = (-scale if level < 0 else scale) * (
@@ -223,7 +223,7 @@ class Table(list):     # Display a table (array/list) in a visualization app
         return base + tip, base
         
     def labelCoords(self, scale=None):
-        if scale is None: scale = getattr(self, 'scale', 1)
+        if scale is None: scale = getattr(self.app, 'scale', 1)
         cell0 = self.cellCoords(0, scale=scale)
         center = BBoxCenter(cell0)
         side = 0 if self.labelPosition in (N, W) else 2
