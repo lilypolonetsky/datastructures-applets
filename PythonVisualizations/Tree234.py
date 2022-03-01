@@ -346,10 +346,11 @@ class Tree234(BinaryTreeBase):
 
     def treeObjectArrowCoords(self, **kwargs):
         treeObjectCoords = self.treeObjectCoords(**kwargs)
+        scale = kwargs.get('scale', getattr(self, 'scale', 1))
         dotCenter = V(treeObjectCoords[:2]) + V(
             self.treeDotCenter(fields=kwargs.get('fields', []),
                                font=kwargs.get('font')))
-        halfWidth = Tree234.maxKeys * self.CIRCLE_SIZE * self.scale
+        halfWidth = Tree234.maxKeys * self.CIRCLE_SIZE * scale
         tip = (V(self.ROOT_X0, self.ROOT_Y0) + V(halfWidth, 0).rotate(
             kwargs.get('offsetAngle', 180))) if self.getRoot() else dotCenter
         return dotCenter + tip
@@ -413,7 +414,7 @@ class Tree234(BinaryTreeBase):
         within the node.  The level controls the length of the arrow.
         '''
         if font is None: font = self.VARIABLE_FONT
-        if scale is None: scale = self.scale
+        if scale is None: scale = getattr(self, 'scale', 1)
         if node is self:
             treeObjectCoords = self.treeObjectCoords()
             center = V(treeObjectCoords[:2]) + V(
@@ -458,16 +459,20 @@ class Tree234(BinaryTreeBase):
         if scale is None: scale = getattr(self, 'scale', 1)
         spacing = self.outputBoxSpacing(font)
         width = max(2 * self.CIRCLE_SIZE, N * spacing) + 2 * padding
-        rightBound = self.traverseTypeCoords()[0]
+        rightBound = self.traverseTypeCoords(scale=scale)[0]
         left = max(self.canvasBounds[0],
                    min(self.ROOT_X0 - width // 2, rightBound - width))
         bottom = self.ROOT_Y0 - 5 * self.CIRCLE_SIZE * scale - padding
         return (left, bottom - abs(font[1]) * 2, left + width, bottom)
         
-    def traverseTypeCoords(self, level=0):
-        return (
-            self.ROOT_X0 + self.CIRCLE_SIZE * self.scale * self.maxLinks * 8,
-            self.ROOT_Y0 + self.CIRCLE_SIZE * self.scale * 2 * level)
+    def traverseTypeCoords(self, level=0, scale=None):
+        if scale is None: scale = getattr(self, 'scale', 1)
+        if self.traverseVariableOrigin is None: # Define origin for each
+            self.traverseVariableOrigin =  V(   # traverse operation
+                self.ROOT_X0 + self.CIRCLE_SIZE * scale * self.maxLinks * 8,
+                self.ROOT_Y0)
+        return self.traverseVariableOrigin + V(
+            0, self.CIRCLE_SIZE * scale * 2 * level)
 
     insertCode = '''
 def insert(self, key={key}, value):
@@ -1223,13 +1228,15 @@ def search(self, goal={goal}):
                 self.canvas.coords(item, coord)
 
     def subtreeItemCoords(
-            self, node, parent, childNum, level=None, setChildCenters=True):
+            self, node, parent, childNum, level=None, setChildCenters=True,
+            scale=None):
         '''Return a node's canvas items and their coordinates after
         optionally setting its center based on its relation to its parent.
         Recursively descend through all the nodes descendants.
         '''
         if node is None:
             return [], []
+        if scale is None: scale = getattr(self, 'scale', 1)
         if level is None: # ASSUME no empty nodes so there are always 1+ keys
             if parent is self:
                 level = 0
@@ -1240,11 +1247,12 @@ def search(self, goal={goal}):
         if setChildCenters and (parent or node is self.rootNode):
             node.center = (
                 (self.ROOT_X0, self.ROOT_Y0) if node is self.rootNode else
-                self.childCoords(parent, childNum, level))
+                self.childCoords(parent, childNum, level, scale=scale))
         excludeParentLink = 0 if parent or node is self.rootNode else 1
         items = node.dValue.items[excludeParentLink:]
-        coords = self.nodeItemCoords(node, parent=parent, childNum=childNum)[
-            excludeParentLink:]
+        coords = self.nodeItemCoords(
+            node, parent=parent, childNum=childNum, scale=scale)[
+                excludeParentLink:]
         for ci in range(node.nChild):
             citems, ccoords = self.subtreeItemCoords(
                 node.children[ci], node, ci, level + 1, setChildCenters)
@@ -1264,6 +1272,7 @@ for key, data in tree.traverse({traverseType!r}):
             code=code.format(**locals()), sleepTime=wait / 10, 
             startAnimations=start)
 
+        self.traverseVariableOrigin = None   # Reset origin at start of traverse
         traverseTypeText = self.canvas.create_text(
             *self.traverseTypeCoords(),
             text='traverseType: {!r}'.format(traverseType),
@@ -1286,7 +1295,7 @@ for key, data in tree.traverse({traverseType!r}):
         localVars = ()
         dataIndexConfig = {'level': 2, 'orientation': -100, 'keyNum': 0}
         colors = self.canvas.fadeItems(localVars)
-        for key, items in self.traverse(traverseType):
+        for key, _ in self.traverse(traverseType):
             self.canvas.restoreItems(localVars, colors)
             node, parent = self._find(
                 key, self.rootNode, self, prepare=False, code='',
@@ -1298,7 +1307,7 @@ for key, data in tree.traverse({traverseType!r}):
                                              **dataIndexConfig)
                 callEnviron |= set(dataIndex)
                 localVars += dataIndex
-                self.scrollToSee(dataIndex + items, sleepTime=wait / 10)
+                self.scrollToSee(dataIndex, sleepTime=wait / 10)
             else:
                 self.moveArrowsTo(dataIndex, node, dataIndexConfig, wait)
 
@@ -1366,15 +1375,15 @@ def traverse(self, traverseType={traverseType!r}):
             return
         
         self.highlightCode('stack = Stack()', callEnviron, wait=wait)
-        traverseTypeCoords = self.traverseTypeCoords()
         variableFont = self.VARIABLE_FONT
         self.STACK_CELL_SIZE = (
             self.maxKeys * 2 * self.scale * self.CIRCLE_SIZE + 2,
             2 * self.scale * self.CIRCLE_SIZE + 2)
         self.traverseStack = Table(
             self,
-            V(traverseTypeCoords) + V(self.CIRCLE_SIZE * self.scale * 2,
-                                      -self.scale * self.STACK_CELL_SIZE[1]),
+            V(self.traverseTypeCoords()) +
+            V(self.CIRCLE_SIZE * self.scale * 2,
+              -self.scale * self.STACK_CELL_SIZE[1]),
             cellWidth=self.STACK_CELL_SIZE[0], label='stack', cellBorderWidth=1,
             cellHeight=self.STACK_CELL_SIZE[1], vertical=True, direction=-1,
             labelFont=variableFont, labelColor=self.VARIABLE_COLOR)
@@ -1385,26 +1394,23 @@ def traverse(self, traverseType={traverseType!r}):
                        center=self.childCoords(self.rootNode or self, 0))
 
         itemArrow = lastText = cText = None
+        self.scrollToSee(self.traverseStack.items(), sleepTime=wait / 10)
         self.highlightCode('not stack.isEmpty()', callEnviron, wait=wait)
         while len(self.traverseStack) > 0:
             self.highlightCode('item = stack.pop()', callEnviron, wait=wait)
+            arrowCoords = self.traverseItemArrowCoords(None)
             if itemArrow is None:
-                arrowCoords = self.traverseItemArrowCoords(None)
                 itemArrow = self.createArrow(
                     arrowCoords[1], 'item', level=0, **self.traverseItemConfig)
                 callEnviron |= set(itemArrow)
                 self.canvas_coords(itemArrow[1], *arrowCoords[1])
-                secondLabel = self.canvas.copyItem(itemArrow[1])
-                callEnviron.add(secondLabel)
-                itemLabelBBox = self.canvas.bbox(itemArrow[1])
-                itemLabelCenter = BBoxCenter(itemLabelBBox)
-                self.itemValueCenter = V(itemLabelCenter) - V(
-                    0, 1.9 * self.STACK_CELL_SIZE[1])
+                self.traverseItemLabel = self.canvas.copyItem(itemArrow[1])
+                callEnviron.add(self.traverseItemLabel)
                 self.scrollToSee(itemArrow, sleepTime=wait / 10)
-
             else:
                 self.moveItemsLinearly(
-                    itemArrow, self.traverseItemArrowCoords(None),
+                    (self.traverseItemLabel, *itemArrow),
+                    (arrowCoords[1], *arrowCoords),
                     sleepTime=0, steps=1, see=True)
             
             item = self.stackPop(callEnviron, wait=wait)
@@ -1514,14 +1520,15 @@ def traverse(self, traverseType={traverseType!r}):
                     ('item', 16), callEnviron, wait=wait,
                     returnValue=item.val is not None):
                 self.highlightCode('yield item', callEnviron, wait=wait)
-                itemCoords = self.yieldCallEnvironment(
-                    callEnviron, sleepTime=wait / 10)
+                itemMap = self.yieldCallEnvironment(
+                    callEnviron, sleepTime=wait / 10, moveItems=False)
                 yield item.val, item.items
                 self.resumeCallEnvironment(
-                    callEnviron, itemCoords, sleepTime=wait / 10)
+                    callEnviron, itemMap, sleepTime=wait / 10)
                 
             self.dispose(callEnviron, *item.items)
-                
+            
+            self.scrollToSee(self.traverseStack.items(), sleepTime=wait / 10)
             self.highlightCode('not stack.isEmpty()', callEnviron, wait=wait)
 
         self.highlightCode([], callEnviron)
@@ -1573,7 +1580,7 @@ def traverse(self, traverseType={traverseType!r}):
         self.moveItemsLinearly(toMove, moveTo, sleepTime=wait / 10, see=True)
         self.traverseStack.append(drawnValue(thing, *toMove))
         callEnviron |= set(self.traverseStack.items())
-        
+
     def stackPop(
             self,
             callEnviron: 'Call environment for traverse iterator',
@@ -1581,25 +1588,34 @@ def traverse(self, traverseType={traverseType!r}):
         top = self.traverseStack[-1]
         topCenter = BBoxCenter(
             self.traverseStack.cellCoords(len(self.traverseStack)))
-        delta = V((V(self.itemValueCenter) - V(topCenter)) * 2)
+        delta = V((V(self.traverseItemValueCenter()) - V(topCenter)) * 2)
         moveTo = tuple(V(self.canvas_coords(item)) + delta
                        for item in top.items)
         self.moveItemsOnCurve(top.items, moveTo, sleepTime=wait / 10, see=True)
         return self.traverseStack.pop()
 
+    def traverseItemValueCenter(self, scale=None):
+        if scale is None: scale = getattr(self, 'scale', 1)
+        labelCoords = self.traverseItemLabelCoords()
+        return V(labelCoords) - V(0, 2.2 * self.STACK_CELL_SIZE[1] * scale)
+        
     traverseItemConfig = {
         'color': VisualizationApp.VARIABLE_COLOR, 'orientation': -120,
-        'anchor': SE}
+        'anchor': S}
 
     def traverseItemLabelCoords(self):
-        labelCoords = V(self.traverseTypeCoords(level=-1)) - V(
-            V(0.5, -0.1) * self.STACK_CELL_SIZE[0])
+        label = getattr(self, 'traverseItemLabel', 0)
+        if label and not self.canvas.type(label): label = None
+        labelCoords = self.canvas.coords(label) if label else V(
+            self.traverseTypeCoords(level=-1)) - V(
+            V(0.6, -0.1) * self.STACK_CELL_SIZE[0]) 
         return labelCoords
 
-    def traverseItemArrowCoords(self, item, keyNum=None):
+    def traverseItemArrowCoords(self, item, keyNum=None, scale=None):
+        if scale is None: scale = getattr(self, 'scale', 1)
         if isinstance(item, Node234):
             return self.indexCoords(
-                item, keyNum=keyNum, **self.traverseItemConfig)
+                item, keyNum=keyNum, scale=scale, **self.traverseItemConfig)
         elif item is None or isinstance(item, tuple):
             labelCoords = self.traverseItemLabelCoords()
             return labelCoords + labelCoords, labelCoords
