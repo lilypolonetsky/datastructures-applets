@@ -14,7 +14,6 @@ import time, re, pdb, sys, os.path, threading
 from collections import *
 from tkinter import *
 from tkinter import ttk
-PRESSED = 'pressed' # Oddly the ttk module does not define this like tk's ACTIVE
 
 try:
     from TextHighlight import *
@@ -850,11 +849,20 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 else Animation.RUNNING)
         return callEnviron
 
-    def yieldCallEnvironment(self, callEnviron, sleepTime=0):
+    def yieldCallEnvironment(
+            self, callEnviron: 'Call environment to remove from stack',
+            exclude: 'Set/sequence of items to remain visible' ={},
+            sleepTime: 'Pause between removing code lines' =0,
+            moveItems: 'Hide items by moving if true, else set state' =True):
         '''Remove the call environment from an iterator right before
         yielding its value.  The callEnviron must be on top of the
-        call stack.  Returns a dictionary mapping item numbers to
-        coordinates for canvas items that are moved off canvas'''
+        call stack.  The items in the callEnviron are either moved off the
+        canvas, or set to HIDDEN state depending on the moveItems flag.
+        Items in the exclude set or sequence are not hidden.
+        Returns a dictionary mapping item numbers to tuples of the form
+        (state, index) where state is either their coordinates or their
+        current state attribute for later restoration in the stacking
+        order provided by their index.'''
         if callEnviron is not self.callStack[-1]:
             raise Exception(
                 'Cannot yield from call environment that is not current')
@@ -867,18 +875,28 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                       if self.canvasBounds else 
                       widgetDimensions(self.canvas))
         away = V(canvasDims) * 10
-        itemOrder = self.canvas.find_all()
+        itemStackingOrder = self.canvas.find_all()
         for item in callEnviron:
-            if isinstance(item, int) and self.canvas.type(item):
-                coords = self.canvas.coords(item)
-                if any(self.withinCanvas((coords[j], coords[j + 1]))
-                       for j in range(0, len(coords), 2)):
-                    itemCoords[item] = (coords, itemOrder.index(item))
-                    self.canvas.coords(item, V(coords) +
-                                       V(away * (len(coords) // 2)))
+            if (isinstance(item, int) and self.canvas.type(item) and
+                not item in exclude):
+                itemIndex = itemStackingOrder.index(item)
+                if moveItems:
+                    coords = self.canvas.coords(item)
+                    if any(self.withinCanvas((coords[j], coords[j + 1]))
+                           for j in range(0, len(coords), 2)):
+                        itemCoords[item] = (coords, itemIndex)
+                        self.canvas.coords(item, V(coords) +
+                                           V(away * (len(coords) // 2)))
+                else:
+                    state = self.canvas_itemConfig(item, 'state')
+                    itemCoords[item] = (state, itemIndex)
+                    self.canvas_itemConfig(item, state=HIDDEN)
         return itemCoords
 
-    def resumeCallEnvironment(self, callEnviron, itemCoords, sleepTime=0):
+    def resumeCallEnvironment(
+            self, callEnviron: 'Call environment to push back on stack',
+            itemMap: 'Dictionary mapping items to coords or state',
+            sleepTime: 'Puase between restoring code lines' =0):
         self.callStack.append(callEnviron)
         codeBlock = self.getCodeHighlightBlock(callEnviron)
         if codeBlock:
@@ -886,8 +904,11 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                           addBoundary=True, allowStepping=False)
             codeBlock.markStart()
             self.highlightCode(codeBlock.currentFragments, callEnviron, wait=0)
-        for item in sorted(itemCoords.keys(), key=lambda x: itemCoords[x][1]):
-            self.canvas.coords(item, *itemCoords[item][0])
+        for item in sorted(itemMap.keys(), key=lambda x: itemMap[x][1]):
+            if isinstance(itemMap[item][0], (list, tuple)):
+                self.canvas.coords(item, *itemMap[item][0])
+            else:
+                self.canvas_itemConfig(item, state=itemMap[item][0])
             self.canvas.tag_raise(item)
 
     def callStackHighlights(self):

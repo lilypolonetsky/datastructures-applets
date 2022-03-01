@@ -100,6 +100,10 @@ def filterDict(d, filter=lambda key: True):
 # Tk definitions
 # Modifier key constants
 SHIFT, CAPS_LOCK, CTRL, ALT = 0x01, 0x02, 0x04, 0x08
+
+# Oddly the ttk module does not define this like tk's ACTIVE
+PRESSED = 'pressed'
+
 # Mouse button constants
 MOUSE_BUTTON_1, MOUSE_BUTTON_2, MOUSE_BUTTON_3 = 0x0100, 0x0200, 0x0400
 class Modifier(Enum):
@@ -284,6 +288,32 @@ class Scrim(Canvas):
         if len(args) == 0 and result:
             return tuple(result)
         return result
+
+    def bbox(self,
+             tagOrID: 'Tag or ID of item for bounding box' =None
+    ) -> 'Return Tk bounding box when defined, else approximate it':
+        result = super().bbox(tagOrID)
+        if result: return result
+        kind = tagOrID and self.type(tagOrID)
+        if kind and self.itemConfig(tagOrID, 'state') == HIDDEN:
+            coords = V(self.coords(tagOrID))
+            if kind == 'text':
+                font = self.getItemFont(tagOrID)
+                text = self.itemConfig(tagOrID, 'text')
+                size = V(textWidth(font, text), textHeight(font, text))
+                halfSize = V(size / 2)
+                anchor =  self.itemConfig(tagOrID, 'anchor')
+                upperLeft = tuple(map(
+                    int,
+                    V(coords - halfSize) - V(
+                        halfSize * V(self.anchorVectors[anchor]))))
+                return upperLeft + (V(upperLeft) + size)
+            else:
+                box = list(coords[:2]) + list(coords[:2])
+                for i in range(2, len(coords)):
+                    box[i % 2] = min(box[i % 2], coords[i])
+                    box[i % 2 + 2] = max(box[i % 2 + 2], coords[i])
+                return tuple(map(int, box))
 
     FADED_COLORS = {
         'fill': 'bisque', 'outline': 'bisque',
@@ -507,6 +537,35 @@ if __name__ == '__main__':
 
         print('Bad BBox {} {} empty'.format(
                 badBBox, 'is' if BBoxEmpty(badBBox) else 'is not'))
+
+    def compare_bbox(
+            scrim: 'Scrim object to check',
+            item: 'Item on scrim to check',
+            details: 'True -> show all config details, or dict of keys to show'
+            =None):
+        'Compare bounding box and coords before and after hiding it'
+        kind = scrim.type(item)
+        state = scrim.itemConfig(item, 'state')
+        fill = scrim.itemConfig(item, 'fill')
+        bbox = scrim.bbox(item)
+        coords = scrim.coords(item)
+        print('Before hiding', kind, 'item', item, 'with fill of', fill,
+              'the bounding box is', bbox, 'and the coords are', coords)
+        if details:
+            config = scrim.itemConfig(item)
+            for key in config:
+                if config[key] and (details == True or key in details):
+                    print('  {}: {!r}'.format(key, config[key]))
+        scrim.itemConfig(item, state=HIDDEN)
+        hiddenBBox = scrim.bbox(item)
+        hiddenCoords = scrim.coords(item)
+        print('After hiding its bounding box is', hiddenBBox, 'which is',
+              'identical' if bbox == hiddenBBox else 'different')
+        if bbox != hiddenBBox:
+            print('Difference is', V(bbox) - V(hiddenBBox))
+        print('After hiding its coordinates are', hiddenCoords, 'which are',
+              'identical' if coords == hiddenCoords else 'different')
+        scrim.itemConfig(item, state=state)
         
     tk = Tk()
     scrim = Scrim(tk, width=800, height=400)
@@ -574,7 +633,7 @@ if __name__ == '__main__':
     message = scrim.create_text(
         575, 10, anchor=NW, text='', fill='gray30', activefill='',
         font=('Courier', -14), width=300)
-    print('The font for message text item is:',
+    print('The font for the group details text item is:',
           scrim.getItemFont(message))
     def groupButtonHandler(btn, tag):
         def groupButtonPress():
@@ -643,6 +702,7 @@ if __name__ == '__main__':
         if shape == scrim.create_hashed_rectangle:
             scrim.tag_bind(shapeItem, '<Button-1>',
                            hashedRectRotator(shapeItem, bbox, **kwargs))
+        compare_bbox(scrim, shapeItem)
             
         g = (g + 1) % nc
         if palette[g] == '': g += 1
@@ -652,13 +712,17 @@ if __name__ == '__main__':
             fill=palette[(g + 0) % nc], activefill=palette[(g + 1) % nc],
             disabledfill=palette[(g + 2) % nc], width=1, activewidth=3,
             disabledwidth=5, disableddash=(5, 5), tags=tag)
+        compare_bbox(scrim, line)
         g = (g + 1) % nc
         if palette[g] == '': g += 1
         text = scrim.create_text(
             x0 + 50 + g * 10, y0 - g * 10 + 35, text=tag,
             fill=palette[(g + 0) % nc], activefill=palette[(g + 1) % nc],
             disabledfill=palette[(g + 2) % nc], tags=tag)
+        anchor = list(scrim.anchorVectors.keys())[g % len(scrim.anchorVectors)]
+        scrim.changeAnchor(anchor, text)
         tags.append(tag)
+        compare_bbox(scrim, text, details={'anchor': 1, 'text': 1})
 
     for tag in tags:
         btn = Button(tk, text='Fade {}'.format(tag))

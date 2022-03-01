@@ -614,7 +614,7 @@ def traverse(self):
 
     def randomFill(
             self, nItems, animate=None, alphabet=
-            'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ-_+.,&/:'):
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_+&:'):
         if animate is None: animate = self.showHashing.get()
         callEnviron = self.createCallEnvironment()
         count = 0
@@ -1231,7 +1231,9 @@ if __name__ == '__main__':
     showHashing = hashTable.showHashing.get()
     hashTable.showHashing.set(1 if animate else 0)
     for arg in sys.argv[1:]:
-        if not(arg[0] == '-' and len(arg) == 2 and arg[1:].isalpha()):
+        if arg.startswith('-') and arg[1:].isdigit():
+            hashTable.randomFill(int(arg[1:]))
+        elif not(arg[0] == '-' and len(arg) == 2 and arg[1:].isalpha()):
             if animate:
                 hashTable.setArgument(arg)
                 hashTable.insertButton.invoke()

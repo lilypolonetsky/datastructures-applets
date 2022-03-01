@@ -1180,12 +1180,14 @@ class GraphBase(VisualizationApp):
                              'Ce-Na:65', 'Ce-Ka:26', 'Da-Gr:28', 'Da-Ka:24',
                              'Gr-Ka:25', 'Gr-Na:30', 'Ka-Na:36')):
                         edgeMatch = edgePattern.fullmatch(edge)
-                        self.createEdge(edgeMatch.group(1), edgeMatch.group(2),
-                                         int(edgeMatch.group(4)))
+                        self.createEdge(
+                            edgeMatch.group(1), edgeMatch.group(2),
+                            int(edgeMatch.group(4)) if self.weighted else 1)
             elif edgeMatch and all(
                     edgeMatch.group(i) in argv for i in (1, 2)):
                 edges.append((edgeMatch.group(1), edgeMatch.group(2),
-                              int(edgeMatch.group(4)) if edgeMatch.group(4)
+                              int(edgeMatch.group(4))
+                              if self.weighted and edgeMatch.group(4)
                               else 1))
             elif len(arg) > 0:
                 self.setArgument(arg)
