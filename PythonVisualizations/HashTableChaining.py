@@ -614,7 +614,7 @@ def traverse(self):
 
     def randomFill(
             self, nItems, animate=None, alphabet=
-            'abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ-_+.,&/:'):
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_+&:'):
         if animate is None: animate = self.showHashing.get()
         callEnviron = self.createCallEnvironment()
         count = 0
