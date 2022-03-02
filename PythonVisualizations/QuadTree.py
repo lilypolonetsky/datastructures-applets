@@ -6,10 +6,12 @@ try:
     from tkUtilities import *
     from drawnValue import *
     from VisualizationApp import *
+    from OutputBox import *
 except ModuleNotFoundError:
     from .tkUtilities import *
     from .drawnValue import *
     from .VisualizationApp import *
+    from .OutputBox import *
     
 def euclideanDistance(x1, y1, x2, y2):
     dx = x1 - x2
@@ -168,7 +170,7 @@ class PointQuadtree(VisualizationApp):
     LINE_COLOR = 'SteelBlue4'
     TEXT_COLOR = 'red'
     ROOT_OUTLINE = 'yellow'
-    TEXT_FONT = ("Helvetica", '10')
+    TEXT_FONT = ("Helvetica", -10)
     CIRCLE_RADIUS = 4
     BUFFER_ZONE = (-10, -60, 50, 5)
     POINT_REGION_COLOR = 'cyan'
@@ -270,6 +272,31 @@ class PointQuadtree(VisualizationApp):
         return (visible[0] + gap if left else visible[2] - gap,
                 self.pointRegion[1] - gap -
                 (line - 1) * abs(self.VARIABLE_FONT[1]))
+
+    def outputBoxCoords(
+            self, font: 'Font for output box, default is TEXT_FONT' =None,
+            padding: 'Padding around text in output box' =5,
+            N: 'Number of data items, default is number of points' =None):
+        '''Coordinates for an output box at top of canvas with enough
+        space to hold N values, defaulting to current quadtree item count.
+        '''
+        if N is None: N = sum(len(n.data) for n in self.nodes)
+        N = max(1, N)
+        if font is None: font = self.TEXT_FONT
+        allDataWidth = textWidth(
+            font, ', '.join(item for n in self.nodes for item in n.data))
+        datumWidth = max((padding,
+                          *(textWidth(font, item + ', ')
+                            for n in self.nodes for item in n.data)))
+        regionWidth = self.pointRegion[2] - self.pointRegion[0]
+        regionCenter = BBoxCenter(self.pointRegion)
+        width = min(regionWidth, allDataWidth, N * datumWidth) + 2 * padding
+        left = max(self.pointRegion[0], regionCenter[0] - width // 2)
+        right = min(self.pointRegion[2], regionCenter[0] + width // 2)
+        bottom = self.pointRegion[1] - padding
+        top = padding if width >= regionWidth else (
+            bottom - textHeight(font, 'P0') - 2 * padding)
+        return left, top, right, bottom
     
     #fills the x,y coordinates and clears the item label entry
     def setXY(self, event):
@@ -530,14 +557,12 @@ def __insert(self, n={nVal}, a={x}, b={y}, data={data!r}):
         self.points = []
         self.lines= []
         self.nodes = []
-        self.direction = None
-        self.parent = None
         self.__root = None
         self.display()
 
     def _findNodeLabeled(self, label):
-        for i in self.nodes:
-            if label in i.data: return i
+        for node in self.nodes:
+            if label in node.data: return node
 
     findExactCode = '''
 def findExact(self, a={x}, b={y}):
@@ -1040,16 +1065,57 @@ def findNearest(self, a={x}, b={y}):
         return result
     
     traverseExampleCode = '''
+for a, b, data in quadtree.traverse():
+   print(data)
 '''
     
     def traverseExample(self, code=traverseExampleCode, wait=0.1, start=True):
-        self.traverse(wait=wait)
+        callEnviron = self.createCallEnvironment(
+            code=code, startAnimations=start)
+
+        outBoxCoords = self.outputBoxCoords()
+        outBoxCenter = BBoxCenter(outBoxCoords)
+        self.outBox = OutputBox(self, outBoxCoords, outputFont=self.TEXT_FONT)
+        callEnviron |= set(self.outBox.items())
+        
+        self.highlightCode('a, b, data in quadtree.traverse()', callEnviron)
+        dataArrow = None
+        localVars = ()
+        dataArrowConfig = {'orientation': -70, 'anchor': E}
+        colors = self.canvas.fadeItems(localVars)
+        for a, b, data in self.traverse():
+            self.canvas.restoreItems(localVars, colors)
+            node = self._findNodeLabeled(data)
+            if dataArrow is None:
+                dataArrow = self.createLabeledArrow(node, 'a, b, data',
+                                             **dataArrowConfig)
+                callEnviron |= set(dataArrow)
+                localVars += dataArrow
+            else:
+                self.moveItemsTo(
+                    dataArrow, self.labeledArrowCoords(node, **dataArrowConfig),
+                    sleepTime=wait / 10)
+
+            self.highlightCode('print(data)', callEnviron, wait=wait)
+            dataItem = self.canvas.copyItem(node.items[3])
+            callEnviron.add(dataItem)
+            self.outBox.appendText(dataItem, sleepTime=wait / 10)
+            callEnviron.discard(dataItem)
+            
+            self.highlightCode('a, b, data in quadtree.traverse()', callEnviron)
+            colors = self.canvas.fadeItems(localVars)
+        
+        
+        self.highlightCode((), callEnviron)
+        self.cleanUp(callEnviron)
 
     traverseCode = '''
 '''
     
     def traverse(self, code=traverseCode, wait=0.1):
-        pass
+        for node in self.nodes:
+            for item in node.data:
+                yield node.a, node.b, item
     
     def clickInsert(self):
         val = self.validArgument()
@@ -1155,7 +1221,7 @@ def findNearest(self, a={x}, b={y}):
         self.addOperation(
             'New', lambda: self.new(), helpText='Create new, empty quadtree')
         self.addOperation(
-            'Traverse', lambda: self.traverseExample(),
+            'Traverse', lambda: self.traverseExample(start=self.startMode()),
             helpText='Traverse quadtree items')
         self.showBoundariesCheckbutton = self.addOperation(
             'Show Boundaries',
