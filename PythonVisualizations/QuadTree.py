@@ -1113,7 +1113,7 @@ for a, b, data in quadtree.traverse():
             self.highlightCode('a, b, data in quadtree.traverse()', callEnviron)
             colors = self.canvas.fadeItems(localVars)
         
-        
+        self.canvas.restoreItems(localVars, colors)
         self.highlightCode((), callEnviron)
         self.cleanUp(callEnviron)
 
