@@ -1289,7 +1289,6 @@ for key, data in tree.traverse({traverseType!r}):
         
         iteratorCall = 'key, data in tree.traverse({traverseType!r})'.format(
             **locals())
-        self.iteratorStack = []
         self.highlightCode(iteratorCall, callEnviron, wait=wait)
         dataIndex = None
         localVars = ()
@@ -1321,8 +1320,6 @@ for key, data in tree.traverse({traverseType!r}):
             colors = self.canvas.fadeItems(localVars)
 
         self.canvas.restoreItems(localVars, colors)
-        while self.iteratorStack:
-            self.cleanUp(self.iteratorStack.pop())
         self.highlightCode([], callEnviron)
         self.cleanUp(callEnviron)
 

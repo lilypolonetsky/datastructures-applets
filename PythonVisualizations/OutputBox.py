@@ -42,7 +42,7 @@ class OutputBox(object):
             borderWidth=1,               # Thickness of border lines
             borderColor='black',         # Border color
             tags=('outputBox',),         # Tags applied to items
-            outputFont=None,             # Font and color of outut text
+            outputFont=None,             # Font and color of output text
             outputColor=None,            # default to the app VALUE font * color
             outputOffset=(5, 5),         # Offset of top left corner of top line
             eventHandlerPairs=(),        # (event, handler) pairs for items
