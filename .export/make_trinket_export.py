@@ -4,7 +4,7 @@ __doc__ = """Make a version of the python-visualizations that's easy to
 export to trinket.io
 """
 
-import argparse, sys, os, glob, shutil, re, subprocess
+import argparse, sys, os, glob, shutil, re, git, time
 
 specialContent = {
    'main.py': '''
@@ -17,47 +17,53 @@ showVisualizations(
 '''
    }
 
-if __name__ == '__main__':
-   mustHave = ['VisualizationApp.py']
-   replacements = [('▶', '=left_arrow='), ('▢', 'W'), ('✓', 'X'), ('ø', '!'),
-                   ('∞', 'inf')]
-   parser = argparse.ArgumentParser(
-      description=__doc__,
-      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-   parser.add_argument(
-      'output_directory', nargs=1, help='Directory to put trinket export in')
-   parser.add_argument(
-      '-f', '--force', default=False, action='store_true',
-      help='Clear directory if it already exists before exporting')
-   parser.add_argument(
-      '-c', '--clean', nargs='*', default=[r'.*\.py'],
-      help='Regex for filenames whose non-ASCII characters should be cleaned')
-   parser.add_argument(
-      '-i', '--ignore', default=False, action='store_true',
-      help='Ignore files with non-ASCII characters after cleansing')
-   parser.add_argument(
-      '-x', '--exclude', nargs='*',
-      default=['__init__.*', '.*[Tt]est.*', 'runAllVisualizations.py'],
-      help='Regex for filenames to exclude from export')
-   parser.add_argument(
-      '-v', '--verbose', action='count', default=0,
-      help='Add verbose comments')
-   args = parser.parse_args()
-   
-   outdir = args.output_directory[0]
-   verbose = args.verbose
-   ignore = args.ignore
-   exclude = [re.compile(exp) for exp in args.exclude]
-   clean = [re.compile(exp) for exp in args.clean]
+mustHave = ['VisualizationApp.py']
+replacements = [('▶', '=left_arrow='), ('▢', 'W'), ('✓', 'X'), ('ø', '!'),
+                ('∞', 'inf')]
+excludeDefaults = [r'__init__.*', r'.*[Tt]est.*', r'runAllVisualizations\.py']
+cleanDefaults = [r'.*\.py']
+
+def make_trinket_export(
+      outdir: 'Output directory for trinket files',
+      verbose: 'Verbosity level for progress messages: 0 is lowest' =0,
+      ignore: 'Ignore files with non-ASCII characters after cleansing' =False,
+      force: '' =False,
+      exclude: 'Regexes for filenames to exclude from export' =[],
+      clean: 'Regexes for filenames to clean of non-ASCII characters' = [],
+      repo: 'Git repository object' =None,
+      repoBranch: 'Branch in git repository being exported' ='master'):
 
    if not all(os.path.exists(f) for f in mustHave):
-      print('Missing some files.  Expected to find: {}'.format(
-         ', '.join(mustHave)))
-      print('Is the current directory PythonVisualizations?')
-      sys.exit(-1)
+      msg =('Missing some files.  Expected to find: {}\n'
+            'Is the current directory PythonVisualizations?').format(
+               ', '.join(mustHave))
+      raise Exception(msg)
       
+   if repo is None:
+      repoDir = '..'
+      try:
+         repo = git.Repo(repoDir)
+      except Exception as e:
+         raise Exception(
+            'Could not find git repository object in {} directory.\n{}'.format(
+            repoDir, e))
+   if repo.is_dirty():
+      if not force:
+         raise Exception(
+            'Git working directory, {}, has unsaved changes'.format(
+               repo.working_dir))
+      elif verbose > 0:
+         print('Ignoring unsaved changes to git working directory: {}'.format(
+            repo.working_dir))
+   lastCommit = repo.commit(repoBranch)
+   versionString = '{} {} {}\n{} UTC'.format(
+      lastCommit.summary, lastCommit.hexsha[:7], lastCommit.author.name,
+      time.asctime(time.gmtime(lastCommit.committed_date)))
+   if verbose > 0:
+      print('Version info: "{}"'.format(versionString))
+         
    if os.path.exists(outdir):
-      if os.path.isdir(outdir) and args.force:
+      if os.path.isdir(outdir) and force:
          if verbose > 0:
             print('Clearing {} directory'.format(outdir))
          shutil.rmtree(outdir)
@@ -68,7 +74,7 @@ if __name__ == '__main__':
          sys.exit(0)
       else:
          print('{} is not a directory.{}'.format(
-            outdir, 'Ignoring --force' if args.force else ''))
+            outdir, 'Ignoring --force' if force else ''))
          sys.exit(-1)
    else:
       if verbose > 0:
@@ -111,19 +117,40 @@ if __name__ == '__main__':
          if verbose > 0:
             print('Copying {} verbatim'.format(filename))
          shutil.copyfile(filename, os.path.join(outdir, filename))
-
-   result = subprocess.run(['git', 'show', '--format=format:%h %an %ad %n%s'],
-                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-   config = {'version': '\n'.join(result.stdout.decode().split('\n')[:2])
-             if result and result.returncode == 0 and result.stdout else ''}
-   if verbose > 0:
-      print('Version info: {version}'.format(**config))
       
    for filename in specialContent:
       if verbose > 0:
          print('Creating {}'.format(filename))
       with open(os.path.join(outdir, filename), 'w') as outfile:
-         outfile.write(specialContent[filename].format(**config))
+         outfile.write(specialContent[filename].format(version=versionString))
          outfile.close()
          
    print('Created export in {}'.format(outdir))
+   
+if __name__ == '__main__':
+   parser = argparse.ArgumentParser(
+      description=__doc__,
+      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+   parser.add_argument(
+      'output_directory', nargs=1, help='Directory to put trinket export in')
+   parser.add_argument(
+      '-f', '--force', default=False, action='store_true',
+      help='Clear existing output and ignore unclean git working directories')
+   parser.add_argument(
+      '-c', '--clean', nargs='*', default=cleanDefaults,
+      help='Regex for filenames whose non-ASCII characters should be cleaned')
+   parser.add_argument(
+      '-i', '--ignore', default=False, action='store_true',
+      help='Ignore files with non-ASCII characters after cleansing')
+   parser.add_argument(
+      '-x', '--exclude', nargs='*', default=excludeDefaults,
+      help='Regex for filenames to exclude from export')
+   parser.add_argument(
+      '-v', '--verbose', action='count', default=0,
+      help='Add verbose comments')
+   args = parser.parse_args()
+
+   make_trinket_export(
+      args.output_directory[0], args.verbose, args.ignore, args.force,
+      [re.compile(exp) for exp in args.exclude],
+      [re.compile(exp) for exp in args.clean])
