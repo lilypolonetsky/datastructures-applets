@@ -4,3 +4,4 @@
 #   pip3 install -r requirements.txt
 #
 Pillow
+GitPython
