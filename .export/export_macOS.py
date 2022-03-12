@@ -19,7 +19,7 @@ def export_macOS(
       sign_identity: 'Common name of codesign certificate' ='Mac Developer',
       keep: 'Keep executable source code file created for export.' =False,
       backup: 'File extension for backups of last export' ='.bak',
-      workDir: 'Directory for work files, .log, .pyz and etc.' ='build',
+      work_dir: 'Directory for work files, .log, .pyz and etc.' ='build',
       distribution: 'Name of export distribution directory' ='dist',
       verbose: 'Verbosity level of progress messages' =0):
    
@@ -98,7 +98,7 @@ def export_macOS(
 
    if backup:
       for item in (
-            workDir, distribution, appName, appName + '.spec', dmgFilename):
+            work_dir, distribution, appName, appName + '.spec', dmgFilename):
          if os.path.exists(item):
             if os.path.exists(item + backup):
                if verbose > 0:
@@ -117,7 +117,7 @@ def export_macOS(
    logLevel = ['ERROR', 'WARN', 'INFO', 'DEBUG'][max(0, min(4, verbose))]
    PyInstaller.__main__.run([
       appFilename, *data_args,
-      '--name', appName, '--distpath', distribution, '--workpath', workDir,
+      '--name', appName, '--distpath', distribution, '--workpath', work_dir,
       '--windowed', '--osx-bundle-identifier', ID.format(name=appName),
       '--icon', iconFilename, '--log-level', logLevel ])
    
