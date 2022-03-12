@@ -1488,4 +1488,4 @@ if __name__ == '__main__':
     if numArgs:
         tree.fill(numArgs)
 
-    tree.runVisualization()
+    tree.runVisualization() # runAllVisualizations ignore
