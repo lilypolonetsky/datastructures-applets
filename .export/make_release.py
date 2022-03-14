@@ -10,13 +10,16 @@ from make_trinket_export import *
 from export_macOS import *
 
 version_labels = ['major', 'minor']
+platforms = ['trinket', 'macOS', 'windows']
 version_file_dirs = [os.path.dirname(sys.argv[0]), '.']
-repository_directory = os.path.dirname(os.path.dirname(sys.argv[0]))
+repository_directory = os.path.dirname(
+   os.path.abspath(os.path.dirname(sys.argv[0])))
 
 def make_release(
       kind: 'Type of version update.  Should be one of version_labels or None',
       force: 'Allow version update even if git working tree is dirty' =False,
-      version_filename: 'Name of version file' = 'version.json',
+      version_filename: 'Name of version file' ='version.json',
+      targets: 'Platforms to be exported. Must be members of platforms' =platforms,
       prefix: 'Prefix of release subdirectory' ='release_',
       repoDir: 'Root directory of git repository' =repository_directory,
       verbose: 'Verbosity of status messages' =0):
@@ -48,7 +51,7 @@ def make_release(
                     version[i] + 1 if i == labelIndex else 0
                     for i in range(len(version))]
       newVersionString = '.'.join(str(v) for v in newVersion)
-      print('New version is', newVersionString)
+      print('New version will be', newVersionString)
    else:
       newVersion = version
       newVersionString = '.'.join(str(v) for v in newVersion)
@@ -57,7 +60,7 @@ def make_release(
    
    repo = git.Repo(repoDir)
    if repo.is_dirty() and not force:
-      raise Exception('Git repository is modified.  Use --force to override')
+      raise Exception('Git repository is modified.  Use --force to override.')
    elif verbose > 0:
       print('Ignoring unsaved changes to git working directory: {}'.format(
          repo.working_dir))
@@ -66,12 +69,12 @@ def make_release(
       releaseString = 'Release {}'.format(newVersionString)
       with open(version_path, 'w') as vfile:
          vfile.write(json.dumps(newVersion))
-      if verbose > 0:
-         print('Wrote new version to', version_path)
-      repo.index.add([os.path.relpath(repo.working_dir, version_path)])
+      print('Wrote new version, {}, to {}'.format(
+         newVersionString, version_path))
+      repo.index.add([os.path.relpath(version_path, repo.working_dir)])
       result = repo.index.commit(releaseString)
       newTag = repo.create_tag(releaseDirectory.strip().replace(' ', '_'),
-                               releaseString)
+                               message=releaseString)
       if verbose > 1:
          print('Commit of new {} file resulted in:'.format(version_path),
                result, 'which is now tagged {!r}'.format(newTag.name))
@@ -87,12 +90,13 @@ def make_release(
                releaseDirectory))
    else:
       os.mkdir(releaseDirectory)
-      
-   make_trinket_export(
-      os.path.join(releaseDirectory, 'trinket'), verbose=verbose, force=force,
-      exclude=[re.compile(exp) for exp in excludeDefaults],
-      clean=[re.compile(exp) for exp in cleanDefaults])
-   if sys.platform.lower() in ('darwin'):
+
+   if 'trinket' in targets:
+      make_trinket_export(
+         os.path.join(releaseDirectory, 'trinket'), verbose=verbose,
+         force=force, exclude=[re.compile(exp) for exp in excludeDefaults],
+         clean=[re.compile(exp) for exp in cleanDefaults])
+   if 'macOS' in targets and sys.platform.lower() in ('darwin'):
       if verbose > 0:
          print('Exporting macOS application and disk image...')
       export_macOS(
@@ -101,6 +105,9 @@ def make_release(
          work_dir=os.path.join(releaseDirectory, 'build'),
          distribution=os.path.join(releaseDirectory, 'dist'),
          verbose=verbose)
+   if 'windows' in targets and sys.platform.lower().startswith('win'):
+      if verbose > 0:
+         print('Exporting Windows application (TBD)...')
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser(
@@ -117,6 +124,12 @@ if __name__ == '__main__':
       '--version-file', default='version.json',
       help='Filename containing current version numbers')
    parser.add_argument(
+      '-t', '--target', metavar='PLATFORM', choices=platforms + ['all'],
+      nargs='*', default=['all'],
+      help=('Export release to target platform. Possible platforms: {}. '
+            'Some platforms can only be exported when run on that platform').format(
+               ', '.join(platforms)))
+   parser.add_argument(
       '-p', '--prefix', default='release_',
       help='Prefix for release subdirectory and git tag name')
    parser.add_argument(
@@ -127,6 +140,11 @@ if __name__ == '__main__':
       help='Add verbose comments')
    args = parser.parse_args()
 
-   make_release(args.update if args.update!= "none" else None,
-                args.force, args.version_file, args.prefix,
-                args.repository_directory, args.verbose)
+   if 'all' in args.target:
+      args.target = platforms
+
+   make_release(
+      args.update if args.update.lower() != "none" else None,
+      force=args.force, version_filename=args.version_file, prefix=args.prefix,
+      targets=args.target, repoDir=args.repository_directory,
+      verbose=args.verbose)
