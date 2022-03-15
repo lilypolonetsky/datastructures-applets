@@ -31,7 +31,7 @@ def make_trinket_export(
       exclude: 'Regexes for filenames to exclude from export' =[],
       clean: 'Regexes for filenames to clean of non-ASCII characters' = [],
       repo: 'Git repository object' =None,
-      repoBranch: 'Branch in git repository being exported' ='master'):
+      repoBranch: 'Branch in git repository being exported' ='HEAD'):
 
    if not all(os.path.exists(f) for f in mustHave):
       msg =('Missing some files.  Expected to find: {}\n'
