@@ -73,8 +73,21 @@ def make_release(
          newVersionString, version_path))
       repo.index.add([os.path.relpath(version_path, repo.working_dir)])
       result = repo.index.commit(releaseString)
-      newTag = repo.create_tag(releaseDirectory.strip().replace(' ', '_'),
-                               message=releaseString)
+
+      tagName = releaseDirectory.strip().replace(' ', '_')
+      matchingTags = [tag for tag in repo.tags if tag.name == tagName]
+      if matchingTags:
+         if force:
+            if verbose > 1:
+               print('Deleting {} existing tag{} named {!r}'.format(
+                  len(matchingTags), '' if len(matchingTags) == 1 else 's',
+                  tagName))
+            repo.delete_tag(*matchingTags)
+         else:
+            raise Exception(
+               'Tag {!r} already exists.  Use --force option to delete.'.format(
+                  tagName))
+      newTag = repo.create_tag(tagName, message=releaseString, force=force)
       if verbose > 1:
          print('Commit of new {} file resulted in:'.format(version_path),
                result, 'which is now tagged {!r}'.format(newTag.name))
@@ -91,23 +104,37 @@ def make_release(
    else:
       os.mkdir(releaseDirectory)
 
+   border = '=' * 72
+   targetAnnounce = '{}\n        Export target -> {{}}\n{}'.format(
+      border, border)
    if 'trinket' in targets:
+      if verbose > 0:
+         print(targetAnnounce.format('trinket'))
       make_trinket_export(
          os.path.join(releaseDirectory, 'trinket'), verbose=verbose,
          force=force, exclude=[re.compile(exp) for exp in excludeDefaults],
          clean=[re.compile(exp) for exp in cleanDefaults])
-   if 'macOS' in targets and sys.platform.lower() in ('darwin'):
-      if verbose > 0:
-         print('Exporting macOS application and disk image...')
-      export_macOS(
-         version_file=version_path,
-         disk_image=os.path.join(releaseDirectory, '{name}{version}.dmg'),
-         work_dir=os.path.join(releaseDirectory, 'build'),
-         distribution=os.path.join(releaseDirectory, 'dist'),
-         verbose=verbose)
-   if 'windows' in targets and sys.platform.lower().startswith('win'):
-      if verbose > 0:
-         print('Exporting Windows application (TBD)...')
+   if 'macOS' in targets:
+      if sys.platform.lower() in ('darwin'):
+         if verbose > 0:
+            print(targetAnnounce.format('macOS'))
+         export_macOS(
+            version_file=version_path,
+            disk_image=os.path.join(releaseDirectory, '{name}{version}.dmg'),
+            work_dir=os.path.join(releaseDirectory, 'build'),
+            distribution=os.path.join(releaseDirectory, 'dist'),
+            verbose=verbose)
+      elif verbose > 0:
+         print('Skipping {} export since current platform is {}'.format(
+            'macOS', sys.platform))
+   if 'windows' in targets:
+      if sys.platform.lower().startswith('win'):
+         if verbose > 0:
+            print(targetAnnounce.format('Windows'))
+         # TBD export_windows()
+      elif verbose > 0:
+         print('Skipping {} export since current platform is {}'.format(
+            'windows', sys.platform))
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser(
