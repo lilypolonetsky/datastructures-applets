@@ -5,7 +5,7 @@ updating a version file.  The git repo is updated with the new version file
 and then tagged for that version.
 '''
 
-import sys, os, argparse, json, git, re
+import sys, os, argparse, json, git, re, shutil
 from make_trinket_export import *
 from export_macOS import *
 
@@ -21,6 +21,7 @@ def make_release(
       version_filename: 'Name of version file' ='version.json',
       targets: 'Platforms to be exported. Must be members of platforms' =platforms,
       prefix: 'Prefix of release subdirectory' ='release_',
+      backup: 'Suffix for backup of any existing release directory' = '.bak',
       repoDir: 'Root directory of git repository' =repository_directory,
       verbose: 'Verbosity of status messages' =0):
    version_path = None
@@ -66,14 +67,6 @@ def make_release(
          repo.working_dir))
 
    if newVersion != version:
-      releaseString = 'Release {}'.format(newVersionString)
-      with open(version_path, 'w') as vfile:
-         vfile.write(json.dumps(newVersion))
-      print('Wrote new version, {}, to {}'.format(
-         newVersionString, version_path))
-      repo.index.add([os.path.relpath(version_path, repo.working_dir)])
-      result = repo.index.commit(releaseString)
-
       tagName = releaseDirectory.strip().replace(' ', '_')
       matchingTags = [tag for tag in repo.tags if tag.name == tagName]
       if matchingTags:
@@ -87,20 +80,41 @@ def make_release(
             raise Exception(
                'Tag {!r} already exists.  Use --force option to delete.'.format(
                   tagName))
+         
+      releaseString = 'Release {}'.format(newVersionString)
+      with open(version_path, 'w') as vfile:
+         vfile.write(json.dumps(newVersion))
+      if verbose > 0:
+         print('Wrote new version, {}, to {}'.format(
+            newVersionString, version_path))
+      repo.index.add([os.path.relpath(version_path, repo.working_dir)])
+      commit = repo.index.commit(releaseString)
       newTag = repo.create_tag(tagName, message=releaseString, force=force)
-      if verbose > 1:
-         print('Commit of new {} file resulted in:'.format(version_path),
-               result, 'which is now tagged {!r}'.format(newTag.name))
+      print('Commit of new {} file resulted in:'.format(version_path),
+            commit, 'which is now tagged {!r}'.format(newTag.name))
 
    if os.path.exists(releaseDirectory):
-      if os.path.isdir(releaseDirectory):
-         if verbose > 0:
-            print('Release directory already exists: {}'.format(
-               releaseDirectory))
-      else:
+      if not os.path.isdir(releaseDirectory):
          raise Exception(
             'Release directory is not a directory: {}'.format(
                releaseDirectory))
+      if backup:
+         for item in (releaseDirectory,):
+            if os.path.exists(item):
+               if os.path.exists(item + backup):
+                  if verbose > 0:
+                     print('Removing', item + backup, '...')
+                     if os.path.isdir(item + backup):
+                        shutil.rmtree(item + backup)
+                     else:
+                        os.remove(item + backup)
+               if verbose > 1:
+                  print('Backing up {} to {}'.format(item, item + backup))
+               os.rename(item, item + backup)
+               os.mkdir(releaseDirectory)
+      elif verbose > 0:
+         print('Release directory, {}, already exists '
+               'and no backup specified'.format(releaseDirectory))
    else:
       os.mkdir(releaseDirectory)
 
@@ -163,6 +177,9 @@ if __name__ == '__main__':
       '--repository-directory', default=repository_directory,
       help='Repository directory of git working tree')
    parser.add_argument(
+      '-b', '--backup', default='.bak',
+      help='File extension for backup of last release')
+   parser.add_argument(
       '-v', '--verbose', action='count', default=0,
       help='Add verbose comments')
    args = parser.parse_args()
@@ -174,4 +191,4 @@ if __name__ == '__main__':
       args.update if args.update.lower() != "none" else None,
       force=args.force, version_filename=args.version_file, prefix=args.prefix,
       targets=args.target, repoDir=args.repository_directory,
-      verbose=args.verbose)
+      backup=args.backup, verbose=args.verbose)
