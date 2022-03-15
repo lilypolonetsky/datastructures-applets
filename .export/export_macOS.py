@@ -47,7 +47,7 @@ def export_macOS(
    try:
       import allVisualizationsCommon
       visualizations = allVisualizationsCommon.findVisualizations(
-         pyfiles, verbose)
+         pyfiles, max(0, verbose - 1))
    except ModuleNotFoundError:
       visualizations = []
 
@@ -67,16 +67,16 @@ def export_macOS(
 
    if verbose > 0:
       print('Verbosity level:', verbose)
-      print('Found {} python file{}'.format(
-         len(pyfiles), '' if len(pyfiles) == 1 else 's'))
+      print('Found {} python file{} and {} visualization app{}'.format(
+         len(pyfiles), '' if len(pyfiles) == 1 else 's',
+         len(visualizations), '' if len(visualizations) == 1 else 's'))
       if verbose > 1:
          for pyfile in pyfiles:
-            print(pyfile)
-         print('Visualizations:')
-         for viz in visualizations:
-            print(viz.__module__)
+            vizClasses = [viz.__name__ for viz in visualizations
+                          if (viz.__module__ + '.py') == pyfile]
+            print(pyfile, '->' if vizClasses else '', ', '.join(vizClasses))
 
-   data_args = ['--add-data', '*.png:.']
+   data_args = ['--add-data', '{}:.'.format(os.path.join(os.getcwd(),'*.png'))]
 
    appFilename = appName + '.py'
    model = 'runAllVisualizationsMenu.py'
@@ -96,9 +96,11 @@ def export_macOS(
          len(visualizations), '' if len(visualizations) == 1 else 's',
          appFilename))
 
+   specPath = os.path.dirname(distribution)
    if backup:
       for item in (
-            work_dir, distribution, appName, appName + '.spec', dmgFilename):
+            work_dir, distribution, appName,
+            os.path.join(specPath, appName) + '.spec', dmgFilename):
          if os.path.exists(item):
             if os.path.exists(item + backup):
                if verbose > 0:
@@ -108,19 +110,25 @@ def export_macOS(
                   else:
                      os.remove(item + backup)
             os.rename(item, item + backup)
-         
+
+   logLevel = ['ERROR', 'WARN', 'INFO', 'DEBUG'][max(0, min(4, verbose))]
+   PyInstallerArgs = [
+      '--name', appName, '--distpath', distribution, '--workpath', work_dir,
+      '--specpath', specPath, '--windowed', '--icon', iconFilename,
+      '--log-level', logLevel,
+      '--osx-bundle-identifier', ID.format(name=appName) ]
    if verbose > 1:
       print('PyInstaller arguments:')
       for arg in data_args:
          print(' ', arg, end='' if arg.startswith('-') else '\n')
+      for i, arg in enumerate(PyInstallerArgs):
+         print(' ', arg,
+               end='\n' if (not arg.startswith('--') or
+                            i >= len(PyInstallerArgs) - 1 or
+                            PyInstallerArgs[i + 1].startswith('--')) else ' ')
 
-   logLevel = ['ERROR', 'WARN', 'INFO', 'DEBUG'][max(0, min(4, verbose))]
-   PyInstaller.__main__.run([
-      appFilename, *data_args,
-      '--name', appName, '--distpath', distribution, '--workpath', work_dir,
-      '--windowed', '--osx-bundle-identifier', ID.format(name=appName),
-      '--icon', iconFilename, '--log-level', logLevel ])
-   
+   PyInstaller.__main__.run([appFilename, *data_args, *PyInstallerArgs])
+
    # os.rename(os.path.join(distribution, appName), appName)
    # if verbose > 1:
    #    print('Moved command line application {} from {}/ to .'.format(
