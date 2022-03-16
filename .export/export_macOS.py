@@ -16,7 +16,7 @@ def export_macOS(
       icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.icns',
       ID: 'Bundle ID for macOS' ='com.shakumant.dev.{name}',
       disk_image: 'Disk image (dmg) name' ='{name}{version}.dmg',
-      sign_identity: 'Common name of codesign certificate' ='Mac Developer',
+      sign_identity: 'Common name of codesign certificate' ='',
       keep: 'Keep executable source code file created for export.' =False,
       backup: 'File extension for backups of last export' ='.bak',
       work_dir: 'Directory for work files, .log, .pyz and etc.' ='build',
@@ -146,7 +146,7 @@ def export_macOS(
          ['codesign', '-s', sign_identity, '-v', dmgFilename],
          capture_output=True, check=True
       ) if sign_identity else CompletedProcess((), 0)
-      if verbose > 1:
+      if verbose > 0:
          for msg in (hdiutil_result.stdout, hdiutil_result.stderr,
                      codesign_result.stdout, codesign_result.stderr):
             if msg:
