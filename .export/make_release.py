@@ -149,6 +149,8 @@ def make_release(
       elif verbose > 0:
          print('Skipping {} export since current platform is {}'.format(
             'windows', sys.platform))
+         
+   print('Completed release in {}'.format(releaseDirectory))
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser(
