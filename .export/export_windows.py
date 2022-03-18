@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 __doc__ = '''
-Export a self-contained macOS executable of all datastructure visualizations.
+Export a self-contained Windows executable of all datastructure visualizations.
 Run this in the directory where the visualization apps and associated PNG
 files are stored.
 '''
@@ -16,13 +16,13 @@ for dir in ('.', '../PythonVisualizations'):
 
 from export_common import *
 
-def export_macOS(
+def export_windows(
       appName: 'Base name of application to export'
       ='DatastructureVisualizations',
       version_file: 'JSON file containing the version tuple' = 'version.json',
       source_directory: 'Directory containing source and PNG files' = '.',
       icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.icns',
-      ID: 'Bundle ID for macOS' ='com.shakumant.dev.{name}',
+      ID: 'Bundle ID for Windows' ='com.shakumant.dev.{name}',
       disk_image: 'Disk image (dmg) name' ='{name}{version}.dmg',
       sign_identity: 'Common name of codesign certificate' ='',
       keep: 'Keep executable source code file created for export.' =False,
@@ -37,13 +37,13 @@ def export_macOS(
    appFilename = buildApplication(
       appName + '.py', version, source_directory=source_directory,
       verbose=verbose)
-
+   
    iconfiles = set(glob.glob(icon))
    iconFilename = os.path.abspath(icon)
    dmgFilename = disk_image.format(name=appName,
                                    version='_{:02d}_{:02d}'.format(*version))
 
-   data_args = ['--add-data', os.path.join(source_directory,'*.png') + ':.']
+   data_args = ['--add-data', '{}:.'.format(os.path.join(os.getcwd(),'*.png'))]
 
    specPath = os.path.dirname(distribution)
    backupFiles((work_dir, distribution, appName,
@@ -54,8 +54,7 @@ def export_macOS(
    PyInstallerArgs = [
       '--name', appName, '--distpath', distribution, '--workpath', work_dir,
       '--specpath', specPath, '--windowed', '--icon', iconFilename,
-      '--log-level', logLevel,
-      '--osx-bundle-identifier', ID.format(name=appName) ]
+      '--log-level', logLevel ]
    if verbose > 1:
       printPyInstallerArguments(data_args, PyInstallerArgs)
 
@@ -66,14 +65,14 @@ def export_macOS(
          os.path.join(distribution, appName, appName)))
       
    if dmgFilename:
-      hdiutil_result = subprocess.run(
-         ['hdiutil', 'create', '-srcfolder', distribution,
-          '-volname', appName, '-format', 'UDZO', dmgFilename],
-         capture_output=True, check=True)
-      codesign_result = subprocess.run(
-         ['codesign', '-s', sign_identity, '-v', dmgFilename],
-         capture_output=True, check=True
-      ) if sign_identity else CompletedProcess((), 0)
+      # hdiutil_result = subprocess.run(
+      #    ['hdiutil', 'create', '-srcfolder', distribution,
+      #     '-volname', appName, '-format', 'UDZO', dmgFilename],
+      #    capture_output=True, check=True)
+      # codesign_result = subprocess.run(
+      #    ['codesign', '-s', sign_identity, '-v', dmgFilename],
+      #    capture_output=True, check=True
+      # ) if sign_identity else CompletedProcess((), 0)
       if verbose > 0:
          for msg in (hdiutil_result.stdout, hdiutil_result.stderr,
                      codesign_result.stdout, codesign_result.stderr):
@@ -105,7 +104,7 @@ if __name__ == '__main__':
       help='Name of JSON file containing the major and minor version numbers')
    parser.add_argument(
       '-I', '--ID', default='com.shakumant.dev.{name}',
-      help='Bundle ID for macOS.  Can contain {name} string to be replaced with'
+      help='Bundle ID for Windows.  Can contain {name} string to be replaced with'
       'the base name of the executable.')
    parser.add_argument(
       '--disk-image', default='{name}{version}.dmg',
@@ -113,7 +112,7 @@ if __name__ == '__main__':
       'with the base name of the executable and {version} in _major_minor '
       'format.')
    parser.add_argument(
-      '--sign-identity', default='',
+      '--sign-identity', default='Developer',
       help='Signer identity (common name of codesign certificate)')
    parser.add_argument(
       '-k', '--keep', default=False, action='store_true',
@@ -132,7 +131,7 @@ if __name__ == '__main__':
       help='Add verbose comments')
    args = parser.parse_args()
 
-   export_macOS(
+   export_windows(
       args.name, version_file=args.version_file,
       source_directory=args.source, icon=args.icon, ID=args.ID,
       disk_image=args.disk_image, sign_identity=args.sign_identity,

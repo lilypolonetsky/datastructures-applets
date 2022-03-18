@@ -23,24 +23,30 @@ replacements = [('▶', '=left_arrow='), ('▢', 'W'), ('✓', 'X'), ('ø', '!')
 excludeDefaults = [r'__init__.*', r'.*[Tt]est.*', r'runAllVisualizations\.py']
 cleanDefaults = [r'.*\.py']
 
-def make_trinket_export(
+repository_directory = os.path.dirname(
+   os.path.abspath(os.path.dirname(sys.argv[0])))
+source_directory = os.path.join(repository_directory, 'PythonVisualizations')
+
+def export_trinket(
       outdir: 'Output directory for trinket files',
+      source_directory: 'Directory containing source and PNG files' = '.',
       verbose: 'Verbosity level for progress messages: 0 is lowest' =0,
       ignore: 'Ignore files with non-ASCII characters after cleansing' =False,
-      force: '' =False,
+      force: 'Allow export if git working tree is dirty or outdir exists' =False,
       exclude: 'Regexes for filenames to exclude from export' =[],
       clean: 'Regexes for filenames to clean of non-ASCII characters' = [],
       repo: 'Git repository object' =None,
       repoBranch: 'Branch in git repository being exported' ='HEAD'):
 
-   if not all(os.path.exists(f) for f in mustHave):
+   if not all(os.path.exists(os.path.join(source_directory, f))
+              for f in mustHave):
       msg =('Missing some files.  Expected to find: {}\n'
-            'Is the current directory PythonVisualizations?').format(
-               ', '.join(mustHave))
+            'Is the source directory, {}, correct?').format(
+               ', '.join(mustHave), source_directory)
       raise Exception(msg)
       
    if repo is None:
-      repoDir = '..'
+      repoDir = os.path.dirname(os.path.abspath(source_directory))
       try:
          repo = git.Repo(repoDir)
       except Exception as e:
@@ -81,19 +87,21 @@ def make_trinket_export(
          print('Creating {} directory'.format(outdir))
       os.mkdir(outdir)
 
-   files = glob.glob('*.py') + glob.glob('*.png')
+   files = glob.glob(os.path.join(source_directory,'*.py')) + glob.glob(
+      os.path.join(source_directory, '*.png'))
    for filename in files:
-      if filename in specialContent:
+      basename = os.path.basename(filename)
+      if basename in specialContent:
          print('Skipping export of {}'.format(filename))
          continue
 
-      if any(regex.match(filename) for regex in exclude):
+      if any(regex.match(basename) for regex in exclude):
          if verbose > 0:
             print('Excluding {} for match to an exclude pattern'.format(
-               filename))
+               basename))
          continue
       
-      if any(regex.match(filename) for regex in clean):
+      if any(regex.match(basename) for regex in clean):
          with open(filename, 'r') as infile:
             content = infile.read()
             revised = content
@@ -103,26 +111,26 @@ def make_trinket_export(
             if containsNonASCII and not ignore:
                print('=' * 70, '\n',
                      ('File {} contains some non-ASCII characters '
-                      'after replacements').format(filename),
+                      'after replacements').format(basename),
                      '\n' + '=' * 70)
             if verbose > 0:
                print('Exporting {}{}{}'.format(
-                  filename, ' with substitions' if content != revised else '',
+                  basename, ' with substitions' if content != revised else '',
                   ' ignoring lingering non-ASCII characters' 
                   if containsNonASCII and ignore else ''))
-            with open(os.path.join(outdir, filename), 'w') as outfile:
+            with open(os.path.join(outdir, basename), 'w') as outfile:
                outfile.write(revised)
                outfile.close()
       else:
          if verbose > 0:
-            print('Copying {} verbatim'.format(filename))
-         shutil.copyfile(filename, os.path.join(outdir, filename))
+            print('Copying {} verbatim'.format(basename))
+         shutil.copyfile(filename, os.path.join(outdir, basename))
       
-   for filename in specialContent:
+   for basename in specialContent:
       if verbose > 0:
-         print('Creating {}'.format(filename))
-      with open(os.path.join(outdir, filename), 'w') as outfile:
-         outfile.write(specialContent[filename].format(version=versionString))
+         print('Creating {}'.format(basename))
+      with open(os.path.join(outdir, basename), 'w') as outfile:
+         outfile.write(specialContent[basename].format(version=versionString))
          outfile.close()
          
    print('Created export in {}'.format(outdir))
@@ -133,6 +141,9 @@ if __name__ == '__main__':
       formatter_class=argparse.ArgumentDefaultsHelpFormatter)
    parser.add_argument(
       'output_directory', nargs=1, help='Directory to put trinket export in')
+   parser.add_argument(
+      '-s', '--source', default=source_directory,
+      help='Directory containing source Python and PNG files')
    parser.add_argument(
       '-f', '--force', default=False, action='store_true',
       help='Clear existing output and ignore unclean git working directories')
@@ -150,7 +161,8 @@ if __name__ == '__main__':
       help='Add verbose comments')
    args = parser.parse_args()
 
-   make_trinket_export(
-      args.output_directory[0], args.verbose, args.ignore, args.force,
-      [re.compile(exp) for exp in args.exclude],
-      [re.compile(exp) for exp in args.clean])
+   export_trinket(
+      args.output_directory[0], source_directory=args.source,
+      verbose=args.verbose, ignore=args.ignore, force=args.force,
+      exclude=[re.compile(exp) for exp in args.exclude],
+      clean=[re.compile(exp) for exp in args.clean])

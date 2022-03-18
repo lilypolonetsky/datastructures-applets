@@ -1,22 +1,26 @@
 #! /usr/bin/env python3
 __doc__ = '''
-Make a release of the software. Typically, the version numbers are advanced,
-updating a version file.  The git repo is updated with the new version file
-and then tagged for that version.
+Make a release of the visualization software. Typically, the
+version numbers are advanced, updating a version file.  The git repo
+is updated with the new version file and then tagged for that version.
 '''
 
 import sys, os, argparse, json, git, re, shutil
-from make_trinket_export import *
+from export_common import *
+from export_trinket import *
 from export_macOS import *
+from export_windows import *
 
 version_labels = ['major', 'minor']
 platforms = ['trinket', 'macOS', 'windows']
 version_file_dirs = [os.path.dirname(sys.argv[0]), '.']
 repository_directory = os.path.dirname(
    os.path.abspath(os.path.dirname(sys.argv[0])))
+source_directory = os.path.join(repository_directory, 'PythonVisualizations')
 
 def make_release(
       kind: 'Type of version update.  Should be one of version_labels or None',
+      source_directory: 'Directory containing source and PNG files' = '.',
       force: 'Allow version update even if git working tree is dirty' =False,
       version_filename: 'Name of version file' ='version.json',
       targets: 'Platforms to be exported. Must be members of platforms' =platforms,
@@ -99,19 +103,8 @@ def make_release(
             'Release directory is not a directory: {}'.format(
                releaseDirectory))
       if backup:
-         for item in (releaseDirectory,):
-            if os.path.exists(item):
-               if os.path.exists(item + backup):
-                  if verbose > 0:
-                     print('Removing', item + backup, '...')
-                     if os.path.isdir(item + backup):
-                        shutil.rmtree(item + backup)
-                     else:
-                        os.remove(item + backup)
-               if verbose > 1:
-                  print('Backing up {} to {}'.format(item, item + backup))
-               os.rename(item, item + backup)
-               os.mkdir(releaseDirectory)
+         backupFiles((releaseDirectory,), backup, verbose)
+         os.mkdir(releaseDirectory)
       elif verbose > 0:
          print('Release directory, {}, already exists '
                'and no backup specified'.format(releaseDirectory))
@@ -124,8 +117,9 @@ def make_release(
    if 'trinket' in targets:
       if verbose > 0:
          print(targetAnnounce.format('trinket'))
-      make_trinket_export(
-         os.path.join(releaseDirectory, 'trinket'), verbose=verbose,
+      export_trinket(
+         os.path.join(releaseDirectory, 'trinket'),
+         source_directory=source_directory, verbose=verbose,
          force=force, exclude=[re.compile(exp) for exp in excludeDefaults],
          clean=[re.compile(exp) for exp in cleanDefaults])
    if 'macOS' in targets:
@@ -133,7 +127,7 @@ def make_release(
          if verbose > 0:
             print(targetAnnounce.format('macOS'))
          export_macOS(
-            version_file=version_path,
+            version_file=version_path, source_directory=source_directory, 
             disk_image=os.path.join(releaseDirectory, '{name}{version}.dmg'),
             work_dir=os.path.join(releaseDirectory, 'build'),
             distribution=os.path.join(releaseDirectory, 'dist'),
@@ -160,6 +154,9 @@ if __name__ == '__main__':
       '-u', '--update', default=version_labels[-1],
       choices=version_labels + ['none'],
       help='Update the specified version component, which can be "none".')
+   parser.add_argument(
+      '-s', '--source', default=source_directory,
+      help='Directory containing source Python and PNG files')
    parser.add_argument(
       '-f', '--force', default=False, action='store_true',
       help='Force git update even if working tree directory is "dirty".')
@@ -191,6 +188,7 @@ if __name__ == '__main__':
 
    make_release(
       args.update if args.update.lower() != "none" else None,
-      force=args.force, version_filename=args.version_file, prefix=args.prefix,
+      source_directory=args.source, force=args.force,
+      version_filename=args.version_file, prefix=args.prefix,
       targets=args.target, repoDir=args.repository_directory,
       backup=args.backup, verbose=args.verbose)
