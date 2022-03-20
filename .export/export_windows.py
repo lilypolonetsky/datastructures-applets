@@ -117,7 +117,7 @@ if __name__ == '__main__':
       'with the base name of the executable and {version} in _major_minor '
       'format.')
    parser.add_argument(
-      '--sign-identity', default='Developer',
+      '--sign-identity', default='',
       help='Signer identity (common name of codesign certificate)')
    parser.add_argument(
       '-k', '--keep', default=False, action='store_true',
