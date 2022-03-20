@@ -43,7 +43,12 @@ def export_windows(
    dmgFilename = disk_image.format(name=appName,
                                    version='_{:02d}_{:02d}'.format(*version))
 
-   data_args = ['--add-data', '{}:.'.format(os.path.join(os.getcwd(),'*.png'))]
+   data_args = [
+      '--add-data',
+      os.path.join(source_directory,'*.png') + ';.',
+      '--add-data',
+      'c:/Program Files (x86)/Windows Kits/10/Redist/10.0.22000.0/ucrt/DLLs/x86/*.dll;.']
+
 
    specPath = os.path.dirname(distribution)
    backupFiles((work_dir, distribution, appName,
