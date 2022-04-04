@@ -6,7 +6,7 @@ files are stored.
 '''
 
 import PyInstaller.__main__
-import sys, glob, os, argparse, subprocess
+import sys, glob, os, argparse, subprocess, zipfile
 from subprocess import CompletedProcess
 
 if not hasattr(sys, 'path'): sys.path = []
@@ -21,14 +21,14 @@ def export_windows(
       ='DatastructureVisualizations',
       version_file: 'JSON file containing the version tuple' = 'version.json',
       source_directory: 'Directory containing source and PNG files' = '.',
-      icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.icns',
+      icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.ico',
       ID: 'Bundle ID for Windows' ='com.shakumant.dev.{name}',
-      disk_image: 'Disk image (dmg) name' ='{name}{version}.dmg',
+      zip_file: 'Zip archive name' ='{name}{version}.zip',
       sign_identity: 'Common name of codesign certificate' ='',
       keep: 'Keep executable source code file created for export.' =False,
       backup: 'File extension for backups of last export' ='.bak',
-      work_dir: 'Directory for work files, .log, .pyz and etc.' ='./build',
-      distribution: 'Name of export distribution directory' ='./dist',
+      work_dir: 'Directory for work files, .log, .pyz and etc.' ='./winbuild',
+      distribution: 'Name of export distribution directory' ='./windist',
       verbose: 'Verbosity level of progress messages' =0):
 
    if verbose > 0:
@@ -40,51 +40,53 @@ def export_windows(
    
    iconfiles = set(glob.glob(icon))
    iconFilename = os.path.abspath(icon)
-   dmgFilename = disk_image.format(name=appName,
-                                   version='_{:02d}_{:02d}'.format(*version))
+   zipFilename = zip_file.format(name=appName,
+                                 version='_{:02d}_{:02d}'.format(*version))
 
    data_args = [
       '--add-data',
-      os.path.join(source_directory,'*.png') + ';.',
+      os.path.join(os.path.abspath(source_directory), '*.png') + ';.',
       '--add-data',
-      'c:/Program Files (x86)/Windows Kits/10/Redist/10.0.22000.0/ucrt/DLLs/x86/*.dll;.']
+      'C:/Program Files (x86)/Windows Kits/10/Redist/10.0.22000.0/ucrt/DLLs/x86/*.dll;.']
 
 
    specPath = os.path.dirname(distribution)
    backupFiles((work_dir, distribution, appName,
-                os.path.join(specPath, appName) + '.spec', dmgFilename),
+                os.path.join(specPath, appName) + '.spec', zipFilename),
                backup_extension=backup, verbose=verbose)
 
    logLevel = ['ERROR', 'WARN', 'INFO', 'DEBUG'][max(0, min(4, verbose))]
    PyInstallerArgs = [
       '--name', appName, '--distpath', distribution, '--workpath', work_dir,
-      '--specpath', specPath, '--windowed', '--icon', iconFilename,
+      '--specpath', specPath, '--onefile', '--windowed', '--icon', iconFilename,
       '--log-level', logLevel ]
    if verbose > 1:
       printPyInstallerArguments(data_args, PyInstallerArgs)
 
    PyInstaller.__main__.run([appFilename, *data_args, *PyInstallerArgs])
 
+   execFilename = os.path.join(distribution, appName + '.exe')
    if verbose > 0:
-      print('Exported application is in {}'.format(
-         os.path.join(distribution, appName, appName)))
+      print('Exported application is in {}'.format(execFilename))
       
-   if dmgFilename:
-      # hdiutil_result = subprocess.run(
-      #    ['hdiutil', 'create', '-srcfolder', distribution,
-      #     '-volname', appName, '-format', 'UDZO', dmgFilename],
-      #    capture_output=True, check=True)
-      # codesign_result = subprocess.run(
-      #    ['codesign', '-s', sign_identity, '-v', dmgFilename],
-      #    capture_output=True, check=True
-      # ) if sign_identity else CompletedProcess((), 0)
+   if zipFilename:
+      archiveFilename = os.path.join(distribution, zipFilename)
+      with zipfile.ZipFile(archiveFilename, 'w') as archive:
+         archive.write(execFilename, arcname=os.path.basename(execFilename))
+      print('Put application in {} archive'.format(archiveFilename))
+   else:
+      archiveFilename = ''
+
+   if sign_identity:
       if verbose > 0:
-         for msg in (hdiutil_result.stdout, hdiutil_result.stderr,
-                     codesign_result.stdout, codesign_result.stderr):
-            if msg:
-               print(msg.decode())
+         print('Signing exported application...')
+      cmd = ['signtool', '-s', sign_identity,
+             '-v', archiveFilename or execFilename]
+      codesign_result = subprocess.run(cmd, capture_output=True, check=True)
       if verbose > 0:
-         print('Created disk image', dmgFilename)
+         print('Result of command "{}":', ' '.join(cmd))
+         for msg in (codesign_result.stdout, codesign_result.stderr):
+            print(msg)
    
    if not keep:
       os.remove(appFilename)
@@ -102,17 +104,17 @@ if __name__ == '__main__':
       '-s', '--source', default='.',
       help='Directory of source files and PNG images')
    parser.add_argument(
-      '-i', '--icon', default='design/Datastructure-Visualizations-icon.icns',
+      '-i', '--icon', default='design/Datastructure-Visualizations-icon.ico',
       help='Path to icon file (relative to directory with visualizaion apps)')
    parser.add_argument(
       '--version-file', default='version.json',
       help='Name of JSON file containing the major and minor version numbers')
    parser.add_argument(
       '-I', '--ID', default='com.shakumant.dev.{name}',
-      help='Bundle ID for Windows.  Can contain {name} string to be replaced with'
-      'the base name of the executable.')
+      help='Bundle ID for Windows.  Can contain {name} string to be replaced '
+      'with the base name of the executable.')
    parser.add_argument(
-      '--disk-image', default='{name}{version}.dmg',
+      '-z', '--zip-file', default='{name}{version}.zip',
       help='Disk image (dmg) name.  Can contain {name} string to be replaced '
       'with the base name of the executable and {version} in _major_minor '
       'format.')
@@ -126,10 +128,10 @@ if __name__ == '__main__':
       '-b', '--backup', default='.bak',
       help='File extension for backups of last export')
    parser.add_argument(
-      '-w', '--work-dir', default='./build',
+      '-w', '--work-dir', default='./winbuild',
       help='Directory for work files, .log, .pyz and etc.')
    parser.add_argument(
-      '-d', '--distribution', default='./dist',
+      '-d', '--distribution', default='./windist',
       help='Name of export distribution directory')
    parser.add_argument(
       '-v', '--verbose', action='count', default=0,
@@ -139,6 +141,6 @@ if __name__ == '__main__':
    export_windows(
       args.name, version_file=args.version_file,
       source_directory=args.source, icon=args.icon, ID=args.ID,
-      disk_image=args.disk_image, sign_identity=args.sign_identity,
+      zip_file=args.zip_file, sign_identity=args.sign_identity,
       keep=args.keep, backup=args.backup, work_dir=args.work_dir,
       distribution=args.distribution, verbose=args.verbose)
