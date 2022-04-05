@@ -74,12 +74,14 @@ def export_macOS(
          ['codesign', '-s', sign_identity, '-v', dmgFilename],
          capture_output=True, check=True
       ) if sign_identity else CompletedProcess((), 0)
-      if verbose > 0:
+      if verbose > 0 or hdiutil_result.returncode != 0:
          for msg in (hdiutil_result.stdout, hdiutil_result.stderr,
                      codesign_result.stdout, codesign_result.stderr):
             if msg:
                print(msg.decode())
-      if verbose > 0:
+      if hdiutil_result.returncode != 0:
+         raise Exception('Failed to build disk image: {}'.format(dmgFilename))
+      elif verbose > 0:
          print('Created disk image', dmgFilename)
    
    if not keep:
