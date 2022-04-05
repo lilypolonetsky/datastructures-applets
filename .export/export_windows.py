@@ -16,15 +16,18 @@ for dir in ('.', '../PythonVisualizations'):
 
 from export_common import *
 
+def commandLineArg(thing):
+   return ('{!r}'.format(thing) if isinstance(thing, str) and ' ' in thing
+           else str(thing))
+
 def export_windows(
       appName: 'Base name of application to export'
       ='DatastructureVisualizations',
       version_file: 'JSON file containing the version tuple' = 'version.json',
       source_directory: 'Directory containing source and PNG files' = '.',
       icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.ico',
-      ID: 'Bundle ID for Windows' ='com.shakumant.dev.{name}',
       zip_file: 'Zip archive name' ='{name}{version}.zip',
-      sign_identity: 'Common name of codesign certificate' ='',
+      sign_certificate: 'Codesign certificate filename or subject name' ='',
       keep: 'Keep executable source code file created for export.' =False,
       backup: 'File extension for backups of last export' ='.bak',
       work_dir: 'Directory for work files, .log, .pyz and etc.' ='./winbuild',
@@ -68,25 +71,32 @@ def export_windows(
    execFilename = os.path.join(distribution, appName + '.exe')
    if verbose > 0:
       print('Exported application is in {}'.format(execFilename))
+
+   if sign_certificate:
+      if verbose > 0:
+         print('Signing exported application...')
+         
+      # Assume signtool executable is in the PATH
+      cmd = ['signtool', 'sign', '/fd', 'SHA256',
+             '/f' if os.path.exists(sign_certificate) else '/n',
+             sign_certificate, execFilename]
+      codesign_result = subprocess.run(cmd, capture_output=True, check=True)
+      if verbose > 1 or codesign_result.returncode != 0:
+         print('Result of command "{}":'.format(
+            ' '.join(commandLineArg(x) for x in cmd)))
+         for msg in (codesign_result.stdout, b'-' * 77, codesign_result.stderr):
+            if msg.decode().strip():
+               print(msg.decode().strip())
+      if codesign_result.returncode != 0:
+         raise Exception('Unable to sign executable file')
       
    if zipFilename:
       archiveFilename = os.path.join(distribution, zipFilename)
       with zipfile.ZipFile(archiveFilename, 'w') as archive:
          archive.write(execFilename, arcname=os.path.basename(execFilename))
-      print('Put application in {} archive'.format(archiveFilename))
-   else:
-      archiveFilename = ''
-
-   if sign_identity:
       if verbose > 0:
-         print('Signing exported application...')
-      cmd = ['signtool', '-s', sign_identity,
-             '-v', archiveFilename or execFilename]
-      codesign_result = subprocess.run(cmd, capture_output=True, check=True)
-      if verbose > 0:
-         print('Result of command "{}":', ' '.join(cmd))
-         for msg in (codesign_result.stdout, codesign_result.stderr):
-            print(msg)
+         print('Put {}application in {} archive'.format(
+            'signed ' if sign_certificate else '', archiveFilename))
    
    if not keep:
       os.remove(appFilename)
@@ -110,17 +120,14 @@ if __name__ == '__main__':
       '--version-file', default='version.json',
       help='Name of JSON file containing the major and minor version numbers')
    parser.add_argument(
-      '-I', '--ID', default='com.shakumant.dev.{name}',
-      help='Bundle ID for Windows.  Can contain {name} string to be replaced '
-      'with the base name of the executable.')
-   parser.add_argument(
       '-z', '--zip-file', default='{name}{version}.zip',
       help='Disk image (dmg) name.  Can contain {name} string to be replaced '
       'with the base name of the executable and {version} in _major_minor '
       'format.')
    parser.add_argument(
-      '--sign-identity', default='',
-      help='Signer identity (common name of codesign certificate)')
+      '-c', '--sign-certificate', default='',
+      help='Signer certificate file or subject name of cert in certificate '
+      'store')
    parser.add_argument(
       '-k', '--keep', default=False, action='store_true',
       help='Keep executable source code file created for export.')
@@ -140,7 +147,7 @@ if __name__ == '__main__':
 
    export_windows(
       args.name, version_file=args.version_file,
-      source_directory=args.source, icon=args.icon, ID=args.ID,
-      zip_file=args.zip_file, sign_identity=args.sign_identity,
+      source_directory=args.source, icon=args.icon,
+      zip_file=args.zip_file, sign_certificate=args.sign_certificate,
       keep=args.keep, backup=args.backup, work_dir=args.work_dir,
       distribution=args.distribution, verbose=args.verbose)
