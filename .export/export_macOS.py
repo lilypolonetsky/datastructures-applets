@@ -6,7 +6,7 @@ files are stored.
 '''
 
 import PyInstaller.__main__
-import sys, glob, os, argparse, subprocess
+import sys, glob, os, argparse, subprocess, tempfile, shutil
 from subprocess import CompletedProcess
 
 if not hasattr(sys, 'path'): sys.path = []
@@ -24,7 +24,7 @@ def export_macOS(
       icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.icns',
       ID: 'Bundle ID for macOS' ='com.shakumant.dev.{name}',
       disk_image: 'Disk image (dmg) name' ='{name}{version}.dmg',
-      sign_identity: 'Common name of codesign certificate' ='',
+      sign_identity: 'Common name of codesign cert' ='Shakumant Software',
       keep: 'Keep executable source code file created for export.' =False,
       backup: 'File extension for backups of last export' ='.bak',
       work_dir: 'Directory for work files, .log, .pyz and etc.' ='./build',
@@ -43,7 +43,8 @@ def export_macOS(
    dmgFilename = disk_image.format(name=appName,
                                    version='_{:02d}_{:02d}'.format(*version))
 
-   data_args = ['--add-data', os.path.join(source_directory,'*.png') + ':.']
+   data_args = ['--add-data', 
+                os.path.join(os.path.abspath(source_directory), '*.png') + ':.']
 
    specPath = os.path.dirname(distribution)
    backupFiles((work_dir, distribution, appName,
@@ -56,34 +57,51 @@ def export_macOS(
       '--specpath', specPath, '--windowed', '--icon', iconFilename,
       '--log-level', logLevel,
       '--osx-bundle-identifier', ID.format(name=appName) ]
+   if False and sign_identity:  # SIGN IDENTITY MUST MEET APPLE'S CRITERIA
+      PyInstallerArgs.extend(['--codesign-identity', sign_identity])
+
    if verbose > 1:
       printPyInstallerArguments(data_args, PyInstallerArgs)
 
    PyInstaller.__main__.run([appFilename, *data_args, *PyInstallerArgs])
 
+   executable = os.path.join(distribution, appName + '.app')
    if verbose > 0:
-      print('Exported application is in {}'.format(
-         os.path.join(distribution, appName, appName)))
+      print('Exported application is in', executable)
       
    if dmgFilename:
-      hdiutil_result = subprocess.run(
-         ['hdiutil', 'create', '-srcfolder', distribution,
-          '-volname', appName, '-format', 'UDZO', dmgFilename],
-         capture_output=True, check=True)
-      codesign_result = subprocess.run(
-         ['codesign', '-s', sign_identity, '-v', dmgFilename],
-         capture_output=True, check=True
-      ) if sign_identity else CompletedProcess((), 0)
-      if verbose > 0 or hdiutil_result.returncode != 0:
-         for msg in (hdiutil_result.stdout, b'-' * 77, hdiutil_result.stderr,
-                     b'=' * 77,
-                     codesign_result.stdout, b'-' * 77, codesign_result.stderr):
-            if msg.decode().strip():
-               print(msg.decode().strip())
-      if hdiutil_result.returncode != 0:
-         raise Exception('Failed to build disk image: {}'.format(dmgFilename))
-      if codesign_result.returncode != 0:
-         raise Exception('Failed to sign disk image: {}'.format(dmgFilename))
+      with tempfile.TemporaryDirectory() as tempdir:
+         shutil.copytree(executable, os.path.join(tempdir, appName + '.app'))
+         hdiutil_cmd = ['hdiutil', 'create', '-srcfolder', tempdir,
+                        '-volname', appName, '-format', 'UDZO', dmgFilename]
+         dmgsign_cmd = ['codesign', '-s', sign_identity, dmgFilename]
+         if verbose > 0:
+            dmgsign_cmd[-1:-1] = ['-v']
+         commands = [hdiutil_cmd, dmgsign_cmd] if sign_identity else [
+            hdiutil_cmd]
+         if verbose > 1:
+            print('About to run the following command sequence:')
+            for cmd in commands:
+               print(' ', ' '.join(commandLineArg(x) for x in cmd))
+         results = [
+            subprocess.run(cmd, capture_output=True) for cmd in commands]
+         if verbose > 0 or any(result.returncode != 0 for result in results):
+            for cmd, result in zip(commands, results):
+               print('=' * 77, '\nExecution of',
+                     ' '.join(commandLineArg(x) for x in cmd),
+                     'returned code', result.returncode,
+                     'success!' if result.returncode == 0 else 'error!')
+               for msg in (result.stdout, '-' * 77, result.stderr):
+                  text = (msg if isinstance(msg, str) else msg.decode()).strip()
+                  if text:
+                     print(text)
+         for cmd, result in zip(commands, results):
+            if result.returncode != 0:
+               raise Exception(
+                  'Exit code {} during: {}'.format(
+                     result.returncode,
+                     ' '.join(commandLineArg(x) for x in cmd)))
+
       if verbose > 0:
          print('Created disk image', dmgFilename)
    
@@ -118,7 +136,7 @@ if __name__ == '__main__':
       'with the base name of the executable and {version} in _major_minor '
       'format.')
    parser.add_argument(
-      '--sign-identity', default='',
+      '--sign-identity', default='Shakumant Software',
       help='Signer identity (common name of codesign certificate)')
    parser.add_argument(
       '-k', '--keep', default=False, action='store_true',
