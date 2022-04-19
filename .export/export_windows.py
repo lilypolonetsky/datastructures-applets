@@ -6,7 +6,7 @@ files are stored.
 '''
 
 import PyInstaller.__main__
-import sys, glob, os, argparse, subprocess, zipfile
+import sys, glob, os, argparse, subprocess, zipfile, getpass
 from subprocess import CompletedProcess
 
 if not hasattr(sys, 'path'): sys.path = []
@@ -15,11 +15,13 @@ for dir in ('.', '../PythonVisualizations'):
       sys.path.append(dir)
 
 from export_common import *
+class Hidden(object):
+   def __init__(self, thing):
+      self.thing = thing
 
-def commandLineArg(thing):
-   return ('{!r}'.format(thing) if isinstance(thing, str) and ' ' in thing
-           else str(thing))
-
+   def __str__(self):
+      return 'HIDDEN'
+   
 def export_windows(
       appName: 'Base name of application to export'
       ='DatastructureVisualizations',
@@ -28,6 +30,7 @@ def export_windows(
       icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.ico',
       zip_file: 'Zip archive name' ='{name}{version}.zip',
       sign_certificate: 'Codesign certificate filename or subject name' ='',
+      password: 'Password for code signing certificate or - to prompt' ='',
       keep: 'Keep executable source code file created for export.' =False,
       backup: 'File extension for backups of last export' ='.bak',
       work_dir: 'Directory for work files, .log, .pyz and etc.' ='./winbuild',
@@ -75,12 +78,19 @@ def export_windows(
    if sign_certificate:
       if verbose > 0:
          print('Signing exported application...')
-         
+      if password == '-':
+         password = getpass.getpass(
+            'Enter password for {} certificate: '.format(sign_certificate))
+         if password:
+            password = Hidden(password)
+      
       # Assume signtool executable is in the PATH
       cmd = ['signtool', 'sign', '/fd', 'SHA256',
              '/f' if os.path.exists(sign_certificate) else '/n',
-             sign_certificate, execFilename]
-      codesign_result = subprocess.run(cmd, capture_output=True, check=True)
+             sign_certificate, '/p', password, execFilename]
+      codesign_result = subprocess.run(
+         [item.thing if isinstance(item, Hidden) else item for item in cmd],
+         capture_output=True)
       if verbose > 1 or codesign_result.returncode != 0:
          print('Result of command "{}":'.format(
             ' '.join(commandLineArg(x) for x in cmd)))
@@ -121,13 +131,16 @@ if __name__ == '__main__':
       help='Name of JSON file containing the major and minor version numbers')
    parser.add_argument(
       '-z', '--zip-file', default='{name}{version}.zip',
-      help='Disk image (dmg) name.  Can contain {name} string to be replaced '
+      help='Zip archive name.  Can contain {name} string to be replaced '
       'with the base name of the executable and {version} in _major_minor '
       'format.')
    parser.add_argument(
       '-c', '--sign-certificate', default='',
       help='Signer certificate file or subject name of cert in certificate '
       'store')
+   parser.add_argument(
+      '-p', '--password', default='',
+      help='Password for signer certificate or "-" to prompt')
    parser.add_argument(
       '-k', '--keep', default=False, action='store_true',
       help='Keep executable source code file created for export.')
@@ -147,7 +160,7 @@ if __name__ == '__main__':
 
    export_windows(
       args.name, version_file=args.version_file,
-      source_directory=args.source, icon=args.icon,
+      source_directory=args.source, icon=args.icon, password=args.password,
       zip_file=args.zip_file, sign_certificate=args.sign_certificate,
       keep=args.keep, backup=args.backup, work_dir=args.work_dir,
       distribution=args.distribution, verbose=args.verbose)

@@ -7,6 +7,10 @@ files are stored.
 
 import sys, glob, os, shutil, json
 
+def commandLineArg(thing):
+   return ('{!r}'.format(thing) if isinstance(thing, str) and ' ' in thing
+           else str(thing))
+
 if not hasattr(sys, 'path'): sys.path = []
 for dir in ('.', '../PythonVisualizations'):
    if dir not in sys.path:
