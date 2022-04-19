@@ -15,12 +15,6 @@ for dir in ('.', '../PythonVisualizations'):
       sys.path.append(dir)
 
 from export_common import *
-class Hidden(object):
-   def __init__(self, thing):
-      self.thing = thing
-
-   def __str__(self):
-      return 'HIDDEN'
    
 def export_windows(
       appName: 'Base name of application to export'
@@ -88,9 +82,7 @@ def export_windows(
       cmd = ['signtool', 'sign', '/fd', 'SHA256',
              '/f' if os.path.exists(sign_certificate) else '/n',
              sign_certificate, '/p', password, execFilename]
-      codesign_result = subprocess.run(
-         [item.thing if isinstance(item, Hidden) else item for item in cmd],
-         capture_output=True)
+      codesign_result = subprocess.run(makeCommand(cmd), capture_output=True)
       if verbose > 1 or codesign_result.returncode != 0:
          print('Result of command "{}":'.format(
             ' '.join(commandLineArg(x) for x in cmd)))

@@ -7,9 +7,21 @@ files are stored.
 
 import sys, glob, os, shutil, json
 
+class Hidden(object):
+   def __init__(self, thing):
+      self.thing = thing
+
+   def __str__(self):
+      return '*HIDDEN*'
+
 def commandLineArg(thing):
+   'Get the string representation for printing a command line argument'
    return ('{!r}'.format(thing) if isinstance(thing, str) and ' ' in thing
            else str(thing))
+
+def makeCommand(args):
+   'Replace any hidden items with the actual value in command line arguments'
+   return [item.thing if isinstance(item, Hidden) else item for item in args]
 
 if not hasattr(sys, 'path'): sys.path = []
 for dir in ('.', '../PythonVisualizations'):
