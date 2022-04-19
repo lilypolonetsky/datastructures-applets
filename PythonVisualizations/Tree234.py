@@ -1678,7 +1678,7 @@ def traverse(self, traverseType={traverseType!r}):
             return
         
         def clickZoomHandler(event):
-            if self.animationsPausedOrStepPaused():
+            if self.animationsPausedOrStepPaused() or self.animationsStopped():
                 self.setMessage()
             else:
                 self.setMessage('Pause animation to change zoom')
