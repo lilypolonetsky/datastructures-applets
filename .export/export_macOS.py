@@ -6,110 +6,50 @@ files are stored.
 '''
 
 import PyInstaller.__main__
-import sys, glob, os, shutil, argparse, subprocess, json
+import sys, glob, os, argparse, subprocess, tempfile, shutil
 from subprocess import CompletedProcess
+
+if not hasattr(sys, 'path'): sys.path = []
+for dir in ('.', '../PythonVisualizations'):
+   if dir not in sys.path:
+      sys.path.append(dir)
+
+from export_common import *
 
 def export_macOS(
       appName: 'Base name of application to export'
       ='DatastructureVisualizations',
       version_file: 'JSON file containing the version tuple' = 'version.json',
+      source_directory: 'Directory containing source and PNG files' = '.',
       icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.icns',
       ID: 'Bundle ID for macOS' ='com.shakumant.dev.{name}',
       disk_image: 'Disk image (dmg) name' ='{name}{version}.dmg',
-      sign_identity: 'Common name of codesign certificate' ='Mac Developer',
+      sign_identity: 'Common name of codesign cert' ='Shakumant Software',
       keep: 'Keep executable source code file created for export.' =False,
       backup: 'File extension for backups of last export' ='.bak',
-      work_dir: 'Directory for work files, .log, .pyz and etc.' ='build',
-      distribution: 'Name of export distribution directory' ='dist',
+      work_dir: 'Directory for work files, .log, .pyz and etc.' ='./build',
+      distribution: 'Name of export distribution directory' ='./dist',
       verbose: 'Verbosity level of progress messages' =0):
-   
-   if not hasattr(sys, 'path'): sys.path = []
-   sys.path.append('.')
-
-   if os.path.exists(version_file):
-      with open(version_file, 'r') as vFile:
-         version = json.load(vFile)
-   else:
-      version = [1, 0]
-   if verbose > 0:
-      print('Version read from {}'.format(version_file)
-            if os.path.exists(version_file) else 'Version',
-            'is {}.{}'.format(*version))
-
-   pyfiles = set(glob.glob('*.py'))
-   toRemove = set(('runAllVisualizations.py', 'runAllVisualizationsMenu.py'))
-   pyfiles -= toRemove
-   pngfiles = set(glob.glob('*.png'))
-   iconfiles = set(glob.glob(icon))
-   dmgFilename = disk_image.format(name=appName,
-                                   version='_{:02d}_{:02d}'.format(*version))
-
-   try:
-      import allVisualizationsCommon
-      visualizations = allVisualizationsCommon.findVisualizations(
-         pyfiles, max(0, verbose - 1))
-   except ModuleNotFoundError:
-      visualizations = []
-
-   if any(len(s) == 0 for s in (visualizations, pngfiles, iconfiles)):
-      print('Current directory =', os.getcwd())
-      for files, kind in (
-            (visualizations, 'Visualizations'),
-            (pngfiles, 'PNG'),
-            (iconfiles, 'Icon')):
-         print('Could not find any {} files.'.format(kind) if len(files) == 0
-               else 'Found {} {} file{}'.format(
-                     len(files), kind, '' if len(files) == 1 else 's'))
-      print('Is the current directory where the visualization files are?')
-      raise Exception('Missing files for export')
-   
-   iconFilename = os.path.abspath(icon)
 
    if verbose > 0:
       print('Verbosity level:', verbose)
-      print('Found {} python file{} and {} visualization app{}'.format(
-         len(pyfiles), '' if len(pyfiles) == 1 else 's',
-         len(visualizations), '' if len(visualizations) == 1 else 's'))
-      if verbose > 1:
-         for pyfile in pyfiles:
-            vizClasses = [viz.__name__ for viz in visualizations
-                          if (viz.__module__ + '.py') == pyfile]
-            print(pyfile, '->' if vizClasses else '', ', '.join(vizClasses))
+   version = getVersion(version_file, verbose)
+   appFilename = buildApplication(
+      appName + '.py', version, source_directory=source_directory,
+      verbose=verbose)
 
-   data_args = ['--add-data', '{}:.'.format(os.path.join(os.getcwd(),'*.png'))]
+   iconfiles = set(glob.glob(icon))
+   iconFilename = os.path.abspath(icon)
+   dmgFilename = disk_image.format(name=appName,
+                                   version='_{:02d}_{:02d}'.format(*version))
 
-   appFilename = appName + '.py'
-   model = 'runAllVisualizationsMenu.py'
-   with open(appFilename, 'w') as appFile:
-      with open(model, 'r') as modelFile:
-         for line in modelFile:
-            if line.startswith("if __name__ == '__main__':"):
-               print('import {}'.format(', '.join(
-                  viz.__module__ for viz in visualizations)), file=appFile)
-               print('showVisualizations(({}), version={})'.format(', '.join(
-                  '{}.{}'.format(viz.__module__, viz.__name__)
-                  for viz in visualizations), version), file=appFile)
-               break
-            print(line, file=appFile, end='')
-   if verbose > 0:
-      print('Created application file with {} visualiazation{} in {}'.format(
-         len(visualizations), '' if len(visualizations) == 1 else 's',
-         appFilename))
+   data_args = ['--add-data', 
+                os.path.join(os.path.abspath(source_directory), '*.png') + ':.']
 
    specPath = os.path.dirname(distribution)
-   if backup:
-      for item in (
-            work_dir, distribution, appName,
-            os.path.join(specPath, appName) + '.spec', dmgFilename):
-         if os.path.exists(item):
-            if os.path.exists(item + backup):
-               if verbose > 0:
-                  print('Removing', item + backup, '...')
-                  if os.path.isdir(item + backup):
-                     shutil.rmtree(item + backup)
-                  else:
-                     os.remove(item + backup)
-            os.rename(item, item + backup)
+   backupFiles((work_dir, distribution, appName,
+                os.path.join(specPath, appName) + '.spec', dmgFilename),
+               backup_extension=backup, verbose=verbose)
 
    logLevel = ['ERROR', 'WARN', 'INFO', 'DEBUG'][max(0, min(4, verbose))]
    PyInstallerArgs = [
@@ -117,40 +57,51 @@ def export_macOS(
       '--specpath', specPath, '--windowed', '--icon', iconFilename,
       '--log-level', logLevel,
       '--osx-bundle-identifier', ID.format(name=appName) ]
+   if False and sign_identity:  # SIGN IDENTITY MUST MEET APPLE'S CRITERIA
+      PyInstallerArgs.extend(['--codesign-identity', sign_identity])
+
    if verbose > 1:
-      print('PyInstaller arguments:')
-      for arg in data_args:
-         print(' ', arg, end='' if arg.startswith('-') else '\n')
-      for i, arg in enumerate(PyInstallerArgs):
-         print(' ', arg,
-               end='\n' if (not arg.startswith('--') or
-                            i >= len(PyInstallerArgs) - 1 or
-                            PyInstallerArgs[i + 1].startswith('--')) else ' ')
+      printPyInstallerArguments(data_args, PyInstallerArgs)
 
    PyInstaller.__main__.run([appFilename, *data_args, *PyInstallerArgs])
 
-   # os.rename(os.path.join(distribution, appName), appName)
-   # if verbose > 1:
-   #    print('Moved command line application {} from {}/ to .'.format(
-   #       appName, distribution))
+   executable = os.path.join(distribution, appName + '.app')
    if verbose > 0:
-      print('Exported application is in {}'.format(
-         os.path.join(distribution, appName, appName)))
+      print('Exported application is in', executable)
       
    if dmgFilename:
-      hdiutil_result = subprocess.run(
-         ['hdiutil', 'create', '-srcfolder', distribution,
-          '-volname', appName, '-format', 'UDZO', dmgFilename],
-         capture_output=True, check=True)
-      codesign_result = subprocess.run(
-         ['codesign', '-s', sign_identity, '-v', dmgFilename],
-         capture_output=True, check=True
-      ) if sign_identity else CompletedProcess((), 0)
-      if verbose > 1:
-         for msg in (hdiutil_result.stdout, hdiutil_result.stderr,
-                     codesign_result.stdout, codesign_result.stderr):
-            if msg:
-               print(msg.decode())
+      with tempfile.TemporaryDirectory() as tempdir:
+         shutil.copytree(executable, os.path.join(tempdir, appName + '.app'))
+         hdiutil_cmd = ['hdiutil', 'create', '-srcfolder', tempdir,
+                        '-volname', appName, '-format', 'UDZO', dmgFilename]
+         dmgsign_cmd = ['codesign', '-s', sign_identity, dmgFilename]
+         if verbose > 0:
+            dmgsign_cmd[-1:-1] = ['-v']
+         commands = [hdiutil_cmd, dmgsign_cmd] if sign_identity else [
+            hdiutil_cmd]
+         if verbose > 1:
+            print('About to run the following command sequence:')
+            for cmd in commands:
+               print(' ', ' '.join(commandLineArg(x) for x in cmd))
+         results = [
+            subprocess.run(cmd, capture_output=True) for cmd in commands]
+         if verbose > 0 or any(result.returncode != 0 for result in results):
+            for cmd, result in zip(commands, results):
+               print('=' * 77, '\nExecution of',
+                     ' '.join(commandLineArg(x) for x in cmd),
+                     'returned code', result.returncode,
+                     'success!' if result.returncode == 0 else 'error!')
+               for msg in (result.stdout, '-' * 77, result.stderr):
+                  text = (msg if isinstance(msg, str) else msg.decode()).strip()
+                  if text:
+                     print(text)
+         for cmd, result in zip(commands, results):
+            if result.returncode != 0:
+               raise Exception(
+                  'Exit code {} during: {}'.format(
+                     result.returncode,
+                     ' '.join(commandLineArg(x) for x in cmd)))
+
       if verbose > 0:
          print('Created disk image', dmgFilename)
    
@@ -167,6 +118,9 @@ if __name__ == '__main__':
       '-n', '--name', default='DatastructureVisualizations',
       help='Base name of execcutable')
    parser.add_argument(
+      '-s', '--source', default='.',
+      help='Directory of source files and PNG images')
+   parser.add_argument(
       '-i', '--icon', default='design/Datastructure-Visualizations-icon.icns',
       help='Path to icon file (relative to directory with visualizaion apps)')
    parser.add_argument(
@@ -182,7 +136,7 @@ if __name__ == '__main__':
       'with the base name of the executable and {version} in _major_minor '
       'format.')
    parser.add_argument(
-      '--sign-identity', default='Mac Developer',
+      '--sign-identity', default='Shakumant Software',
       help='Signer identity (common name of codesign certificate)')
    parser.add_argument(
       '-k', '--keep', default=False, action='store_true',
@@ -191,10 +145,10 @@ if __name__ == '__main__':
       '-b', '--backup', default='.bak',
       help='File extension for backups of last export')
    parser.add_argument(
-      '-w', '--work-dir', default='build',
+      '-w', '--work-dir', default='./build',
       help='Directory for work files, .log, .pyz and etc.')
    parser.add_argument(
-      '-d', '--distribution', default='dist',
+      '-d', '--distribution', default='./dist',
       help='Name of export distribution directory')
    parser.add_argument(
       '-v', '--verbose', action='count', default=0,
@@ -202,6 +156,8 @@ if __name__ == '__main__':
    args = parser.parse_args()
 
    export_macOS(
-      args.name, args.version_file, args.icon, args.ID, args.disk_image,
-      args.sign_identity, args.keep, args.backup, args.work_dir,
-      args.distribution, args.verbose)
+      args.name, version_file=args.version_file,
+      source_directory=args.source, icon=args.icon, ID=args.ID,
+      disk_image=args.disk_image, sign_identity=args.sign_identity,
+      keep=args.keep, backup=args.backup, work_dir=args.work_dir,
+      distribution=args.distribution, verbose=args.verbose)
