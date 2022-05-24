@@ -24,7 +24,7 @@ def export_macOS(
       icon: 'Path to icon file' ='design/Datastructure-Visualizations-icon.icns',
       ID: 'Bundle ID for macOS' ='com.shakumant.dev.{name}',
       disk_image: 'Disk image (dmg) name' ='{name}{version}.dmg',
-      sign_identity: 'Common name of codesign cert' ='Shakumant Software',
+      sign_identity: 'Common name of codesign cert' ='Apple Distribution',
       keep: 'Keep executable source code file created for export.' =False,
       backup: 'File extension for backups of last export' ='.bak',
       work_dir: 'Directory for work files, .log, .pyz and etc.' ='./build',
@@ -57,7 +57,7 @@ def export_macOS(
       '--specpath', specPath, '--windowed', '--icon', iconFilename,
       '--log-level', logLevel,
       '--osx-bundle-identifier', ID.format(name=appName) ]
-   if False and sign_identity:  # SIGN IDENTITY MUST MEET APPLE'S CRITERIA
+   if sign_identity:
       PyInstallerArgs.extend(['--codesign-identity', sign_identity])
 
    if verbose > 1:
@@ -136,7 +136,7 @@ if __name__ == '__main__':
       'with the base name of the executable and {version} in _major_minor '
       'format.')
    parser.add_argument(
-      '--sign-identity', default='Shakumant Software',
+      '--sign-identity', default='Apple Distribution',
       help='Signer identity (common name of codesign certificate)')
    parser.add_argument(
       '-k', '--keep', default=False, action='store_true',
