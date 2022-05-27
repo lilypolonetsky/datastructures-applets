@@ -797,18 +797,18 @@ class RedBlackTree(BinaryTreeBase):
             "Delete", self.clickDelete, numArguments=1, validationCmd=vcmd,
             argHelpText=['item'], helpText='Delete item from tree')
         fillButton = self.addOperation(
-            "Erase & Random fill", self.clickFill, numArguments=1,
+            "Erase & Random Fill", self.clickFill, numArguments=1,
             validationCmd=vcmd, argHelpText=['number of items'], 
             helpText='Empty tree and fill it\nwith a number of random items')
         flipButton = self.addOperation(
-            "Flip color", self.clickFlip, numArguments=1, validationCmd=vcmd,
+            "Flip Color", self.clickFlip, numArguments=1, validationCmd=vcmd,
             argHelpText=['item'], helpText='Flip red/black color of item')
         rotateLeftButton = self.addOperation(
-            "Rotate left", lambda: self.clickRotate(Child.LEFT), 
+            "Rotate Left", lambda: self.clickRotate(Child.LEFT), 
             numArguments=1, validationCmd=vcmd, argHelpText=['item'],
             helpText='Rotate left around item')
         rotateRightButton = self.addOperation(
-            "Rotate right", lambda: self.clickRotate(Child.RIGHT),
+            "Rotate Right", lambda: self.clickRotate(Child.RIGHT),
             numArguments=1, validationCmd=vcmd, argHelpText=['item'],
             helpText='Rotate right around item')
         self.addAnimationButtons()
