@@ -1206,13 +1206,13 @@ def traverse(self):
             'number of cells & max load factor',
             argHelpText=['number of cells', 'max load factor'])
         randomFillButton = self.addOperation(
-            "Random fill", self.clickRandomFill, numArguments=1,
+            "Random Fill", self.clickRandomFill, numArguments=1,
             validationCmd=vcmd, helpText='Fill with N random items',
             argHelpText=['number of items'])
         self.showHashing = IntVar()
         self.showHashing.set(1)
         showHashingButton = self.addOperation(
-            "Animate hashing", self.clickShowHashing, buttonType=Checkbutton,
+            "Animate Hashing", self.clickShowHashing, buttonType=Checkbutton,
             variable=self.showHashing, 
             helpText='Show/hide animation during hashing')
         traverseButton = self.addOperation(
