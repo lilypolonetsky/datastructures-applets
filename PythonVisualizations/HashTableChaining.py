@@ -1225,22 +1225,31 @@ def traverse(self):
         self.addAnimationButtons()
 
 if __name__ == '__main__':
-    animate = '-a' in sys.argv[1:]
     hashTable = HashTableChaining(
         interactiveAdjustment='-i' in sys.argv[1:])
-    showHashing = hashTable.showHashing.get()
-    hashTable.showHashing.set(1 if animate else 0)
+    keys = []
     for arg in sys.argv[1:]:
-        if arg.startswith('-') and arg[1:].isdigit():
-            hashTable.randomFill(int(arg[1:]))
-        elif not(arg[0] == '-' and len(arg) == 2 and arg[1:].isalpha()):
-            if animate:
-                hashTable.setArgument(arg)
-                hashTable.insertButton.invoke()
-            else:
-                hashTable.insert(int(arg) if arg.isdigit() else arg, code='')
-        
-    hashTable.showHashing.set(showHashing)
-    if not animate:
-        hashTable.stopAnimations()
+        option = arg[0] == '-' and (len(arg) == 2 and arg[1:].isalpha() or
+                                    len(arg) > 1 and arg[1:].isdigit())
+        if option:
+            if arg == '-A':
+                hashTable.showHashing.set(0)
+            elif arg == '-a':
+                hashTable.showHashing.set(1)
+            elif arg == '-s':
+                random.seed(3.14159)
+            elif arg[1:].isdigit():
+                hashTable.randomFill(int(arg[1:]))
+            elif arg == '-i':
+                pass
+        else:
+            keys.append(arg)
+
+    for key in keys:
+        if hashTable.showHashing.get():
+            hashTable.setArgument(key)
+            hashTable.insertButton.invoke()
+        else:
+            hashTable.insert(int(key) if key.isdigit() else key, code='')
+
     hashTable.runVisualization()

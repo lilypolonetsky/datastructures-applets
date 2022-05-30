@@ -922,6 +922,8 @@ if __name__ == '__main__':
                 hashTable.showHashing.set(0)
             elif arg == '-a':
                 hashTable.showHashing.set(1)
+            elif arg == '-s':
+                random.seed(3.14159)
             elif any(p.__name__.startswith(arg[1:]) for p in probes):
                 for probe in probes:
                     if probe.__name__.startswith(arg[1:]):
