@@ -1314,6 +1314,8 @@ if __name__ == '__main__':
             if arg[0] in '-+' and arg[1:].isdigit():
                 fill = min(Heap.MAX_SIZE, int(arg[1:]))
                 makeHeap = arg[0] == '+'
+            elif arg == '-s':
+                random.seed(3.14159)
     heap = Heap()
     try:
         if fill > 0:
