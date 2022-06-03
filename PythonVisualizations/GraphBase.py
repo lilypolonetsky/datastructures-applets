@@ -696,7 +696,15 @@ class GraphBase(VisualizationApp):
         
     def newVertexHandler(self):
         def newVertHandler(event):
-            if self.nVertices() < self.MAX_VERTICES:
+            secondary = (
+                event.state & (SHIFT | MOUSE_BUTTON_2 | MOUSE_BUTTON_3) or
+                (isinstance(event.num, int) and event.num != 1))
+            # Deselect vertices on shift or button 2/3 double click
+            if secondary: 
+                for j, selection in enumerate(self.selectedVertices): #  vertex
+                    if selection:
+                        self.selectVertex(None, vID=j, checkMutex=False)
+            elif self.nVertices() < self.MAX_VERTICES:
                 self.createVertex(self.getArgument(), 
                                   coords=(self.canvas.canvasx(event.x),
                                           self.canvas.canvasy(event.y)))
