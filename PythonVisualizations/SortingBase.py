@@ -143,8 +143,8 @@ class SortingBase(VisualizationApp):
         startAngle = 45 * 500 / (500 + abs(deltaX)) * (-1 if deltaX < 0 else 1)
 
         self.moveItemsOnCurve(
-            temp.items, (toCellCoords, toCellCenter), sleepTime=sleepTime,
-            startAngle=startAngle)
+            temp.items, (toCellCoords, toCellCenter)[:len(temp.items)],
+            sleepTime=sleepTime, startAngle=startAngle)
 
         if delete:
             if templabel:
