@@ -977,66 +977,6 @@ def search(self, goal={goal}):
     def removeNodesInternal(self, nodeList):
         for node in nodeList:
             self.removeNodeInternal(node)
-
-    updateHeightCode = '''
-def updateHeight(self):
-   self.height = self.left.height if self.left else 0
-   if self.right and self.right.height > self.height:
-      self.height = self.right.height
-   self.height += 1
-'''
-    def updateHeight(self, node, code=updateHeightCode, animation=True):
-        wait = 0.1
-        callEnviron = self.createCallEnvironment(
-            code=code if animation else '', startAnimations=animation)
-
-        heightText = self.getNode(node).drawnValue.items[-1]
-        left = self.getLeftChildIndex(node)
-        if animation:
-            leftArrow = self.createArrow(
-                left, 'left', orientation=-135, anchor=SE)
-            callEnviron |= set(leftArrow)
-            self.highlightCode(('self.left', 2), callEnviron, wait=wait)
-
-        if self.getNode(left):
-            if animation:
-                self.highlightCode('self.height = self.left.height',
-                                   callEnviron, wait=wait)
-            height = self.getHeight(left)
-            self.canvas.itemConfig(heightText, text=str(height))
-        else:
-            if animation:
-                self.highlightCode(
-                    ['self.height =', '0'], callEnviron, wait=wait)
-            height = 0
-            self.canvas.itemConfig(heightText, text='0')
-            
-        right = self.getRightChildIndex(node)
-        if animation:
-            rightArrow = self.createArrow(right, 'right', orientation=-45)
-            callEnviron |= set(rightArrow)
-            self.highlightCode('self.right', callEnviron, wait=wait)
-
-        if self.getNode(right):
-            if animation:
-                self.highlightCode('self.right.height > self.height',
-                                   callEnviron, wait=wait)
-            rightHeight = self.getHeight(right)
-            if rightHeight > height:
-                if animation:
-                    self.highlightCode('self.height = self.right.height',
-                                       callEnviron, wait=wait)
-                height = rightHeight
-                self.canvas.itemConfig(heightText, text=str(height))
-
-        if animation:
-            self.highlightCode('self.height += 1', callEnviron, wait=wait)
-        height += 1
-        self.canvas.itemConfig(heightText, text=str(height))
-        
-        if animation:
-            self.highlightCode([], callEnviron)
-        self.cleanUp(callEnviron)
         
     insertCode = '''
 def insert(self, key={key}, data):

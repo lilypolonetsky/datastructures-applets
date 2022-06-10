@@ -31,6 +31,77 @@ class AVLTree(BinaryTreeBase):
             self.insert(nums.pop(), animation=False)
         self.cleanUp(callEnviron)
 
+    updateHeightCode = '''
+def updateHeight(self):
+   self.height = max(
+      child.height if child else 0
+      for child in (self.left, self.right)
+   ) + 1
+'''
+    def updateHeight(
+            self,
+            node: 'Node in tree to update',
+            code: 'Code to display' =updateHeightCode,
+            animation: 'Animate the update' =True,
+            wait: 'Wait time between steps' =0.1):
+        callEnviron = self.createCallEnvironment(
+            code=code if animation else '', startAnimations=animation)
+
+        heightText = self.getNode(node).drawnValue.items[-1]
+        height = 0
+        childArrow, childArrowConfig = None, {'orientation': -160, 'anchor': SE}
+        childHeightTexts = []
+        for side in Child:
+            childIndex = self.getChildIndex(node, side)
+            child = self.getNode(childIndex)
+            if animation:
+                nodeCenter = self.nodeItemCoords(node)[2]
+                childCenter = self.nodeItemCoords(childIndex)[2]
+                childHeightCoords = self.nodeHeightCoords(*childCenter)
+                childHeightCenter = (nodeCenter[0], childHeightCoords[1])
+                if childArrow is None:
+                    childArrow = self.createArrow(
+                        childIndex, 'child', **childArrowConfig)
+                    callEnviron |= set(childArrow)
+                else:
+                    self.moveItemsTo(
+                        childArrow,
+                        self.indexCoords(childIndex, **childArrowConfig),
+                        sleepTime=wait / 50)
+                self.highlightCode(
+                    ('child in', ('child', 2), 'self.' + side.name.lower(),
+                     'child.height' if child else '0'),
+                    callEnviron, wait=wait)
+            childHeight = self.getHeight(child)
+            height = max(height, childHeight)
+            if animation:
+                childHeightText = (
+                    self.canvas.create_text(
+                        *childHeightCoords, text='{} '.format(childHeight),
+                        fill=self.HEIGHT_COLOR, font=self.VALUE_FONT, anchor=E)
+                    if side is Child.LEFT else
+                    self.canvas.create_text(
+                        *childHeightCoords, text=' {}'.format(childHeight),
+                        fill=self.HEIGHT_COLOR, font=self.VALUE_FONT, anchor=W))
+                callEnviron.add(childHeightText)
+                childHeightTexts.append(childHeightText)
+                self.moveItemsTo(
+                    childHeightText, childHeightCenter, sleepTime=wait / 20)
+
+        if animation:
+            self.dispose(callEnviron, *childArrow)
+            self.highlightCode(('self.height = max(', ') + 1'),
+                               callEnviron, wait=wait)
+            nodeHeightCenter = self.nodeHeightCoords(*nodeCenter)
+            self.moveItemsTo(
+                childHeightTexts, (nodeHeightCenter,) * 2, sleepTime=wait / 20)
+            self.dispose(callEnviron, *childHeightTexts)
+
+        self.canvas.itemConfig(heightText, text=str(height + 1))
+        if animation:
+            self.highlightCode([], callEnviron)
+        self.cleanUp(callEnviron)
+
     insertCode = '''
 def insert(self, key={key}, data):
    self.__root, flag = self.__insert(self.__root, key, data)
