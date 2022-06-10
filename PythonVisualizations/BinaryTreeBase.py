@@ -276,7 +276,7 @@ class BinaryTreeBase(VisualizationApp):
             nodeTree: 'Subtree in the form of a nested list of nodes',
             index: 'Index to place top of subtree',
             updateCenter:'Update center coords for new position' =True
-    ) -> 'Returns tuple of nodes that could not be stored (below depth limit)' :
+    ) -> 'Returns tuple of nodes that could not be stored (past depth limit)':
 
         empty = (nodeTree is None or len(nodeTree) != 3 or
                  not isinstance(nodeTree[0], Node)) # Is this an empty node?
@@ -770,11 +770,14 @@ class BinaryTreeBase(VisualizationApp):
             return self.setRightChild(parent, child, updateLink=updateLink)
 
     def replaceSubtree(
-            self, nodeIndex, leftOrRight, replacementIndex, callEnviron,
-            wait=0.1):
-        '''Move the subtree at replacementIndex to be the left or right
-        child of the node at nodeIndex. Discard the current subtree of
-        that node.  Animate the process by moving leftOrRight child link
+            self: 'Move a subtree to be the left or right child of a node',
+            nodeIndex: 'Node index to get new child subtree',
+            leftOrRight: 'Side of node to receive new subtree',
+            replacementIndex: 'Source subtree index',
+            callEnviron: 'Animation environment',
+            wait: 'Wait time between animation steps' =0.1
+    ) -> 'Returns tuple of nodes that could not be stored (past depth limit)':
+        '''Animate the process by moving leftOrRight child link
         first (when nodeIndex points at an existing node) and then the
         nodes in the subtrees'''
         childIndex = self.getChildIndex(nodeIndex, leftOrRight)
@@ -809,15 +812,20 @@ class BinaryTreeBase(VisualizationApp):
                     self.removeNodeDrawing(node)
                     self.removeNodeInternal(node)
 
-        self.moveSubtree(childIndex, replacementIndex)
+        cutoff = self.moveSubtree(childIndex, replacementIndex)
         self.restoreNodePositions(replacementNodes, sleepTime=wait /10)
+        return cutoff
         
-    def moveSubtree(self, toIndex, fromIndex):
-        "Move internal subtree rooted at fromIndex to be rooted at toIndex"
+    def moveSubtree(
+            self: 'Move internal subtree from one place to another',
+            toIndex: 'Destination subtree root',
+            fromIndex: 'Source subtree root'
+    ) -> 'Returns tuple of nodes that could not be stored (past depth limit)':
         if toIndex < 0 or len(self.nodes) <= toIndex or toIndex == fromIndex:
-            return    # Do nothing if the to index is out of bounds or = from
+            return ()  # Do nothing if the to index is out of bounds or = from
 
-        self.storeNodeTree(self.getNodeTree(fromIndex, erase=True), toIndex)
+        return self.storeNodeTree(self.getNodeTree(fromIndex, erase=True),
+                                  toIndex)
 
     def generateTag(self):
         self.prevId+=1
