@@ -403,8 +403,8 @@ def rotateLeft(self, top={topKey}):
         toRaiseLeftTree = self.getNodeTree(toRaiseLeft, erase=True)
         toRaiseRightTree = self.getNodeTree(toRaiseRight, erase=True)
 
-        # Move nodes internally
-        self.storeNodeTree(
+        # Move nodes internally, noting any nodes cutoff past depth limit
+        cutoff = self.storeNodeTree(
             [toRaiseNode, 
              [topNode, topLeftTree, toRaiseLeftTree], toRaiseRightTree],
             topIndex)
@@ -413,10 +413,10 @@ def rotateLeft(self, top={topKey}):
         # Move canvas items to new positions to match internal structure
         newSubTree = self.getAllDescendants(topIndex)
         newSubTreeItems = flat(*(
-            node.drawnValue.items for node in newSubTree))[1:]
+            node.drawnValue.items for node in newSubTree + list(cutoff)))[1:]
         toPositions = flat(*(
             self.nodeItemCoords(node, parent=self.getParent(node)) 
-            for node in newSubTree))[1:]
+            for node in newSubTree + [len(self.nodes) * 3] * len(cutoff)))[1:]
         if animation:
             self.moveItemsLinearly(
                 newSubTreeItems + topArrow + toRaiseArrow, 
@@ -425,6 +425,14 @@ def rotateLeft(self, top={topKey}):
         else:
             for item, coords in zip(newSubTreeItems, toPositions):
                 self.canvas.coords(item, *coords)
+        if cutoff and animation:
+            self.setMessage(
+                'Removed node{} {} that went beyond level {}'.format(
+                    '' if len(cutoff) == 1 else 's',
+                    ', '.join(str(node.getKey()) for node in cutoff),
+                self.MAX_LEVEL - 1))
+        self.dispose(callEnviron,
+                     *flat(*(node.drawnValue.items for node in cutoff)))
                 
         # Update heights of rotated nodes
         if animation:
@@ -497,8 +505,8 @@ def rotateRight(self, top={topKey}):
         toRaiseRightTree = self.getNodeTree(toRaiseRight, erase=True)
         toRaiseLeftTree = self.getNodeTree(toRaiseLeft, erase=True)
 
-        # Move the subtrees internally
-        self.storeNodeTree(
+        # Move nodes internally, noting any nodes cutoff past depth limit
+        cutoff = self.storeNodeTree(
             [toRaiseNode,
              toRaiseLeftTree, [topNode, toRaiseRightTree, topRightTree]],
             topIndex)
@@ -507,10 +515,10 @@ def rotateRight(self, top={topKey}):
         # Move canvas items to new positions to match internal structure
         newSubTree = self.getAllDescendants(topIndex)
         newSubTreeItems = flat(*(
-            node.drawnValue.items for node in newSubTree))[1:]
+            node.drawnValue.items for node in newSubTree + list(cutoff)))[1:]
         toPositions = flat(*(
             self.nodeItemCoords(node, parent=self.getParent(node)) 
-            for node in newSubTree))[1:]
+            for node in newSubTree + [len(self.nodes) * 3] * len(cutoff)))[1:]
         if animation:
             self.moveItemsLinearly(
                 newSubTreeItems + topArrow + toRaiseArrow, 
@@ -519,6 +527,14 @@ def rotateRight(self, top={topKey}):
         else:
             for item, coords in zip(newSubTreeItems, toPositions):
                 self.canvas.coords(item, *coords)
+        if cutoff and animation:
+            self.setMessage(
+                'Removed node{} {} that went beyond level {}'.format(
+                    '' if len(cutoff) == 1 else 's',
+                    ', '.join(str(node.getKey()) for node in cutoff),
+                self.MAX_LEVEL - 1))
+        self.dispose(callEnviron,
+                     *flat(*(node.drawnValue.items for node in cutoff)))
                 
         # Update heights of rotated nodes
         if animation:
