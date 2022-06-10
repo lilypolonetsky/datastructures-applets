@@ -115,6 +115,11 @@ class RedBlackTree(BinaryTreeBase):
         self.size = sum(1 if node else 0 for node in self.nodes)
         for item in existingItems:
             self.canvas.delete(item)
+        depthBoundary = (self.nodeCenter(len(self.nodes) + 1) +
+                         self.nodeCenter(len(self.nodes) * 2))
+        self.canvas.create_line(
+            *depthBoundary, fill=self.DEPTH_BOUNDARY_COLOR,
+            dash=self.DEPTH_BOUNDARY_DASH, tags='boundary')
         self.updateMeasures()
             
     def flipNodeColor(self, node):
@@ -222,8 +227,8 @@ class RedBlackTree(BinaryTreeBase):
         toRaiseLeftTree = self.getNodeTree(toRaiseLeft, erase=True)
         toRaiseRightTree = self.getNodeTree(toRaiseRight, erase=True)
 
-        # Move nodes internally
-        self.storeNodeTree(
+        # Move nodes internally, noting any nodes cutoff past depth limit
+        cutoff = self.storeNodeTree(
             [toRaise, 
              [topNode, topLeftTree, toRaiseLeftTree], toRaiseRightTree],
             topIndex)
@@ -232,16 +237,24 @@ class RedBlackTree(BinaryTreeBase):
         # Move canvas items to new positions to match internal structure
         newSubTree = self.getAllDescendants(topIndex)
         newSubTreeItems = flat(*(
-            node.drawnValue.items for node in newSubTree))[1:]
+            node.drawnValue.items for node in newSubTree + list(cutoff)))[1:]
         toPositions = flat(*(
             self.nodeItemCoords(node, parent=self.getParent(node)) 
-            for node in newSubTree))[1:]
+            for node in newSubTree + [len(self.nodes) * 3] * len(cutoff)))[1:]
         if animation:
             self.moveItemsLinearly(
                 newSubTreeItems, toPositions, sleepTime=wait / 10)
         else:
             for item, coords in zip(newSubTreeItems, toPositions):
                 self.canvas.coords(item, *coords)
+        if cutoff and animation:
+            self.setMessage(
+                'Removed node{} {} that went beyond level {}'.format(
+                    '' if len(cutoff) == 1 else 's',
+                    ', '.join(str(node.getKey()) for node in cutoff),
+                self.MAX_LEVEL - 1))
+        self.dispose(callEnviron,
+                     *flat(*(node.drawnValue.items for node in cutoff)))
         self.reconnectLink(topIndex, self.getParentIndex(topIndex),
                            sleepTime=wait / 10 if animation else 0)
         
@@ -285,8 +298,8 @@ class RedBlackTree(BinaryTreeBase):
         toRaiseRightTree = self.getNodeTree(toRaiseRight, erase=True)
         toRaiseLeftTree = self.getNodeTree(toRaiseLeft, erase=True)
 
-        # Move nodes internally
-        self.storeNodeTree(
+        # Move nodes internally, noting any nodes cutoff past depth limit
+        cutoff = self.storeNodeTree(
             [toRaise, 
              toRaiseLeftTree, [topNode, toRaiseRightTree, topRightTree]],
             topIndex)
@@ -295,16 +308,24 @@ class RedBlackTree(BinaryTreeBase):
         # Move canvas items to new positions to match internal structure
         newSubTree = self.getAllDescendants(topIndex)
         newSubTreeItems = flat(*(
-            node.drawnValue.items for node in newSubTree))[1:]
+            node.drawnValue.items for node in newSubTree + list(cutoff)))[1:]
         toPositions = flat(*(
             self.nodeItemCoords(node, parent=self.getParent(node)) 
-            for node in newSubTree))[1:]
+            for node in newSubTree + [len(self.nodes) * 3] * len(cutoff)))[1:]
         if animation:
-            self.moveItemsLinearly(
-                newSubTreeItems, toPositions, sleepTime=wait / 10)
+            self.moveItemsLinearly(newSubTreeItems, toPositions,
+                                   sleepTime=wait / 10)
         else:
             for item, coords in zip(newSubTreeItems, toPositions):
                 self.canvas.coords(item, *coords)
+        if cutoff and animation:
+            self.setMessage(
+                'Removed node{} {} that went beyond level {}'.format(
+                    '' if len(cutoff) == 1 else 's',
+                    ', '.join(str(node.getKey()) for node in cutoff),
+                self.MAX_LEVEL - 1))
+        self.dispose(callEnviron,
+                     *flat(*(node.drawnValue.items for node in cutoff)))
         self.reconnectLink(topIndex, self.getParentIndex(topIndex),
                            sleepTime=wait / 10 if animation else 0)
         

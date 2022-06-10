@@ -64,6 +64,8 @@ class BinaryTreeBase(VisualizationApp):
     STACK_DEFAULT_SIZE = (100, None)
     NONE_DOT_RADIUS = 2
     NONE_DOT_COLOR = 'red'
+    DEPTH_BOUNDARY_COLOR = 'gray80'
+    DEPTH_BOUNDARY_DASH = (5, 10)
 
     def __init__(self, RECT=None, CIRCLE_SIZE=None, VAL_MAX=valMax, 
                ARROW_HEIGHT=None, MAX_LEVEL=None, **kwargs):
@@ -269,19 +271,26 @@ class BinaryTreeBase(VisualizationApp):
                 self.getNodeTree(self.getRightChildIndex(nodeIndex),
                                  erase=erase)]
 
-    def storeNodeTree(self, nodeTree, index, updateCenter=True):
-        '''Place nodes from a nested list [sub-]tree into the nodes array 
-        starting at a given index.  Put None in any cells past leaves'''
-        if len(self.nodes) <= index:  # Beyond storage limit, nothing to store
-            return
-        if nodeTree is None or len(nodeTree) != 3:  # Empty node, store None
-            self.nodes[index] = None
-            return
-        self.nodes[index] = nodeTree[0]  # Store node at index and its subtrees
-        if updateCenter:
-            self.nodes[index].center = self.nodeCenter(index)
-        self.storeNodeTree(nodeTree[1], self.getLeftChildIndex(index))
-        self.storeNodeTree(nodeTree[2], self.getRightChildIndex(index))
+    def storeNodeTree(
+            self: 'Place nodes from a [sub-]tree into the nodes array ',
+            nodeTree: 'Subtree in the form of a nested list of nodes',
+            index: 'Index to place top of subtree',
+            updateCenter:'Update center coords for new position' =True
+    ) -> 'Returns tuple of nodes that could not be stored (below depth limit)' :
+
+        empty = (nodeTree is None or len(nodeTree) != 3 or
+                 not isinstance(nodeTree[0], Node)) # Is this an empty node?
+        cutoff = ((nodeTree[0],)              # Cutoff non-empty nodes
+                  if not empty and len(self.nodes) <= index else  # Beyond limit
+                  ())  # otherwise nothing to cutoff
+        if index < len(self.nodes): # Store node at index if valid
+            self.nodes[index] = None if empty else nodeTree[0]
+            if updateCenter and self.nodes[index]: # Update center if requested
+                self.nodes[index].center = self.nodeCenter(index)
+        return cutoff if empty else (
+            cutoff +
+            self.storeNodeTree(nodeTree[1], self.getLeftChildIndex(index)) +
+            self.storeNodeTree(nodeTree[2], self.getRightChildIndex(index)))
 
     # ----------- DRAWING METHODS -------------------
    
@@ -852,6 +861,11 @@ class BinaryTreeBase(VisualizationApp):
                     for i, node in enumerate(self.nodes)]
         self.nodes = newNodes
         self.size = sum(1 if node else 0 for node in self.nodes)
+        depthBoundary = (self.nodeCenter(len(self.nodes) + 1) +
+                         self.nodeCenter(len(self.nodes) * 2))
+        self.canvas.create_line(
+            *depthBoundary, fill=self.DEPTH_BOUNDARY_COLOR,
+            dash=self.DEPTH_BOUNDARY_DASH, tags='boundary')
         
     # remove the node's drawing and optionally its line
     def removeNodeDrawing(self, node, line=False):
