@@ -391,8 +391,8 @@ def search(self, key={key}):
 
         pad = 5
         outBox = self.outputBoxCoords(nLines=2, pad=pad)
-        outBox = (outBox[0], outBox[1], 
-                  outBox[0] + self.linkWidth + 2 * pad, outBox[3])
+        outBox = (outBox[2] - (self.linkWidth + 2 * pad), outBox[1], 
+                  outBox[2], outBox[3])
         outBoxCenter = BBoxCenter(outBox)
         outputBox = OutputBox(self, bbox=outBox, outputFont=self.outputFont)
         callEnviron |= set(outputBox.items())
@@ -691,12 +691,24 @@ def traverse(self):
         space to hold several lines of text'''
         if font is None:
             font = getattr(self, 'outputFont', self.VALUE_FONT)
+        left, bottom, right, _ = self.attributeCoords()
         lineHeight = textHeight(font, ' ')
-        left = self.targetCanvasWidth * 4 // 10
-        top = pad + abs(self.VARIABLE_FONT[1])
+        top = bottom + pad
         return (left, top,
-                self.targetCanvasWidth - pad, pad * 3 + lineHeight * nLines)
+                self.targetCanvasWidth - pad,
+                top + pad * 2 + lineHeight * nLines)
 
+    def attributeCoords(
+            self: 'Return the text anchor coords for 2 hash table attributes',
+            font: 'Font to use for attributs, default: VARIABLE_FONT' =None,
+            pad: 'Padding from canvas edge' =4):
+        if font is None:
+            font = self.VARIABLE_FONT
+        left, bottom, right, _ = super().attributeCoords()
+        top = pad
+        bottom = top + textHeight(font, ' ')
+        return left, bottom, right, bottom
+        
     def createLinkItems(self, cornerOrCoords, key, nextLink=None, color=None):
         '''Create all the canvas items in a linked list Link containing a key:
         colored rectangle, text key, box outline, dot, arrow to next link
@@ -786,7 +798,8 @@ def traverse(self):
         
     def setupDisplay(self, hasherHeight=70):
         'Define dimensions and coordinates for display items'
-        self.hasherHeight = hasherHeight
+        super().setupDisplay(hasherHeight=hasherHeight)
+
         self.cellWidth = 14
         self.cellHeight = self.cellWidth
         self.array_x0 = self.cellWidth * 4
@@ -821,7 +834,7 @@ def traverse(self):
             flat(*(n.items for d in self.table if d for n in d.val)))
         self.canvas.delete("all")
         self.setCanvasBounds(self.initialRect, expandOnly=False)
-        self.createHasher(y0=1, y1=self.hasherHeight + 1)
+        self.createHasher(y0=5, y1=self.hasherHeight + 5)
         self.updateNItems()
         self.updateMaxLoadFactor()
         self.arrayCells = [
@@ -860,33 +873,6 @@ def traverse(self):
                          (max(toBox[0], min(toBox[2], dotCenter[0])), toBox[1])))
         self.canvas_itemConfig(arrowItem, fill=self.linkArrowColor)
         self.expandCanvasFor(dotItem, arrowItem)
-        
-    def updateNItems(self, nItems=None, gap=4):
-        if nItems is None:
-            nItems = self.nItems
-        outputBoxCoords = self.outputBoxCoords()
-        if self.nItemsText is None or self.canvas.type(self.nItemsText) != 'text':
-            self.nItemsText = self.canvas.create_text(
-                *(V(outputBoxCoords[:2]) + V(gap, - gap)), anchor=SW,
-                text='', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
-        self.scrollToSee((self.nItemsText,))
-        self.canvas_itemConfig(self.nItemsText,
-                               text='nItems = {}'.format(nItems))
-        
-    def updateMaxLoadFactor(self, maxLoadFactor=None, gap=4):
-        if maxLoadFactor is None:
-            maxLoadFactor = self.maxLoadFactor
-        outputBoxCoords = self.outputBoxCoords()
-        if (self.maxLoadFactorText is None or
-            self.canvas.type(self.maxLoadFactorText) != 'text'):
-            self.maxLoadFactorText = self.canvas.create_text(
-                outputBoxCoords[2] - gap, outputBoxCoords[1] - gap, anchor=SE,
-                text='', font=self.VARIABLE_FONT,
-                fill=self.VARIABLE_COLOR)
-        self.scrollToSee((self.maxLoadFactorText,))
-        self.canvas_itemConfig(
-            self.maxLoadFactorText, text='maxLoadFactor = {}%'.format(
-                int(100 * maxLoadFactor)))
             
     def hashAndGetIndex(
             self, key, animate=True, width=1, indexLineColor='darkblue',

@@ -644,31 +644,6 @@ def traverse(self):
                     self.markCellDeleted(self.table[j])
                     
         self.window.update()
-
-    def updateNItems(self, nItems=None, gap=4):
-        if nItems is None:
-            nItems = self.nItems
-        outputBoxCoords = self.outputBoxCoords()
-        if self.nItemsText is None or self.canvas.type(self.nItemsText) != 'text':
-            self.nItemsText = self.canvas.create_text(
-                *(V(outputBoxCoords[:2]) + V(gap, - gap)), anchor=SW,
-                text='', font=self.VARIABLE_FONT, fill=self.VARIABLE_COLOR)
-        self.canvas_itemConfig(self.nItemsText,
-                               text='nItems = {}'.format(nItems))
-        
-    def updateMaxLoadFactor(self, maxLoadFactor=None, gap=4):
-        if maxLoadFactor is None:
-            maxLoadFactor = self.maxLoadFactor
-        outputBoxCoords = self.outputBoxCoords()
-        if (self.maxLoadFactorText is None or
-            self.canvas.type(self.maxLoadFactorText) != 'text'):
-            self.maxLoadFactorText = self.canvas.create_text(
-                outputBoxCoords[2] - gap, outputBoxCoords[1] - gap, anchor=SE,
-                text='', font=self.VARIABLE_FONT,
-                fill=self.VARIABLE_COLOR)
-        self.canvas_itemConfig(
-            self.maxLoadFactorText, text='maxLoadFactor = {}%'.format(
-                int(100 * maxLoadFactor)))
             
     def animateStringHashing(
             self, text, hashed, textItem=None, sleepTime=0.01,

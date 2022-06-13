@@ -172,7 +172,7 @@ class HashBase(VisualizationApp):
         self.cellIndexFont = (self.VARIABLE_FONT[0],
                               max(self.VALUE_FONT[1], -10))
         self.cellWidth = textWidth(self.VALUE_FONT,
-                                        'W' * (self.maxArgWidth + 2))
+                                   'W' * (self.maxArgWidth + 2))
 
     def cellColumn(self, index):
         return (index % len(self.table)) // self.cellsPerColumn
@@ -217,9 +217,11 @@ class HashBase(VisualizationApp):
         base = V(tip) - V((level * 12 + 6, 0))
         return (base + tip, base)
     
-    def outputBoxCoords(self, font=None, pad=4, nLines=4):
-        '''Coordinates for an output box in lower right of canvas with enough
-        space to hold several lines of text'''
+    def outputBoxCoords(
+            self: 'Return the bounding box coordinates for an output box',
+            font: 'Font to use in output box, default: outputFont' =None,
+            pad: 'Padding from canvas edge' =4,
+            nLines: 'Number of text lines in output box' =4):
         if font is None:
             font = getattr(self, 'outputFont', self.VALUE_FONT)
         lineHeight = textHeight(font, ' ')
@@ -227,6 +229,44 @@ class HashBase(VisualizationApp):
         top = self.targetCanvasHeight - pad * 3 - lineHeight * nLines
         return (left, top,
                 self.targetCanvasWidth - pad, self.targetCanvasHeight - pad)
+
+    def attributeCoords(
+            self: 'Return the text anchor coords for 2 hash table attributes',
+            font: 'Font to use for attributes, default: VARIABLE_FONT' =None,
+            pad: 'Padding from canvas edge' =4):
+        if font is None:
+            font = self.VARIABLE_FONT
+        left = self.column_x0 + self.columnWidth
+        right = self.targetCanvasWidth - pad
+        top = self.cellHeight * (self.cellsPerColumn + 1)
+        bottom = top + textHeight(font, ' ')
+        return left, bottom, right, bottom
+        
+    def updateNItems(self, nItems=None):
+        if nItems is None:
+            nItems = self.nItems
+        nItemsX, nItemsY, _, _ = self.attributeCoords()
+        if self.nItemsText is None or self.canvas.type(self.nItemsText) != 'text':
+            self.nItemsText = self.canvas.create_text(
+                nItemsX, nItemsY, anchor=SW, text='', font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+        self.scrollToSee((self.nItemsText,))
+        self.canvas_itemConfig(self.nItemsText,
+                               text='nItems = {}'.format(nItems))
+        
+    def updateMaxLoadFactor(self, maxLoadFactor=None):
+        if maxLoadFactor is None:
+            maxLoadFactor = self.maxLoadFactor
+        _, _, maxLoadX, maxLoadY = self.attributeCoords()
+        if (self.maxLoadFactorText is None or
+            self.canvas.type(self.maxLoadFactorText) != 'text'):
+            self.maxLoadFactorText = self.canvas.create_text(
+                maxLoadX, maxLoadY, anchor=SE, text='', font=self.VARIABLE_FONT,
+                fill=self.VARIABLE_COLOR)
+        self.scrollToSee((self.maxLoadFactorText,))
+        self.canvas_itemConfig(
+            self.maxLoadFactorText, text='maxLoadFactor = {}%'.format(
+                int(100 * maxLoadFactor)))
     
     def createArrayCell(     # Create a box representing an array cell
             self, index, tags=["arrayBox"], color=None, width=None):
