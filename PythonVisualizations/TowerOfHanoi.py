@@ -625,12 +625,12 @@ def moveAboveCanvas(bbox):
     return V(bbox) - V((0, maxY, 0, maxY))
 
 if __name__ == '__main__':
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
     tower = TowerOfHanoi()
 
-    for arg in sys.argv[1:]:
-        if arg.isdigit():
-            tower.setArgument(arg)
-            tower.newButton.invoke()
-            break
+    for arg in nonneg:
+        tower.setArgument(arg)
+        tower.newButton.invoke()
+        break
         
     tower.runVisualization()

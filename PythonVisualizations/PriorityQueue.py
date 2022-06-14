@@ -1,4 +1,3 @@
-import random
 from tkinter import *
 
 try:
@@ -355,8 +354,9 @@ def remove(self):
         self.clearArgument()
 
 if __name__ == '__main__':
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
     queue = PriorityQueue()
-    keys = [int(arg) for arg in sys.argv[1:queue.size + 1] if arg.isdigit()]
+    keys = [int(arg) for arg in nonneg[:queue.size]]
     keys.sort(reverse=True)
     queue.list = [drawnValue(key, None, None) for key in keys]
     queue.display()

@@ -46,7 +46,7 @@ __64bits = (1 << 64) - 1
 __16bits = (1 << 16) - 1
 
 # Seed the random number generator to produce repeatable results
-random.seed("bitHash random numbers") 
+# random.seed("bitHash random numbers") 
 
 for i in range(len(__bitArray)): # Fill the bit array with random
     __bitArray[i] = random.getrandbits(64) # 64-bit sequences

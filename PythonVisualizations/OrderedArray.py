@@ -351,8 +351,9 @@ def delete(self, item):
         self.clearArgument()
 
 if __name__ == '__main__':
-    random.seed(3.14159)  # Use fixed seed for testing consistency
-    numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
-    array = OrderedArray(values=numArgs if len(numArgs) > 0 else None)
-    array.runVisualization()
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
+    if '-r' not in options:  # Use fixed seed for testing consistency unless
+        random.seed(3.14159) # random option specified
 
+    array = OrderedArray(values=[int(arg) for arg in nonneg] if nonneg else None)
+    array.runVisualization()

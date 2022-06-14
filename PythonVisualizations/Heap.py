@@ -1307,21 +1307,18 @@ def traverse(self):
         self.traverseExample(start=self.startMode())
 
 if __name__ == '__main__':
-    numericArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
-    fill, makeHeap = 0, False
-    if len(sys.argv) - 1 > len(numericArgs):
-        for arg in sys.argv[1:]:
-            if arg[0] in '-+' and arg[1:].isdigit():
-                fill = min(Heap.MAX_SIZE, int(arg[1:]))
-                makeHeap = arg[0] == '+'
-            elif arg == '-s':
-                random.seed(3.14159)
+    nonneg, signed, options, otherArgs = categorizeArguments(sys.argv[1:],
+                                                             signed=True)
+    if '-r' not in options:  # Use fixed seed for testing consistency unless
+        random.seed(3.14159) # random option specified
     heap = Heap()
     try:
-        if fill > 0:
+        if signed:
+            fill = min(Heap.MAX_SIZE, *(abs(int(arg)) for arg in signed))
+            makeHeap = all(arg.startswith('+') for arg in signed)
             heap.randomFill(fill, makeHeap=makeHeap)
-        for arg in numericArgs:
-            heap.setArgument(str(arg))
+        for arg in nonneg:
+            heap.setArgument(arg)
             heap.insertButton.invoke()
     except UserStop:
         heap.cleanUp()

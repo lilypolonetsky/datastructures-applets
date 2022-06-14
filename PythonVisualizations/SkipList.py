@@ -686,13 +686,17 @@ class SkipList(VisualizationApp):
     #####################
 
 if __name__ == '__main__':
-    random.seed(3.14159)    # Use fixed seed for testing consistency
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
+    if '-r' not in options:  # Use fixed seed for testing consistency unless
+        random.seed(3.14159) # random option specified
     s = SkipList()
     try:
-        for arg in sys.argv[1:]:
-            if arg.isdigit():
-                s.insert(int(arg))
-                s.cleanUp()
+        for arg in negative:
+            s.fill(int(arg[1:]))
+            s.cleanUp()
+        for arg in nonneg:
+            s.insert(int(arg))
+            s.cleanUp()
     except UserStop:
         s.cleanUp()
     s.runVisualization()

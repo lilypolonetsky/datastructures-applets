@@ -767,14 +767,17 @@ class UserStop(Exception):   # Exception thrown when user stops animation
     pass
 
 negativeNumber = re.compile(r'(-[0-9]+)[,.]?')
+signedNumber = re.compile(r'([+-][0-9]+)[,.]?')
 nonNegativeNumber = re.compile(r'([0-9]+)[,.]?')
 option = re.compile(r'(-[^0-9].*)')
 other = re.compile(r'(.*)')
 
 def categorizeArguments(
-        arguments: 'Command line arguments'
+        arguments: 'Command line arguments',
+        signed: 'Categorize +N as signed and return among negative args' =False,
 ) -> 'Returns lists of non-negative, negative, option, & other argument strings':
-    patterns = (nonNegativeNumber, negativeNumber, option, other)
+    patterns = (nonNegativeNumber, signedNumber if signed else negativeNumber,
+                option, other)
     result = tuple(list() for p in patterns)
     for arg in arguments:
         for i, pattern in enumerate(patterns):

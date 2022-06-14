@@ -256,9 +256,7 @@ class BloomFilter(HashBase):
             *self.insertedBoxPos, fill=self.INSERTED_BG)
         self.insertedKeys = self.canvas.create_text(
             *(V(self.insertedBoxPos) + V((abs(self.CONTROLS_FONT[1]), ) * 2)),
-            anchor=NW, font=self.INSERTED_FONT, state=DISABLED,
-            fill=self.INSERTED_COLOR if self.showInserts.get() else
-            self.INSERTED_BG)
+            anchor=NW, font=self.INSERTED_FONT, fill=self.INSERTED_COLOR)
         self.updateInserted()
 
         self.window.update()
@@ -280,7 +278,8 @@ class BloomFilter(HashBase):
                 line += words.pop(0) + ' '
             lines[-1:] = [line, ' '.join(words)]
         self.canvas.itemconfigure(self.insertedKeys, text = '\n'.join(lines))
-
+        self.clickShowInserts()
+        
     # Button functions
     def clickFind(self):
         entered_text = self.getArgument(0)
@@ -392,15 +391,23 @@ def makeFilterValidate(maxWidth, exclude=''):
         all(c not in exclude for c in value_if_allowed))
 
 if __name__ == '__main__':
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
     bloomFilter = BloomFilter()
-    showHashing = bloomFilter.showHashing.get()
-    bloomFilter.showHashing.set(0)
-    try:
-        for arg in sys.argv[1:]:
-            bloomFilter.insert(arg)
+    showHashing = not '-S' in options and (
+        '-s' in options or bloomFilter.showHashing.get())
+    showInserts = not '-I' in options and (
+        '-i' in options or bloomFilter.showInserts.get())
+    bloomFilter.showInserts.set(showInserts)
+    bloomFilter.clickShowInserts()
+    if nonneg + negative + otherArgs:
+        bloomFilter.showHashing.set(0)
+        try:
+            for arg in sys.argv[1:]:
+                if arg not in options:
+                    bloomFilter.insert(arg)
+                    bloomFilter.cleanUp()
+        except UserStop:
             bloomFilter.cleanUp()
-    except UserStop:
-        bloomFilter.cleanUp()
         
     bloomFilter.showHashing.set(showHashing)
     bloomFilter.runVisualization()
