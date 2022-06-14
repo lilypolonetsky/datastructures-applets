@@ -766,10 +766,36 @@ class Visualization(object):  # Base class for Python visualizations
 class UserStop(Exception):   # Exception thrown when user stops animation
     pass
 
+negativeNumber = re.compile(r'(-[0-9]+)[,.]?')
+nonNegativeNumber = re.compile(r'([0-9]+)[,.]?')
+option = re.compile(r'(-[^0-9].*)')
+other = re.compile(r'(.*)')
+
+def categorizeArguments(
+        arguments: 'Command line arguments'
+) -> 'Returns lists of non-negative, negative, option, & other argument strings':
+    patterns = (nonNegativeNumber, negativeNumber, option, other)
+    result = tuple(list() for p in patterns)
+    for arg in arguments:
+        for i, pattern in enumerate(patterns):
+            match = pattern.match(arg)
+            if match:
+                result[i].append(match.group(1))
+                break
+    return result
+    
+
 if __name__ == '__main__':
     import random
 
-    grid = '-grid' in sys.argv[1:]
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
+    for name, args in (('Non-negative', nonneg), ('Negative', negative),
+                       ('Options', options), ('Other', otherArgs)):
+        print('{} argument{}: {}'.format(
+            name, '' if len(args) == 1 else 's',
+            ', '.join(repr(a) for a in args)))
+              
+    grid = '-grid' in options
     
     app = Visualization(title='Visualization test',
                         canvasBounds=(0, 0, 1000, 500) if grid else None)
