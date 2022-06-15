@@ -538,14 +538,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         self.textEntries[index].configure(bg=color)
             
     def argumentChanged(self, widget=None):
-        args = self.getArguments()
-        withArgs, withoutArgs = self.getOperations()
-        for button in withArgs:
-            nArgs = getattr(button, 'required_args')
-            widgetState(
-                button,
-                DISABLED if not self.animationsStopped() or any(
-                    arg == '' for arg in args[:nArgs]) else NORMAL)
+        # Enable buttons if animations are stopped
+        self.enableButtons(self.animationsStopped())
 
         for i, entry in enumerate(self.textEntries):
             if widget == entry:  # For the entry widget that changed,

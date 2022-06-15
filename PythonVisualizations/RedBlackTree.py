@@ -151,6 +151,7 @@ class RedBlackTree(BinaryTreeBase):
                 if self.DEBUG:
                     print('Flipped', node, 'color to', self.nodeColor(nodeIndex))
             self.operationMutex.release()
+            self.enableButtons()
         return flipHandler
 
     def rotateNode(self, key):
