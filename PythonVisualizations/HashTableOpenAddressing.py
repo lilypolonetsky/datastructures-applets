@@ -885,31 +885,20 @@ def traverse(self):
                 NORMAL if enable and self.nItems == 0 else DISABLED)
 
 if __name__ == '__main__':
-    hashTable = HashTableOpenAddressing()
     probes = (linearProbe, quadraticProbe, doubleHashProbe)
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
+    if '-r' not in options:  # Use fixed seed for testing consistency unless
+        random.seed(3.14159) # random option specified
+    hashTable = HashTableOpenAddressing()
+    hashTable.showHashing.set(not '-A' in options or '-a' in options)
 
-    keys = []
-    for arg in sys.argv[1:]:
-        option = arg[0] == '-' and (len(arg) == 2 and arg[1:].isalpha() or
-                                    len(arg) > 1 and arg[1:].isdigit())
-        if option:
-            if arg == '-A':
-                hashTable.showHashing.set(0)
-            elif arg == '-a':
-                hashTable.showHashing.set(1)
-            elif arg == '-s':
-                random.seed(3.14159)
-            elif any(p.__name__.startswith(arg[1:]) for p in probes):
-                for probe in probes:
-                    if probe.__name__.startswith(arg[1:]):
-                        hashTable.probe = probe
-                        hashTable.probeChoice.set(hashTable.probe.__name__)
-            elif arg[1:].isdigit():
-                hashTable.randomFill(int(arg[1:]))
-        else:
-            keys.append(arg)
-
-    for key in keys:
+    for probe in probes:
+        if ('-' + probe.__name__[0]) in options:
+            hashTable.probe = probe
+            hashTable.probeChoice.set(hashTable.probe.__name__)
+    for arg in negative:
+        hashTable.randomFill(int(arg[1:]))
+    for key in nonneg + otherArgs:
         if hashTable.showHashing.get():
             hashTable.setArgument(key)
             hashTable.insertButton.invoke()

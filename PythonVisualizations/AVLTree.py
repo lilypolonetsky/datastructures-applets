@@ -1170,13 +1170,14 @@ def __balanceRight(self, node={nodeKey}):
         self.addAnimationButtons()
 
 if __name__ == '__main__':
-    random.seed(3.14159)  # Use fixed seed for testing consistency
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
+    if '-r' not in options:  # Use fixed seed for testing consistency unless
+        random.seed(3.14159) # random option specified
     tree = AVLTree()
-    for arg in sys.argv[1:]:
-        if arg.isdigit():
-            tree.setArgument(arg)
-            tree.insertButton.invoke()
-        elif arg.startswith('-') and arg[1:].isdigit():
-            tree.setArgument(arg[1:])
-            tree.randomFillButton.invoke()
+    for arg in nonneg:
+        tree.setArgument(arg)
+        tree.insertButton.invoke()
+    for arg in negative:
+        tree.setArgument(arg[1:])
+        tree.randomFillButton.invoke()
     tree.runVisualization()

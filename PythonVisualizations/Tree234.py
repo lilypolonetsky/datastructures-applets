@@ -1728,20 +1728,17 @@ def traverse(self, traverseType={traverseType!r}):
                             **kwargs)
             
 if __name__ == '__main__':
-    random.seed(3.14159)  # Use fixed seed for testing consistency
-    numericArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
-    fill = 0
-    if len(sys.argv) - 1 > len(numericArgs):
-        for arg in sys.argv[1:]:
-            if arg[0] in '-+' and arg[1:].isdigit():
-                fill = min(Tree234.valMax, int(arg[1:]))
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
+    if '-r' not in options:  # Use fixed seed for testing consistency unless
+        random.seed(3.14159) # random option specified
 
     tree = Tree234()
     try:
-        if fill:
-            tree.randomFill(fill)
-        for arg in numericArgs:
-            tree.setArgument(str(arg))
+        if negative:
+            tree.randomFill(min(Tree234.valMax,
+                                *(int(arg[1:]) for arg in negative)))
+        for arg in nonneg:
+            tree.setArgument(arg)
             tree.insertButton.invoke()
     except UserStop:
         tree.cleanUp()

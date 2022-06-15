@@ -1161,38 +1161,35 @@ class GraphBase(VisualizationApp):
         edgePattern = re.compile(r'(\w+)-(\w+)(:([1-9][0-9]?))?')
 
         edges = []
-        for arg in argv:
+        nonneg, negative, options, otherArgs = categorizeArguments(argv)
+        if '-r' not in options:  # Use fixed seed for testing consistency unless
+            random.seed(3.14159) # random option specified
+        self.DEBUG = '-d' in options
+        self.bidirectionalEdges.set(not '-B' in options)
+        if set(('-TuralaMST', '-TuralaSP')) & set(options): # textbook examples
+            for vert in ('Bl', 'Ce', 'Da', 'Gr', 'Ka', 'Na'):
+                self.setArgument(vert)
+                self.newVertexButton.invoke()
+            for edge in (('Bl-Ce:31', 'Bl-Da:24', 'Ce-Da:35', 'Ce-Gr:49',
+                          'Ce-Na:87', 'Ce-Ka:38', 'Da-Gr:41', 'Da-Ka:52',
+                          'Gr-Ka:25', 'Gr-Na:46', 'Ka-Na:43')
+                         if '-TuralaMST' in options else
+                         ('Bl-Ce:22', 'Bl-Da:16', 'Ce-Da:29', 'Ce-Gr:34',
+                          'Ce-Na:65', 'Ce-Ka:26', 'Da-Gr:28', 'Da-Ka:24',
+                          'Gr-Ka:25', 'Gr-Na:30', 'Ka-Na:36')):
+                edgeMatch = edgePattern.fullmatch(edge)
+                self.createEdge(
+                    edgeMatch.group(1), edgeMatch.group(2),
+                    int(edgeMatch.group(4)) if self.weighted else 1)
+        for arg in negative:
+            self.setArgument(arg[1:])
+            self.randomFillButton.invoke()
+            self.setArgument(
+                chr(ord(self.DEFAULT_VERTEX_LABEL) + self.nVertices()))
+        for arg in otherArgs:
             edgeMatch = edgePattern.fullmatch(arg)
-            if len(arg) > 1 and arg[0] == '-':
-                if arg == '-d':
-                    self.DEBUG = True
-                elif arg == '-b':
-                    self.bidirectionalEdges.set(1)
-                elif arg == '-B':
-                    self.bidirectionalEdges.set(0)
-                elif arg[1:].isdigit():
-                    self.setArgument(arg[1:])
-                    self.randomFillButton.invoke()
-                    self.setArgument(
-                        chr(ord(self.DEFAULT_VERTEX_LABEL) + int(arg[1:])))
-                elif arg in ('-TuralaMST', '-TuralaSP'):  # textbook examples
-                    for vert in ('Bl', 'Ce', 'Da', 'Gr', 'Ka', 'Na'):
-                        self.setArgument(vert)
-                        self.newVertexButton.invoke()
-                    for edge in (
-                            ('Bl-Ce:31', 'Bl-Da:24', 'Ce-Da:35', 'Ce-Gr:49',
-                             'Ce-Na:87', 'Ce-Ka:38', 'Da-Gr:41', 'Da-Ka:52',
-                             'Gr-Ka:25', 'Gr-Na:46', 'Ka-Na:43')
-                            if arg == '-TuralaMST' else
-                            ('Bl-Ce:22', 'Bl-Da:16', 'Ce-Da:29', 'Ce-Gr:34',
-                             'Ce-Na:65', 'Ce-Ka:26', 'Da-Gr:28', 'Da-Ka:24',
-                             'Gr-Ka:25', 'Gr-Na:30', 'Ka-Na:36')):
-                        edgeMatch = edgePattern.fullmatch(edge)
-                        self.createEdge(
-                            edgeMatch.group(1), edgeMatch.group(2),
-                            int(edgeMatch.group(4)) if self.weighted else 1)
-            elif edgeMatch and all(
-                    edgeMatch.group(i) in argv for i in (1, 2)):
+            if edgeMatch and all(
+                    edgeMatch.group(i) in otherArgs for i in (1, 2)):
                 edges.append((edgeMatch.group(1), edgeMatch.group(2),
                               int(edgeMatch.group(4))
                               if self.weighted and edgeMatch.group(4)
@@ -1208,7 +1205,7 @@ class GraphBase(VisualizationApp):
 if __name__ == '__main__':
     argv = sys.argv[1:]
     graph = GraphBase(weighted=any(':' in arg for arg in argv) or
-                      set(argv) ^ set(('-TuralaMST', '-TuralaSP')))
+                      set(argv) & set(('-TuralaMST', '-TuralaSP')))
     graph.process_command_line_arguments(sys.argv[1:])
     
     graph.runVisualization() # runAllVisualizations ignore

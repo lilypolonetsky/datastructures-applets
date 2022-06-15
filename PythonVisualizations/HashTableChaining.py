@@ -1211,27 +1211,15 @@ def traverse(self):
         self.addAnimationButtons()
 
 if __name__ == '__main__':
-    hashTable = HashTableChaining(
-        interactiveAdjustment='-i' in sys.argv[1:])
-    keys = []
-    for arg in sys.argv[1:]:
-        option = arg[0] == '-' and (len(arg) == 2 and arg[1:].isalpha() or
-                                    len(arg) > 1 and arg[1:].isdigit())
-        if option:
-            if arg == '-A':
-                hashTable.showHashing.set(0)
-            elif arg == '-a':
-                hashTable.showHashing.set(1)
-            elif arg == '-s':
-                random.seed(3.14159)
-            elif arg[1:].isdigit():
-                hashTable.randomFill(int(arg[1:]))
-            elif arg == '-i':
-                pass
-        else:
-            keys.append(arg)
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
+    if '-r' not in options:  # Use fixed seed for testing consistency unless
+        random.seed(3.14159) # random option specified
+    hashTable = HashTableChaining(interactiveAdjustment='-i' in options)
+    hashTable.showHashing.set(not '-A' in options or '-a' in options)
+    for arg in negative:
+        hashTable.randomFill(int(arg[1:]))
 
-    for key in keys:
+    for key in nonneg + otherArgs:
         if hashTable.showHashing.get():
             hashTable.setArgument(key)
             hashTable.insertButton.invoke()

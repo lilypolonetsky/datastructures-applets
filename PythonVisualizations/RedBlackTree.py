@@ -837,9 +837,11 @@ class RedBlackTree(BinaryTreeBase):
                 flipButton, rotateLeftButton, rotateRightButton]
 
 if __name__ == '__main__':
-    random.seed(3.14159)  # Use fixed seed for testing consistency
+    nonneg, negative, options, otherArgs = categorizeArguments(sys.argv[1:])
+    if '-r' not in options:  # Use fixed seed for testing consistency unless
+        random.seed(3.14159) # random option specified
     numArgs = [int(arg) for arg in sys.argv[1:] if arg.isdigit()]
-    tree = RedBlackTree(values=numArgs if len(numArgs) > 0 else None)
-    tree.DEBUG = '-d' in sys.argv[1:]
+    tree = RedBlackTree(values=[int(arg) for arg in nonneg] if nonneg else None)
+    tree.DEBUG = '-d' in options
 
     tree.runVisualization()
