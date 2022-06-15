@@ -264,8 +264,6 @@ class GraphBase(VisualizationApp):
             *coords, text=label, tags=tags + ('text', label),
             font=self.VERTEX_FONT, fill=self.VALUE_COLOR,
             activefill=self.ACTIVE_VERTEX_OUTLINE_COLOR)
-        if self.nEdges():
-            self.canvas.tag_lower('vertex', 'edge')
         items = (shape, text)
         startMoveHandler = self.startMoveHandler(label)
         moveHandler = self.moveHandler(label)
@@ -737,14 +735,12 @@ class GraphBase(VisualizationApp):
                                     self.vertexTable[k].val) > 0)))
     
     def createVertex(self, label, color=None, coords=None, tags=('vertex',)):
-        if not self.operationMutex.acquire(blocking=False):
-            self.setMessage('Cannot create vertex during other operation')
-            return
         if self.nVertices() >= self.MAX_VERTICES:
             self.setMessage('Already have max Number of vertices {}'.format(
                 self.MAX_VERTICES))
-            if self.operationMutex.locked():
-                self.operationMutex.release()
+            return
+        if not self.operationMutex.acquire(blocking=False):
+            self.setMessage('Cannot create vertex during other operation')
             return
         try:
             self.cleanUp()
@@ -761,8 +757,10 @@ class GraphBase(VisualizationApp):
             self.dispose({}, *items)
             self.operationMutex.release()
             return
-        
-        vert = drawnValue((label, self.nextID), *items)
+
+        vertID = self.nextID
+        self.nextID += 1
+        vert = drawnValue((label, vertID), *items)
         self.vertices[label] = vert
         vertColor = self.canvas_itemConfig(items[0], 'fill')
 
@@ -783,39 +781,40 @@ class GraphBase(VisualizationApp):
         columnLabel = Label(
             self.adjMatrixFrame, text=label, bg=vertColor,
             font=self.ADJACENCY_MATRIX_FONT)
-        columnLabel.grid(row=0, column=self.nextID, sticky=(N, E, S, W))
+        columnLabel.grid(row=0, column=vertID, sticky=(N, E, S, W))
         rowLabel = Label(
             self.adjMatrixFrame, text=label, bg=vertColor,
             font=self.ADJACENCY_MATRIX_FONT)
-        rowLabel.grid(row=self.nextID, column=0, sticky=(N, E, S, W))
+        rowLabel.grid(row=vertID, column=0, sticky=(N, E, S, W))
         maxWidth = textWidth(self.ADJACENCY_MATRIX_FONT, label)
         columnIDs = [vert.val[1]]
         for otherVert in self.vertices.values():
             if vert == otherVert:
                 frame = Frame(self.adjMatrixFrame, bg=vertColor)
-                frame.grid(row=self.nextID, column=self.nextID, 
+                frame.grid(row=vertID, column=vertID, 
                                sticky=(N, E, S, W))
             else:
                 otherVertColor = self.canvas_itemConfig(otherVert.items[0], 
                                                         'fill')
                 entry = self.createEdgeWeightEntry(
                     vertColor, (vert.val[0], otherVert.val[0]), None)
-                entry.grid(row=self.nextID, column=otherVert.val[1], 
+                entry.grid(row=vertID, column=otherVert.val[1], 
                            sticky=(N, E, S, W))
                 self.adjMat[vert.val[0], otherVert.val[0]] = [0, entry]
                 entry = self.createEdgeWeightEntry(
                     otherVertColor, (otherVert.val[0], vert.val[0]), None)
-                entry.grid(row=otherVert.val[1], column=self.nextID,
+                entry.grid(row=otherVert.val[1], column=vertID,
                            sticky=(N, E, S, W))
                 self.adjMat[otherVert.val[0], vert.val[0]] = [0, entry]
                 maxWidth = max(maxWidth, textWidth(self.ADJACENCY_MATRIX_FONT,
                                                    otherVert.val[0]))
                 columnIDs.append(otherVert.val[1])
-        self.nextID += 1
         self.setArgument(self.nextVertexLabel())
-        for ID in columnIDs:
+        allColumns = set((col for row, col in gridDict(self.adjMatrixFrame)))
+        for ID in allColumns:
             self.adjMatrixFrame.columnconfigure(
-                ID, minsize=maxWidth + self.buttonPadX)
+                ID,
+                minsize=maxWidth + self.buttonPadX if ID in columnIDs else 0)
         self.positionAdjacencyMatrix()
         self.operationMutex.release()
         return True

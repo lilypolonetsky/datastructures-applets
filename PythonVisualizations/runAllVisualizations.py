@@ -98,7 +98,9 @@ def showVisualizations(   # Display a set of VisualizationApps in a ttk.Notebook
         fields = set(('width', 'height'))
         intro.bind('<Configure>', genericEventHandler(fields=fields), '+')
     notebook.pack(expand=True, fill=BOTH)
-    notebook.wait_visibility(top)
+    
+    # Waiting here for notebook visibility sometimes hangs
+    # notebook.wait_visibility(top)  
                
     classes_dict = dict((app.__name__, app) for app in classes)
     ordered_classes = [
