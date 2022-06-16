@@ -128,7 +128,11 @@ def printPyInstallerArguments(data_args, PyInstallerArgs, prefix=' '):
    for arg in data_args:
       print(prefix, arg, end='' if arg.startswith('-') else '\n')
    for i, arg in enumerate(PyInstallerArgs):
-      print(prefix, arg,
-            end='\n' if (not arg.startswith('--') or
-                         i >= len(PyInstallerArgs) - 1 or
-                         PyInstallerArgs[i + 1].startswith('--')) else ' ')
+      option = arg.startswith('--')
+      end = i >= len(PyInstallerArgs) - 1
+      if option:
+         print(
+            prefix, arg,
+            end='\n' if end or PyInstallerArgs[i + 1].startswith('--') else ' ')
+      else:
+         print(repr(arg))
