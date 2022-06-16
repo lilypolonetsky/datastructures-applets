@@ -43,19 +43,38 @@ def export_macOS(
    dmgFilename = disk_image.format(name=appName,
                                    version='_{:02d}_{:02d}'.format(*version))
 
-   data_args = ['--add-data', 
-                os.path.join(os.path.abspath(source_directory), '*.png') + ':.']
+   images = os.path.join(os.path.abspath(source_directory), '*.png')
+   data_args = ['--add-data', images + ':.']
 
    specPath = os.path.dirname(distribution)
    backupFiles((work_dir, distribution, appName,
                 os.path.join(specPath, appName) + '.spec', dmgFilename),
                backup_extension=backup, verbose=verbose)
 
+   if sign_identity:
+      if verbose > 0 and glob.glob(images):
+         print('Codesigning images')
+      for imageFile in glob.glob(images):
+         imagesign_cmd = ['codesign', '-s', sign_identity, imageFile]
+         if verbose > 1:
+            print('Running:', ' '.join(imagesign_cmd), '  ...')
+         result = subprocess.run(imagesign_cmd, capture_output=True)
+         if result.returncode == 1 and result.stderr.decode().strip().endswith(
+               'is already signed'):
+            if verbose > 1:
+               print('Ignoring reminder that file is already codesigned')
+         elif result.returncode != 0:
+            print('Error code from codesign =', result.returncode)
+            for msg in (result.stdout, '-' * 77, result.stderr):
+               text = (msg if isinstance(msg, str) else msg.decode()).strip()
+               if text:
+                  print(text)
+         
    logLevel = ['ERROR', 'WARN', 'INFO', 'DEBUG'][max(0, min(4, verbose))]
    PyInstallerArgs = [
       '--name', appName, '--distpath', distribution, '--workpath', work_dir,
       '--specpath', specPath, '--windowed', '--icon', iconFilename,
-      '--log-level', logLevel,
+      '--log-level', logLevel, '--target-arch', 'x86_64',
       '--osx-bundle-identifier', ID.format(name=appName) ]
    if sign_identity:
       PyInstallerArgs.extend(['--codesign-identity', sign_identity])
