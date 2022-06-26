@@ -63,12 +63,11 @@ def insert(self, item={val}):
    return True
 '''
     
-    def insert(self, val, code=insertCode, start=True):
+    def insert(self, val, code=insertCode, start=True, wait=0.1):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
 
-        wait=0.2
-        self.highlightCode('self.isFull()', callEnviron, wait=0.01)
+        self.highlightCode('self.isFull()', callEnviron, wait=wait / 10)
         if self.isFull():
             self.highlightCode(
                 'raise Exception("Queue overflow")', callEnviron, 
@@ -76,13 +75,7 @@ def insert(self, item={val}):
             self.cleanUp(callEnviron)
             return
         
-        self.highlightCode('j = self.__nItems - 1', callEnviron, wait=wait)
         j = len(self.list) - 1  # Start at front
-
-        indexJ = self.createIndex(j, 'j', level=-2)
-        callEnviron |= set(indexJ)
-
-        self.highlightCode('j >= 0', callEnviron, wait=wait)
         startPosition = self.tempCoords(j)
         cell = self.createCellValue(startPosition, val)
         itemLabel = self.canvas.create_text(
@@ -91,11 +84,16 @@ def insert(self, item={val}):
         newItem = cell + (itemLabel,)
         callEnviron |= set(newItem)
 
-        if j >= 0:
-            self.highlightCode('self.__pri(item) >= self.__pri(self.__que[j])',
-                               callEnviron, wait=wait)
+        self.highlightCode('j = self.__nItems - 1', callEnviron, wait=wait)
+        indexJ = self.createIndex(j, 'j', level=-2)
+        callEnviron |= set(indexJ)
             
-        while j >= 0 and val >= self.list[j].val:  # Move bigger items right
+        while self.highlightCode(  # Move bigger items right
+                'j >= 0', callEnviron, wait=wait,
+                returnValue=j >= 0) and self.highlightCode(
+                    'self.__pri(item) >= self.__pri(self.__que[j])',
+                    callEnviron, wait=wait,
+                    returnValue=val >= self.list[j].val):
 
             self.highlightCode('self.__que[j+1] = self.__que[j]', callEnviron)
             self.assignElement(j, j+1, callEnviron)
@@ -103,13 +101,7 @@ def insert(self, item={val}):
             self.highlightCode('j -= 1', callEnviron)
             j -= 1
             self.moveItemsBy(indexJ + newItem, (-self.CELL_SIZE, 0),
-                             sleepTime=0.02)
-
-            self.highlightCode('j >= 0', callEnviron, wait=wait)
-            if j >= 0:
-                self.highlightCode(
-                    'self.__pri(item) >= self.__pri(self.__que[j])',
-                    callEnviron, wait=wait)
+                             sleepTime=wait / 5)
             
         self.highlightCode('self.__que[j+1] = item', callEnviron, wait=wait)
         # Location of the new cell in the array
@@ -120,6 +112,7 @@ def insert(self, item={val}):
         if j + 1 == len(self.list):
             self.list.append(drawnValue(val, *cell))
         else:
+            self.dispose(callEnviron, *self.list[j+1].items)
             self.list[j+1] = drawnValue(val, *cell)
         callEnviron -= set(cell)  # New cell is no longer temporary
 
