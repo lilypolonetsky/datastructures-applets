@@ -67,9 +67,7 @@ class SortingBase(VisualizationApp):
                 steps=steps, sleepTime=sleepTime)
 
         # delete the original "to" display value and the new display shape
-        for item in toValue.items:
-            if item is not None:
-                self.canvas.delete(item)
+        self.dispose(callEnviron, *toValue.items)
 
         # update value and display value in "to" position in the list
         toValue.val = fromValue.val
