@@ -67,8 +67,9 @@ def insert(self, item={val}):
         callEnviron = self.createCallEnvironment(
             code=code.format(**locals()), startAnimations=start)
 
-        self.highlightCode('self.isFull()', callEnviron, wait=wait / 10)
-        if self.isFull():
+        
+        if self.highlightCode('self.isFull()', callEnviron, wait=wait / 10,
+                              returnValue=lambda: self.isFull()):
             self.highlightCode(
                 'raise Exception("Queue overflow")', callEnviron, 
                 color=self.EXCEPTION_HIGHLIGHT)

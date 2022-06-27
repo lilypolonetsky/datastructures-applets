@@ -714,10 +714,13 @@ class VisualizationApp(Visualization): # Base class for visualization apps
         either a string of code, or a (string, int) tuple where the int
         is 1 for the first instance of the string, 2 for the second, etc.
         Return's the given returnValue for use in Boolean expressions.
+        If returnValue is a function, it is called at the end of this
+        routine to delay the execution and get the return value.
         '''
         codeBlock = self.getCodeHighlightBlock(callEnviron)
-        if self.codeText is None or codeBlock is None: 
-            return returnValue   # This should only happen when code is hidden
+        if self.codeText is None or codeBlock is None:
+            # This should only happen when code is hidden
+            return returnValue() if callable(returnValue) else returnValue
         if color is None:
             color = self.CODE_HIGHLIGHT
         if isinstance(fragments, (list, tuple)):
@@ -751,7 +754,8 @@ class VisualizationApp(Visualization): # Base class for visualization apps
                 ', '.join(tags), ', '.join(codeBlock.cache.keys())))
         if wait > 0 or self.animationsStepping(): # Optionally weit for a time
             self.wait(wait)                       # or pause at a step
-        return returnValue
+        return returnValue() if callable(returnValue) else returnValue
+
 
     # Return the CodeHighlightBlock from the set object from the call stack
     # NOTE: this could be more efficient if the objects on the call stacks
