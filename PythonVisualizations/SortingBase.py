@@ -47,19 +47,19 @@ class SortingBase(VisualizationApp):
         toValue = (self.list[toIndex] if toIndex < len(self.list) 
                    else drawnValue(0))
 
-        # get positions of "to" cell in array
-        toPositions = (self.fillCoords(fromValue.val, 
-                                       self.currentCellCoords(toIndex)),
-                       self.currentCellCenter(toIndex))
-                
         # create new display objects as copies of the "from" cell and value
         copyItems = [self.canvas.copyItem(i) for i in fromValue.items 
                      if i is not None]
         callEnviron |= set(copyItems)
 
+        # get positions of "to" cell in array
+        toPositions = (self.fillCoords(fromValue.val, 
+                                       self.currentCellCoords(toIndex)),
+                       self.currentCellCenter(toIndex))[:len(copyItems)]
+                
         # Move copies to the desired location
         if startAngle == 0:                            # move items linearly
-            self.moveItemsTo(copyItems, toPositions[:len(copyItems)],
+            self.moveItemsTo(copyItems, toPositions,
                              steps=steps, sleepTime=sleepTime)
         else:                                          # move items on curve
             self.moveItemsOnCurve(
