@@ -85,7 +85,7 @@ def findVisualizations(filesAndDirectories, verbose=0):
     return classes
 
 def isPatternInFile(textOrRegex, filename):
-    with open(filename, 'r') as f:
+    with open(filename, 'r', encoding='utf-8') as f:
         return (text in f.read()) if isinstance(textOrRegex, str) else (
             textOrRegex.search(f.read())
             if isinstance(textOrRegex, type(pathsep)) else False)
