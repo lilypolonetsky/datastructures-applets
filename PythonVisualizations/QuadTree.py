@@ -219,6 +219,9 @@ class PointQuadtree(VisualizationApp):
                 self.pointRegion[3] - canvasBBox[3],
                 canvasBBox[2] - self.pointRegion[0],
                 self.pointRegion[3] - canvasBBox[1])
+
+    def clear(self):
+        self.cleanUp()
     
     def display(self):
         self.canvas.delete('all')
@@ -229,6 +232,10 @@ class PointQuadtree(VisualizationApp):
         self.canvas.tag_bind(self.pointRegionRectangle, '<Button>', self.setXY)
         self.canvas.tag_bind(self.pointRegionRectangle, '<Double-Button-1>',
                              self.createNode)
+        for button in range(2, 4):
+            self.canvas.tag_bind(
+                self.pointRegionRectangle, '<Double-Button-{}>'.format(button),
+                lambda ev: self.clear())
     
     def createLabeledArrow(
             self, nodeOrCoords, label, color=None, font=None,
