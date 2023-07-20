@@ -1,0 +1,2 @@
+language = "tkinter"
+run = "python3 PythonVisualizations/runAllVisualizationsMenu.py -w"

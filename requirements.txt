@@ -1,0 +1,9 @@
+# Python module requiremnts
+#
+# Install with:
+#   pip3 install -r requirements.txt
+#
+Pillow
+# Needed for building releases and exported bundles
+GitPython
+PyInstaller
